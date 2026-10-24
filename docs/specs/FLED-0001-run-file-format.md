@@ -112,7 +112,7 @@ Required fields:
 | `pipelined` | boolean | does CPU work for frame N+1 overlap GPU work for frame N |
 | `display` | string | `onscreen`, `headless` (a private display) or `offscreen` (no display) |
 | `scene` | string | what was run |
-| `inputs` | array | `[{"name": ..., "hash": "sha256:<hex>" or "md5:<hex>", "bytes": n}]` |
+| `inputs` | array | `[{"name": ..., "hash": "sha256:<hex>" or "md5:<hex>", "bytes": n}]`; `[]` is legal, and `check` warns on it |
 | `started_utc` | string | ISO 8601, `Z` suffix |
 
 Optional fields, absent meaning unknown: `tier` (string),
@@ -126,7 +126,8 @@ engine's own).
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
 `ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`.
 Two runs differing in any of them are not comparable without an
-override (FLED-0008 builds the compare).
+override (FLED-0008 builds the compare). Two empty `inputs` lists are
+unknown, not equal.
 
 ### 4.3 The static line
 
@@ -147,29 +148,44 @@ ranking and does not interpret them.
 | `category` | `frame`, `cpu`, `gpu`, `mem`, `event`, or `ext.<engine>` |
 | `name` | the pass or measure; ASCII letters, digits and `_ . / -`, at most 64 bytes |
 | `depth` | integer from 0; 0 is a top-level pass |
-| `value` | decimal number, exactly three places after the point |
+| `value` | decimal number, exactly three places after the point, below 1 000 000 000 in size |
 
 Segment kind and id are at most 32 bytes each; category at most 32.
 Fields are quoted only when they hold a comma or a quote, CSV-style
 (RFC 4180).
 
 Units by category: `frame`, `cpu`, `gpu` — milliseconds; `mem` —
-megabytes; `event` — a count, normally `1.000`; `ext.<engine>` — the
-engine's own unit.
+megabytes; `event` — a count; `ext.<engine>` — the engine's own unit.
+
+**Rounding.** A value is the measured number rounded to the nearest
+thousandth, ties away from zero, computed as C99
+`llround(value * 1000.0)` on a `double`. So two writers given the same
+`double` write the same text.
+
+**Negative values** are written as measured, never clamped to zero: a
+clamp hides a clock fault. `check` and every report warn on each
+negative `cpu`, `gpu` or `frame` value, in the opening sentences. A
+`frame/wall` of zero or less is a breach: the timeline cannot be built
+from it.
 
 **Frame rows.** Each frame has `frame/cpu_span`, `frame/gpu_span` and
-`frame/wall`. `frame/wall` is real elapsed time from this frame's start
-to the next frame's start, never a fixed simulation step. Optional:
+`frame/wall`. `frame/cpu_span` is the frame's CPU work, excluding time
+spent waiting on the GPU (fence and present waits). `frame/wall` is
+real elapsed time from this frame's start to the next frame's start,
+never a fixed simulation step; so the last frame of a run has no
+`frame/wall` row, and that is not a breach. Optional:
 `frame/fence_wait`, `frame/present_wait`. A frame whose GPU result never
 arrived has no `frame/gpu_span` row.
 
 **Events.** `event/cut` on a frame where the camera jumped or a level
-loaded; `event/tic` on a frame where the simulation stepped. Other
-event names are allowed.
+loaded; `event/tic` on a frame where the simulation stepped, its value
+the number of steps (`2.000` when it caught up two). One row per frame
+and event name. Other event names are allowed.
 
-**Remainders** are the analyser's: per frame and per category,
-`<category>_remainder` = the span minus the sum of that category's
-depth-0 rows. Writers never write them.
+**Remainders** are the analyser's: per frame, `cpu_remainder` is
+`frame/cpu_span` minus the sum of the `cpu` depth-0 rows, and
+`gpu_remainder` likewise for `gpu`. No other category, `ext` included,
+is ever subtracted. Writers never write them.
 
 ### 4.5 The close line
 
@@ -189,7 +205,10 @@ unfinished run: the engine crashed or was killed.
 #define FLED_RUN_ID_MAX     64
 #define FLED_ROW_MAX        /* largest row in bytes, computed from the above */
 
-typedef struct fled_writer { /* fields public, contents private */ } fled_writer;
+typedef struct fled_writer { /* fields visible, contents private */ } fled_writer;
+
+/* Every function is `static inline`; the declarations sit inside
+   #ifdef __cplusplus extern "C" { ... } guards. */
 
 enum { FLED_OK = 0, FLED_DROPPED = 1, FLED_BAD_ARG = 2 };
 
@@ -210,14 +229,20 @@ size_t fled_json_escape (char *dst, size_t cap, const char *src);
   built; `fled_json_escape` helps build them.
 - `fled_row` appends one row, or returns `FLED_DROPPED` and adds one to
   the drop count when fewer than `FLED_ROW_MAX` bytes remain. It
-  returns `FLED_BAD_ARG` for a name over its limit or a character
-  outside 4.4's set, and writes nothing.
+  returns `FLED_BAD_ARG`, and writes nothing, for a name over its
+  limit, a character outside 4.4's set, or a value that is not finite
+  or is 1 000 000 000 or more in size.
 - `fled_pending` and `fled_consume` hand the filled bytes to the engine,
   which writes them out when it chooses; the writer does no file I/O.
+  `fled_consume(n)` moves the unconsumed bytes to the buffer's start,
+  so the space is reused: an engine can flush between levels instead
+  of sizing the buffer for the whole run.
 - `fled_close` appends the close line. It is never dropped: `fled_open`
   keeps room for it.
-- No allocation, no file I/O, no `printf` family, no locale. One
-  thread: the caller's. Compiles as C99 and as C++17.
+- No allocation, no file I/O, no `printf` family, no locale. It may
+  call `memmove`, `memcpy`, `strlen` and `llround`. One thread: the
+  caller's; one writer may be used from C and C++ files of the same
+  program. Compiles as C99 and as C++17.
 
 ### 4.7 The 0.1.0 commands
 
@@ -233,12 +258,23 @@ instead of text.
 | `--selftest` | the analyser's own checks on built-in samples | 0 pass; 1 fail |
 | `--version` | prints the version | 0 |
 
-`floor` defaults: `--warmup-s 2`, `--budget-ms` = 1000/`--fps`,
-`--allow-frames 0`. A window is one second of the timeline built by
-summing `frame/wall` from the first frame; a frame belongs to the
-window holding its end. A window's frame rate is the frames that end
-in it divided by one second. Windows starting before the warm-up ends
-are skipped, as are frames ending before it.
+`floor` defaults: `--warmup-s 2`, `--budget-ms` = 1000/`--fps`
+rounded to three places (16.667 at 60), `--allow-frames 0`.
+
+- **The timeline** is built by summing `frame/wall` from the first
+  frame, in integer microseconds (each value is an exact number of
+  them), never in floating point.
+- **Windows** are half-open, `[start, start + 1 s)`. The first starts
+  when the warm-up ends; a new one starts after each full second and at
+  every `event/cut`. A frame belongs to the window holding its end.
+- **A window's frame rate** is the frames that end in it divided by one
+  second.
+- **A window shorter than one second** — cut short by an `event/cut`
+  or by the end of the run — is skipped and counted, never judged.
+  Where no full window exists, the window check is inconclusive, and
+  the summary says so.
+- **A frame fails the budget** when its `frame/wall` is greater than
+  the budget. Frames ending before the warm-up are not judged.
 
 ### 4.8 Text and JSON results
 
@@ -260,8 +296,9 @@ than 100 columns. No meaning is carried by colour.
 ```
 
 `result` is the command's own. For `floor`:
-`{"windows": [{"start_s", "fps", "pass"}], "slow_frames": [{"frame",
-"segment", "wall_ms"}], "rows_dropped", "finished"}`. For `report`:
+`{"windows": [{"start_s", "fps", "pass"}], "windows_skipped",
+"slow_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
+"frames_over_budget", "allowed", "rows_dropped", "finished"}`. For `report`:
 `{"passes": [{"category", "name", "segment_kind", "median_ms",
 "p99_ms", "share"}], "bound_by": {"cpu", "gpu", "applies"},
 "worst_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
@@ -331,19 +368,26 @@ breaks.
   *Breaks when:* `floor` judges only the rows it has.
 
 - **INV-8** — A window's frame rate is the frames ending in it divided
-  by one second: 58 frames of 16.000 ms and one of 72.000 ms fill one
-  second with 59 frames, so the window fails `--fps 60`, although the
-  mean of the per-frame rates is about 61.7.
-  *Test:* `tests/test_floor.py::test_window_rate`, fixture
-  `one-hitch.csv` holding that second after the warm-up, with
-  `--no-frames` so only the window check can fail it.
-  *Breaks when:* the window rate is computed as the mean of 1000/wall.
+  by one second: 58 frames of 16.000 ms and one of 71.000 ms end inside
+  one window, 59 frames, so it fails `--fps 60`, although the mean of
+  the per-frame rates is above 61. A frame ending exactly on a window's
+  end belongs to the next window.
+  *Test:* `tests/test_floor.py::test_window_rate`, fixtures
+  `one-hitch.csv` (that second, just after the warm-up, followed by
+  full 60 FPS seconds) and `edge-frame.csv` (a frame ending exactly at
+  a window's end), each with `--no-frames` so only the window check can
+  fail.
+  *Breaks when:* the window rate is the mean of 1000/wall, or the
+  timeline is summed in floating point, or windows are closed at both
+  ends.
 
 - **INV-9** — One frame over `--budget-ms` fails `floor` (exit 1) even
   when every window passes; `--no-frames` turns that check off;
-  `--allow-frames 1` tolerates exactly one.
-  *Test:* `tests/test_floor.py::test_single_frame_budget`, fixture
-  `fast-with-one-spike.csv` (120 FPS windows, one 30.000 ms frame).
+  `--allow-frames 1` tolerates exactly one; a 16.667 ms frame passes the
+  default 60 FPS budget.
+  *Test:* `tests/test_floor.py::test_single_frame_budget`, fixtures
+  `fast-with-one-spike.csv` (120 FPS windows, one 30.000 ms frame) and
+  `exact-budget.csv` (every frame 16.667).
   *Breaks when:* only windows are judged, or the allowance is
   off by one.
 
@@ -378,10 +422,12 @@ breaks.
   as C++17 under GCC, Clang and mingw-w64 at
   `-Wall -Wextra -Wpedantic -Werror`, and its object file references no
   allocation, file I/O or `printf`-family symbol.
-  *Test:* `tests/writer/test_compile.sh`, which also runs `nm -u` on
-  each object.
-  *Breaks when:* the header calls `malloc`, `fopen` or `snprintf`, or
-  uses syntax one language rejects.
+  *Test:* `tests/writer/test_compile.sh`, which also builds one C file
+  and one C++ file into one program sharing a writer, and runs `nm -u`
+  on each object.
+  *Breaks when:* the header calls `malloc`, `fopen` or `snprintf`, uses
+  syntax one language rejects, defines a function not `static inline`,
+  or lacks the `extern "C"` guards.
 
 - **INV-15** — With a buffer that fills, `fled_row` returns
   `FLED_DROPPED`, and the close line's `rows_dropped` equals the number
@@ -403,6 +449,43 @@ breaks.
   *Test:* `tests/writer/test_writer.c::test_name_limit`, a 65-byte name.
   *Breaks when:* the name is truncated or written whole.
 
+- **INV-18** — `floor` starts a new window at every `event/cut` and
+  skips, and counts in `windows_skipped`, every window shorter than one
+  second; with no full window the window check is inconclusive.
+  *Test:* `tests/test_floor.py::test_cuts_and_partial_windows`,
+  fixtures `cut-mid-second.csv` (a 0.5 s stretch of 20 FPS frames
+  between two cuts, the rest at 60 FPS) and `short-views.csv` (every
+  view under one second).
+  *Breaks when:* windows ignore cuts, so the slow stretch drags a mixed
+  window below 60, or a partial window is judged.
+
+- **INV-19** — The writer rounds to thousandths with ties away from
+  zero: `0.0625` is written `0.063` and `-0.0625` is written `-0.063`.
+  *Test:* `tests/writer/test_writer.c::test_rounding` (both values are
+  exact in binary, so the tie is real).
+  *Breaks when:* the writer truncates, or rounds ties to even.
+
+- **INV-20** — `fled_row` returns `FLED_BAD_ARG` and writes nothing for
+  NaN, infinity and 1e9.
+  *Test:* `tests/writer/test_writer.c::test_bad_values`.
+  *Breaks when:* the value is formatted without a range check, writing
+  an over-long row or `nan`.
+
+- **INV-21** — A negative `gpu` value is read, kept, and named in the
+  opening sentences of `check` and `report`; a `frame/wall` of zero or
+  less is a `check` breach; the last frame's missing `frame/wall` is
+  neither.
+  *Test:* `tests/test_check.py::test_negative_and_last_wall`, fixture
+  `negative-gpu.csv` (one gpu row of -0.004, a run whose last frame has
+  no wall) and `zero-wall.csv`.
+  *Breaks when:* negatives are clamped or rejected, or the last frame
+  is reported as missing its wall.
+
+- **INV-22** — `fled_consume` frees space: a buffer sized for ten rows
+  takes thirty when the engine consumes after every ten, with no drops.
+  *Test:* `tests/writer/test_writer.c::test_consume_reuses`.
+  *Breaks when:* consumed bytes are only marked, not reclaimed.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -410,8 +493,9 @@ breaks.
   skipped row hides a frame.
 - **Two rows for the same frame, category and name.** A breach; the
   analyser cannot tell which is real.
-- **A frame with no `frame/wall`.** The timeline cannot be built past
-  it: `floor` is inconclusive; `report` warns and leaves the frame out.
+- **A frame other than the last with no `frame/wall`.** The timeline
+  cannot be built past it: `floor` is inconclusive; `report` warns and
+  leaves the frame out.
 - **A header field of the wrong type.** A `check` breach; other
   commands exit 3.
 - **A writer whose engine never calls `fled_consume`.** The buffer
@@ -425,10 +509,10 @@ The analyser's tests live in `tests/`, run by pytest, with fixtures in
 script. Each test is first seen failing against an analyser or writer
 without the rule, then passing — per `testing.md`. Who builds each:
 
-- FLED-0002: INV-1, INV-2, INV-3, INV-4, INV-6.
+- FLED-0002: INV-1, INV-2, INV-3, INV-4, INV-6, INV-21.
 - FLED-0003: INV-5, INV-10, INV-11, INV-12, INV-13.
-- FLED-0004: INV-7, INV-8, INV-9.
-- FLED-0006: INV-14, INV-15, INV-16, INV-17.
+- FLED-0004: INV-7, INV-8, INV-9, INV-18.
+- FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -483,6 +567,11 @@ it on each release they pin.
 | INV-15 | `tests/writer/test_writer.c::test_drops` (not yet written) |
 | INV-16 | `tests/writer/test_writer.c::test_output_conforms` (not yet written) |
 | INV-17 | `tests/writer/test_writer.c::test_name_limit` (not yet written) |
+| INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows` (not yet written) |
+| INV-19 | `tests/writer/test_writer.c::test_rounding` (not yet written) |
+| INV-20 | `tests/writer/test_writer.c::test_bad_values` (not yet written) |
+| INV-21 | `tests/test_check.py::test_negative_and_last_wall` (not yet written) |
+| INV-22 | `tests/writer/test_writer.c::test_consume_reuses` (not yet written) |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | **nothing** — no test planned; the engines' reading of reports |
 
