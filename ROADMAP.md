@@ -102,6 +102,10 @@ Engines can write files and pin a release.
   both checks off, or a budget outside 0.001 ms to 1e9 ms, is exit 3)
   and INV-7, 8, 18 to match. (3) Second engine review, readability
   included. (4) Flip shipped.
+  Steps 1 and 2 done in 8caf07f: the mean-wall window rule (no
+  engine objected) and the spec amendment. Step 3, the second engine
+  review with readability, was requested 2026-10-24. Left: fold in its
+  findings, then flip shipped.
   **Layman:** Pass or fail: did the run hold 60 FPS every second, and did any single frame take too long?
   Kind: implement.
   Source: design-2026-10-24.
