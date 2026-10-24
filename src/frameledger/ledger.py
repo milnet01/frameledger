@@ -253,8 +253,15 @@ class _Reader:
         # A full buffer may drop a frame's CPU rows while its late GPU rows
         # still land, so with drops counted a missing cpu_span is expected.
         dropped = bool(self.run.close and self.run.close["rows_dropped"])
+        previous = None
         for frame, rows in sorted(self.run.frames.items()):
             first_line = min(row.line for row in rows.values())
+            if previous is not None and frame != previous + 1:
+                missing = f"frame {previous + 1}" if frame == previous + 2 else \
+                    f"frames {previous + 1} to {frame - 1}"
+                self.notice("frame_missing", f"no row names {missing}, so the timeline has a hole "
+                            "there", first_line)
+            previous = frame
             if ("frame", "cpu_span") not in rows and dropped:
                 self.notice("cpu_span_missing", f"frame {frame} has no frame/cpu_span row, "
                             "probably among the dropped rows", first_line)

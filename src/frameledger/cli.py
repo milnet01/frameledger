@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
 import ledger
 import render
@@ -63,6 +63,9 @@ def _parser() -> _Parser:
     return parser
 
 
+BUDGET_LIMIT = Decimal(1_000_000_000)  # ms; a file's values are below it (spec § 4.4)
+
+
 def _number(text: str) -> Decimal:
     try:
         value = Decimal(text)
@@ -89,8 +92,10 @@ def _seconds(text: str) -> Decimal:
 
 def _milliseconds(text: str) -> Decimal:
     """A budget compares exactly with the file's values, so it has their
-    precision: at most three decimal places."""
+    precision and range: at most three decimal places, below 1000000000."""
     value = _positive(text)
+    if value >= BUDGET_LIMIT:
+        raise argparse.ArgumentTypeError(f"'{text}' must be below {BUDGET_LIMIT}")
     if value != value.quantize(Decimal("0.001")):
         raise argparse.ArgumentTypeError(f"'{text}' has more than three decimal places")
     return value
@@ -195,11 +200,19 @@ def _floor(args: argparse.Namespace) -> dict:
     read or breaks the format."""
     if args.no_windows and args.no_frames:
         raise ledger.LedgerError("--no-windows and --no-frames together leave nothing to check")
-    budget = args.budget_ms
-    if budget is None:
-        budget = (1000 / args.fps).quantize(Decimal("0.001"), ROUND_HALF_UP)
+    try:  # an absurd exponent overflows decimal arithmetic, which is exit 3, not a traceback
+        budget = args.budget_ms
+        if budget is None:
+            budget = 1000 / args.fps
+            if not Decimal("0.0005") <= budget < BUDGET_LIMIT:  # 0.0005 rounds up to 0.001
+                raise ledger.LedgerError(f"--fps {args.fps} gives a frame budget of {budget:.3e} ms, "
+                                         f"outside 0.001 to {BUDGET_LIMIT} ms; pass --budget-ms")
+            budget = budget.quantize(Decimal("0.001"), ROUND_HALF_UP)
+        warmup_us = int((args.warmup_s * 1_000_000).to_integral_value(ROUND_HALF_UP))
+    except DecimalException as error:
+        raise ledger.LedgerError(f"--fps or --warmup-s is out of range ({type(error).__name__})") from None
     try:
-        built = run_report.floor(ledger.read(args.file), args.fps, int(args.warmup_s * 1_000_000),
+        built = run_report.floor(ledger.read(args.file), args.fps, warmup_us,
                                  int(budget * 1000), windows=not args.no_windows,
                                  frames=not args.no_frames, allowed=args.allow_frames)
     except ledger.LedgerError as error:

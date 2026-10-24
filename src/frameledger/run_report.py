@@ -10,7 +10,8 @@ endings or row order. So warnings name the frame instead.
 
 from __future__ import annotations
 
-from bisect import bisect_left
+import math
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from decimal import Decimal
 
@@ -57,67 +58,88 @@ def _refuse_breaches(run: ledger.Run) -> None:
 
 
 SECOND = 1_000_000  # microseconds; a ms row's thousandths are microseconds
-NO_WINDOW = ("The floor check is inconclusive: no full one-second window follows the warm-up, "
-             "so the window check could not run.")
+# The floor's opening sentences say these themselves, as reasons.
+FLOOR_REASONS = ("rows_dropped", "unfinished", "wall_missing", "frame_missing")
 
 
 def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: bool = True,
           frames: bool = True, allowed: int = 0) -> dict:
-    """{"verdict", "summary", "warnings", "result"} for S8's two checks.
-    `budget` is in thousandths of a millisecond. Dropped rows, an
-    unfinished run or a gap in the timeline make the check inconclusive
-    whatever the frames show (INV-7): a missing frame moves every later
-    frame into the wrong window."""
+    """{"verdict", "summary", "warnings", "result"} for S8's two checks,
+    each judged apart; `budget` is in thousandths of a millisecond.
+
+    Dropped rows, an unfinished run or a hole in the timeline make the
+    window check inconclusive (INV-7): a missing frame moves every later
+    frame into the wrong window. A frame over the budget still fails,
+    since its own wall row is real and missing rows only shorten the
+    timeline, so a frame placed after the warm-up truly ended after it
+    (the three engines' review)."""
     _refuse_breaches(run)
-    timed, cuts, gap = _timeline(run)
-    end = timed[-1][2] if timed else 0
+    timed, cuts, stop, end = _timeline(run)
     judged = [t for t in timed if t[2] >= warmup_us]
-    full, skipped = _windows([t[2] for t in timed], cuts, warmup_us, end) if windows else ([], 0)
+    full, skipped = (_windows([t[2] for t in timed], [t[3] for t in timed], cuts, warmup_us, end)
+                     if windows else ([], 0))
     slow = [t for t in judged if t[3] > budget] if frames else []
     dropped = run.close["rows_dropped"] if run.close else None
 
-    doubts = []
+    reasons = []
     if dropped:
-        doubts.append(f"The check is inconclusive: the writer dropped {_count(dropped, 'row')}, "
-                      "so frames may be missing from the timeline.")
+        reasons.append(f"The writer dropped {_count(dropped, 'row')}, so frames may be missing "
+                       "from the timeline.")
     if run.close is None:
-        doubts.append("The check is inconclusive: the file has no close line, so the run did not finish.")
-    if gap is not None:
-        doubts.append(f"The check is inconclusive: frame {gap} has no frame/wall row, so the "
-                      "timeline stops there.")
-    failed_windows = [w for w in full if w[1] < fps]
-    failures = []
-    if failed_windows:
-        failures.append(f"{_count(len(failed_windows), 'one-second window')} fell below {_num(fps)} FPS")
-    if len(slow) > allowed:
-        failures.append(f"{_count(len(slow), 'frame')} took longer than {_ms(budget):.3f} ms "
-                        f"({allowed} allowed)")
-    if doubts:
-        verdict = "inconclusive"
-        if failures:
-            doubts.append(f"Judged on the rows present, it would fail: {' and '.join(failures)}.")
-    elif failures:
+        reasons.append("The file has no close line, so the run did not finish.")
+    if stop:
+        reasons.append(f"{stop[0].upper()}{stop[1:]}, so the timeline stops there.")
+    failed = [w for w in full if not _window_passes(w, fps)]
+
+    window_state = (None if not windows else "inconclusive" if reasons or not full
+                    else "fail" if failed else "pass")
+    frame_state = (None if not frames else "fail" if len(slow) > allowed
+                   else "inconclusive" if reasons or not judged else "pass")
+    states = {window_state, frame_state}
+    warmup = f"{warmup_us / SECOND:g} s warm-up"
+    no_window = f"no full one-second window follows the {warmup}"
+    no_frame = f"no frame ends after the {warmup}"
+    said = set()  # inconclusive checks the verdict sentence already explains
+    if "fail" in states:
         verdict = "fail"
-        doubts.append(f"The run fails the {_num(fps)} FPS floor: {' and '.join(failures)}.")
-    elif windows and not full:
+        failures = []
+        if window_state == "fail":
+            failures.append(f"{_count(len(failed), 'one-second window')} fell below {_num(fps)} FPS")
+        if frame_state == "fail":
+            failures.append(f"{_count(len(slow), 'frame')} took longer than {_ms(budget):.3f} ms "
+                            f"({allowed} allowed)")
+        opening = f"The run fails the {_num(fps)} FPS floor: {' and '.join(failures)}."
+    elif "inconclusive" in states:
         verdict = "inconclusive"
-        doubts.append(NO_WINDOW)
+        whys = []
+        if reasons:
+            whys.append("the run is incomplete, so it cannot pass")
+        else:
+            if window_state == "inconclusive":
+                whys.append(f"{no_window}, so the window check could not run")
+                said.add("windows")
+            if frame_state == "inconclusive":
+                whys.append(f"{no_frame}, so the single-frame check could not run")
+                said.add("frames")
+        opening = f"The floor check is inconclusive: {' and '.join(whys)}."
     else:
         verdict = "pass"
-        doubts.append(f"The run passes the {_num(fps)} FPS floor.")
+        opening = f"The run passes the {_num(fps)} FPS floor."
 
-    shown = [n for n in run.notices if n.code not in ("rows_dropped", "unfinished", "wall_missing")]
-    summary = _warning_sentences(shown) + doubts
-    warmup = f"{warmup_us / SECOND:g} s warm-up"
+    shown = [n for n in run.notices if n.code not in FLOOR_REASONS]
+    summary = reasons + _warning_sentences(shown) + [opening]
     if not windows:
         summary.append("The window check is off (--no-windows).")
     elif full:
-        slowest = min(full, key=lambda w: (w[1], w[0]))
-        summary.append(f"Windows: {len(full) - len(failed_windows)} of {len(full)} one-second windows "
-                       f"after the {warmup} reached {_num(fps)} FPS; the slowest, at "
-                       f"{slowest[0] / SECOND:.3f} s, had {slowest[1]} frames.")
-    elif verdict != "inconclusive" or doubts[-1] != NO_WINDOW:  # not said already
-        summary.append(f"No full one-second window follows the {warmup}.")
+        slowest = min(full, key=lambda w: (-_window_mean(w), w[0]))
+        summary.append(f"Windows: {len(full) - len(failed)} of {len(full)} one-second windows after "
+                       f"the {warmup} held {_num(fps)} FPS; the slowest, at {slowest[0] / SECOND:.3f} s, "
+                       f"had {slowest[1]} frames averaging {_window_mean(slowest):.3f} ms.")
+        if reasons and failed:
+            summary.append(f"With frames missing, the {_count(len(failed), 'window')} below "
+                           f"{_num(fps)} FPS may be an artefact, so the window check is inconclusive.")
+    elif "windows" not in said:
+        summary.append(f"{no_window[0].upper()}{no_window[1:]}.")
     if skipped:
         summary.append(f"{_count(skipped, 'window')} shorter than one second, cut short by an "
                        f"event/cut or the end of the run, {'was' if skipped == 1 else 'were'} skipped.")
@@ -128,12 +150,14 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         summary.append(f"Frames: {len(slow)} of {len(judged)} after the warm-up took longer than "
                        f"the {_ms(budget):.3f} ms budget; the longest was frame {longest[0]}, "
                        f"{_ms(longest[3]):.3f} ms.")
-    else:
+    elif judged:
         summary.append(f"Frames: none of the {len(judged)} after the warm-up took longer than the "
                        f"{_ms(budget):.3f} ms budget.")
+    elif "frames" not in said:
+        summary.append(f"{no_frame[0].upper()}{no_frame[1:]}.")
 
     result = {
-        "windows": [{"start_s": start / SECOND, "fps": count, "pass": count >= fps} for start, count in full],
+        "windows": [{"start_s": w[0] / SECOND, "fps": w[1], "pass": _window_passes(w, fps)} for w in full],
         "windows_skipped": skipped,
         "slow_frames": [{"frame": frame, "segment": _segment(rows), "wall_ms": _ms(wall),
                          "top_pass": _top_pass(rows)} for frame, rows, _, wall in slow],
@@ -146,34 +170,56 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
             "warnings": [{"code": n.code, "message": n.message} for n in run.notices], "result": result}
 
 
-def _timeline(run: ledger.Run) -> tuple[list[tuple], list[int], int | None]:
-    """Each frame with a known end, as (frame, rows, end, wall) in frame
-    order, summed from the first frame in integer microseconds; the start
-    of every frame carrying event/cut; and the frame where the timeline
-    stops early, a frame other than the last with no wall, or None."""
+def _window_passes(window: tuple, fps: Decimal) -> bool:
+    """A window holds the rate when the frames ending in it number at
+    least N (§ 4.7)."""
+    return window[1] >= fps
+
+
+def _window_mean(window: tuple) -> float:
+    """The mean frame/wall of the frames ending in a window, in ms."""
+    return _ms(window[2]) / window[1] if window[1] else math.inf
+
+
+def _timeline(run: ledger.Run) -> tuple[list[tuple], list[int], str | None, int]:
+    """Each frame with a wall, as (frame, rows, end, wall) in frame order,
+    its end summed from the first frame in integer microseconds; the end
+    of every frame carrying event/cut; what stops the timeline early, a
+    missing frame number or a frame other than the last with no wall, or
+    None; and the time it stops. Past a stop the ends are too early by the
+    missing time: they still place a frame after the warm-up, never
+    before."""
     order = sorted(run.frames)
-    timed, cuts, now = [], [], 0
-    for frame in order:
+    timed, cuts, now, stop, stopped_at = [], [], 0, None, None
+    for previous, frame in zip([None, *order[:-1]], order, strict=True):
         rows = run.frames[frame]
-        if ("event", "cut") in rows:
-            cuts.append(now)
+        if stop is None and previous is not None and frame != previous + 1:
+            stop, stopped_at = f"frame {previous + 1} is missing", now
         wall = rows.get(("frame", "wall"))
         if wall is None:
-            return timed, cuts, None if frame == order[-1] else frame
+            if stop is None and frame != order[-1]:
+                stop, stopped_at = f"frame {frame} has no frame/wall row", now
+            continue
         now += wall.thousandths
         timed.append((frame, rows, now, wall.thousandths))
-    return timed, cuts, None
+        if ("event", "cut") in rows:
+            cuts.append(now)
+    return timed, cuts, stop, now if stopped_at is None else stopped_at
 
 
-def _windows(ends: list[int], cuts: list[int], warmup_us: int, end: int) -> tuple[list[tuple], int]:
-    """The full one-second windows as (start, frames ending in it), and how
-    many shorter ones were skipped. Windows are half-open, so a frame
-    ending on a window's end belongs to the next (INV-8). The first starts
-    when the warm-up ends, a new one after each full second and at every
-    cut (INV-18)."""
-    cuts = sorted(c for c in set(cuts) if c > warmup_us)
+def _windows(ends: list[int], walls: list[int], cuts: list[int], warmup_us: int,
+             end: int) -> tuple[list[tuple], int]:
+    """The full one-second windows as (start, frames ending in it, their
+    walls' sum), and how many shorter ones were skipped. Windows are
+    half-open, so a frame ending on a window's end belongs to the next
+    (INV-8). The first starts when the warm-up ends, a new one after each
+    full second and at the end of every cut frame (INV-18). A cut frame,
+    often a level load, is left out of every window and judged by the
+    budget alone."""
+    after_cut = {c for c in cuts if c >= warmup_us}
+    cuts = sorted(after_cut)
     full, skipped, start, i = [], 0, warmup_us, 0
-    while start < end:
+    while start <= end:  # the frame ending at `end` opens a last, short window
         while i < len(cuts) and cuts[i] <= start:
             i += 1
         stop = start + SECOND
@@ -183,7 +229,9 @@ def _windows(ends: list[int], cuts: list[int], warmup_us: int, end: int) -> tupl
             skipped += 1
             break
         else:
-            full.append((start, bisect_left(ends, stop) - bisect_left(ends, start)))
+            first = (bisect_right if start in after_cut else bisect_left)(ends, start)
+            last = bisect_left(ends, stop)
+            full.append((start, last - first, sum(walls[first:last])))
             start = stop
     return full, skipped
 
