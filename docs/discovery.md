@@ -70,7 +70,14 @@ analyser reads their runs.
 - **S7** — A writer built from the format spec alone, by a session that
   has not read the analyser's code, produces files the analyser accepts.
 - **S8** — A floor check with a set frame rate and warm-up exits
-  non-zero when any one-second window after the warm-up falls below it.
+  non-zero, after the warm-up, on either of two failures, each reported
+  separately:
+  - a one-second window whose frame rate falls below the set rate. A
+    window's frame rate is the frames completed in it divided by its
+    length, never a mean of per-frame rates;
+  - a single frame longer than a budget set per run. The default budget
+    is the set rate's frame time, 16.67 ms at 60 FPS; a smaller one
+    leaves headroom for gameplay.
 - **S9** — One command ranks many runs, such as one per map, by their
   slowest frames and flags those over budget.
 - **S10** — An engine using the optional C writer header shows the same

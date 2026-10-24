@@ -92,3 +92,46 @@ user's decisions. The session recommends adoption.
    - DOOM-0431 is parked: spec and plan written, nothing built. The
      session suggests replacing it with a frameledger writer. The
      user's call.
+
+## Agreement round
+
+Each session was sent the revised discovery and asked to agree S1–S11
+and confirm each *never* line on its own.
+
+- **Vestige** — agreed S1–S11 and confirmed N1–N4 one by one. Asked
+  that S8 define a window's frame rate; that went into S8. Confirmed the
+  merged S8.
+- **UT Ants** — agreed S1–S7 and S9–S11 and confirmed N1–N4 one by
+  one. Asked that S8 judge single frames, not a window mean alone, and
+  that the budget be set per run; both went into S8. Accepted one C
+  header if it compiles warning-free as C++ under GCC 14, Clang 19 and
+  MSVC with warnings as errors, and needs no build step. Confirmed the
+  merged S8.
+- **DOOM Ants** — awaiting reply.
+
+## Held for the format and analyser spec
+
+Raised in these answers and placed in the spec rather than discovery.
+
+- Rows need not be grouped or ordered by frame; the analyser joins on
+  `(run_id, frame)` (Vestige).
+- A frame with no GPU result is expressible and counted as missing
+  (Vestige).
+- S8's two failures are each switchable per run, both on by default
+  (Vestige, UT Ants).
+- S8's per-frame failure takes an allowance — a count or a percentile,
+  default zero (Vestige).
+- Per-run budget flag, default 16.67 ms (UT Ants).
+- Several named inputs, each with a content hash (UT Ants).
+- `ext.<engine>` rows and static-line register and wave counts printed
+  beside the ranking, uninterpreted (UT Ants).
+- Windows paths and CRLF in files (UT Ants).
+- Writer: one C header, no dependencies, no per-frame allocation or
+  file I/O, timestamps passed in, warning-free under GCC 14, Clang 19
+  and MSVC as C++ (DOOM Ants, UT Ants, Vestige).
+- Microsecond resolution (DOOM Ants).
+- A per-frame sim-tic flag (DOOM Ants).
+- A camera-cut or warm-up marker, with a trust warning inside a
+  measured stretch (DOOM Ants).
+- Render scale, tier, ray tracing on/off and display kind block a
+  compare (DOOM Ants).
