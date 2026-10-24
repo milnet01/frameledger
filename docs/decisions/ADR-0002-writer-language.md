@@ -12,10 +12,11 @@ and times nothing
 - DOOM Ants' engine is C, with a C++ Vulkan back-end.
 - Vestige is C++17 and builds with `-Wall -Wextra -Wpedantic` under
   GCC and Clang, and under MSVC.
-- UT Ants is C++23 and builds with warnings as errors under GCC 14,
-  Clang 19 and MSVC.
-- UT Ants first asked for a C++ header; it accepted one C header on
-  those two build conditions.
+- UT Ants is C++23, built with GCC 14, Clang 19 and MSVC. It first
+  asked for a C++ header. It accepted one C header that compiles
+  warning-free at `/W4 /WX` (MSVC) and `-Wall -Wextra -Werror` (GCC,
+  Clang), checked in a translation unit of its own, and needs no build
+  step.
 
 ## Decision
 
@@ -29,9 +30,9 @@ C99 and as C++17.
 - It cannot use C-only syntax C++ rejects (designated initialisers,
   variable-length arrays, `restrict`), nor C++-only features such as
   templates, classes or `std::` types. C++ callers get a C interface.
-- Its tests must compile it as C and as C++, under GCC, Clang and MSVC,
-  at each engine's warning level. MSVC needs a Windows build, which
-  this machine's own checks cannot run (unverified how it will be
-  covered).
+- Its tests must compile it as C and as C++, under GCC and Clang, at
+  each engine's warning level. This machine cannot run MSVC. UT Ants'
+  push gate compiles the header with MSVC on every release it pins, and
+  reports a failure back.
 - It stays optional (discovery N2). A writer built from the spec alone
   is equally valid.

@@ -100,9 +100,10 @@ Four parts. The format spec is the only thing the other three share.
   DOOM's C engine cannot include. [ADR-0002](decisions/ADR-0002-writer-language.md).
   Rules out: designated initialisers, variable-length arrays,
   `restrict`, and anything else one of the two languages rejects.
-- **Release: a git tag plus an archive attached to the release, with
-  its SHA256 in the notes.** Engines pin the archive and its hash
-  (S6). GitHub's own tag archives are not used for the pin; their
+- **Release: a git tag plus one archive attached to the release, with
+  its SHA256 in the notes.** The archive holds `frameledger.pyz` and
+  `include/frameledger.h`, so one pinned hash covers both. Engines pin
+  the archive and its hash (S6). GitHub's own tag archives are not used for the pin; their
   hash is not promised to stay the same.
 - **Our tests: pytest**, a test-time tool only. The analyser and its
   `--selftest` need nothing installed.
