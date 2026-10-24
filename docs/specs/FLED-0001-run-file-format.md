@@ -1,7 +1,7 @@
 <!-- ants-spec-format: 1 -->
 # FLED-0001 — Define the run file, the writer's interface and the 0.1.0 commands
 
-**Status:** spec draft (2026-10-24).
+**Status:** accepted (2026-10-24).
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.

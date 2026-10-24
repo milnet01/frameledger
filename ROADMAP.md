@@ -22,7 +22,7 @@ The first release Vestige needs (its goal order, 2026-10-24): the
 format, the check command, the single-run report and the floor check.
 Engines can write files and pin a release.
 
-- 📋 [FLED-0001] **Format and command spec.**
+- ✅ [FLED-0001] **Format and command spec.**
   The contract every writer and the analyser are built to: run header,
   static line, rows, close record, segment kinds, the analyser's
   commands and flags, the budget file and the JSON result. Written with
@@ -30,6 +30,8 @@ Engines can write files and pin a release.
   writer from the spec alone) and S6's schema version. Inputs:
   docs/reviews/2026-10-24-discovery-customer-answers.md and
   docs/reviews/2026-10-24-design-customer-answers.md.
+  Accepted 2026-10-24: docs/specs/FLED-0001-run-file-format.md, agreed
+  by all three engine sessions at 23a8605.
   **Layman:** Writes down exactly what a run file looks like, so every engine writes the same thing.
   Kind: doc.
   Source: design-2026-10-24.
