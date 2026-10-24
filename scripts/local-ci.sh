@@ -34,9 +34,10 @@ DOCS_GLOB='docs/*|*.md|LICENSE'
 # whatever happened to be on PATH, so the same commit could pass locally and
 # fail on GitHub. Measured case: ruff's default rule set changed between
 # releases, so an unpinned run enforces a different set on each machine.
-# RUFF_VERSION='0.16.8'
+PYTEST_VERSION='9.1.1'
 
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
+if [[ ${1:-} == --pytest-version ]]; then printf '%s\n' "$PYTEST_VERSION"; exit 0; fi
 
 DOCS_ONLY=0
 [[ ${1:-} == --docs ]] && DOCS_ONLY=1
@@ -50,7 +51,7 @@ DOCS_ONLY=0
 # is worse than no gate — it spends the attention that would have caught the
 # defect, and the machine-wide pre-push hook reports its exit 0 as a pass.
 # Measured 2026-09-26 on a fresh scaffold.
-CONFIGURED=0
+CONFIGURED=1
 
 step() { printf '\n=== %s ===\n' "$1" >&2; }
 
@@ -121,7 +122,15 @@ step 'build'
 # e.g. run build cmake --build build
 
 step 'test'
-# e.g. need pytest && run test pytest -q     |     run test ctest --test-dir build --output-on-failure
+# pytest is this gate's main check, so its absence fails the gate rather
+# than letting "all checks passed" print over a run that tested nothing.
+need pytest || exit 1
+run test pytest -q
+
+step 'selftest'
+# The analyser's own checks, run the way an engine runs them: isolated,
+# with nothing but the standard library.
+run selftest python3 -I src/frameledger --selftest
 
 if (( CONFIGURED )); then
     printf '\nlocal-ci: all checks passed.\n' >&2

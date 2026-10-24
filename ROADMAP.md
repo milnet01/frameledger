@@ -36,12 +36,17 @@ Engines can write files and pin a release.
   Kind: doc.
   Source: design-2026-10-24.
 
-- 📋 [FLED-0002] **Read and check a run file.**
+- ✅ [FLED-0002] **Read and check a run file.**
   ledger.py reads one file into a Run and lists every breach; the
   check command reports them with exit codes; cli.py's exit ladder;
   selftest.py's first sample files. Reads older schema versions and
   Windows files (CRLF, Windows paths). Claims S18, S11's file half and
   S6's reading half. Overlaps every later item in cli.py.
+  Shipped 2026-10-24: ledger.py, cli.py, render.py, selftest.py,
+  __main__.py; tests in tests/test_check.py, test_ledger.py,
+  test_cli.py and test_layout.py; the gate runs pytest and --selftest.
+  INV-1 and INV-21 cover check only, and INV-3 and INV-4 compare the
+  parsed run; their report halves are FLED-0003's.
   **Layman:** The tool can open a run file and say whether it is valid.
   Kind: implement.
   Source: design-2026-10-24.
@@ -54,6 +59,11 @@ Engines can write files and pin a release.
   pass. render.py: plain sentences first, tables within 100 columns,
   JSON. Claims S2, S3 and S13. Overlaps the floor check, pass budgets
   and pacing in run_report.py.
+  From FLED-0002 (2026-10-24): add the report halves of the spec's
+  tests: INV-1 (report exits 3), INV-21 (report names the negative), and
+  INV-3 and INV-4 comparing `report --json` output, beside the
+  parsed-run comparison already there. render.py exists with check's and
+  selftest's text bodies.
   **Layman:** One command says where a run's frame time went and which frames were worst.
   Kind: implement.
   Source: design-2026-10-24.
@@ -154,6 +164,11 @@ another's.
   over budget flagged with their costliest pass, per-effect ext rows
   as a ranked table. A survey of about a million rows in under a
   minute. Claims S9 and S19.
+  Measured 2026-10-24 (FLED-0002): `check` on a one-million-row file
+  took 8 s and peaked at about 640 MB, because ledger.Run holds every
+  row. A survey of many such files needs a reader that keeps less.
+  Refute: time `python3 -I src/frameledger check` on a generated
+  million-row file.
   **Layman:** Ranks every map's run and flags the slow ones.
   Kind: implement.
   Source: design-2026-10-24.

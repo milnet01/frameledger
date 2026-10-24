@@ -1,6 +1,10 @@
 # Language-agnostic baseline. Stack-specific ignores get added once
 # the stack is chosen in design.
 
+# Python (the analyser and its tests)
+__pycache__/
+.pytest_cache/
+
 # OS
 .DS_Store
 Thumbs.db

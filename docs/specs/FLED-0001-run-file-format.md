@@ -310,8 +310,7 @@ percentiles are nearest-rank.
 
 ## 5. Invariants
 
-These clauses cannot run yet: no analyser or writer exists. Each names
-its fixture under `tests/fixtures/` and the one rule that fixture
+Each clause names its fixture under `tests/fixtures/` and the one rule that fixture
 breaks.
 
 - **INV-1** — A file whose first line is not a `# frameledger` header
@@ -550,12 +549,12 @@ it on each release they pin.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 | `tests/test_check.py::test_missing_header` (not yet written) |
-| INV-2 | `tests/test_check.py::test_schema_versions` (not yet written) |
-| INV-3 | `tests/test_ledger.py::test_crlf_equals_lf` (not yet written) |
-| INV-4 | `tests/test_ledger.py::test_late_gpu_rows` (not yet written) |
+| INV-1 | **`Partial:`** `tests/test_check.py::test_missing_header` covers `check`; `report` and `floor` arrive with FLED-0003 and FLED-0004 |
+| INV-2 | `tests/test_check.py::test_schema_versions` |
+| INV-3 | **`Partial:`** `tests/test_ledger.py::test_crlf_equals_lf` compares the parsed run; the `report --json` comparison arrives with FLED-0003 |
+| INV-4 | **`Partial:`** `tests/test_ledger.py::test_late_gpu_rows` compares the parsed run; the `report --json` comparison arrives with FLED-0003 |
 | INV-5 | `tests/test_report.py::test_missing_gpu_span` (not yet written) |
-| INV-6 | `tests/test_check.py::test_value_format` (not yet written) |
+| INV-6 | `tests/test_check.py::test_value_format` |
 | INV-7 | `tests/test_floor.py::test_unfinished_and_dropped` (not yet written) |
 | INV-8 | `tests/test_floor.py::test_window_rate` (not yet written) |
 | INV-9 | `tests/test_floor.py::test_single_frame_budget` (not yet written) |
@@ -570,7 +569,7 @@ it on each release they pin.
 | INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows` (not yet written) |
 | INV-19 | `tests/writer/test_writer.c::test_rounding` (not yet written) |
 | INV-20 | `tests/writer/test_writer.c::test_bad_values` (not yet written) |
-| INV-21 | `tests/test_check.py::test_negative_and_last_wall` (not yet written) |
+| INV-21 | **`Partial:`** `tests/test_check.py::test_negative_and_last_wall` covers `check`; `report` arrives with FLED-0003 |
 | INV-22 | `tests/writer/test_writer.c::test_consume_reuses` (not yet written) |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | **nothing** — no test planned; the engines' reading of reports |

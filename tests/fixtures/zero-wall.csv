@@ -1,0 +1,12 @@
+# frameledger {"schema":1,"run_id":"r1","engine":"vestige","tool":{"name":"bench","version":"1.0"},"build_type":"release","commit":"abc123","dirty":false,"device":"AMD Radeon RX 9070 XT","renderer":"AMD Radeon RX 9070 XT (radeonsi)","driver":"Mesa 26.2","api":"opengl-4.5","resolution":[1920,1080],"render_scale":1.0,"vsync":false,"pipelined":true,"display":"headless","scene":"C:\\Games\\Vestige\\scenes\\atrium.json","inputs":[{"name":"C:\\Games\\Vestige\\scenes\\atrium.json","hash":"sha256:abababababababababababababababababababababababababababababababab","bytes":48213}],"started_utc":"2026-10-24T12:00:00Z"}
+run_id,segment,frame,category,name,depth,value
+r1,view:1,0,frame,cpu_span,0,8.000
+r1,view:1,0,frame,wall,0,0.000
+r1,view:1,0,cpu,scene,0,5.000
+r1,view:1,0,frame,gpu_span,0,10.000
+r1,view:1,0,gpu,shadows,0,4.000
+r1,view:1,1,frame,cpu_span,0,9.000
+r1,view:1,1,cpu,scene,0,6.000
+r1,view:1,1,frame,gpu_span,0,11.000
+r1,view:1,1,gpu,shadows,0,5.000
+# frameledger-close {"rows_dropped":0,"frames":2}

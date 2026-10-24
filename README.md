@@ -1,12 +1,14 @@
 # frameledger
 
-> One line: what this does, for whom.
+> Finds what slows a game engine's frames: one run-file format and one
+> analyser, shared by the Vestige, UT Ants and DOOM Ants engines.
 
 ## Status
 
-Just scaffolded. Nothing has been built and nothing has been decided —
-the first step is discovery (`~/.claude/workflow.md` § 3), which answers
-what problem this addresses and how we would know it is working.
+In development; nothing is released yet. The run-file format is
+agreed ([spec](docs/specs/FLED-0001-run-file-format.md)). The `check`
+command, which says whether a run file meets it, is built. The
+[roadmap](ROADMAP.md) lists what comes next.
 
 ## Install
 

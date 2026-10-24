@@ -59,5 +59,8 @@ jobs:
       # and read them from it, so one commit cannot use two different versions:
       #   - run: pipx install ruff==$(./scripts/local-ci.sh --ruff-version)
 
+      - name: Install pytest
+        run: pipx install "pytest==$(./scripts/local-ci.sh --pytest-version)"
+
       - name: Run the gate
         run: ./scripts/local-ci.sh

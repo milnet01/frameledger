@@ -12,5 +12,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
-(Nothing yet. Scaffolding is not a release — the first dated section
-appears once something has actually shipped.)
+### Added
+
+- `check FILE…` says whether each run file meets the format, with exit
+  codes 0, 1 and 3 and a `--json` result (FLED-0002).
+- `--selftest` and `--version` (FLED-0002).

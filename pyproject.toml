@@ -1,0 +1,12 @@
+# Test and lint configuration only. frameledger is not an installable
+# package: the analyser runs as `python3 -I src/frameledger` or as
+# frameledger.pyz (docs/design.md § The parts), so there is no
+# [build-system] or [project] table.
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# The run forms put src/frameledger itself on the import path, and the
+# tests do the same, so modules import each other by bare name.
+pythonpath = ["src/frameledger"]
+addopts = ["--strict-markers"]

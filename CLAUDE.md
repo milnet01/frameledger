@@ -25,11 +25,16 @@ rather than in a standard.
 
 ### Stack
 
-(Decided in design — `docs/design.md`. Until then, undecided.)
+The analyser is Python 3.10 or newer, standard library only; the writer
+is one C header. `docs/design.md` § The stack, and what it rules out.
 
 ### Build and test
 
-(Filled once the stack exists.)
+- `./scripts/local-ci.sh` — the gate: pytest, then `--selftest`.
+- `pytest` — the tests alone. `pyproject.toml` puts `src/frameledger`
+  on the import path.
+- `python3 -I src/frameledger check FILE…` — run the analyser from the
+  tree.
 
 ### Roadmap IDs
 
