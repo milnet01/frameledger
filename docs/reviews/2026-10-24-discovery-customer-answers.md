@@ -107,7 +107,47 @@ and confirm each *never* line on its own.
   header if it compiles warning-free as C++ under GCC 14, Clang 19 and
   MSVC with warnings as errors, and needs no build step. Confirmed the
   merged S8.
-- **DOOM Ants** — awaiting reply.
+- **DOOM Ants** — agreed S1–S11 and the merged S8, and confirmed N1–N4
+  one by one. Its user decided on 2026-10-24 that DOOM Ants adopts
+  frameledger and DOOM-0431 stays parked. Corrected the goal addendum:
+  the ray-traced view runs at 30–50 FPS on the RX 6600 at 50% render
+  scale (DOOM-0279), so 60 is its target, not only a floor. Asked for
+  three new signs, which became S12–S14:
+  - a per-pass budget check that names the pass over budget and exits
+    non-zero (DOOM-0279);
+  - with frames in flight (DOOM-0190), GPU rows attributed to the
+    submitting frame and the bound-by share still given;
+  - a frame-to-frame variation figure beside the 1% low (DOOM-0359,
+    DOOM-0277).
+  Confirmed S12–S14 as worded.
+
+## UT Ants' full requirements (ut-ants-aa)
+
+Sent at UT Ants' user's request, 2026-10-24. Goal: every map holds
+60 FPS at 4K High on an RX 6600 with headroom for gameplay, and no
+change silently costs frame time. Placed as follows.
+
+- Survey ranking naming each flagged map's costliest pass — S9.
+- Survey-against-survey regression report — S15. Motivating case: a
+  3 ms opaque-pass regression on DM-ArchNemesis, live from 2026-10-21
+  (c80d41d), unflagged for three days.
+- Compare per pass, each by its own spread — S16. Motivating case: one
+  binary's frame median swung between 32.6 and 24.9 ms across two reps
+  while its opaque pass held between 18.2 and 18.7 ms.
+- Interleaved A/B over labelled file sets — S4.
+- Input-identity refusal overridable per field with a printed reason —
+  S5.
+- Bisect verdict mode with a dry run — S17. Motivating case: a
+  hand-written bisect script's inverted verdict marked five slow
+  commits good.
+- Per-run budget — S8. Segment kinds apart — S2.
+- Plain sentences first, no meaning by colour alone, machine-readable
+  output — Who it is for, S2.
+- Validator command with exit codes — S18.
+- About a million rows analysed in under a minute — S19.
+- Old files keep analysing — S6, with release notes naming every
+  format change.
+- A permissive licence — met: the repository is MIT.
 
 ## Held for the format and analyser spec
 
@@ -130,6 +170,17 @@ Raised in these answers and placed in the spec rather than discovery.
   file I/O, timestamps passed in, warning-free under GCC 14, Clang 19
   and MSVC as C++ (DOOM Ants, UT Ants, Vestige).
 - Microsecond resolution (DOOM Ants).
+- Static-line diff printed beside the pass comparison (UT Ants).
+- Per-effect `ext` rows as a ranked table per map, uninterpreted
+  (UT Ants, UTA-0436).
+- Trust warnings for load above a threshold and settling frames below
+  the header's stated need (UT Ants).
+- Header fields shown: map identity, bake format and baker revision,
+  pinned light time, GPU tick (UT Ants).
+- A `--json` output (UT Ants).
+- S12's breach is judged on a per-pass statistic over the run (median
+  or p99, chosen in the budget file), never on a single frame (DOOM
+  Ants, DOOM-0502).
 - A per-frame sim-tic flag (DOOM Ants).
 - A camera-cut or warm-up marker, with a trust warning inside a
   measured stretch (DOOM Ants).

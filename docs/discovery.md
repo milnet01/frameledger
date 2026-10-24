@@ -35,11 +35,12 @@ frame fitting in 16.67 ms, and to show when a change has fixed it.
 
 - **The owner of the three engines**, who wants to find where each one
   loses frame time. They are not a programmer and are partially
-  sighted, so every report opens with one plain sentence before any
-  table.
+  sighted, so every report opens with plain sentences before any
+  table, and no meaning is carried by colour alone.
 - **A Claude Code session working on one engine**, which needs to know
   whether its change made the engine faster, slower, or neither — as a
-  verdict and an exit code it can act on, locally and in CI.
+  verdict and an exit code it can act on, locally and in CI, and as
+  machine-readable output for its scripts.
 
 **When finished:** a tool any engine can use. Someone who has never seen
 these three engines writes the file format from its spec alone, and the
@@ -64,7 +65,8 @@ analyser reads their runs.
   input or display kind. It warns on a run it should not trust, such as
   a Debug build, a software renderer, too few frames, or a camera cut
   inside a measured stretch. Frames with a missing timing are counted
-  as missing, never as zero.
+  as missing, never as zero. A refusal can be overridden one field at a
+  time, with a stated reason that the report prints.
 - **S6** — Each engine moves to a new frameledger release by changing
   one pinned version, and its older run files still analyse.
 - **S7** — A writer built from the format spec alone, by a session that
@@ -79,12 +81,33 @@ analyser reads their runs.
     is the set rate's frame time, 16.67 ms at 60 FPS; a smaller one
     leaves headroom for gameplay.
 - **S9** — One command ranks many runs, such as one per map, by their
-  slowest frames and flags those over budget.
+  slowest frames, flags those over budget, and names each flagged run's
+  costliest pass.
 - **S10** — An engine using the optional C writer header shows the same
   frame times with the writer on as with it off, to within the run's
   own spread.
 - **S11** — The analyser runs on Linux and Windows, and a run file
   written on Windows analyses the same as one written on Linux.
+- **S12** — Given a budget per pass, a check names each pass over its
+  budget and exits non-zero on any breach.
+- **S13** — In a run with more than one frame in flight, each GPU
+  timing counts against the frame that submitted the work, and the
+  report still gives the CPU-bound and GPU-bound share.
+- **S14** — The report gives a frame-to-frame variation figure beside
+  the 1% low, so a run that passes S8 but judders shows it.
+- **S15** — Given two surveys from two builds, the report flags each
+  run whose pass got slower by more than that pass's run-to-run spread.
+- **S16** — A comparison judges each pass by its own spread, so a pass
+  that changed is found even when the frame total is too noisy to give
+  a verdict.
+- **S17** — A bisect mode turns one measure into an exit code `git
+  bisect run` understands (good, bad or skip), and a dry run prints the
+  verdict a given value would get.
+- **S18** — A check command tells whether a run file meets the format
+  spec and exits non-zero when it does not, with nothing installed, on
+  Linux and Windows.
+- **S19** — A survey of about a million rows is analysed in under a
+  minute on the owner's machine.
 
 ## What it deliberately does not do
 
