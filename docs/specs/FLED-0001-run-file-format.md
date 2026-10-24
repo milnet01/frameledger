@@ -1,0 +1,498 @@
+<!-- ants-spec-format: 1 -->
+# FLED-0001 — Define the run file, the writer's interface and the 0.1.0 commands
+
+**Status:** spec draft (2026-10-24).
+**Kind:** doc.
+**Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
+**Blocker for:** FLED-0002, FLED-0006.
+
+What an engine writes after a benchmark run, and what the analyser
+promises to say about it, written down once so all three engines and
+any later engine produce the same file.
+
+## 1. Goal
+
+A run file has one written definition. An engine can write one from
+this document alone (S7), with or without the optional C header. The
+analyser's 0.1.0 commands (`check`, `report`, `floor`), its exit codes
+and the outer shape of its JSON result are fixed, so engines can script
+against them before the analyser exists.
+
+## 2. Problem
+
+Nothing exists yet: `src/` is empty and `include/` does not exist. Each engine
+measures differently today
+([discovery](../discovery.md) § The problem). Without one contract:
+
+1. Each engine would invent its own columns, units and header fields,
+   and the analyser could not compare them.
+2. Details the engines raised — GPU rows arriving frames late, frames
+   with no GPU result, dropped rows, a run that never closed, numbers
+   written under a comma-decimal locale — would each be settled
+   differently by each writer.
+3. Engines' scripts and CI gates bind to the command names, exit codes
+   and JSON fields. Changing them after adoption breaks three projects.
+
+## 3. Scope decisions (agreed with the user)
+
+The owner delegated decisions to the three engine sessions on
+2026-10-24. Each choice below was made by them, recorded in
+[discovery answers](../reviews/2026-10-24-discovery-customer-answers.md)
+and [design answers](../reviews/2026-10-24-design-customer-answers.md),
+unless marked *proposed here*, which the engines' review of this spec
+settles.
+
+- One CSV file per run, with a JSON header line, an optional static
+  line, and rows; Vestige's draft with UT Ants' amendments (the brief,
+  all three engines).
+- GPU rows count against the frame that submitted the work, and rows
+  may come in any order (Vestige, DOOM Ants).
+- A frame with no GPU result is written by leaving its row out, and
+  counted as missing (Vestige).
+- Microsecond resolution: three decimal places of milliseconds (DOOM
+  Ants).
+- Several named inputs, each with a content hash (UT Ants).
+- Static statistics are carried as exact text, not as floating point
+  (UT Ants).
+- The writer takes a buffer from the engine, never allocates, drops and
+  counts rows when full, states the largest row, and formats numbers
+  without the locale (DOOM Ants, Vestige, design).
+- Exit ladder 0/1/2/3, and bisect codes 0/1/125/128 (Vestige, UT Ants,
+  design).
+- *Proposed here:* the row column `ms` becomes `value`, because `mem`
+  rows carry MB and `event` rows carry counts. A column named `ms`
+  holding megabytes would mislead every writer.
+- *Proposed here:* camera cuts and simulation tics are `event` rows,
+  not new columns.
+- *Proposed here:* a close line ends every finished run, carrying the
+  drop count.
+- *Proposed here:* the writer does no file I/O at all. It fills the
+  engine's buffer; the engine writes the bytes out.
+
+## 4. Design
+
+### 4.1 The file
+
+UTF-8 text. Lines end in LF or CRLF; a reader treats them the same.
+Numbers use `.` as the decimal point, never `,`, whatever the writer's
+locale.
+
+```
+# frameledger {"schema":1,"run_id":"...",...}        line 1: header, required
+# frameledger-static {"pipelines":[...],...}          line 2: static, optional
+run_id,segment,frame,category,name,depth,value        column line, required
+<rows>                                                any order
+# frameledger-close {"rows_dropped":0,"frames":3600}  last line, required in a finished run
+```
+
+A line beginning `# frameledger` holds one JSON object after the first
+space following the keyword. JSON is on one line. No other line begins
+with `#`.
+
+### 4.2 The header
+
+Required fields:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `schema` | integer | `1` for this spec |
+| `run_id` | string | unique per run; every row repeats it |
+| `engine` | string | `vestige`, `ut-ants`, `doom-ants`, or any other name |
+| `tool` | object | `{"name": ..., "version": ...}` — the capture tool |
+| `build_type` | string | `debug`, `release`, `relwithdebinfo`, or another word |
+| `commit` | string | the engine's commit id |
+| `dirty` | boolean | uncommitted changes in the build |
+| `device` | string | GPU name |
+| `renderer` | string | what the API reports (`GL_RENDERER`, Vulkan device name) |
+| `driver` | string | driver name and version |
+| `api` | string | `opengl-4.5`, `vulkan-1.3`, … |
+| `resolution` | array | `[width, height]` in pixels |
+| `render_scale` | number | `1.0` for native |
+| `vsync` | boolean | |
+| `pipelined` | boolean | does CPU work for frame N+1 overlap GPU work for frame N |
+| `display` | string | `onscreen`, `headless` (a private display) or `offscreen` (no display) |
+| `scene` | string | what was run |
+| `inputs` | array | `[{"name": ..., "hash": "sha256:<hex>" or "md5:<hex>", "bytes": n}]` |
+| `started_utc` | string | ISO 8601, `Z` suffix |
+
+Optional fields, absent meaning unknown: `tier` (string),
+`ray_tracing` (boolean), `frames_in_flight` (integer),
+`settling_frames` (integer), `pinned` (object: clocks the run froze),
+`gpu_tick_ns` (number), `load` (`{"start": n, "end": n}`, CPU load
+average), `gpu_busy_pct` (`{"start": n, "end": n}`), `gpu_clock_mhz`
+(`{"start": n, "end": n}`), `os` (string), `extra` (object, the
+engine's own).
+
+**Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
+`ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`.
+Two runs differing in any of them are not comparable without an
+override (FLED-0008 builds the compare).
+
+### 4.3 The static line
+
+A JSON object of per-run facts that are not per frame: pipeline
+statistics, draw counts, scene facts. Its shape is the engine's, with
+one rule: a statistic value is a JSON **string** of its exact decimal
+text (`"17436423623014656123"`), never a JSON number, so no reader
+rounds it. The analyser prints the static line's contents beside the
+ranking and does not interpret them.
+
+### 4.4 Rows
+
+| Column | Rule |
+|---|---|
+| `run_id` | equals the header's |
+| `segment` | `<kind>:<id>` (`view:3`, `move:3-4`, `leg:2`, `spot:e1m1-a`), or empty |
+| `frame` | non-negative integer; the frame that submitted the work |
+| `category` | `frame`, `cpu`, `gpu`, `mem`, `event`, or `ext.<engine>` |
+| `name` | the pass or measure; ASCII letters, digits and `_ . / -`, at most 64 bytes |
+| `depth` | integer from 0; 0 is a top-level pass |
+| `value` | decimal number, exactly three places after the point |
+
+Segment kind and id are at most 32 bytes each; category at most 32.
+Fields are quoted only when they hold a comma or a quote, CSV-style
+(RFC 4180).
+
+Units by category: `frame`, `cpu`, `gpu` — milliseconds; `mem` —
+megabytes; `event` — a count, normally `1.000`; `ext.<engine>` — the
+engine's own unit.
+
+**Frame rows.** Each frame has `frame/cpu_span`, `frame/gpu_span` and
+`frame/wall`. `frame/wall` is real elapsed time from this frame's start
+to the next frame's start, never a fixed simulation step. Optional:
+`frame/fence_wait`, `frame/present_wait`. A frame whose GPU result never
+arrived has no `frame/gpu_span` row.
+
+**Events.** `event/cut` on a frame where the camera jumped or a level
+loaded; `event/tic` on a frame where the simulation stepped. Other
+event names are allowed.
+
+**Remainders** are the analyser's: per frame and per category,
+`<category>_remainder` = the span minus the sum of that category's
+depth-0 rows. Writers never write them.
+
+### 4.5 The close line
+
+```
+# frameledger-close {"rows_dropped": <integer>, "frames": <integer>}
+```
+
+Written once, last, when the run ends. A file without it is an
+unfinished run: the engine crashed or was killed.
+
+### 4.6 The writer: `include/frameledger.h`
+
+```c
+#define FLED_SCHEMA         1
+#define FLED_NAME_MAX       64   /* name */
+#define FLED_PART_MAX       32   /* category; segment kind; segment id */
+#define FLED_RUN_ID_MAX     64
+#define FLED_ROW_MAX        /* largest row in bytes, computed from the above */
+
+typedef struct fled_writer { /* fields public, contents private */ } fled_writer;
+
+enum { FLED_OK = 0, FLED_DROPPED = 1, FLED_BAD_ARG = 2 };
+
+int    fled_open (fled_writer *w, char *buf, size_t cap,
+                  const char *run_id, const char *header_json,
+                  const char *static_json /* or NULL */);
+int    fled_row  (fled_writer *w, const char *segment, long long frame,
+                  const char *category, const char *name, int depth,
+                  double value);
+size_t fled_pending (const fled_writer *w, const char **bytes);
+void   fled_consume (fled_writer *w, size_t n);
+int    fled_close (fled_writer *w, long long frames);
+size_t fled_json_escape (char *dst, size_t cap, const char *src);
+```
+
+- `fled_open` writes the header, static and column lines into `buf`.
+  `header_json` and `static_json` are complete JSON objects the engine
+  built; `fled_json_escape` helps build them.
+- `fled_row` appends one row, or returns `FLED_DROPPED` and adds one to
+  the drop count when fewer than `FLED_ROW_MAX` bytes remain. It
+  returns `FLED_BAD_ARG` for a name over its limit or a character
+  outside 4.4's set, and writes nothing.
+- `fled_pending` and `fled_consume` hand the filled bytes to the engine,
+  which writes them out when it chooses; the writer does no file I/O.
+- `fled_close` appends the close line. It is never dropped: `fled_open`
+  keeps room for it.
+- No allocation, no file I/O, no `printf` family, no locale. One
+  thread: the caller's. Compiles as C99 and as C++17.
+
+### 4.7 The 0.1.0 commands
+
+Run as `python3 -I frameledger.pyz <command> …`; on Windows `python -I`
+or `py -I`. Every command takes `--json`, printing the JSON result
+instead of text.
+
+| Command | Does | Exit |
+|---|---|---|
+| `check FILE…` | says whether each file meets this spec | 0 all conform; 1 any breach; 3 unreadable |
+| `report FILE` | cost ranking per pass and segment kind, bound-by share, worst frames | 0; 3 file error |
+| `floor FILE --fps N [--warmup-s S] [--budget-ms B] [--no-windows] [--no-frames] [--allow-frames K]` | S8's two checks | 0 pass; 1 fail; 2 inconclusive; 3 error |
+| `--selftest` | the analyser's own checks on built-in samples | 0 pass; 1 fail |
+| `--version` | prints the version | 0 |
+
+`floor` defaults: `--warmup-s 2`, `--budget-ms` = 1000/`--fps`,
+`--allow-frames 0`. A window is one second of the timeline built by
+summing `frame/wall` from the first frame; a frame belongs to the
+window holding its end. A window's frame rate is the frames that end
+in it divided by one second. Windows starting before the warm-up ends
+are skipped, as are frames ending before it.
+
+### 4.8 Text and JSON results
+
+Text opens with plain sentences — every override and its reason,
+dropped rows, an unfinished run, and the verdict — then tables no wider
+than 100 columns. No meaning is carried by colour.
+
+```json
+{
+  "frameledger": "0.1.0",
+  "command": "floor",
+  "verdict": "pass | fail | inconclusive | error | none",
+  "exit_code": 0,
+  "summary": ["<the opening sentences, in order>"],
+  "overrides": [{"field": "...", "reason": "..."}],
+  "warnings": [{"code": "...", "message": "..."}],
+  "result": { }
+}
+```
+
+`result` is the command's own. For `floor`:
+`{"windows": [{"start_s", "fps", "pass"}], "slow_frames": [{"frame",
+"segment", "wall_ms"}], "rows_dropped", "finished"}`. For `report`:
+`{"passes": [{"category", "name", "segment_kind", "median_ms",
+"p99_ms", "share"}], "bound_by": {"cpu", "gpu", "applies"},
+"worst_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
+"missing_gpu_frames"}`. For `check`: `{"files": [{"path",
+"breaches": [{"line", "rule", "message"}]}]}`.
+
+1% low is 1000 divided by the 99th-percentile `frame/wall`;
+percentiles are nearest-rank.
+
+## 5. Invariants
+
+These clauses cannot run yet: no analyser or writer exists. Each names
+its fixture under `tests/fixtures/` and the one rule that fixture
+breaks.
+
+- **INV-1** — A file whose first line is not a `# frameledger` header
+  fails `check` with exit 1 and fails `report` and `floor` with exit 3.
+  *Test:* `tests/test_check.py::test_missing_header`, fixture
+  `no-header.csv` (valid in every other way).
+  *Breaks when:* the reader skips blank or unknown lines looking for a
+  header further down.
+
+- **INV-2** — A file with `schema` greater than the analyser's fails
+  with exit 3 and a message naming both versions; a file with an older
+  supported schema is read.
+  *Test:* `tests/test_check.py::test_schema_versions`, fixtures
+  `schema-99.csv` and `schema-1.csv`.
+  *Breaks when:* the reader ignores `schema`.
+
+- **INV-3** — The same rows with LF and with CRLF line endings give
+  byte-identical `report --json` output.
+  *Test:* `tests/test_ledger.py::test_crlf_equals_lf`, fixture
+  `small-run.csv` and its CRLF copy made by the test.
+  *Breaks when:* `\r` stays on the last field and `value` fails to
+  parse, or a name gains a trailing `\r`.
+
+- **INV-4** — Rows are joined on `(run_id, frame)` whatever their
+  order: a file with each frame's GPU rows written two frames late gives
+  the same `report --json` as the file in frame order.
+  *Test:* `tests/test_ledger.py::test_late_gpu_rows`, fixtures
+  `in-order.csv` and `gpu-late.csv` (same rows, reordered).
+  *Breaks when:* the reader assigns rows to the most recent frame seen.
+
+- **INV-5** — A frame with no `frame/gpu_span` row is counted in
+  `missing_gpu_frames` and left out of GPU statistics; it is never
+  counted as 0 ms.
+  *Test:* `tests/test_report.py::test_missing_gpu_span`, fixture
+  `gpu-missing.csv` (one frame lacks the row; every other gpu_span is
+  10.000).
+  *Breaks when:* a missing value defaults to zero, which drags the GPU
+  median below 10.000.
+
+- **INV-6** — A `value` written with a comma decimal point or with
+  other than three decimal places is a `check` breach naming the line.
+  *Test:* `tests/test_check.py::test_value_format`, fixture
+  `comma-decimal.csv`, whose bad values are a quoted `"1,250"` (so the
+  column count is right) and `1.25`.
+  *Breaks when:* the reader parses `value` with `float()` alone, which
+  accepts `1.25`, or swaps a comma for a point before parsing.
+
+- **INV-7** — `floor` returns inconclusive (exit 2) when the close line
+  is missing or `rows_dropped` is above zero, even if every window and
+  frame passes, and says why in the first summary sentence.
+  *Test:* `tests/test_floor.py::test_unfinished_and_dropped`, fixtures
+  `passing-run.csv`, the same without its close line, and the same
+  with `rows_dropped` 3.
+  *Breaks when:* `floor` judges only the rows it has.
+
+- **INV-8** — A window's frame rate is the frames ending in it divided
+  by one second: 58 frames of 16.000 ms and one of 72.000 ms fill one
+  second with 59 frames, so the window fails `--fps 60`, although the
+  mean of the per-frame rates is about 61.7.
+  *Test:* `tests/test_floor.py::test_window_rate`, fixture
+  `one-hitch.csv` holding that second after the warm-up, with
+  `--no-frames` so only the window check can fail it.
+  *Breaks when:* the window rate is computed as the mean of 1000/wall.
+
+- **INV-9** — One frame over `--budget-ms` fails `floor` (exit 1) even
+  when every window passes; `--no-frames` turns that check off;
+  `--allow-frames 1` tolerates exactly one.
+  *Test:* `tests/test_floor.py::test_single_frame_budget`, fixture
+  `fast-with-one-spike.csv` (120 FPS windows, one 30.000 ms frame).
+  *Breaks when:* only windows are judged, or the allowance is
+  off by one.
+
+- **INV-10** — With `pipelined` false, `report` sets
+  `bound_by.applies` to false and its summary says the CPU/GPU share
+  does not apply.
+  *Test:* `tests/test_report.py::test_bound_by_not_pipelined`, fixtures
+  `pipelined.csv` and the same with `pipelined` false.
+  *Breaks when:* the share is printed from `gpu_span > cpu_span`
+  regardless.
+
+- **INV-11** — The remainder is the span minus the sum of that
+  category's depth-0 rows; depth-1 rows are not subtracted.
+  *Test:* `tests/test_report.py::test_remainder`, fixture
+  `nested.csv` (gpu_span 10.000; depth-0 rows 4.000 and 3.000; a
+  depth-1 row 2.000 under the first) → `gpu_remainder` 3.000.
+  *Breaks when:* every depth is subtracted, giving 1.000.
+
+- **INV-12** — Static statistic values come out of `report --json`
+  as the exact strings written.
+  *Test:* `tests/test_report.py::test_static_exact`, fixture
+  `static-hash.csv` holding `"17436423623014656123"`.
+  *Breaks when:* the value is converted to a float on reading.
+
+- **INV-13** — The text report's opening sentences equal the JSON
+  `summary` array, in order.
+  *Test:* `tests/test_render.py::test_text_matches_json`, over every
+  fixture.
+  *Breaks when:* text and JSON are built separately.
+
+- **INV-14** — The writer header compiles with no warnings as C99 and
+  as C++17 under GCC, Clang and mingw-w64 at
+  `-Wall -Wextra -Wpedantic -Werror`, and its object file references no
+  allocation, file I/O or `printf`-family symbol.
+  *Test:* `tests/writer/test_compile.sh`, which also runs `nm -u` on
+  each object.
+  *Breaks when:* the header calls `malloc`, `fopen` or `snprintf`, or
+  uses syntax one language rejects.
+
+- **INV-15** — With a buffer that fills, `fled_row` returns
+  `FLED_DROPPED`, and the close line's `rows_dropped` equals the number
+  of such returns.
+  *Test:* `tests/writer/test_writer.c::test_drops`, a buffer sized for
+  the header plus ten rows, fed twenty.
+  *Breaks when:* the close line is not reserved and itself gets
+  dropped, or drops are not counted.
+
+- **INV-16** — Writer output passes `check`, with `setlocale(LC_ALL,
+  "de_DE.UTF-8")` in force.
+  *Test:* `tests/writer/test_writer.c::test_output_conforms`, piped to
+  `check`.
+  *Breaks when:* the writer formats numbers through the locale.
+
+- **INV-17** — `fled_row` rejects a name over `FLED_NAME_MAX` bytes
+  with `FLED_BAD_ARG` and writes nothing, so no row exceeds
+  `FLED_ROW_MAX`.
+  *Test:* `tests/writer/test_writer.c::test_name_limit`, a 65-byte name.
+  *Breaks when:* the name is truncated or written whole.
+
+## 6. Failure modes
+
+- **A malformed row.** `check` lists it with its line. `report` and
+  `floor` stop with exit 3 naming the line; they never skip it, since a
+  skipped row hides a frame.
+- **Two rows for the same frame, category and name.** A breach; the
+  analyser cannot tell which is real.
+- **A frame with no `frame/wall`.** The timeline cannot be built past
+  it: `floor` is inconclusive; `report` warns and leaves the frame out.
+- **A header field of the wrong type.** A `check` breach; other
+  commands exit 3.
+- **A writer whose engine never calls `fled_consume`.** The buffer
+  fills and rows are dropped and counted (INV-15). Never silent.
+- **An engine killed before `fled_close`.** No close line; INV-7.
+
+## 7. Tests
+
+The analyser's tests live in `tests/`, run by pytest, with fixtures in
+`tests/fixtures/`; the writer's in `tests/writer/`, run by the gate
+script. Each test is first seen failing against an analyser or writer
+without the rule, then passing — per `testing.md`. Who builds each:
+
+- FLED-0002: INV-1, INV-2, INV-3, INV-4, INV-6.
+- FLED-0003: INV-5, INV-10, INV-11, INV-12, INV-13.
+- FLED-0004: INV-7, INV-8, INV-9.
+- FLED-0006: INV-14, INV-15, INV-16, INV-17.
+
+MSVC is not tested here. Vestige and UT Ants compile the header with
+it on each release they pin.
+
+## 8. Alternatives considered (and rejected)
+
+- **One JSON object per run.** UT Ants' format today. Rejected: a
+  survey of about a million rows would be one huge object, and a
+  crashed run would leave a truncated, unreadable file.
+- **A binary format.** Rejected: not readable by a person or a plain
+  CSV tool, and a writer from the spec alone (S7) gets harder.
+- **Integer microseconds instead of three-decimal milliseconds.**
+  Equal precision; rejected because every engine and every existing
+  tool here already speaks milliseconds.
+- **Separate columns for events and tics.** Rejected: most frames would
+  carry empty cells, and each new event would change the column line.
+- **The writer owning a `FILE *`.** Rejected: file I/O in the frame
+  loop is what DOOM Ants and Vestige ruled out, and the engine already
+  owns its files.
+
+## 9. Out of scope
+
+- `compare` and its flags, overrides and result — FLED-0008, which
+  amends this spec before it is built.
+- Bisect mode's flags — FLED-0009, which amends this spec.
+- The budget file — FLED-0010, which amends this spec.
+- The pacing figure — FLED-0011, which amends this spec.
+- `survey` and survey comparison — FLED-0012 and FLED-0013, which amend
+  this spec.
+- Trust warnings beyond the dropped and unfinished runs above —
+  FLED-0005.
+- Charts or HTML — deferred; not yet queued (discovery, *not yet*).
+
+## 10. What checks this
+
+| Rule | What catches a breach |
+|------|----------------------|
+| INV-1 | `tests/test_check.py::test_missing_header` (not yet written) |
+| INV-2 | `tests/test_check.py::test_schema_versions` (not yet written) |
+| INV-3 | `tests/test_ledger.py::test_crlf_equals_lf` (not yet written) |
+| INV-4 | `tests/test_ledger.py::test_late_gpu_rows` (not yet written) |
+| INV-5 | `tests/test_report.py::test_missing_gpu_span` (not yet written) |
+| INV-6 | `tests/test_check.py::test_value_format` (not yet written) |
+| INV-7 | `tests/test_floor.py::test_unfinished_and_dropped` (not yet written) |
+| INV-8 | `tests/test_floor.py::test_window_rate` (not yet written) |
+| INV-9 | `tests/test_floor.py::test_single_frame_budget` (not yet written) |
+| INV-10 | `tests/test_report.py::test_bound_by_not_pipelined` (not yet written) |
+| INV-11 | `tests/test_report.py::test_remainder` (not yet written) |
+| INV-12 | `tests/test_report.py::test_static_exact` (not yet written) |
+| INV-13 | `tests/test_render.py::test_text_matches_json` (not yet written) |
+| INV-14 | `tests/writer/test_compile.sh` (not yet written) |
+| INV-15 | `tests/writer/test_writer.c::test_drops` (not yet written) |
+| INV-16 | `tests/writer/test_writer.c::test_output_conforms` (not yet written) |
+| INV-17 | `tests/writer/test_writer.c::test_name_limit` (not yet written) |
+| 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
+| 4.8, tables within 100 columns | **nothing** — no test planned; the engines' reading of reports |
+
+## 11. Cross-doc impact
+
+- `docs/design.md` — none; this spec is the format part it names.
+- `README.md` — gains Install and Usage once FLED-0007 ships.
+- `CHANGELOG.md` — each later amendment of this spec is a format change
+  the release notes name (S6).
+
+## 12. Cold-eyes loop log
+
+Rows live in `../reviews/FLED-0001-run-file-format-loop-log.md`.
