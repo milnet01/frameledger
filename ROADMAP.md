@@ -91,6 +91,17 @@ Engines can write files and pin a release.
   rows dropped, and a cut's window starts at the end of the cut frame.
   Their findings are being fixed; the window pass rule awaits the
   engines' answer.
+  Review fixes landed in 45138a2. Left, in order: (1) the window
+  pass rule. Proposed to the engines 2026-10-24, silence = build it: a
+  window passes when the mean frame/wall of the frames ending in it is
+  <= round(1000/N, 3), independent of --budget-ms, so a steady 16.667 ms
+  run passes at 60 (DOOM's finding 1). (2) Amend spec § 4.4 (frames
+  numbered without holes; a hole is a frame_missing warning), § 4.7 (cut
+  windows start at the cut frame's end; a frame failure stands under
+  drops; a missing wall or frame, or nothing judged, is inconclusive;
+  both checks off, or a budget outside 0.001 ms to 1e9 ms, is exit 3)
+  and INV-7, 8, 18 to match. (3) Second engine review, readability
+  included. (4) Flip shipped.
   **Layman:** Pass or fail: did the run hold 60 FPS every second, and did any single frame take too long?
   Kind: implement.
   Source: design-2026-10-24.

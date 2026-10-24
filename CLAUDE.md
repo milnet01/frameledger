@@ -45,6 +45,9 @@ is one C header. `docs/design.md` § The stack, and what it rules out.
 `FLED-NNNN`, per `roadmap-format.md` § 3.5.1. Commit subjects
 are `<ID>: <description>`, per `commits.md`.
 
+`ROADMAP.md` is generated from the Ants roadmap store, as its header
+says: change it with `roadmap_log`, never by hand.
+
 ### Who decides and who reviews
 
 The owner, 2026-10-24: frameledger serves Vestige, UT Ants and DOOM
@@ -56,6 +59,8 @@ Ants, and their sessions decide and review its work.
 - **Rule 14's gate is cancelled for every document in this project.**
   No `review-contract` run. Each document that would have been gated
   goes to the three engine sessions for review instead.
+- **Code goes to them for review too, and the request asks for
+  readability as well as correctness** (the owner, 2026-10-24).
 
 ### Overrides
 
