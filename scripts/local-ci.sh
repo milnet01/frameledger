@@ -29,15 +29,20 @@ cd "$(dirname "$0")/.."
 # as well as one value.
 DOCS_GLOB='docs/*|*.md|LICENSE'
 
-# Tool versions are pinned HERE and installed from here by the workflow. A
-# version pinned only in the workflow is a second copy: this script would take
-# whatever happened to be on PATH, so the same commit could pass locally and
-# fail on GitHub. Measured case: ruff's default rule set changed between
-# releases, so an unpinned run enforces a different set on each machine.
+# Tool versions are pinned HERE, and every step runs them through the pinned
+# uv, here and on GitHub alike. Nothing is taken from PATH but a uv to start
+# with: `uvx uv@$UV_VERSION` fetches the pinned uv whatever version started
+# it. So the same commit runs the same Python, pytest and ruff on both, and a
+# local pass predicts the GitHub run. Python is the analyser's floor
+# (docs/design.md § The stack): a test passing only on a newer one is caught
+# before the push.
+UV_VERSION='0.13.5'
+PYTHON_VERSION='3.10.22'
 PYTEST_VERSION='9.1.1'
+RUFF_VERSION='0.17.2'
 
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
-if [[ ${1:-} == --pytest-version ]]; then printf '%s\n' "$PYTEST_VERSION"; exit 0; fi
+if [[ ${1:-} == --uv-version ]]; then printf '%s\n' "$UV_VERSION"; exit 0; fi
 
 DOCS_ONLY=0
 [[ ${1:-} == --docs ]] && DOCS_ONLY=1
@@ -54,6 +59,14 @@ DOCS_ONLY=0
 CONFIGURED=1
 
 step() { printf '\n=== %s ===\n' "$1" >&2; }
+
+# py ARGS... — run a command under the pinned uv and Python, with the pinned
+# tools on hand. --no-project: pyproject.toml configures pytest and ruff
+# only; there is no package to install.
+py() {
+    uvx "uv@$UV_VERSION" run --quiet --no-project --managed-python --python "$PYTHON_VERSION" \
+        --with "pytest==$PYTEST_VERSION" --with "ruff==$RUFF_VERSION" -- "$@"
+}
 
 # A check whose tool is absent SAYS SO and is never silently dropped: a check
 # that did not run must not look like one that passed.
@@ -89,13 +102,19 @@ run() {
 # ── Checks that run in BOTH modes ───────────────────────────────────────────
 # Anything not needing a compiler or a full environment belongs here.
 
+# uv is the one tool taken from PATH; without it no check can run, so the
+# gate fails rather than reporting checks it skipped.
+need uvx || exit 1
+
 step 'documentation'
-# e.g. need markdownlint && run markdownlint markdownlint .
-# e.g. check-doc-facts, link checking, spelling
+# Links, anchors and cited tests in every tracked Markdown file. No test
+# reads a document, so on a documentation-only push this step is everything
+# GitHub's run could find different.
+run docs py python -I scripts/check_docs.py
 # SET THIS TO 1 once the documentation step runs a real check. CONFIGURED
 # covers the script as a whole, so a project with lint and tests filled in
 # still had --docs report a pass that checked nothing (Deedbox, 2026-09-28).
-DOCS_CONFIGURED=0
+DOCS_CONFIGURED=1
 
 if (( DOCS_ONLY )); then
     if (( CONFIGURED && DOCS_CONFIGURED )); then
@@ -113,7 +132,8 @@ fi
 # ── Checks that need a build or a full environment ──────────────────────────
 
 step 'lint'
-# e.g. need ruff && run lint ruff check .
+# The rules and target version are pyproject.toml's [tool.ruff].
+run lint py ruff check .
 
 step 'types'
 # e.g. need mypy && run types mypy
@@ -122,15 +142,12 @@ step 'build'
 # e.g. run build cmake --build build
 
 step 'test'
-# pytest is this gate's main check, so its absence fails the gate rather
-# than letting "all checks passed" print over a run that tested nothing.
-need pytest || exit 1
-run test pytest -q
+run test py python -m pytest -q
 
 step 'selftest'
 # The analyser's own checks, run the way an engine runs them: isolated,
 # with nothing but the standard library.
-run selftest python3 -I src/frameledger --selftest
+run selftest py python -I src/frameledger --selftest
 
 if (( CONFIGURED )); then
     printf '\nlocal-ci: all checks passed.\n' >&2

@@ -10,3 +10,12 @@ testpaths = ["tests"]
 # tests do the same, so modules import each other by bare name.
 pythonpath = ["src/frameledger"]
 addopts = ["--strict-markers"]
+
+[tool.ruff]
+# The analyser's floor (docs/design.md § The stack), so the UP rules never
+# suggest syntax 3.10 lacks.
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "UP"]

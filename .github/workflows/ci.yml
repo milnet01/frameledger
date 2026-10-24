@@ -55,12 +55,12 @@ jobs:
       # toolchain (local-gate.md § 9). For example, setup-python's
       # `cache: pip`, setup-node's `cache: npm`, or ccache for C/C++.
 
-      # Install the toolchain the script expects. Pin versions in the SCRIPT
-      # and read them from it, so one commit cannot use two different versions:
-      #   - run: pipx install ruff==$(./scripts/local-ci.sh --ruff-version)
-
-      - name: Install pytest
-        run: pipx install "pytest==$(./scripts/local-ci.sh --pytest-version)"
+      # Versions are pinned in the SCRIPT and read from it, so one commit
+      # cannot use two. The gate runs every tool through the uv version it
+      # pins, so this only needs a uv to start from; installing that same
+      # version keeps it from fetching a second.
+      - name: Install uv
+        run: pipx install "uv==$(./scripts/local-ci.sh --uv-version)"
 
       - name: Run the gate
         run: ./scripts/local-ci.sh

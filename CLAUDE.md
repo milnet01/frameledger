@@ -30,7 +30,11 @@ is one C header. `docs/design.md` § The stack, and what it rules out.
 
 ### Build and test
 
-- `./scripts/local-ci.sh` — the gate: pytest, then `--selftest`.
+- `./scripts/local-ci.sh` — the gate, and all GitHub CI runs: document
+  links and cited tests, ruff, pytest, then `--selftest`, each under the
+  uv, Python and tool versions the script pins. `--docs` runs only the
+  document checks; the pre-push hook picks it for a documentation-only
+  push.
 - `pytest` — the tests alone. `pyproject.toml` puts `src/frameledger`
   on the import path.
 - `python3 -I src/frameledger check FILE…` — run the analyser from the
