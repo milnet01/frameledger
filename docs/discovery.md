@@ -3,71 +3,69 @@
 > **Purpose — so that later, anyone can tell whether the thing being
 > built is still the thing that was wanted.**
 
-Not a kick-off document. This is what everything is checked against for
-the life of the project, which is why the signs of success below have to
-be things you could actually observe.
-
 **This document is a gate.** Design does not start until it is agreed —
-`~/.claude/workflow.md` § 2. It passes when a stranger could read it and
-say whether a given feature serves it.
+`~/.claude/workflow.md` § 2.
 
-**Status:** not started. When the gate passes: `agreed (YYYY-MM-DD)`.
-Replace each `>` guidance block with your own text as you fill it in.
+**Status:** draft, 2026-10-24.
 
 ## The problem
 
-> What hurt is this addressing? Specific, not aspirational. *"I lose
-> context between sessions and re-explain the project every time"* is the
-> right level; *"better productivity"* is not.
+Three game engines on this machine — Vestige, UT Ants and DOOM Ants —
+each measure their own frame times in their own way. None of them can
+say, from one run, which part of a frame costs the most, or whether the
+frame waited on the CPU or the GPU.
+
+- Vestige logs a rolling average about once a second, so a single slow
+  frame disappears into it.
+- UT Ants writes one set of medians per run.
+- DOOM Ants prints profile lines to the terminal about once a second.
+
+So a bottleneck has to be hunted by hand, in each engine separately, and
+a change cannot be shown to be faster or slower by a number all three
+agree on.
 
 ## Who it is for
 
-> One to three, each written as "a person who…". Concrete, not a
-> category. Often that is you — say so, it is useful.
->
-> Then: what should this be when finished, and who else should it serve
-> then? A first version is not the whole aim.
+- **The owner of the three engines**, who wants to find where each one
+  loses frame time. They are partially sighted, so the answer has to be
+  short plain text, not a chart.
+- **A Claude Code session working on one engine**, which needs to know
+  whether its change made the engine faster, slower, or neither — as a
+  verdict and an exit code it can act on.
+
+**When finished:** a tool any engine can use. Someone who has never seen
+these three engines writes the file format from its spec alone, and the
+analyser reads their runs.
 
 ## Signs it is working
 
-> Not *shipped* — working. Each written so that you could tell, by using
-> the thing, whether it is true yet. If you cannot imagine the moment you
-> would observe it, it is not one of these.
->
-> **Each gets a LABEL, because the roadmap gate points back at it** —
-> every sign must be claimed by at least one item before the queue is
-> agreed (`~/.claude/workflow.md` § 5). Without one there is nothing to
-> point at, and the gate becomes two lists a human matches by eye.
->
-> **The scheme is yours; `S<n>` below is a worked example, not a default.**
-> `check-queue` reads whatever label your roadmap actually cites its signs
-> by rather than choosing one for you. Keep `S1`, `S2` or replace them —
-> what matters is that the roadmap uses the same spelling. **Search the
-> roadmap for the label before choosing it**: a label that already names
-> something there, such as an `S1` section, makes coverage look better than
-> it is. **Whatever you
-> pick, pick one**: where the roadmap can name NO sign there is no scheme,
-> the coverage check cannot run, and it may make no claim in either
-> direction. One sign the roadmap cannot name is unlabelled on its own, and
-> the check still runs for the rest.
-> Swept 2026-09-07: this said `S<n>` was the DEFAULT, matching `workflow.md`
-> § 3 as it then read; § 3 now says the document proposes no scheme, so the
-> word went from both rather than from one.
->
-> **Ids are never reused and never renumbered.** Delete a sign and its id
-> retires with it — the next one still takes the next unused number.
-> Renumbering is the one way this can fail, because every citation
-> elsewhere keeps pointing at whatever now holds the old number, and
-> nothing announces it.
-
-- **S1** — <something you could observe, in one line>.
-- **S2** — <another>.
+- **S1** — In each of the three engines, a bottleneck has been found
+  from a frameledger report and then fixed.
+- **S2** — One analyser command on one run says which pass costs the
+  most, and what share of frames were CPU-bound or GPU-bound.
+- **S3** — The report lists the worst frames by segment and frame
+  number, and the owner can go to that place in the game and see it.
+- **S4** — Comparing a build against itself reports no difference, and
+  comparing it against a build with a known slowdown reports that
+  slowdown.
+- **S5** — The analyser refuses to compare two runs that are not
+  comparable (another resolution, another build type, another input),
+  and warns on a run it should not trust (a Debug build, a software
+  renderer, too few frames).
+- **S6** — Each engine moves to a new frameledger release by changing
+  one pinned version, and its older run files still analyse.
+- **S7** — A writer built from the format spec alone, by a session that
+  has not read the analyser's code, produces files the analyser accepts.
 
 ## What it deliberately does not do
 
-> The only line that catches scope creep, which is the main way a project
-> stops being what was wanted. An empty section is a fair answer, but the
-> heading is worth answering rather than deleting. Mark each line **never**
-> or **not yet**: a *not yet* is a later item, a *never* is scope.
-> **Before this document is agreed, confirm each *never* line on its own**
-> (`~/.claude/workflow.md` § 3).
+- **never** — Capture frames inside the engine. Each engine keeps its
+  own run and capture code, and writes the shared file.
+- **never** — Depend on anything beyond the Python 3 standard library
+  for the analyser.
+- **never** — Replace a GPU or CPU profiler such as RenderDoc or Tracy.
+  frameledger says which pass and which frames to look at; a profiler
+  says why.
+- **not yet** — Charts or an HTML report. Plain text comes first.
+- **not yet** — Publishing outside this machine. It stays local until
+  the owner says otherwise.
