@@ -91,3 +91,8 @@ writer's buffer; bare-name imports.
   bytes one row can take, so the buffer is sized once.
 
 All four changes went into `docs/design.md`.
+
+Confirmed: UT Ants and DOOM Ants agreed the result. DOOM Ants, for the
+format spec: a run file with no close record (the engine crashed or was
+killed) has no drop count, so the analyser treats it as inconclusive at
+least, never a pass.

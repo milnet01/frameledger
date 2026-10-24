@@ -7,7 +7,8 @@
 agreed — `~/.claude/workflow.md` § 4. The owner delegated this gate to
 the Vestige, UT Ants and DOOM Ants sessions on 2026-10-24.
 
-**Status:** draft, 2026-10-24. Built from
+**Status:** agreed (2026-10-24) by Vestige, UT Ants and DOOM Ants, on the
+owner's delegation. Built from
 [discovery](discovery.md) and the engines'
 [requirements](reviews/2026-10-24-discovery-customer-answers.md).
 

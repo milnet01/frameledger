@@ -2,8 +2,8 @@
 
 ## Where this project is
 
-**State:** 2 — Unshaped. Discovery is agreed (`docs/discovery.md`); the
-design is not.
+**State:** 3 — Unqueued. Discovery and design are agreed
+(`docs/discovery.md`, `docs/design.md`); no items are broken out yet.
 **In flight:** nothing.
 
 > Keep these two lines true, and no `Next:` line. Why:

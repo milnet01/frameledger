@@ -1,6 +1,6 @@
 # ADR-0002: The writer is one header in the common subset of C99 and C++17
 
-- **Status:** Proposed — accepted when the design is agreed
+- **Status:** Accepted (2026-10-24)
 - **Date:** 2026-10-24
 
 ## Context

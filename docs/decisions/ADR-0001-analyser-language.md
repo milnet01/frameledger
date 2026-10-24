@@ -1,6 +1,6 @@
 # ADR-0001: The analyser is Python 3 standard library, not C or C++
 
-- **Status:** Proposed — accepted when the design is agreed
+- **Status:** Accepted (2026-10-24)
 - **Date:** 2026-10-24
 
 ## Context
