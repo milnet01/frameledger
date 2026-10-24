@@ -27,7 +27,9 @@ Four parts. The format spec is the only thing the other three share.
   usually `python -I` or `py -I`. Both forms put
   `src/frameledger` itself on the import path, so modules import each
   other by bare name (`import ledger`), never relatively or as
-  `frameledger.ledger`. Its files:
+  `frameledger.ledger`. So no module may share a name with a standard
+  library module, or it hides that module from the whole analyser; a
+  test fails when one does (`sys.stdlib_module_names`). Its files:
   - `ledger.py` — reads one run file into a `Run`, and lists every way
     it breaks the format. It reads every older schema version (S6's
     older files) and Windows files, with CRLF endings and Windows paths
@@ -49,11 +51,15 @@ Four parts. The format spec is the only thing the other three share.
 - **The writer** — `include/frameledger.h`, one optional header in the
   common subset of C99 and C++17. It formats what the engine hands it
   and times nothing (N1). It never allocates: the engine hands it a
-  buffer when it opens a run. Rows go into that buffer, and the engine
+  buffer when it opens a run. The header states the most bytes one row
+  can take, so an engine can size the buffer once for a known run
+  length. Rows go into that buffer, and the engine
   writes the buffer out at a moment it chooses, outside the measured
   part of the frame (S10). When the buffer is full, a row is dropped
-  and counted, never lost silently; the count goes into the file, and
-  the analyser warns on it.
+  and counted, never lost silently. The count goes into the file when
+  the run closes. A run with any dropped rows cannot pass S8's checks,
+  nor a compare that uses them: they return inconclusive, and the
+  opening sentence says how many rows were dropped.
 - **The tests** — `tests/`: analyser tests, sample run files in
   `tests/fixtures/`, and a writer test that compiles the header as C
   (GCC, Clang and mingw-w64 GCC) and as C++17 (G++, Clang++ and
@@ -62,7 +68,8 @@ Four parts. The format spec is the only thing the other three share.
   UT Ants compile the header with it (ADR-0002). They put
   `src/frameledger` on `sys.path`, as the run forms do.
 
-S1, a bottleneck found and fixed in each engine, places as the whole.
+S1, a bottleneck found and fixed in each engine, is met by the whole
+tool, not by any one part.
 
 ## What may depend on what
 
@@ -100,9 +107,11 @@ S1, a bottleneck found and fixed in each engine, places as the whole.
   failed check, 2 inconclusive (worth re-running), 3 file or
   configuration error, or a comparison refused under S5 (not worth
   re-running). The bisect mode uses `git bisect run`'s own codes
-  instead: 0 good, 1 bad, 125 skip where the ladder gives 2, and 128
-  where it gives 3, which stops the bisect rather than marking the
-  commit bad.
+  instead: 0 good, 1 bad, and 125 (skip this commit) where the ladder
+  gives 2 or where the commit's own run file is missing or breaks the
+  format. A configuration error or a broken reference file gives 128,
+  which stops the bisect: `git bisect run` aborts on any code from 128
+  to 255.
 - **Warnings are part of the result**, never only on standard error, so
   they reach the JSON and the plain sentences.
 - **No state.** The analyser reads files and writes standard output, or
