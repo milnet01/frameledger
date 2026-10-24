@@ -17,14 +17,20 @@ Four parts. The format spec is the only thing the other three share.
 
 - **The format** — what a run file is: its header, static line, rows
   and their rules. One document, `docs/specs/`, written with
-  `write-spec`. Every other part, and every engine's own writer, is
+  `write-spec`. It also fixes what engines' scripts call on the
+  analyser: its commands and flags, the budget file (S12) and the JSON
+  result. Every other part, and every engine's own writer, is
   built to it and to nothing else.
-- **The analyser** — reads run files and reports. A Python package in
-  `src/frameledger/`, run as `python3 -I <path>/src/frameledger` or as
-  a single bundled `frameledger.pyz`. Its files:
-  - `ledger.py` — reads one run file into a `Run`, and says how it
-    breaks the format. The `check` command (S18) is this file's
-    verdict.
+- **The analyser** — reads run files and reports. A directory of
+  modules, `src/frameledger/`, run as `python3 -I <path>/src/frameledger`
+  or as a single bundled `frameledger.pyz`. Both forms put
+  `src/frameledger` itself on the import path, so modules import each
+  other by bare name (`import ledger`), never relatively or as
+  `frameledger.ledger`. Its files:
+  - `ledger.py` — reads one run file into a `Run`, and lists every way
+    it breaks the format. It reads every older schema version (S6's
+    older files) and Windows files, with CRLF endings and Windows paths
+    (S11). The `check` command (S18) reports that list.
   - `stats.py` — percentiles, lows, spreads, one-second windows,
     frame-to-frame variation. Numbers in, numbers out.
   - `trust.py` — whether a run can be trusted and whether two runs may
@@ -41,23 +47,29 @@ Four parts. The format spec is the only thing the other three share.
     sample files, no GPU, no network.
 - **The writer** — `include/frameledger.h`, one optional header in the
   common subset of C99 and C++17. It formats what the engine hands it,
-  buffers in memory, and writes outside the frame loop. It times
+  buffers in memory, and writes outside the frame loop (S10). It times
   nothing (N1).
 - **The tests** — `tests/`: analyser tests, sample run files in
   `tests/fixtures/`, and a writer test that compiles the header as C
-  and as C++ and runs its output through `check`.
+  and as C++ and runs its output through `check`. They put
+  `src/frameledger` on `sys.path`, as the run forms do.
+
+S1, a bottleneck found and fixed in each engine, places as the whole.
 
 ## What may depend on what
 
-- **Every part depends on the format spec, and on nothing in another
-  part.** The writer and the analyser never share code. So a writer
+- **The writer and the analyser depend on the format spec, and on
+  nothing in each other.** They never share code. So a writer
   built from the spec alone (S7) meets the same contract as ours.
 - **Inside the analyser, imports run one way:** `cli.py` →
   `run_report.py`, `compare.py`, `survey.py` → `trust.py`, `stats.py`,
-  `ledger.py`. `render.py` is called only by `cli.py`.
-- **`ledger.py` and `stats.py` import nothing from the package.**
-- **Nothing imports `cli.py`.** The reports return results; they never
-  print and never exit.
+  `ledger.py`. `compare.py` and `survey.py` may import
+  `run_report.py`; it imports neither. `cli.py` imports `selftest.py`,
+  which may import any file but `cli.py`. `render.py` is
+  called only by `cli.py`.
+- **`ledger.py` and `stats.py` import no other analyser file.**
+- **Only `__main__.py` and the tests import `cli.py`.** The reports
+  return results; they never print and never exit.
 - **Only the Python standard library** (N3), and only what Python 3.10
   has.
 - **Tests may import any analyser file.** No analyser file imports from
@@ -73,11 +85,16 @@ Four parts. The format spec is the only thing the other three share.
   meaning is carried by colour alone.
 - **Errors.** A file or argument problem raises one exception type,
   `LedgerError`, carrying what was wrong and where (file, line). Only
-  `cli.py` turns it into a message and an exit code.
+  `cli.py` turns it into a message and an exit code. Under `check`, a
+  file that breaks the format is a failed check, not an error; every
+  other command raises `LedgerError` on it.
 - **Exit codes**, one ladder for every command: 0 pass, 1 regression or
   failed check, 2 inconclusive (worth re-running), 3 file or
-  configuration error (not worth re-running). The bisect mode uses
-  `git bisect run`'s own codes instead: 0 good, 1 bad, 125 skip.
+  configuration error, or a comparison refused under S5 (not worth
+  re-running). The bisect mode uses `git bisect run`'s own codes
+  instead: 0 good, 1 bad, 125 skip where the ladder gives 2, and 128
+  where it gives 3, which stops the bisect rather than marking the
+  commit bad.
 - **Warnings are part of the result**, never only on standard error, so
   they reach the JSON and the plain sentences.
 - **No state.** The analyser reads files and writes standard output, or
@@ -118,3 +135,4 @@ Four parts. The format spec is the only thing the other three share.
 
 | Loop | Date | Lanes | Q1 | Q2 | Q3 | Q4 | Outcome |
 |------|------|-------|----|----|----|----|---------|
+| 1 | 2026-10-24 | 2 | 0 | 3 | 5 | 0 | 8 findings (both lanes held every question; 3 found by both), 8 verified / 0 dismissed, 8 fixed. 0 landed on text an earlier loop of this run added. Run stopped after this loop on the coordinator's word that the owner moved all future reviews to the three engine sessions (2026-10-24); this loop's fixes were read by no lane. Not converged. |
