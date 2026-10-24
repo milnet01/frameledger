@@ -1,0 +1,63 @@
+# This workflow sets up a machine and CALLS the gate script. It restates no
+# step of it, and no check may be added here.
+#
+# `local-gate.md` § 3: the local run must execute the pipeline's own
+# definition, not a copy. Everything CI does lives in scripts/local-ci.sh, so
+# the run before your push and the run on GitHub cannot disagree. Adding a step
+# here instead creates a second list, and the drift is discovered by a red
+# build — the thing running locally was meant to prevent.
+#
+# Setup (installing a toolchain, checking out, caching) belongs here. Checks
+# belong in the script.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# local-gate.md § 9. A newer push to a branch cancels its older run, which
+# saves minutes. NOT on the default branch: there a cancelled run would hide
+# which commit broke it. The event is in the key so a push and a scheduled
+# run never cancel or queue behind each other. A tag ref is not the default
+# branch, so a workflow that also publishes on a tag must not copy this
+# expression: a re-pushed tag would cancel a half-done release. There, cancel
+# on pull_request only.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    # local-gate.md § 9. A hung job otherwise burns up to six hours. Size this
+    # for a COLD build (no cache), or a cache miss reads as a hang.
+    timeout-minutes: 30
+    steps:
+      # Pinned by digest: a tag is mutable and runs a different program on the
+      # day it changes (security.md § 8). **A sha of an OLDER release is still a
+      # pin below latest stable and owes a recorded reason** — same section — so
+      # bump this when you bump anything else, rather than treating the digest as
+      # the end of the obligation.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Without this, checkout leaves the job's token in .git/config, where
+          # every later step can use it. `zizmor` reports it as `artipacked`, and
+          # check-code runs zizmor — so a scaffolded project failed its own gate
+          # on the first run. Turn it back ON, with a comment saying so, only in
+          # a job that actually pushes.
+          persist-credentials: false
+
+      # Cache dependencies and compiler output, keyed on the lockfile or the
+      # toolchain (local-gate.md § 9). For example, setup-python's
+      # `cache: pip`, setup-node's `cache: npm`, or ccache for C/C++.
+
+      # Install the toolchain the script expects. Pin versions in the SCRIPT
+      # and read them from it, so one commit cannot use two different versions:
+      #   - run: pipx install ruff==$(./scripts/local-ci.sh --ruff-version)
+
+      - name: Run the gate
+        run: ./scripts/local-ci.sh

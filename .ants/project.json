@@ -1,0 +1,16 @@
+{
+    "changelog": "CHANGELOG.md",
+    "docs_dir": "docs",
+    "id_format": {
+        "prefix": "FLED"
+    },
+    "roadmap": "ROADMAP.md",
+    "source_roots": [
+        "src",
+        "scripts"
+    ],
+    "specs_dir": "docs/specs",
+    "test_roots": [
+        "tests"
+    ]
+}
