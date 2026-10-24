@@ -6,8 +6,9 @@
 ## Status
 
 In development; nothing is released yet. The run-file format is
-agreed ([spec](docs/specs/FLED-0001-run-file-format.md)). The `check`
-command, which says whether a run file meets it, is built. The
+agreed ([spec](docs/specs/FLED-0001-run-file-format.md)). Two commands
+are built: `check`, which says whether a run file meets it, and
+`report`, which says where one run's frame time went. The
 [roadmap](ROADMAP.md) lists what comes next.
 
 ## Install

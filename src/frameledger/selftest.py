@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 
 import ledger
+import run_report
 
 _HEADER = "# frameledger " + json.dumps({
     "schema": 1, "run_id": "s1", "engine": "selftest", "tool": {"name": "selftest", "version": "1"},
@@ -53,6 +54,20 @@ def _newer_schema_refused() -> bool:
     return False
 
 
+def _report(data: bytes) -> dict:
+    return run_report.report(ledger.read_bytes(data, "sample"))["result"]
+
+
+def _gpu_figure(result: dict, name: str) -> float:
+    return next(e["median_ms"] for e in result["passes"] + result["frame_times"] if e["name"] == name)
+
+
+# Frame 1's GPU result never arrived: gpu_span 10, 12 and 13 remain.
+_GPU_MISSING = _sample([row for row in _IN_ORDER if row != "s1,view:1,1,frame,gpu_span,0,11.000"])
+# A depth-1 row under each frame's shadows pass, which the remainder must not subtract.
+_NESTED = _sample(_IN_ORDER + [f"s1,view:1,{f},gpu,shadows/inner,1,2.000" for f in range(4)])
+
+
 def run() -> list[tuple[str, bool]]:
     """Each check's name and whether it passed."""
     good = ledger.read_bytes(_GOOD, "sample")
@@ -70,4 +85,7 @@ def run() -> list[tuple[str, bool]]:
          _rules(_GOOD.replace(b"5.250", b'"5,250"', 1)) == [(4, "value")]),
         ("a zero frame/wall is a breach", _rules(_GOOD.replace(b"16.667", b"0.000", 1)) == [(5, "wall")]),
         ("a newer schema is refused", _newer_schema_refused()),
+        ("a missing GPU result is left out, not counted as zero",
+         _report(_GPU_MISSING)["missing_gpu_frames"] == 1 and _gpu_figure(_report(_GPU_MISSING), "gpu_span") == 12.0),
+        ("the remainder subtracts depth-0 rows only", _gpu_figure(_report(_NESTED), "gpu_remainder") == 11.004),
     ]

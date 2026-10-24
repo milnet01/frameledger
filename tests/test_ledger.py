@@ -1,20 +1,25 @@
 """ledger.read: one run file into a Run.
 
-INV-3 and INV-4 name `report --json` as their comparison. Until
-`report` exists (FLED-0003) they compare the Run itself, which every
-report is built from; FLED-0003 adds the report comparison.
+INV-3 and INV-4 compare both the Run, which every report is built from,
+and the `report --json` output their clauses name.
 """
 
 from pathlib import Path
 
 import pytest
 
+import cli
 import ledger
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def test_crlf_equals_lf(tmp_path):
+def report_json(capsys, path):
+    assert cli.main(["report", "--json", str(path)]) == 0
+    return capsys.readouterr().out
+
+
+def test_crlf_equals_lf(tmp_path, capsys):
     """INV-3: the same rows with LF and CRLF endings read the same."""
     lf = FIXTURES / "small-run.csv"
     crlf = tmp_path / "small-run-crlf.csv"
@@ -25,9 +30,10 @@ def test_crlf_equals_lf(tmp_path):
     assert a.breaches == [] and b.breaches == []
     assert a == b
     assert ("frame", "cpu_span") in b.frames[2]
+    assert report_json(capsys, lf) == report_json(capsys, crlf)
 
 
-def test_late_gpu_rows():
+def test_late_gpu_rows(capsys):
     """INV-4: rows join on (run_id, frame), whatever their order."""
     in_order = ledger.read(FIXTURES / "in-order.csv")
     late = ledger.read(FIXTURES / "gpu-late.csv")
@@ -35,6 +41,7 @@ def test_late_gpu_rows():
     assert in_order.frames == late.frames
     assert late.frames[0][("frame", "gpu_span")].thousandths == 10_000
     assert late.frames[3][("gpu", "shadows")].thousandths == 7_000
+    assert report_json(capsys, FIXTURES / "in-order.csv") == report_json(capsys, FIXTURES / "gpu-late.csv")
 
 
 def test_values_are_exact():

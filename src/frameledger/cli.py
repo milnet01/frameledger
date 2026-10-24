@@ -12,6 +12,7 @@ import sys
 
 import ledger
 import render
+import run_report
 import selftest
 
 VERSION = "0.1.0.dev0"
@@ -40,6 +41,10 @@ def _parser() -> _Parser:
     # --json given before the command name.
     check.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                        help="print the JSON result instead of text")
+    report = commands.add_parser("report", help="say where one run's frame time went")
+    report.add_argument("file", metavar="FILE")
+    report.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                        help="print the JSON result instead of text")
     return parser
 
 
@@ -53,8 +58,10 @@ def main(argv: list[str] | None = None) -> int:
             result = _selftest()
         elif args.command == "check":
             result = _check(args.files)
+        elif args.command == "report":
+            result = _report(args.file)
         else:
-            raise ledger.LedgerError("name a command (check) or --selftest; --help lists them")
+            raise ledger.LedgerError("name a command (check, report) or --selftest; --help lists them")
     except ledger.LedgerError as error:
         print(f"frameledger: {error}", file=sys.stderr)
         return ERROR
@@ -114,6 +121,16 @@ def _check(paths: list[str]) -> dict:
         summary.append("The file meets the run-file format." if total == 1
                        else f"All {total} files meet the run-file format.")
     return _result("check", verdict, code, summary, warnings, {"files": files})
+
+
+def _report(path: str) -> dict:
+    """§ 4.7: exit 0, or 3 when the file cannot be read or breaks the format."""
+    try:
+        built = run_report.report(ledger.read(path))
+    except ledger.LedgerError as error:
+        return _result("report", "error", ERROR, [f"{error}."],
+                       [{"code": "file_error", "message": str(error)}], {})
+    return _result("report", "none", PASS, built["summary"], built["warnings"], built["result"])
 
 
 def _notice_sentences(path: str, notices: list[ledger.Notice]) -> list[str]:

@@ -136,7 +136,10 @@ statistics, draw counts, scene facts. Its shape is the engine's, with
 one rule: a statistic value is a JSON **string** of its exact decimal
 text (`"17436423623014656123"`), never a JSON number, so no reader
 rounds it. The analyser prints the static line's contents beside the
-ranking and does not interpret them.
+ranking and does not interpret them. An optional top-level `summary`
+object holds the facts the engine wants in the text report; the text
+prints it whole and leaves the rest to `--json`. Without one, the text
+prints the first 20 facts and counts the rest.
 
 ### 4.4 Rows
 
@@ -299,14 +302,49 @@ than 100 columns. No meaning is carried by colour.
 `{"windows": [{"start_s", "fps", "pass"}], "windows_skipped",
 "slow_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
 "frames_over_budget", "allowed", "rows_dropped", "finished"}`. For `report`:
-`{"passes": [{"category", "name", "segment_kind", "median_ms",
-"p99_ms", "share"}], "bound_by": {"cpu", "gpu", "applies"},
+`{"passes": [{"category", "name", "segment_kind", "depth", "median_ms",
+"p99_ms", "share", "frames"}], "frame_times": [{"name", "segment_kind",
+"median_ms", "p99_ms", "frames"}], "bound_by": {"cpu", "gpu", "applies"},
 "worst_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
-"missing_gpu_frames"}`. For `check`: `{"files": [{"path",
+"missing_gpu_frames", "static"}`. For `check`: `{"files": [{"path",
 "breaches": [{"line", "rule", "message"}]}]}`.
 
 1% low is 1000 divided by the 99th-percentile `frame/wall`;
 percentiles are nearest-rank.
+
+The `report` result, agreed with the three engines for FLED-0003:
+
+- **A frame's segment** is its `frame/cpu_span` row's, or else its
+  first row's. Everything below is per segment kind; `segment_kind` is
+  null for frames with no segment.
+- **`passes`** holds the `cpu` and `gpu` rows of every depth, plus
+  `cpu_remainder` and `gpu_remainder` as depth-0 entries. A pass counts
+  only in frames that have its category's span. `frames` counts the
+  frames it appears in; its median and 99th percentile are over those
+  frames, since a pass absent from a frame did not run. `share` is its
+  total time over its span's total time, from 0 to 1, rounded to four
+  places. Entries are ranked by segment kind, then category, then total
+  time, most first; ties by median, then name.
+- **`frame_times`** holds each `frame` row name per segment kind.
+  `frame/gpu_span` figures leave out frames without one; those are
+  counted in `missing_gpu_frames`.
+- **`bound_by`** is over frames with both spans: GPU-bound when
+  `gpu_span` is greater than `cpu_span`, otherwise CPU-bound. With
+  `pipelined` false, `cpu` and `gpu` are null and `applies` false.
+- **`worst_frames`** are the 10 longest `frame/wall`, longest first,
+  ties by frame number. `top_pass` is `category/name` of the frame's
+  largest depth-0 `cpu` or `gpu` cost, remainders included.
+- **`static`** is the static line exactly as written, or null.
+- **`mem`, `event` and `ext.<engine>` rows** are not reported in 0.1.0.
+- **No file path and no line number** appear in the summary, warnings
+  or result, so INV-3 and INV-4 hold; warnings name the frame. A file
+  `report` cannot read, or one with any breach, gives verdict `error`,
+  exit 3, an empty `result`, and a summary naming the path and the
+  first breach's line.
+- **Opening sentences**: dropped rows, an unfinished run, one sentence
+  per other kind of warning, frames without a GPU result; then the frame
+  count, the costliest depth-0 pass per segment kind by total time, and
+  the bound-by share or that it does not apply.
 
 ## 5. Invariants
 
@@ -549,19 +587,19 @@ it on each release they pin.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 | **`Partial:`** `tests/test_check.py::test_missing_header` covers `check`; `report` and `floor` arrive with FLED-0003 and FLED-0004 |
+| INV-1 | **`Partial:`** `tests/test_check.py::test_missing_header` covers `check` and `report`; `floor` arrives with FLED-0004 |
 | INV-2 | `tests/test_check.py::test_schema_versions` |
-| INV-3 | **`Partial:`** `tests/test_ledger.py::test_crlf_equals_lf` compares the parsed run; the `report --json` comparison arrives with FLED-0003 |
-| INV-4 | **`Partial:`** `tests/test_ledger.py::test_late_gpu_rows` compares the parsed run; the `report --json` comparison arrives with FLED-0003 |
-| INV-5 | `tests/test_report.py::test_missing_gpu_span` (not yet written) |
+| INV-3 | `tests/test_ledger.py::test_crlf_equals_lf` |
+| INV-4 | `tests/test_ledger.py::test_late_gpu_rows` |
+| INV-5 | `tests/test_report.py::test_missing_gpu_span` |
 | INV-6 | `tests/test_check.py::test_value_format` |
 | INV-7 | `tests/test_floor.py::test_unfinished_and_dropped` (not yet written) |
 | INV-8 | `tests/test_floor.py::test_window_rate` (not yet written) |
 | INV-9 | `tests/test_floor.py::test_single_frame_budget` (not yet written) |
-| INV-10 | `tests/test_report.py::test_bound_by_not_pipelined` (not yet written) |
-| INV-11 | `tests/test_report.py::test_remainder` (not yet written) |
-| INV-12 | `tests/test_report.py::test_static_exact` (not yet written) |
-| INV-13 | `tests/test_render.py::test_text_matches_json` (not yet written) |
+| INV-10 | `tests/test_report.py::test_bound_by_not_pipelined` |
+| INV-11 | `tests/test_report.py::test_remainder` |
+| INV-12 | `tests/test_report.py::test_static_exact` |
+| INV-13 | `tests/test_render.py::test_text_matches_json` |
 | INV-14 | `tests/writer/test_compile.sh` (not yet written) |
 | INV-15 | `tests/writer/test_writer.c::test_drops` (not yet written) |
 | INV-16 | `tests/writer/test_writer.c::test_output_conforms` (not yet written) |
@@ -569,10 +607,10 @@ it on each release they pin.
 | INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows` (not yet written) |
 | INV-19 | `tests/writer/test_writer.c::test_rounding` (not yet written) |
 | INV-20 | `tests/writer/test_writer.c::test_bad_values` (not yet written) |
-| INV-21 | **`Partial:`** `tests/test_check.py::test_negative_and_last_wall` covers `check`; `report` arrives with FLED-0003 |
+| INV-21 | `tests/test_check.py::test_negative_and_last_wall` |
 | INV-22 | `tests/writer/test_writer.c::test_consume_reuses` (not yet written) |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
-| 4.8, tables within 100 columns | **nothing** — no test planned; the engines' reading of reports |
+| 4.8, tables within 100 columns | **`Partial:`** `tests/test_render.py::test_text_matches_json` over `report`'s text for every fixture; `floor`'s arrives with FLED-0004 |
 
 ## 11. Cross-doc impact
 

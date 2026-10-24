@@ -52,7 +52,7 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0001.
 
-- 📋 [FLED-0003] **Single-run report.**
+- ✅ [FLED-0003] **Single-run report.**
   stats.py and run_report.py: cost ranking per pass and per segment
   kind, bound-by share (or "does not apply" when not pipelined), GPU
   rows joined to their submitting frame, worst frames with their top
@@ -64,6 +64,16 @@ Engines can write files and pin a release.
   INV-3 and INV-4 comparing `report --json` output, beside the
   parsed-run comparison already there. render.py exists with check's and
   selftest's text bodies.
+  Shipped 2026-10-24: stats.py, run_report.py, render.py's report
+  body, cli.py's `report FILE`; two --selftest checks. Tests in
+  tests/test_report.py and test_render.py, and the report halves of
+  INV-1, 3, 4 and 21 beside their check halves. The § 4.8 report shape
+  was amended with the engines' review: frame_times, static, depth and
+  frames per pass, remainders as passes, ranking by time spent
+  (Vestige), and a capped static block with an optional "summary"
+  object (UT Ants). DOOM Ants had not answered at commit (silence =
+  keep). check's own breach and warning lines can pass 100 columns,
+  since they carry the file's path; not changed here.
   **Layman:** One command says where a run's frame time went and which frames were worst.
   Kind: implement.
   Source: design-2026-10-24.
