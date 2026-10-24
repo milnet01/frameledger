@@ -67,4 +67,28 @@ discovery is agreed. Each was sent the same four questions:
 
 ## DOOM Ants (doom-ants-26)
 
-Awaiting reply.
+Adopting frameledger, and parking or reshaping DOOM-0431, are the
+user's decisions. The session recommends adoption.
+
+1. An optional single-header C writer helps, usable from the C engine
+   and the C++ Vulkan back-end. Conditions: no dependencies; no
+   allocation or file I/O per frame (buffer in memory, write at the end
+   or on a background flush); timestamps passed in by the engine. GPU
+   timing stays in the engine.
+2. Python 3 standard library. Needs a command-line report and a gate
+   for its local pre-push pipeline (in a container) and CI. No
+   embedding. Estimates a few hundred thousand rows per run.
+3. Enough. RenderDoc and AMD's Radeon GPU Profiler explain why.
+4. Missing:
+   - Microsecond resolution: frames run at hundreds of FPS.
+   - The game ticks at 35 Hz. A per-frame "sim tic ran" flag or row,
+     so spikes line up with tic frames.
+   - A warm-up or "after camera cut" marker, and a trust warning when
+     one falls inside a run. Ray-traced frames cost more after a cut
+     or a level load.
+   - Render scale, tier and ray tracing on/off block a compare.
+   - The header records the display kind (private headless display or
+     on-screen), and runs of different kinds are never compared.
+   - DOOM-0431 is parked: spec and plan written, nothing built. The
+     session suggests replacing it with a frameledger writer. The
+     user's call.
