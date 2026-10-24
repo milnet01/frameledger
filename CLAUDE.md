@@ -37,6 +37,18 @@ rather than in a standard.
 `FLED-NNNN`, per `roadmap-format.md` § 3.5.1. Commit subjects
 are `<ID>: <description>`, per `commits.md`.
 
+### Who decides and who reviews
+
+The owner, 2026-10-24: frameledger serves Vestige, UT Ants and DOOM
+Ants, and their sessions decide and review its work.
+
+- **Questions go to the three engine sessions**, not the owner. Go to
+  the owner only for something outside the three projects' scope, with
+  a recommendation.
+- **Rule 14's gate is cancelled for every document in this project.**
+  No `review-contract` run. Each document that would have been gated
+  goes to the three engine sessions for review instead.
+
 ### Overrides
 
 Any place this project deliberately departs from a global standard goes

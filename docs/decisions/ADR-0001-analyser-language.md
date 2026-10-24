@@ -21,7 +21,7 @@ Python. Each engine was asked what it needs from the analyser
 ## Decision
 
 The analyser is Python 3.10 or newer, using only the standard library.
-It is run as `python3 -I`, either on the package directory or on a
+It is run as `python3 -I`, either on the `src/frameledger` directory or on a
 bundled `.pyz` file.
 
 ## Consequences

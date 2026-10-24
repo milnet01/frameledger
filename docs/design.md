@@ -23,7 +23,8 @@ Four parts. The format spec is the only thing the other three share.
   built to it and to nothing else.
 - **The analyser** — reads run files and reports. A directory of
   modules, `src/frameledger/`, run as `python3 -I <path>/src/frameledger`
-  or as a single bundled `frameledger.pyz`. Both forms put
+  or as a single bundled `frameledger.pyz`. On Windows the command is
+  usually `python -I` or `py -I`. Both forms put
   `src/frameledger` itself on the import path, so modules import each
   other by bare name (`import ledger`), never relatively or as
   `frameledger.ledger`. Its files:
@@ -46,12 +47,19 @@ Four parts. The format spec is the only thing the other three share.
   - `selftest.py` — `--selftest`: the analyser's own checks on built-in
     sample files, no GPU, no network.
 - **The writer** — `include/frameledger.h`, one optional header in the
-  common subset of C99 and C++17. It formats what the engine hands it,
-  buffers in memory, and writes outside the frame loop (S10). It times
-  nothing (N1).
+  common subset of C99 and C++17. It formats what the engine hands it
+  and times nothing (N1). It never allocates: the engine hands it a
+  buffer when it opens a run. Rows go into that buffer, and the engine
+  writes the buffer out at a moment it chooses, outside the measured
+  part of the frame (S10). When the buffer is full, a row is dropped
+  and counted, never lost silently; the count goes into the file, and
+  the analyser warns on it.
 - **The tests** — `tests/`: analyser tests, sample run files in
   `tests/fixtures/`, and a writer test that compiles the header as C
-  and as C++ and runs its output through `check`. They put
+  (GCC, Clang and mingw-w64 GCC) and as C++17 (G++, Clang++ and
+  mingw-w64 G++), each at `-Wall -Wextra -Wpedantic -Werror`, and runs
+  its output through `check`. MSVC cannot run here; Vestige and
+  UT Ants compile the header with it (ADR-0002). They put
   `src/frameledger` on `sys.path`, as the run forms do.
 
 S1, a bottleneck found and fixed in each engine, places as the whole.
@@ -99,8 +107,10 @@ S1, a bottleneck found and fixed in each engine, places as the whole.
   they reach the JSON and the plain sentences.
 - **No state.** The analyser reads files and writes standard output, or
   a file named on the command line. It keeps nothing between runs.
-- **Locale never matters.** Numbers are read and written with `.` as
-  the decimal point, whatever the machine's language.
+- **Locale never matters**, in the analyser or the writer. Numbers are
+  read and written with `.` as the decimal point, whatever the
+  machine's language. The writer formats numbers itself, never with
+  locale-dependent `printf`.
 - **Files are read in one pass**, row by row, so a survey of about a
   million rows stays under a minute (S19).
 
