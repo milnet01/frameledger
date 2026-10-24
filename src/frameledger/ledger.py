@@ -250,9 +250,15 @@ class _Reader:
         if self.expect != "rows":
             self.breach(line_count, "columns", f"the column line '{COLUMNS}' is missing")
         last = max(self.run.frames, default=None)
+        # A full buffer may drop a frame's CPU rows while its late GPU rows
+        # still land, so with drops counted a missing cpu_span is expected.
+        dropped = bool(self.run.close and self.run.close["rows_dropped"])
         for frame, rows in sorted(self.run.frames.items()):
             first_line = min(row.line for row in rows.values())
-            if ("frame", "cpu_span") not in rows:
+            if ("frame", "cpu_span") not in rows and dropped:
+                self.notice("cpu_span_missing", f"frame {frame} has no frame/cpu_span row, "
+                            "probably among the dropped rows", first_line)
+            elif ("frame", "cpu_span") not in rows:
                 self.breach(first_line, "cpu_span", f"frame {frame} has no frame/cpu_span row")
             if ("frame", "wall") not in rows and frame != last:
                 self.notice("wall_missing", f"frame {frame} has no frame/wall row, so the timeline "

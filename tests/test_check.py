@@ -193,6 +193,18 @@ def test_frame_without_cpu_span(capsys, tmp_path):
     assert [rule for _, rule in found(out)] == ["cpu_span"]
 
 
+def test_frame_without_cpu_span_after_drops(capsys, tmp_path):
+    """When the writer dropped rows, a frame's cpu_span may be among them
+    while its late GPU rows still landed: a warning, not a breach
+    (Vestige, 2026-10-24)."""
+    def edit(lines):
+        lines.remove("r1,view:1,1,frame,cpu_span,0,9.000")
+        lines[-1] = '# frameledger-close {"rows_dropped":1,"frames":2}'
+    code, out = run_check(capsys, edited(tmp_path, edit))
+    assert (code, found(out)) == (0, [])
+    assert [w["code"] for w in out["warnings"]] == ["rows_dropped", "cpu_span_missing"]
+
+
 def test_not_utf8(capsys, tmp_path):
     path = tmp_path / "run.csv"
     data = (FIXTURES / "schema-1.csv").read_bytes().replace(b"view:1,1,cpu", b"view:\xff,1,cpu")
