@@ -106,6 +106,12 @@ Engines can write files and pin a release.
   engine objected) and the spec amendment. Step 3, the second engine
   review with readability, was requested 2026-10-24. Left: fold in its
   findings, then flip shipped.
+  Second review folded in at da9644f: 1000/N rounded up (144 Hz
+  and 59.94 Hz runs pass), a cut frame also closes the window open when
+  it starts, windows report mean_ms, the --fps exemption under
+  --budget-ms --no-windows; spec § 4.7, § 4.8, INV-8, INV-18 amended.
+  UT Ants agreed 8caf07f; confirmation of da9644f asked of all three
+  2026-10-24. Left: their confirmation, then flip shipped.
   **Layman:** Pass or fail: did the run hold 60 FPS every second, and did any single frame take too long?
   Kind: implement.
   Source: design-2026-10-24.
