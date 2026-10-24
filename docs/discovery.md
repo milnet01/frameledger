@@ -27,6 +27,10 @@ So a bottleneck has to be hunted by hand, in each engine separately, and
 a change cannot be shown to be faster or slower by a number all three
 agree on.
 
+**The goal behind it** (the owner, 2026-10-24): each engine holds at
+least 60 frames per second. frameledger exists to find what stops a
+frame fitting in 16.67 ms, and to show when a change has fixed it.
+
 ## Who it is for
 
 - **The owner of the three engines**, who wants to find where each one
