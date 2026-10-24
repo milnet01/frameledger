@@ -2,9 +2,8 @@
 
 ## Where this project is
 
-**State:** 3 — Unqueued. Discovery and design are agreed
-(`docs/discovery.md`, `docs/design.md`); no items are broken out yet.
-**In flight:** nothing.
+**State:** 5 — On an item.
+**In flight:** FLED-0001, the format and command spec.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.
