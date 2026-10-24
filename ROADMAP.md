@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=14 -->
+<!-- ants-roadmap-id-high-water: FLED=15 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -209,3 +209,17 @@ another's.
   Kind: investigate.
   Source: design-2026-10-24.
   Blocked-by: FLED-0007.
+
+## Later — for anyone
+
+After frameledger does what Vestige, UT Ants and DOOM Ants need (the owner, 2026-10-24: build it for our own requirements first).
+
+- 💭 [FLED-0015] **A version anyone can use.**
+  Offer frameledger to engines other than the three it serves. Not
+  started before the three engines' requirements are met. What "anyone
+  can use" needs (install, documentation, a stable format promise,
+  support) is to be decided then.
+  **Layman:** A version of frameledger that any game developer can pick up and use, not only our three engines.
+  Kind: feature.
+  Source: user-request-2026-10-24.
+  Blocked-by: FLED-0014.
