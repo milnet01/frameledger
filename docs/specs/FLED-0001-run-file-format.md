@@ -180,6 +180,10 @@ never a fixed simulation step; so the last frame of a run has no
 `frame/fence_wait`, `frame/present_wait`. A frame whose GPU result never
 arrived has no `frame/gpu_span` row.
 
+**Frame numbers** run without holes. A number missing between two
+present ones is a hole: not a breach, but `check` and every report warn
+`frame_missing`, naming the frames.
+
 **Events.** `event/cut` on a frame where the camera jumped or a level
 loaded; `event/tic` on a frame where the simulation stepped, its value
 the number of steps (`2.000` when it caught up two). One row per frame
@@ -269,15 +273,33 @@ rounded to three places (16.667 at 60), `--allow-frames 0`.
   them), never in floating point.
 - **Windows** are half-open, `[start, start + 1 s)`. The first starts
   when the warm-up ends; a new one starts after each full second and at
-  every `event/cut`. A frame belongs to the window holding its end.
+  the end of every frame carrying `event/cut`. A frame belongs to the
+  window holding its end, so a cut frame, often a level load, is in no
+  window and is judged by the budget alone.
 - **A window's frame rate** is the frames that end in it divided by one
-  second.
+  second, and is reported as `fps`.
+- **A window passes** when the mean `frame/wall` of the frames ending
+  in it is at most 1000/`--fps` ms rounded to three places, ties up
+  (16.667 at 60), whatever `--budget-ms` is. A window with no frame
+  ending in it fails. So a steady 16.667 ms run passes at 60, though a
+  window starting just before a frame ends holds only 59 frames.
 - **A window shorter than one second** — cut short by an `event/cut`
   or by the end of the run — is skipped and counted, never judged.
-  Where no full window exists, the window check is inconclusive, and
-  the summary says so.
 - **A frame fails the budget** when its `frame/wall` is greater than
   the budget. Frames ending before the warm-up are not judged.
+- **Inconclusive.** Dropped rows, no close line, a hole in the frame
+  numbers, or a frame other than the last with no `frame/wall` make the
+  window check inconclusive: a missing frame moves every later one into
+  the wrong window. So does having no full window. The frame check is
+  inconclusive on the same grounds, or when no frame ends after the
+  warm-up, but more frames over the budget than `--allow-frames` fail
+  it regardless: each such frame's own `frame/wall` is real. The
+  summary says which applied.
+- **Exit 3** besides a file error: `--no-windows` with `--no-frames`;
+  a `--budget-ms` outside 0.001 to 999999999.999 ms or with more than
+  three decimal places; and a `--fps` whose 1000/`--fps` ms is below
+  0.0005 or at least 1000000000, unless `--budget-ms` is given and the
+  window check is off.
 
 ### 4.8 Text and JSON results
 
@@ -398,25 +420,33 @@ breaks.
 
 - **INV-7** — `floor` returns inconclusive (exit 2) when the close line
   is missing or `rows_dropped` is above zero, even if every window and
-  frame passes, and says why in the first summary sentence.
+  frame passes, and says why in the first summary sentence. A frame
+  over the budget still fails it (exit 1).
   *Test:* `tests/test_floor.py::test_unfinished_and_dropped`, fixtures
   `passing-run.csv`, the same without its close line, and the same
-  with `rows_dropped` 3.
-  *Breaks when:* `floor` judges only the rows it has.
+  with `rows_dropped` 3; `tests/test_floor.py::test_frame_failure_stands_under_drops`,
+  `fast-with-one-spike.csv` with `rows_dropped` 1.
+  *Breaks when:* `floor` judges only the rows it has, or lets a drop
+  excuse a slow frame.
 
-- **INV-8** — A window's frame rate is the frames ending in it divided
-  by one second: 58 frames of 16.000 ms and one of 71.000 ms end inside
-  one window, 59 frames, so it fails `--fps 60`, although the mean of
-  the per-frame rates is above 61. A frame ending exactly on a window's
-  end belongs to the next window.
+- **INV-8** — A window passes when the mean `frame/wall` of the frames
+  ending in it is at most 1000/`--fps` ms rounded to three places: 58
+  frames of 16.000 ms and one of 71.000 ms end inside one window, a
+  mean of 16.932 ms, so it fails `--fps 60`, although the mean of the
+  per-frame rates is above 61. Frames of exactly 16.667 ms pass, even
+  in a window holding only 59 of them. A frame ending exactly on a
+  window's end belongs to the next window.
   *Test:* `tests/test_floor.py::test_window_rate`, fixtures
   `one-hitch.csv` (that second, just after the warm-up, followed by
-  full 60 FPS seconds) and `edge-frame.csv` (a frame ending exactly at
-  a window's end), each with `--no-frames` so only the window check can
-  fail.
-  *Breaks when:* the window rate is the mean of 1000/wall, or the
-  timeline is summed in floating point, or windows are closed at both
-  ends.
+  full 60 FPS seconds) and `edge-frame.csv` (59 frames of 16.100 ms,
+  then one of 51.100 ms ending exactly at the window's end, which would
+  raise the mean to 16.683 ms if counted);
+  `tests/test_floor.py::test_steady_frame_time_passes`,
+  `exact-budget.csv` with `--warmup-s 1.98339`; each with `--no-frames`
+  so only the window check can fail.
+  *Breaks when:* the window is judged by the mean of 1000/wall or by
+  counting its frames against N, or the timeline is summed in floating
+  point, or windows are closed at both ends.
 
 - **INV-9** — One frame over `--budget-ms` fails `floor` (exit 1) even
   when every window passes; `--no-frames` turns that check off;
@@ -486,15 +516,18 @@ breaks.
   *Test:* `tests/writer/test_writer.c::test_name_limit`, a 65-byte name.
   *Breaks when:* the name is truncated or written whole.
 
-- **INV-18** — `floor` starts a new window at every `event/cut` and
-  skips, and counts in `windows_skipped`, every window shorter than one
-  second; with no full window the window check is inconclusive.
+- **INV-18** — `floor` starts a new window at the end of every frame
+  carrying `event/cut`, so that frame is in no window, and skips, and
+  counts in `windows_skipped`, every window shorter than one second;
+  with no full window the window check is inconclusive.
   *Test:* `tests/test_floor.py::test_cuts_and_partial_windows`,
   fixtures `cut-mid-second.csv` (a 0.5 s stretch of 20 FPS frames
   between two cuts, the rest at 60 FPS) and `short-views.csv` (every
-  view under one second).
+  view under one second); `tests/test_floor.py::test_cut_frame_is_left_out_of_windows`
+  (a 400 ms cut frame) and `tests/test_floor.py::test_cut_on_a_window_boundary`.
   *Breaks when:* windows ignore cuts, so the slow stretch drags a mixed
-  window below 60, or a partial window is judged.
+  window below 60, a cut frame is counted in a window, or a partial
+  window is judged.
 
 - **INV-19** — The writer rounds to thousandths with ties away from
   zero: `0.0625` is written `0.063` and `-0.0625` is written `-0.063`.
@@ -530,9 +563,10 @@ breaks.
   skipped row hides a frame.
 - **Two rows for the same frame, category and name.** A breach; the
   analyser cannot tell which is real.
-- **A frame other than the last with no `frame/wall`.** The timeline
-  cannot be built past it: `floor` is inconclusive; `report` warns and
-  leaves the frame out.
+- **A frame other than the last with no `frame/wall`, or a hole in the
+  frame numbers.** The timeline cannot be built past it: `floor` is
+  inconclusive unless frames fail the budget (§ 4.7); `report` warns,
+  and leaves a frame with no wall out of its wall figures.
 - **A header field of the wrong type.** A `check` breach; other
   commands exit 3.
 - **A writer whose engine never calls `fled_consume`.** The buffer
@@ -587,15 +621,15 @@ it on each release they pin.
 
 | Rule | What catches a breach |
 |------|----------------------|
-| INV-1 | **`Partial:`** `tests/test_check.py::test_missing_header` covers `check` and `report`; `floor` arrives with FLED-0004 |
+| INV-1 | `tests/test_check.py::test_missing_header` |
 | INV-2 | `tests/test_check.py::test_schema_versions` |
 | INV-3 | `tests/test_ledger.py::test_crlf_equals_lf` |
 | INV-4 | `tests/test_ledger.py::test_late_gpu_rows` |
 | INV-5 | `tests/test_report.py::test_missing_gpu_span` |
 | INV-6 | `tests/test_check.py::test_value_format` |
-| INV-7 | `tests/test_floor.py::test_unfinished_and_dropped` (not yet written) |
-| INV-8 | `tests/test_floor.py::test_window_rate` (not yet written) |
-| INV-9 | `tests/test_floor.py::test_single_frame_budget` (not yet written) |
+| INV-7 | `tests/test_floor.py::test_unfinished_and_dropped`, `tests/test_floor.py::test_frame_failure_stands_under_drops` |
+| INV-8 | `tests/test_floor.py::test_window_rate`, `tests/test_floor.py::test_steady_frame_time_passes` |
+| INV-9 | `tests/test_floor.py::test_single_frame_budget` |
 | INV-10 | `tests/test_report.py::test_bound_by_not_pipelined` |
 | INV-11 | `tests/test_report.py::test_remainder` |
 | INV-12 | `tests/test_report.py::test_static_exact` |
@@ -604,13 +638,13 @@ it on each release they pin.
 | INV-15 | `tests/writer/test_writer.c::test_drops` (not yet written) |
 | INV-16 | `tests/writer/test_writer.c::test_output_conforms` (not yet written) |
 | INV-17 | `tests/writer/test_writer.c::test_name_limit` (not yet written) |
-| INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows` (not yet written) |
+| INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows`, `tests/test_floor.py::test_cut_frame_is_left_out_of_windows`, `tests/test_floor.py::test_cut_on_a_window_boundary` |
 | INV-19 | `tests/writer/test_writer.c::test_rounding` (not yet written) |
 | INV-20 | `tests/writer/test_writer.c::test_bad_values` (not yet written) |
 | INV-21 | `tests/test_check.py::test_negative_and_last_wall` |
 | INV-22 | `tests/writer/test_writer.c::test_consume_reuses` (not yet written) |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
-| 4.8, tables within 100 columns | **`Partial:`** `tests/test_render.py::test_text_matches_json` over `report`'s text for every fixture; `floor`'s arrives with FLED-0004 |
+| 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
 ## 11. Cross-doc impact
 

@@ -202,12 +202,14 @@ def _floor(args: argparse.Namespace) -> dict:
         raise ledger.LedgerError("--no-windows and --no-frames together leave nothing to check")
     try:  # an absurd exponent overflows decimal arithmetic, which is exit 3, not a traceback
         budget = args.budget_ms
+        frame_ms = 1000 / args.fps  # the window check's limit, and the default budget
+        if ((budget is None or not args.no_windows)
+                and not Decimal("0.0005") <= frame_ms < BUDGET_LIMIT):  # 0.0005 rounds up to 0.001
+            raise ledger.LedgerError(f"--fps {args.fps} gives a frame time of {frame_ms:.3e} ms, "
+                                     f"outside 0.001 to {BUDGET_LIMIT} ms; to judge frames alone, "
+                                     "pass --budget-ms and --no-windows")
         if budget is None:
-            budget = 1000 / args.fps
-            if not Decimal("0.0005") <= budget < BUDGET_LIMIT:  # 0.0005 rounds up to 0.001
-                raise ledger.LedgerError(f"--fps {args.fps} gives a frame budget of {budget:.3e} ms, "
-                                         f"outside 0.001 to {BUDGET_LIMIT} ms; pass --budget-ms")
-            budget = budget.quantize(Decimal("0.001"), ROUND_HALF_UP)
+            budget = Decimal(run_report.frame_time(args.fps)) / 1000
         warmup_us = int((args.warmup_s * 1_000_000).to_integral_value(ROUND_HALF_UP))
     except DecimalException as error:
         raise ledger.LedgerError(f"--fps or --warmup-s is out of range ({type(error).__name__})") from None

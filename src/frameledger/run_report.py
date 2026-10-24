@@ -13,7 +13,7 @@ from __future__ import annotations
 import math
 from bisect import bisect_left, bisect_right
 from collections import defaultdict
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 import ledger
 import stats
@@ -89,7 +89,8 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         reasons.append("The file has no close line, so the run did not finish.")
     if stop:
         reasons.append(f"{stop[0].upper()}{stop[1:]}, so the timeline stops there.")
-    failed = [w for w in full if not _window_passes(w, fps)]
+    limit = frame_time(fps)
+    failed = [w for w in full if not _window_passes(w, limit)]
 
     window_state = (None if not windows else "inconclusive" if reasons or not full
                     else "fail" if failed else "pass")
@@ -157,7 +158,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         summary.append(f"{no_frame[0].upper()}{no_frame[1:]}.")
 
     result = {
-        "windows": [{"start_s": w[0] / SECOND, "fps": w[1], "pass": _window_passes(w, fps)} for w in full],
+        "windows": [{"start_s": w[0] / SECOND, "fps": w[1], "pass": _window_passes(w, limit)} for w in full],
         "windows_skipped": skipped,
         "slow_frames": [{"frame": frame, "segment": _segment(rows), "wall_ms": _ms(wall),
                          "top_pass": _top_pass(rows)} for frame, rows, _, wall in slow],
@@ -170,10 +171,19 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
             "warnings": [{"code": n.code, "message": n.message} for n in run.notices], "result": result}
 
 
-def _window_passes(window: tuple, fps: Decimal) -> bool:
-    """A window holds the rate when the frames ending in it number at
-    least N (§ 4.7)."""
-    return window[1] >= fps
+def frame_time(fps: Decimal) -> int:
+    """1000/N ms rounded to three places, ties up, in thousandths of a
+    millisecond: 16_667 at 60. The window check's limit and the default
+    budget (§ 4.7)."""
+    return int((SECOND / fps).to_integral_value(ROUND_HALF_UP))
+
+
+def _window_passes(window: tuple, limit: int) -> bool:
+    """A window holds the rate when the mean frame/wall of the frames
+    ending in it is at most `limit` (§ 4.7). Not a count of them: a steady
+    16.667 ms run holds 60 FPS, though some windows end only 59 frames."""
+    frames, walls = window[1], window[2]
+    return frames > 0 and walls <= frames * limit
 
 
 def _window_mean(window: tuple) -> float:

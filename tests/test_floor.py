@@ -61,15 +61,29 @@ def test_unfinished_and_dropped(capsys, tmp_path):
 
 
 def test_window_rate(capsys):
-    """INV-8: a window's rate is the frames ending in it, and a frame
-    ending exactly on a window's end belongs to the next window."""
-    for name in ("one-hitch.csv", "edge-frame.csv"):
-        code, out = run_floor(capsys, FIXTURES / name, "--no-frames")
-        assert (code, out["verdict"]) == (1, "fail"), name
-        windows = out["result"]["windows"]
-        assert [(w["start_s"], w["fps"]) for w in windows if not w["pass"]] == [(2.0, 59)], name
-        assert all(w["fps"] >= 60 for w in windows[1:]), name
-        assert out["result"]["slow_frames"] == []
+    """INV-8: a window passes when the mean wall of the frames ending in
+    it is at most 1000/N ms, and a frame ending exactly on a window's end
+    belongs to the next window."""
+    code, out = run_floor(capsys, FIXTURES / "one-hitch.csv", "--no-frames")
+    assert (code, out["verdict"]) == (1, "fail")
+    windows = out["result"]["windows"]
+    assert [(w["start_s"], w["fps"]) for w in windows if not w["pass"]] == [(2.0, 59)]
+    assert out["result"]["slow_frames"] == []
+
+    # 59 frames of 16.1 ms end in the first window. Counting the 51.1 ms
+    # frame that ends on its end would raise their mean to 16.683 ms.
+    code, out = run_floor(capsys, FIXTURES / "edge-frame.csv", "--no-frames")
+    assert (code, out["verdict"]) == (0, "pass")
+    assert out["result"]["windows"][0] == {"start_s": 2.0, "fps": 59, "pass": True}
+
+
+def test_steady_frame_time_passes(capsys):
+    """DOOM's review: frames of exactly 1000/N ms hold N FPS, though a
+    window starting just before a frame ends holds only 59 of them."""
+    # The first window starts 16.650 ms before frame 120 ends, at 2.00004 s.
+    code, out = run_floor(capsys, FIXTURES / "exact-budget.csv", "--no-frames", "--warmup-s", "1.98339")
+    assert (code, out["verdict"]) == (0, "pass")
+    assert out["result"]["windows"][0]["fps"] == 59
 
 
 def test_single_frame_budget(capsys):
@@ -212,8 +226,10 @@ def test_bad_options_are_exit_3(capsys):
                   ["--fps", "60", "--warmup-s", "-1"], ["--fps", "60", "--allow-frames", "-1"],
                   ["--fps", "60", "--no-windows", "--no-frames"], [], ["--fps", "1e-30"], ["--fps", "1e7"],
                   ["--fps", "60", "--budget-ms", "1e30"], ["--fps", "1e-999999"],
-                  ["--fps", "60", "--warmup-s", "1e999999"]):
+                  ["--fps", "60", "--warmup-s", "1e999999"], ["--fps", "1e7", "--budget-ms", "16"]):
         assert cli.main(["floor", path, *flags]) == 3, flags
+    # The window check needs 1000/N ms in range; the frame check alone does not.
+    assert cli.main(["floor", path, "--fps", "1e7", "--budget-ms", "16", "--no-windows"]) == 0
     capsys.readouterr()
 
 
