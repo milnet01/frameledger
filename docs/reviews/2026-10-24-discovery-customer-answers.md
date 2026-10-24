@@ -149,6 +149,62 @@ change silently costs frame time. Placed as follows.
   format change.
 - A permissive licence — met: the repository is MIT.
 
+## Vestige's full requirements (vestige-6f)
+
+Sent at the owner's request, 2026-10-24, for the design and the spec.
+MUST means Vestige cannot adopt without it.
+
+- **Goal order** (owner, 2026-10-24): hold 60 FPS per one-second
+  window on the meadow flythrough first, then remove single frames over
+  16.67 ms. The first release Vestige needs is S2, S3 and S8; S4 and
+  S12 can follow. Vestige's gate turns on S8's per-frame failure once
+  its window floor holds (3D_E-0795).
+- **Integration, MUST:** tagged releases, each with a downloadable
+  archive and a stable SHA256, pinned through CMake FetchContent; a
+  CHANGELOG flagging breaking changes, plus a schema version in the
+  header; an MIT-compatible licence; a `--selftest` with no GPU and no
+  network that runs in seconds as a ctest entry; exit codes 0 pass,
+  1 regression or floor failure, 2 inconclusive, 3 config or file
+  error; works with CMake 3.21 if any CMake ships. Prefers a plain
+  Python script and a header, so no CMake ships.
+- **Integration, SHOULD:** a migration path or converter from
+  `perf_gate.py` baseline JSON.
+- **Writer, MUST:** compiles as C++17 under GCC and Clang with
+  `-Wall -Wextra -Wpedantic`, and under MSVC, with no warnings; no
+  designated initialisers, VLAs or `restrict`; no allocation or file
+  write per row in the frame loop; escapes names with commas, quotes or
+  non-ASCII; writes ms with 3 decimals whatever the process locale.
+- **Writer, SHOULD:** say which thread may call it.
+- **Format, MUST:** late and out-of-order GPU rows; missing GPU
+  results; segment kind `leg:N`; `frame/wall` is real elapsed time, not
+  a fixed simulation step.
+- **Format, SHOULD:** `ext.vestige` per-frame rows and static facts
+  printed beside the ranking; GPU busy % at start and end in the
+  header, with a warning when high; the device string carries
+  `GL_RENDERER`, so a software renderer is recognised.
+- **Report, MUST:** plain opening sentence; no meaning by colour alone;
+  tables no wider than about 100 columns; no dense ASCII art; JSON
+  output alongside the text.
+- **Report, SHOULD:** each worst frame names its top-cost pass.
+- **Process, MUST:** the format spec before anything is built to it;
+  release notes for each version.
+- **Vestige's side:** 3D_E-0786 replaces `profile_log.cpp`'s averaged
+  CSV with per-frame rows. `fps_floor.py` then gives way to the S8
+  check, and `perf_gate.py` to the compare.
+
+## Final round
+
+Each session was asked to agree the audience change, S5's per-field
+override, S9's costliest pass and S15–S19.
+
+- **DOOM Ants** — agreed each, on condition that every override and its
+  reason appear in the report's opening sentence. That went into S5,
+  and DOOM Ants accepted the wording.
+- **Vestige** — agreed each, including DOOM Ants' S5 ending.
+- **UT Ants** — agreed each, including DOOM Ants' S5 ending.
+
+Discovery was marked agreed on 2026-10-24.
+
 ## Held for the format and analyser spec
 
 Raised in these answers and placed in the spec rather than discovery.
@@ -178,6 +234,12 @@ Raised in these answers and placed in the spec rather than discovery.
 - Header fields shown: map identity, bake format and baker revision,
   pinned light time, GPU tick (UT Ants).
 - A `--json` output (UT Ants).
+- Where several overrides would make the opening sentence long, a
+  short list straight after it (Vestige). S5 says "in its opening
+  sentence", so this needs DOOM Ants' agreement in the spec review.
+- Shader statistics in the static line are carried as exact numeric
+  text, never as floating point: a 64-bit driver pipeline hash rounds
+  as a double (UT Ants, measured on RADV 2026-10-24).
 - S12's breach is judged on a per-pass statistic over the run (median
   or p99, chosen in the budget file), never on a single frame (DOOM
   Ants, DOOM-0502).

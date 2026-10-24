@@ -8,7 +8,8 @@
 engine sessions on 2026-10-24: each agrees it, and each *never* line,
 for its own engine.
 
-**Status:** draft, 2026-10-24. The engines' answers it is built from:
+**Status:** agreed (2026-10-24) by Vestige, UT Ants and DOOM Ants, on
+the owner's delegation. The engines' answers it is built from:
 [2026-10-24 customer answers](reviews/2026-10-24-discovery-customer-answers.md).
 
 ## The problem
@@ -66,7 +67,8 @@ analyser reads their runs.
   a Debug build, a software renderer, too few frames, or a camera cut
   inside a measured stretch. Frames with a missing timing are counted
   as missing, never as zero. A refusal can be overridden one field at a
-  time, with a stated reason that the report prints.
+  time, with a stated reason. The report names every override, and its
+  reason, in its opening sentence.
 - **S6** — Each engine moves to a new frameledger release by changing
   one pinned version, and its older run files still analyse.
 - **S7** — A writer built from the format spec alone, by a session that
