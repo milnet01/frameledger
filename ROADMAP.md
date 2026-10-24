@@ -79,11 +79,19 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0002.
 
-- 📋 [FLED-0004] **Floor check.**
+- 🚧 [FLED-0004] **Floor check.**
   S8: one-second windows (frames completed over the window's length)
   and single frames against a per-run budget, each switchable and
   reported apart; warm-up; inconclusive when rows were dropped or the
   run has no close record. Claims S8.
+  Built 2026-10-24: run_report.py's floor, cli.py's `floor FILE`,
+  render.py's floor body; one --selftest check. Tests in
+  tests/test_floor.py, INV-1's floor half in test_check.py, and floor
+  in test_render.py's INV-13 check; fixtures written by
+  tests/fixtures/make_floor_fixtures.py. Choices the spec left open,
+  put to the engines with the code review: dropped rows or an
+  unfinished run stay inconclusive even when a frame fails; a cut starts
+  its window at the start of the frame carrying it.
   **Layman:** Pass or fail: did the run hold 60 FPS every second, and did any single frame take too long?
   Kind: implement.
   Source: design-2026-10-24.

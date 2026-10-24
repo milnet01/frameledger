@@ -1,8 +1,8 @@
 """The `check` command: does a run file meet the format spec?
 
 Invariants from docs/specs/FLED-0001-run-file-format.md § 5. INV-1's
-and INV-21's `report` halves sit beside their `check` halves; INV-1's
-`floor` half arrives with that command (FLED-0004).
+`report` and `floor` halves and INV-21's `report` half sit beside their
+`check` halves.
 """
 
 import json
@@ -33,12 +33,16 @@ def line_of(path, text):
 
 def test_missing_header(capsys):
     """INV-1: a file whose first line is not the header fails check, exit 1,
-    and report, exit 3."""
+    and report and floor, exit 3."""
     code, out = run_check(capsys, FIXTURES / "no-header.csv")
     assert (code, out["verdict"]) == (1, "fail")
     assert found(out) == [(1, "header")]
 
     assert cli.main(["report", "--json", str(FIXTURES / "no-header.csv")]) == 3
+    out = json.loads(capsys.readouterr().out)
+    assert out["verdict"] == "error" and "line 1" in out["summary"][0]
+
+    assert cli.main(["floor", "--json", str(FIXTURES / "no-header.csv"), "--fps", "60"]) == 3
     out = json.loads(capsys.readouterr().out)
     assert out["verdict"] == "error" and "line 1" in out["summary"][0]
 

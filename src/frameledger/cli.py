@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 import ledger
 import render
@@ -45,7 +46,60 @@ def _parser() -> _Parser:
     report.add_argument("file", metavar="FILE")
     report.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                         help="print the JSON result instead of text")
+    floor = commands.add_parser("floor", help="did the run hold a frame rate every second, "
+                                "and did any single frame take too long?")
+    floor.add_argument("file", metavar="FILE")
+    floor.add_argument("--fps", type=_positive, required=True, metavar="N", help="the frame rate to hold")
+    floor.add_argument("--warmup-s", type=_seconds, default=Decimal(2), metavar="S",
+                       help="seconds at the start that are not judged (default 2)")
+    floor.add_argument("--budget-ms", type=_milliseconds, metavar="B",
+                       help="the longest a single frame may take (default 1000/N, to three places)")
+    floor.add_argument("--no-windows", action="store_true", help="skip the one-second window check")
+    floor.add_argument("--no-frames", action="store_true", help="skip the single-frame check")
+    floor.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
+                       help="frames over the budget to tolerate (default 0)")
+    floor.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                       help="print the JSON result instead of text")
     return parser
+
+
+def _number(text: str) -> Decimal:
+    try:
+        value = Decimal(text)
+    except InvalidOperation:
+        raise argparse.ArgumentTypeError(f"'{text}' is not a number") from None
+    if not value.is_finite():
+        raise argparse.ArgumentTypeError(f"'{text}' is not a number")
+    return value
+
+
+def _positive(text: str) -> Decimal:
+    value = _number(text)
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"'{text}' must be above zero")
+    return value
+
+
+def _seconds(text: str) -> Decimal:
+    value = _number(text)
+    if value < 0:
+        raise argparse.ArgumentTypeError(f"'{text}' must be 0 or more")
+    return value
+
+
+def _milliseconds(text: str) -> Decimal:
+    """A budget compares exactly with the file's values, so it has their
+    precision: at most three decimal places."""
+    value = _positive(text)
+    if value != value.quantize(Decimal("0.001")):
+        raise argparse.ArgumentTypeError(f"'{text}' has more than three decimal places")
+    return value
+
+
+def _whole(text: str) -> int:
+    if not text.isdigit():
+        raise argparse.ArgumentTypeError(f"'{text}' must be a whole number, 0 or more")
+    return int(text)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,8 +114,11 @@ def main(argv: list[str] | None = None) -> int:
             result = _check(args.files)
         elif args.command == "report":
             result = _report(args.file)
+        elif args.command == "floor":
+            result = _floor(args)
         else:
-            raise ledger.LedgerError("name a command (check, report) or --selftest; --help lists them")
+            raise ledger.LedgerError("name a command (check, report, floor) or --selftest; "
+                                     "--help lists them")
     except ledger.LedgerError as error:
         print(f"frameledger: {error}", file=sys.stderr)
         return ERROR
@@ -131,6 +188,25 @@ def _report(path: str) -> dict:
         return _result("report", "error", ERROR, [f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {})
     return _result("report", "none", PASS, built["summary"], built["warnings"], built["result"])
+
+
+def _floor(args: argparse.Namespace) -> dict:
+    """§ 4.7: exit 0 pass, 1 fail, 2 inconclusive, 3 when the file cannot be
+    read or breaks the format."""
+    if args.no_windows and args.no_frames:
+        raise ledger.LedgerError("--no-windows and --no-frames together leave nothing to check")
+    budget = args.budget_ms
+    if budget is None:
+        budget = (1000 / args.fps).quantize(Decimal("0.001"), ROUND_HALF_UP)
+    try:
+        built = run_report.floor(ledger.read(args.file), args.fps, int(args.warmup_s * 1_000_000),
+                                 int(budget * 1000), windows=not args.no_windows,
+                                 frames=not args.no_frames, allowed=args.allow_frames)
+    except ledger.LedgerError as error:
+        return _result("floor", "error", ERROR, [f"{error}."],
+                       [{"code": "file_error", "message": str(error)}], {})
+    code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
+    return _result("floor", built["verdict"], code, built["summary"], built["warnings"], built["result"])
 
 
 def _notice_sentences(path: str, notices: list[ledger.Notice]) -> list[str]:

@@ -7,6 +7,7 @@ and an engine can run the checks on any machine with Python alone.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 
 import ledger
 import run_report
@@ -67,6 +68,16 @@ _GPU_MISSING = _sample([row for row in _IN_ORDER if row != "s1,view:1,1,frame,gp
 # A depth-1 row under each frame's shadows pass, which the remainder must not subtract.
 _NESTED = _sample(_IN_ORDER + [f"s1,view:1,{f},gpu,shadows/inner,1,2.000" for f in range(4)])
 
+# Five frames of 250 ms: three end inside the first second; the fourth
+# ends exactly at 1 s, so it is the next window's.
+_QUARTERS = _sample([row for f in range(6) for row in
+                     [f"s1,,{f},frame,cpu_span,0,1.000"] + ([f"s1,,{f},frame,wall,0,250.000"] if f < 5 else [])])
+
+
+def _floor_windows(data: bytes) -> list[dict]:
+    run = ledger.read_bytes(data, "sample")
+    return run_report.floor(run, Decimal(3), 0, 250_000)["result"]["windows"]
+
 
 def run() -> list[tuple[str, bool]]:
     """Each check's name and whether it passed."""
@@ -88,4 +99,6 @@ def run() -> list[tuple[str, bool]]:
         ("a missing GPU result is left out, not counted as zero",
          _report(_GPU_MISSING)["missing_gpu_frames"] == 1 and _gpu_figure(_report(_GPU_MISSING), "gpu_span") == 12.0),
         ("the remainder subtracts depth-0 rows only", _gpu_figure(_report(_NESTED), "gpu_remainder") == 11.004),
+        ("a window counts the frames ending inside it",
+         _floor_windows(_QUARTERS) == [{"start_s": 0.0, "fps": 3, "pass": True}]),
     ]

@@ -1,15 +1,18 @@
-"""One run: cost ranking, bound-by share and worst frames (S2, S3, S13).
+"""One run: cost ranking, bound-by share and worst frames (S2, S3, S13),
+and the floor check (S8).
 
-Builds the `report` command's opening sentences, warnings and result,
-in the shape of docs/specs/FLED-0001-run-file-format.md § 4.8. Nothing
-here names the file or a line number: INV-3 and INV-4 need the same rows
-to give byte-identical JSON whatever the path, line endings or row order.
-So warnings name the frame instead.
+Builds the `report` and `floor` commands' opening sentences, warnings and
+results, in the shape of docs/specs/FLED-0001-run-file-format.md § 4.7
+and § 4.8. Nothing here names the file or a line number: INV-3 and INV-4
+need the same rows to give byte-identical JSON whatever the path, line
+endings or row order. So warnings name the frame instead.
 """
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from collections import defaultdict
+from decimal import Decimal
 
 import ledger
 import stats
@@ -25,10 +28,7 @@ FIRST_WARNINGS = ("rows_dropped", "unfinished")
 def report(run: ledger.Run) -> dict:
     """{"summary", "warnings", "result"} for one Run. A Run that breaks the
     format raises LedgerError naming its first breach: § 6, never skip a row."""
-    if run.breaches:
-        first = run.breaches[0]
-        raise ledger.LedgerError(f"{first.message}; the file breaks the run-file format, so it "
-                                 "cannot be reported on (`check` lists every breach)", run.path, first.line)
+    _refuse_breaches(run)
     costs = _Costs(run)
     result = {
         "passes": costs.passes(),
@@ -47,6 +47,145 @@ def report(run: ledger.Run) -> dict:
         summary.append(f"{message[0].upper()}{message[1:]}.")
     summary += _headline(run, result, costs)
     return {"summary": summary, "warnings": warnings, "result": result}
+
+
+def _refuse_breaches(run: ledger.Run) -> None:
+    if run.breaches:
+        first = run.breaches[0]
+        raise ledger.LedgerError(f"{first.message}; the file breaks the run-file format, so it "
+                                 "cannot be judged (`check` lists every breach)", run.path, first.line)
+
+
+SECOND = 1_000_000  # microseconds; a ms row's thousandths are microseconds
+NO_WINDOW = ("The floor check is inconclusive: no full one-second window follows the warm-up, "
+             "so the window check could not run.")
+
+
+def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: bool = True,
+          frames: bool = True, allowed: int = 0) -> dict:
+    """{"verdict", "summary", "warnings", "result"} for S8's two checks.
+    `budget` is in thousandths of a millisecond. Dropped rows, an
+    unfinished run or a gap in the timeline make the check inconclusive
+    whatever the frames show (INV-7): a missing frame moves every later
+    frame into the wrong window."""
+    _refuse_breaches(run)
+    timed, cuts, gap = _timeline(run)
+    end = timed[-1][2] if timed else 0
+    judged = [t for t in timed if t[2] >= warmup_us]
+    full, skipped = _windows([t[2] for t in timed], cuts, warmup_us, end) if windows else ([], 0)
+    slow = [t for t in judged if t[3] > budget] if frames else []
+    dropped = run.close["rows_dropped"] if run.close else None
+
+    doubts = []
+    if dropped:
+        doubts.append(f"The check is inconclusive: the writer dropped {_count(dropped, 'row')}, "
+                      "so frames may be missing from the timeline.")
+    if run.close is None:
+        doubts.append("The check is inconclusive: the file has no close line, so the run did not finish.")
+    if gap is not None:
+        doubts.append(f"The check is inconclusive: frame {gap} has no frame/wall row, so the "
+                      "timeline stops there.")
+    failed_windows = [w for w in full if w[1] < fps]
+    failures = []
+    if failed_windows:
+        failures.append(f"{_count(len(failed_windows), 'one-second window')} fell below {_num(fps)} FPS")
+    if len(slow) > allowed:
+        failures.append(f"{_count(len(slow), 'frame')} took longer than {_ms(budget):.3f} ms "
+                        f"({allowed} allowed)")
+    if doubts:
+        verdict = "inconclusive"
+        if failures:
+            doubts.append(f"Judged on the rows present, it would fail: {' and '.join(failures)}.")
+    elif failures:
+        verdict = "fail"
+        doubts.append(f"The run fails the {_num(fps)} FPS floor: {' and '.join(failures)}.")
+    elif windows and not full:
+        verdict = "inconclusive"
+        doubts.append(NO_WINDOW)
+    else:
+        verdict = "pass"
+        doubts.append(f"The run passes the {_num(fps)} FPS floor.")
+
+    shown = [n for n in run.notices if n.code not in ("rows_dropped", "unfinished", "wall_missing")]
+    summary = _warning_sentences(shown) + doubts
+    warmup = f"{warmup_us / SECOND:g} s warm-up"
+    if not windows:
+        summary.append("The window check is off (--no-windows).")
+    elif full:
+        slowest = min(full, key=lambda w: (w[1], w[0]))
+        summary.append(f"Windows: {len(full) - len(failed_windows)} of {len(full)} one-second windows "
+                       f"after the {warmup} reached {_num(fps)} FPS; the slowest, at "
+                       f"{slowest[0] / SECOND:.3f} s, had {slowest[1]} frames.")
+    elif verdict != "inconclusive" or doubts[-1] != NO_WINDOW:  # not said already
+        summary.append(f"No full one-second window follows the {warmup}.")
+    if skipped:
+        summary.append(f"{_count(skipped, 'window')} shorter than one second, cut short by an "
+                       f"event/cut or the end of the run, {'was' if skipped == 1 else 'were'} skipped.")
+    if not frames:
+        summary.append("The single-frame check is off (--no-frames).")
+    elif slow:
+        longest = min(slow, key=lambda t: (-t[3], t[0]))
+        summary.append(f"Frames: {len(slow)} of {len(judged)} after the warm-up took longer than "
+                       f"the {_ms(budget):.3f} ms budget; the longest was frame {longest[0]}, "
+                       f"{_ms(longest[3]):.3f} ms.")
+    else:
+        summary.append(f"Frames: none of the {len(judged)} after the warm-up took longer than the "
+                       f"{_ms(budget):.3f} ms budget.")
+
+    result = {
+        "windows": [{"start_s": start / SECOND, "fps": count, "pass": count >= fps} for start, count in full],
+        "windows_skipped": skipped,
+        "slow_frames": [{"frame": frame, "segment": _segment(rows), "wall_ms": _ms(wall),
+                         "top_pass": _top_pass(rows)} for frame, rows, _, wall in slow],
+        "frames_over_budget": len(slow),
+        "allowed": allowed,
+        "rows_dropped": dropped,
+        "finished": run.close is not None,
+    }
+    return {"verdict": verdict, "summary": summary,
+            "warnings": [{"code": n.code, "message": n.message} for n in run.notices], "result": result}
+
+
+def _timeline(run: ledger.Run) -> tuple[list[tuple], list[int], int | None]:
+    """Each frame with a known end, as (frame, rows, end, wall) in frame
+    order, summed from the first frame in integer microseconds; the start
+    of every frame carrying event/cut; and the frame where the timeline
+    stops early, a frame other than the last with no wall, or None."""
+    order = sorted(run.frames)
+    timed, cuts, now = [], [], 0
+    for frame in order:
+        rows = run.frames[frame]
+        if ("event", "cut") in rows:
+            cuts.append(now)
+        wall = rows.get(("frame", "wall"))
+        if wall is None:
+            return timed, cuts, None if frame == order[-1] else frame
+        now += wall.thousandths
+        timed.append((frame, rows, now, wall.thousandths))
+    return timed, cuts, None
+
+
+def _windows(ends: list[int], cuts: list[int], warmup_us: int, end: int) -> tuple[list[tuple], int]:
+    """The full one-second windows as (start, frames ending in it), and how
+    many shorter ones were skipped. Windows are half-open, so a frame
+    ending on a window's end belongs to the next (INV-8). The first starts
+    when the warm-up ends, a new one after each full second and at every
+    cut (INV-18)."""
+    cuts = sorted(c for c in set(cuts) if c > warmup_us)
+    full, skipped, start, i = [], 0, warmup_us, 0
+    while start < end:
+        while i < len(cuts) and cuts[i] <= start:
+            i += 1
+        stop = start + SECOND
+        if i < len(cuts) and cuts[i] < stop:
+            skipped, start = skipped + 1, cuts[i]
+        elif stop > end:
+            skipped += 1
+            break
+        else:
+            full.append((start, bisect_left(ends, stop) - bisect_left(ends, start)))
+            start = stop
+    return full, skipped
 
 
 class _Costs:
@@ -213,6 +352,10 @@ def _ms(thousandths: int) -> float:
 
 def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
+def _num(value: Decimal) -> str:
+    return format(value.normalize(), "f")
 
 
 def _frames(n: int) -> str:

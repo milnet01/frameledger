@@ -43,6 +43,7 @@ def _selftest_body(result: dict) -> list[str]:
 
 WIDTH = 100  # § 4.8: tables no wider than 100 columns
 STATIC_LINES = 20  # UT Ants' review: a large static line must not bury the ranking
+SLOW_FRAMES = 10  # the text lists this many; --json lists every one
 
 
 def _report_body(result: dict) -> list[str]:
@@ -63,15 +64,38 @@ def _report_body(result: dict) -> list[str]:
                   for t in times]
         lines.append("")
     if report["worst_frames"]:
-        lines += ["Worst frames, longest first:",
-                  f"  {'frame':>10}  {'segment':<30}  {'wall ms':>12}  top pass"]
-        lines += [f"  {w['frame']:>10}  {_fit(w['segment'] or '-', 30):<30}  {w['wall_ms']:>12.3f}  "
-                  f"{_fit(w['top_pass'] or '-', 36)}" for w in report["worst_frames"]]
-        lines.append("")
+        lines += ["Worst frames, longest first:", *_frame_table(report["worst_frames"]), ""]
     if report["static"]:
         lines += ["Static facts, as the engine wrote them:", *_static_lines(report["static"])]
     while lines and not lines[-1]:
         lines.pop()
+    return lines
+
+
+def _floor_body(result: dict) -> list[str]:
+    floor = result["result"]
+    if not floor:  # an error: the opening sentences say why
+        return []
+    lines = []
+    failed = [w for w in floor["windows"] if not w["pass"]]
+    if failed:
+        lines += ["Windows below the frame rate:", f"  {'start s':>10}  {'frames':>8}"]
+        lines += [f"  {w['start_s']:>10.3f}  {w['fps']:>8}" for w in failed]
+        lines.append("")
+    if floor["slow_frames"]:
+        slow = sorted(floor["slow_frames"], key=lambda f: (-f["wall_ms"], f["frame"]))
+        lines += ["Frames over the budget, longest first:", *_frame_table(slow[:SLOW_FRAMES])]
+        if len(slow) > SLOW_FRAMES:
+            lines.append(f"  {len(slow) - SLOW_FRAMES} more: see --json.")
+    while lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
+def _frame_table(frames: list[dict]) -> list[str]:
+    lines = [f"  {'frame':>10}  {'segment':<30}  {'wall ms':>12}  top pass"]
+    lines += [f"  {w['frame']:>10}  {_fit(w['segment'] or '-', 30):<30}  {w['wall_ms']:>12.3f}  "
+              f"{_fit(w['top_pass'] or '-', 36)}" for w in frames]
     return lines
 
 
@@ -126,4 +150,5 @@ def _kind_name(kind: str | None) -> str:
     return kind or "unsegmented"
 
 
-_BODIES = {"check": _check_body, "report": _report_body, "selftest": _selftest_body}
+_BODIES = {"check": _check_body, "report": _report_body, "floor": _floor_body,
+           "selftest": _selftest_body}

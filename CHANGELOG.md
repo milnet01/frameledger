@@ -22,3 +22,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   it does not apply), the worst frames with their costliest pass, and
   the static line. Frames with no GPU result are counted, never taken
   as zero (FLED-0003).
+- `floor FILE --fps N` says whether a run held a frame rate in every
+  one-second window after the warm-up, and whether any single frame took
+  longer than a budget. Exit 0 pass, 1 fail, 2 inconclusive (dropped
+  rows, an unfinished run, a gap in the timeline, or no full window),
+  3 error (FLED-0004).
