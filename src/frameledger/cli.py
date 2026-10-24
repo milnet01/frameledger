@@ -53,7 +53,7 @@ def _parser() -> _Parser:
     floor.add_argument("--warmup-s", type=_seconds, default=Decimal(2), metavar="S",
                        help="seconds at the start that are not judged (default 2)")
     floor.add_argument("--budget-ms", type=_milliseconds, metavar="B",
-                       help="the longest a single frame may take (default 1000/N, to three places)")
+                       help="the longest a single frame may take (default 1000/N, rounded up to three places)")
     floor.add_argument("--no-windows", action="store_true", help="skip the one-second window check")
     floor.add_argument("--no-frames", action="store_true", help="skip the single-frame check")
     floor.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
@@ -201,21 +201,26 @@ def _floor(args: argparse.Namespace) -> dict:
     if args.no_windows and args.no_frames:
         raise ledger.LedgerError("--no-windows and --no-frames together leave nothing to check")
     try:  # an absurd exponent overflows decimal arithmetic, which is exit 3, not a traceback
-        budget = args.budget_ms
-        frame_ms = 1000 / args.fps  # the window check's limit, and the default budget
-        if ((budget is None or not args.no_windows)
-                and not Decimal("0.0005") <= frame_ms < BUDGET_LIMIT):  # 0.0005 rounds up to 0.001
-            raise ledger.LedgerError(f"--fps {args.fps} gives a frame time of {frame_ms:.3e} ms, "
-                                     f"outside 0.001 to {BUDGET_LIMIT} ms; to judge frames alone, "
-                                     "pass --budget-ms and --no-windows")
-        if budget is None:
-            budget = Decimal(run_report.frame_time(args.fps)) / 1000
+        # 1000/N is the window check's limit and the default budget, so it
+        # must be in range only when one of those is used.
+        if args.budget_ms is None or not args.no_windows:
+            raw_frame_ms = 1000 / args.fps
+            # Rounded up, anything above 0 ms would pass a lower bound, so
+            # the bound is on the exact value.
+            if not (raw_frame_ms >= Decimal("0.001")
+                    and run_report.frame_time_us(args.fps) < BUDGET_LIMIT * 1000):
+                raise ledger.LedgerError(f"--fps {args.fps} gives a frame time of {raw_frame_ms:.3e} ms, "
+                                         f"outside 0.001 to {BUDGET_LIMIT} ms; to judge frames alone, "
+                                         "pass --budget-ms and --no-windows")
+        # --budget-ms has at most three places, so it is a whole number of microseconds.
+        budget_us = (run_report.frame_time_us(args.fps) if args.budget_ms is None
+                     else int(args.budget_ms * 1000))
         warmup_us = int((args.warmup_s * 1_000_000).to_integral_value(ROUND_HALF_UP))
     except DecimalException as error:
         raise ledger.LedgerError(f"--fps or --warmup-s is out of range ({type(error).__name__})") from None
     try:
         built = run_report.floor(ledger.read(args.file), args.fps, warmup_us,
-                                 int(budget * 1000), windows=not args.no_windows,
+                                 budget_us, windows=not args.no_windows,
                                  frames=not args.no_frames, allowed=args.allow_frames)
     except ledger.LedgerError as error:
         return _result("floor", "error", ERROR, [f"{error}."],

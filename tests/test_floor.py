@@ -9,6 +9,7 @@ builds the one-off runs.
 import json
 import subprocess
 import sys
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 import cli
@@ -74,7 +75,7 @@ def test_window_rate(capsys):
     # frame that ends on its end would raise their mean to 16.683 ms.
     code, out = run_floor(capsys, FIXTURES / "edge-frame.csv", "--no-frames")
     assert (code, out["verdict"]) == (0, "pass")
-    assert out["result"]["windows"][0] == {"start_s": 2.0, "fps": 59, "pass": True}
+    assert out["result"]["windows"][0] == {"start_s": 2.0, "fps": 59, "mean_ms": 16.1, "pass": True}
 
 
 def test_steady_frame_time_passes(capsys):
@@ -84,6 +85,24 @@ def test_steady_frame_time_passes(capsys):
     code, out = run_floor(capsys, FIXTURES / "exact-budget.csv", "--no-frames", "--warmup-s", "1.98339")
     assert (code, out["verdict"]) == (0, "pass")
     assert out["result"]["windows"][0]["fps"] == 59
+
+
+def vsync_walls(fps: Decimal, frames: int) -> list[float]:
+    """Walls of a run locked to `fps`, each frame ending on the display's
+    tick rounded to a whole microsecond, as a writer would record it."""
+    ends = [int((k * 1_000_000 / fps).to_integral_value(ROUND_HALF_UP)) for k in range(frames + 1)]
+    return [(b - a) / 1000 for a, b in zip(ends, ends[1:], strict=False)]
+
+
+def test_vsync_rates_pass(capsys, tmp_path):
+    """DOOM's second review: a run locked to 144 Hz or 59.94 Hz holds that
+    rate. Its walls alternate either side of 1000/N ms, so the limit and
+    the default budget round 1000/N up, never to the nearest."""
+    for fps, frames in (("144", 1300), ("59.94", 540)):
+        # This --fps follows run_floor's --fps 60, so it replaces it.
+        code, out = run_walls(capsys, tmp_path, vsync_walls(Decimal(fps), frames), "--fps", fps)
+        assert (code, out["verdict"]) == (0, "pass"), (fps, out["summary"])
+        assert out["result"]["windows"] and all(w["pass"] for w in out["result"]["windows"])
 
 
 def test_single_frame_budget(capsys):
@@ -140,9 +159,33 @@ def test_cut_frame_is_left_out_of_windows(capsys, tmp_path):
     assert code == 1 and out["result"]["slow_frames"][0]["frame"] == 200
 
 
+def test_long_cut_frame_overlaps_no_window(capsys, tmp_path):
+    """DOOM's second review: a cut frame longer than a second, a level
+    load, closes the window open when it starts, so no window it spans
+    is left with no frame ending in it."""
+    walls = WARMUP + [16.0] * 75 + [3000.0] + [16.0] * 200
+    code, out = run_walls(capsys, tmp_path, walls, "--no-frames", cuts=(200,))
+    assert (code, out["verdict"]) == (0, "pass"), out["summary"]
+    # The load runs from 3.199 s to 6.199 s; the window open when it starts is skipped.
+    assert [w["start_s"] for w in out["result"]["windows"]] == [2.0, 6.199, 7.199, 8.199]
+
+
+def test_window_with_no_frame_names_none(capsys, tmp_path):
+    """A window no frame ends in fails, and the summary says so in words,
+    never as a mean of "inf ms"."""
+    walls = WARMUP + [16.0] * 75 + [3000.0] + [16.0] * 200
+    code, out = run_walls(capsys, tmp_path, walls, "--no-frames")
+    assert (code, out["verdict"]) == (1, "fail")
+    # The 3 s frame, not a cut, ends at 6.199 s: no frame ends from 4 s to 6 s.
+    assert [(w["fps"], w["mean_ms"]) for w in out["result"]["windows"][2:4]] == [(0, None), (0, None)]
+    assert not any("inf" in s for s in out["summary"]), out["summary"]
+    assert any("had no frame end in it" in s for s in out["summary"]), out["summary"]
+
+
 def test_cut_on_a_window_boundary(tmp_path):
     """A cut frame ending exactly where a window ends starts the next one
-    once. Run apart, so a loop that never ends fails the test."""
+    once, and the window it overlaps is skipped. Run apart, so a loop that
+    never ends fails the test."""
     path = tmp_path / "boundary.csv"
     # 77 frames of 13 ms take the timeline from 1.999 s to exactly 3 s.
     path.write_text(run_text(WARMUP + [13.0] * 77 + [16.0] * 130, cuts=(201,)), encoding="utf-8")
@@ -150,7 +193,8 @@ def test_cut_on_a_window_boundary(tmp_path):
                            str(path), "--fps", "60"], capture_output=True, text=True, timeout=30, check=False)
     out = json.loads(done.stdout)
     assert (done.returncode, out["verdict"]) == (0, "pass")
-    assert [w["start_s"] for w in out["result"]["windows"]] == [2.0, 3.0, 4.0]
+    # The cut frame starts at 2.987 s, inside the window from 2 s, so that one is skipped.
+    assert [w["start_s"] for w in out["result"]["windows"]] == [3.0, 4.0]
     # The cut frame ends at 3 s, so the window starting there leaves it out.
     assert out["result"]["windows"][1]["fps"] == 62
 
@@ -230,6 +274,8 @@ def test_bad_options_are_exit_3(capsys):
         assert cli.main(["floor", path, *flags]) == 3, flags
     # The window check needs 1000/N ms in range; the frame check alone does not.
     assert cli.main(["floor", path, "--fps", "1e7", "--budget-ms", "16", "--no-windows"]) == 0
+    # Vestige's second review: even an --fps beyond decimal range.
+    assert cli.main(["floor", path, "--fps", "1e-999999", "--budget-ms", "16", "--no-windows"]) == 0
     capsys.readouterr()
 
 

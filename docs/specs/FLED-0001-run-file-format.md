@@ -266,7 +266,8 @@ instead of text.
 | `--version` | prints the version | 0 |
 
 `floor` defaults: `--warmup-s 2`, `--budget-ms` = 1000/`--fps`
-rounded to three places (16.667 at 60), `--allow-frames 0`.
+rounded up to three places (16.667 at 60, 6.945 at 144),
+`--allow-frames 0`.
 
 - **The timeline** is built by summing `frame/wall` from the first
   frame, in integer microseconds (each value is an exact number of
@@ -274,15 +275,22 @@ rounded to three places (16.667 at 60), `--allow-frames 0`.
 - **Windows** are half-open, `[start, start + 1 s)`. The first starts
   when the warm-up ends; a new one starts after each full second and at
   the end of every frame carrying `event/cut`. A frame belongs to the
-  window holding its end, so a cut frame, often a level load, is in no
-  window and is judged by the budget alone.
+  window holding its end. A cut frame, often a level load, also closes
+  the window open when it starts. So no window overlaps it, and it is
+  judged by the budget alone.
 - **A window's frame rate** is the frames that end in it divided by one
-  second, and is reported as `fps`.
+  second, and is reported as `fps`. Their mean `frame/wall` is reported
+  as `mean_ms`, or null when no frame ends in the window.
 - **A window passes** when the mean `frame/wall` of the frames ending
-  in it is at most 1000/`--fps` ms rounded to three places, ties up
-  (16.667 at 60), whatever `--budget-ms` is. A window with no frame
-  ending in it fails. So a steady 16.667 ms run passes at 60, though a
-  window starting just before a frame ends holds only 59 frames.
+  in it is at most 1000/`--fps` ms rounded up to three places (16.667
+  at 60, 6.945 at 144, 16.684 at 59.94), whatever `--budget-ms` is. Up,
+  because a display locked to N records walls either side of 1000/N.
+  A window with no frame ending in it fails. So a steady 16.667 ms run
+  passes at 60, though a window starting just before a frame ends holds
+  only 59 frames.
+- **The window check alone misses a single hitch** among fast frames:
+  one 500 ms frame among 4 ms ones leaves its window's mean below
+  16.667 ms. The frame check catches it, so `--no-frames` loses it.
 - **A window shorter than one second** — cut short by an `event/cut`
   or by the end of the run — is skipped and counted, never judged.
 - **A frame fails the budget** when its `frame/wall` is greater than
@@ -298,8 +306,8 @@ rounded to three places (16.667 at 60), `--allow-frames 0`.
 - **Exit 3** besides a file error: `--no-windows` with `--no-frames`;
   a `--budget-ms` outside 0.001 to 999999999.999 ms or with more than
   three decimal places; and a `--fps` whose 1000/`--fps` ms is below
-  0.0005 or at least 1000000000, unless `--budget-ms` is given and the
-  window check is off.
+  0.001, or is 1000000000 or more once rounded up to three places,
+  unless `--budget-ms` is given and the window check is off.
 
 ### 4.8 Text and JSON results
 
@@ -321,7 +329,7 @@ than 100 columns. No meaning is carried by colour.
 ```
 
 `result` is the command's own. For `floor`:
-`{"windows": [{"start_s", "fps", "pass"}], "windows_skipped",
+`{"windows": [{"start_s", "fps", "mean_ms", "pass"}], "windows_skipped",
 "slow_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
 "frames_over_budget", "allowed", "rows_dropped", "finished"}`. For `report`:
 `{"passes": [{"category", "name", "segment_kind", "depth", "median_ms",
@@ -430,23 +438,27 @@ breaks.
   excuse a slow frame.
 
 - **INV-8** — A window passes when the mean `frame/wall` of the frames
-  ending in it is at most 1000/`--fps` ms rounded to three places: 58
+  ending in it is at most 1000/`--fps` ms rounded up to three places: 58
   frames of 16.000 ms and one of 71.000 ms end inside one window, a
   mean of 16.932 ms, so it fails `--fps 60`, although the mean of the
   per-frame rates is above 61. Frames of exactly 16.667 ms pass, even
-  in a window holding only 59 of them. A frame ending exactly on a
-  window's end belongs to the next window.
+  in a window holding only 59 of them. Frames locked to 144 Hz or
+  59.94 Hz, their walls either side of 1000/N, pass at that rate. A
+  frame ending exactly on a window's end belongs to the next window.
   *Test:* `tests/test_floor.py::test_window_rate`, fixtures
   `one-hitch.csv` (that second, just after the warm-up, followed by
   full 60 FPS seconds) and `edge-frame.csv` (59 frames of 16.100 ms,
   then one of 51.100 ms ending exactly at the window's end, which would
   raise the mean to 16.683 ms if counted);
   `tests/test_floor.py::test_steady_frame_time_passes`,
-  `exact-budget.csv` with `--warmup-s 1.98339`; each with `--no-frames`
-  so only the window check can fail.
+  `exact-budget.csv` with `--warmup-s 1.98339`, each with `--no-frames`
+  so only the window check can fail;
+  `tests/test_floor.py::test_vsync_rates_pass`, walls built from
+  display ticks rounded to whole microseconds.
   *Breaks when:* the window is judged by the mean of 1000/wall or by
   counting its frames against N, or the timeline is summed in floating
-  point, or windows are closed at both ends.
+  point, or windows are closed at both ends, or 1000/N is rounded to
+  the nearest.
 
 - **INV-9** — One frame over `--budget-ms` fails `floor` (exit 1) even
   when every window passes; `--no-frames` turns that check off;
@@ -517,16 +529,19 @@ breaks.
   *Breaks when:* the name is truncated or written whole.
 
 - **INV-18** — `floor` starts a new window at the end of every frame
-  carrying `event/cut`, so that frame is in no window, and skips, and
+  carrying `event/cut` and closes the one open when it starts, so that
+  frame is in no window, and skips, and
   counts in `windows_skipped`, every window shorter than one second;
   with no full window the window check is inconclusive.
   *Test:* `tests/test_floor.py::test_cuts_and_partial_windows`,
   fixtures `cut-mid-second.csv` (a 0.5 s stretch of 20 FPS frames
   between two cuts, the rest at 60 FPS) and `short-views.csv` (every
   view under one second); `tests/test_floor.py::test_cut_frame_is_left_out_of_windows`
-  (a 400 ms cut frame) and `tests/test_floor.py::test_cut_on_a_window_boundary`.
+  (a 400 ms cut frame), `tests/test_floor.py::test_long_cut_frame_overlaps_no_window`
+  (a 3000 ms one) and `tests/test_floor.py::test_cut_on_a_window_boundary`.
   *Breaks when:* windows ignore cuts, so the slow stretch drags a mixed
-  window below 60, a cut frame is counted in a window, or a partial
+  window below 60, a cut frame is counted in a window, a cut frame
+  longer than a second leaves windows no frame ends in, or a partial
   window is judged.
 
 - **INV-19** — The writer rounds to thousandths with ties away from
@@ -628,7 +643,7 @@ it on each release they pin.
 | INV-5 | `tests/test_report.py::test_missing_gpu_span` |
 | INV-6 | `tests/test_check.py::test_value_format` |
 | INV-7 | `tests/test_floor.py::test_unfinished_and_dropped`, `tests/test_floor.py::test_frame_failure_stands_under_drops` |
-| INV-8 | `tests/test_floor.py::test_window_rate`, `tests/test_floor.py::test_steady_frame_time_passes` |
+| INV-8 | `tests/test_floor.py::test_window_rate`, `tests/test_floor.py::test_steady_frame_time_passes`, `tests/test_floor.py::test_vsync_rates_pass` |
 | INV-9 | `tests/test_floor.py::test_single_frame_budget` |
 | INV-10 | `tests/test_report.py::test_bound_by_not_pipelined` |
 | INV-11 | `tests/test_report.py::test_remainder` |
@@ -638,7 +653,7 @@ it on each release they pin.
 | INV-15 | `tests/writer/test_writer.c::test_drops` (not yet written) |
 | INV-16 | `tests/writer/test_writer.c::test_output_conforms` (not yet written) |
 | INV-17 | `tests/writer/test_writer.c::test_name_limit` (not yet written) |
-| INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows`, `tests/test_floor.py::test_cut_frame_is_left_out_of_windows`, `tests/test_floor.py::test_cut_on_a_window_boundary` |
+| INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows`, `tests/test_floor.py::test_cut_frame_is_left_out_of_windows`, `tests/test_floor.py::test_long_cut_frame_overlaps_no_window`, `tests/test_floor.py::test_cut_on_a_window_boundary` |
 | INV-19 | `tests/writer/test_writer.c::test_rounding` (not yet written) |
 | INV-20 | `tests/writer/test_writer.c::test_bad_values` (not yet written) |
 | INV-21 | `tests/test_check.py::test_negative_and_last_wall` |

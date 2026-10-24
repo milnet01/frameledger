@@ -100,5 +100,5 @@ def run() -> list[tuple[str, bool]]:
          _report(_GPU_MISSING)["missing_gpu_frames"] == 1 and _gpu_figure(_report(_GPU_MISSING), "gpu_span") == 12.0),
         ("the remainder subtracts depth-0 rows only", _gpu_figure(_report(_NESTED), "gpu_remainder") == 11.004),
         ("a window counts the frames ending inside it",
-         _floor_windows(_QUARTERS) == [{"start_s": 0.0, "fps": 3, "pass": True}]),
+         _floor_windows(_QUARTERS) == [{"start_s": 0.0, "fps": 3, "mean_ms": 250.0, "pass": True}]),
     ]

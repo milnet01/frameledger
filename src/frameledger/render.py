@@ -79,8 +79,9 @@ def _floor_body(result: dict) -> list[str]:
     lines = []
     failed = [w for w in floor["windows"] if not w["pass"]]
     if failed:
-        lines += ["Windows below the frame rate:", f"  {'start s':>10}  {'frames':>8}"]
-        lines += [f"  {w['start_s']:>10.3f}  {w['fps']:>8}" for w in failed]
+        lines += ["Windows below the frame rate:", f"  {'start s':>10}  {'frames':>8}  {'mean ms':>10}"]
+        lines += [f"  {w['start_s']:>10.3f}  {w['fps']:>8}  "
+                  + (f"{w['mean_ms']:>10.3f}" if w["mean_ms"] is not None else f"{'none':>10}") for w in failed]
         lines.append("")
     if floor["slow_frames"]:
         slow = sorted(floor["slow_frames"], key=lambda f: (-f["wall_ms"], f["frame"]))
