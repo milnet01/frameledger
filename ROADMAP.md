@@ -79,7 +79,7 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0002.
 
-- 🚧 [FLED-0004] **Floor check.**
+- ✅ [FLED-0004] **Floor check.**
   S8: one-second windows (frames completed over the window's length)
   and single frames against a per-run budget, each switchable and
   reported apart; warm-up; inconclusive when rows were dropped or the
@@ -112,6 +112,10 @@ Engines can write files and pin a release.
   --budget-ms --no-windows; spec § 4.7, § 4.8, INV-8, INV-18 amended.
   UT Ants agreed 8caf07f; confirmation of da9644f asked of all three
   2026-10-24. Left: their confirmation, then flip shipped.
+  Shipped 2026-10-24 at da9644f: Vestige, UT Ants and DOOM Ants all
+  agreed the code and the spec amendment. UT Ants' optional note, that
+  _timeline's first return type is still list[tuple], is dismissed:
+  UT Ants judged it not worth a commit, and nothing reads it wrongly.
   **Layman:** Pass or fail: did the run hold 60 FPS every second, and did any single frame take too long?
   Kind: implement.
   Source: design-2026-10-24.
