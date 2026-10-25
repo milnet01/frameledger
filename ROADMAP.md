@@ -121,11 +121,14 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
 
-- 📋 [FLED-0005] **Trust warnings.**
+- 🚧 [FLED-0005] **Trust warnings.**
   trust.py's run half of S5: Debug builds, software renderers, too few
   frames, high CPU or GPU load, settling below the header's need, a
   camera cut inside a measured stretch, dropped rows, missing timings
   counted as missing. Claims S5's warning half.
+  2026-10-26: spec amendment drafted in
+  docs/specs/FLED-0001-run-file-format.md § 4.9, INV-23 to INV-27;
+  sent to the three engines for review before the build.
   **Layman:** Warns when a run's numbers should not be trusted.
   Kind: implement.
   Source: design-2026-10-24.

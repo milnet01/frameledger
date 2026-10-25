@@ -1,7 +1,8 @@
 <!-- ants-spec-format: 1 -->
 # FLED-0001 — Define the run file, the writer's interface and the 0.1.0 commands
 
-**Status:** accepted (2026-10-24).
+**Status:** accepted (2026-10-24); § 4.9 and INV-23 to INV-27
+(FLED-0005) proposed 2026-10-26, under the engines' review.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -68,6 +69,12 @@ settles.
   drop count.
 - *Proposed here:* the writer does no file I/O at all. It fills the
   engine's buffer; the engine writes the bytes out.
+- Trust warnings for a Debug build, a software renderer, too few
+  frames, load above a threshold, settling below the header's need,
+  and a camera cut inside a measured stretch (the brief; Vestige, UT
+  Ants, DOOM Ants). *Proposed for FLED-0005:* they warn and never
+  change a verdict (§ 4.9), and `load` is a share of the machine, so
+  one threshold fits every CPU count.
 
 ## 4. Design
 
@@ -119,9 +126,12 @@ Optional fields, absent meaning unknown: `tier` (string),
 `ray_tracing` (boolean), `frames_in_flight` (integer),
 `settling_frames` (integer), `pinned` (object: clocks the run froze),
 `gpu_tick_ns` (number), `load` (`{"start": n, "end": n}`, CPU load
-average), `gpu_busy_pct` (`{"start": n, "end": n}`), `gpu_clock_mhz`
+as a share of the machine: 0 idle, 1 every logical CPU busy, on Linux
+the one-minute load average divided by the logical CPU count),
+`gpu_busy_pct` (`{"start": n, "end": n}`), `gpu_clock_mhz`
 (`{"start": n, "end": n}`), `os` (string), `extra` (object, the
-engine's own).
+engine's own). A `start` is taken before the run's first frame; an
+`end` after its last.
 
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
 `ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`.
@@ -372,9 +382,40 @@ The `report` result, agreed with the three engines for FLED-0003:
   exit 3, an empty `result`, and a summary naming the path and the
   first breach's line.
 - **Opening sentences**: dropped rows, an unfinished run, one sentence
-  per other kind of warning, frames without a GPU result; then the frame
+  per other kind of warning (the file's, then § 4.9's in its table
+  order), frames without a GPU result; then the frame
   count, the costliest depth-0 pass per segment kind by total time, and
   the bound-by share or that it does not apply.
+
+### 4.9 Trust warnings
+
+`report` and `floor` warn on a run whose numbers should not be trusted
+(S5). FLED-0005 builds this; the engines' review settles every
+threshold marked *proposed*.
+
+| Code | Warns when |
+|---|---|
+| `debug_build` | `build_type` is `debug`, in any case |
+| `software_renderer` | `renderer` or `device` holds, in any case, `llvmpipe`, `lavapipe`, `softpipe`, `swrast`, `swiftshader` or `microsoft basic render driver` |
+| `cpu_load` | `load.start` is above 0.5 (*proposed*) |
+| `gpu_load` | `gpu_busy_pct.start` is above 20 (*proposed*) |
+| `settling_short` | `floor` only: fewer than `settling_frames` frames end inside the warm-up (*proposed*) |
+| `too_few_frames` | fewer than 100 frames are measured: for `report`, frames with a `frame/wall`; for `floor`, frames ending after the warm-up |
+| `cut_in_stretch` | an `event/cut` sits on a frame whose previous frame has the same segment (*proposed*); `floor` counts only frames ending after the warm-up |
+
+- **A warning never changes a verdict or an exit code.** A Debug run
+  that holds the floor passes, and says it was a Debug run.
+- **An absent optional field gives no warning**: absent means unknown.
+- **`check` gives none of these.** It judges the file, not the run.
+- **Why 100 frames:** below that, the nearest-rank 99th percentile is
+  the slowest frame, so the 1% low is one frame's time.
+- **Why only `start` loads:** an `end` includes the run's own work.
+- **A frame's segment** is as § 4.8 defines it. A cut on frame 0, or
+  where the segment changes, starts a stretch and gives no warning. A
+  `cut_in_stretch` warning names the frame, one entry per cut.
+- **Missing timings are already counted, never zeroed**: `gpu_missing`
+  (INV-5), `wall_missing`, `frame_missing`, `cpu_span_missing`,
+  `rows_dropped` and `unfinished`. FLED-0005 adds none.
 
 ## 5. Invariants
 
@@ -571,6 +612,49 @@ breaks.
   *Test:* `tests/writer/test_writer.c::test_consume_reuses`.
   *Breaks when:* consumed bytes are only marked, not reclaimed.
 
+- **INV-23** — A run that differs from `passing-run.csv` in one header
+  field gives that field's § 4.9 warning under `report` and `floor`,
+  with the same verdict and exit code: `build_type` `"Debug"`,
+  `renderer` `"LLVMpipe (LLVM 19)"`, `load.start` 0.51,
+  `gpu_busy_pct.start` 21. `load.start` 0.5 and `gpu_busy_pct.start`
+  20 give none.
+  *Test:* `tests/test_trust.py::test_header_warnings`, runs built from
+  `passing-run.csv`'s rows with the header changed by the test.
+  *Breaks when:* a match is case-sensitive, a threshold is `≥` rather
+  than `>`, or a warning turns the pass into another verdict.
+
+- **INV-24** — `report` warns `too_few_frames` on 99 frames with a
+  `frame/wall` and not on 100; `floor` warns on 99 frames ending after
+  the warm-up and not on 100, however many end inside it.
+  *Test:* `tests/test_trust.py::test_too_few_frames`, runs of 16 ms
+  frames built by the test.
+  *Breaks when:* `floor` counts the warm-up's frames, or the bound is
+  `≤`.
+
+- **INV-25** — `floor` warns `settling_short` when `settling_frames`
+  is one more than the frames ending inside the warm-up, and not when
+  it equals them; `report` never gives it.
+  *Test:* `tests/test_trust.py::test_settling`, the `WARMUP` frames of
+  `tests/floor_runs.py` followed by a steady run.
+  *Breaks when:* frames starting in the warm-up are counted, or
+  `report` gives it.
+
+- **INV-26** — An `event/cut` on a frame whose previous frame has the
+  same segment gives `cut_in_stretch` naming that frame; a cut where
+  the segment changes, or on frame 0, gives none; under `floor`, a
+  mid-segment cut on a frame ending inside the warm-up gives none.
+  *Test:* `tests/test_trust.py::test_cut_in_stretch`, runs built by the
+  test, and `cut-mid-second.csv`, whose cuts all change segment.
+  *Breaks when:* every cut warns, so `cut-mid-second.csv` does, or a
+  warm-up cut warns under `floor`.
+
+- **INV-27** — A run with no optional header field gives no § 4.9
+  warning, and `check` gives none of them on any run.
+  *Test:* `tests/test_trust.py::test_absent_fields_and_check`,
+  `passing-run.csv` and its Debug copy from INV-23.
+  *Breaks when:* an absent field reads as a value that warns, or
+  `check` reports a trust warning.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -598,6 +682,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0002: INV-1, INV-2, INV-3, INV-4, INV-6, INV-21.
 - FLED-0003: INV-5, INV-10, INV-11, INV-12, INV-13.
 - FLED-0004: INV-7, INV-8, INV-9, INV-18.
+- FLED-0005: INV-23, INV-24, INV-25, INV-26, INV-27.
 - FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
@@ -628,8 +713,8 @@ it on each release they pin.
 - The pacing figure — FLED-0011, which amends this spec.
 - `survey` and survey comparison — FLED-0012 and FLED-0013, which amend
   this spec.
-- Trust warnings beyond the dropped and unfinished runs above —
-  FLED-0005.
+- Warnings on a timing finer than `gpu_tick_ns`, and refusals between
+  two runs — FLED-0008's compare.
 - Charts or HTML — deferred; not yet queued (discovery, *not yet*).
 
 ## 10. What checks this
@@ -658,6 +743,11 @@ it on each release they pin.
 | INV-20 | `tests/writer/test_writer.c::test_bad_values` (not yet written) |
 | INV-21 | `tests/test_check.py::test_negative_and_last_wall` |
 | INV-22 | `tests/writer/test_writer.c::test_consume_reuses` (not yet written) |
+| INV-23 | `tests/test_trust.py::test_header_warnings` (not yet written) |
+| INV-24 | `tests/test_trust.py::test_too_few_frames` (not yet written) |
+| INV-25 | `tests/test_trust.py::test_settling` (not yet written) |
+| INV-26 | `tests/test_trust.py::test_cut_in_stretch` (not yet written) |
+| INV-27 | `tests/test_trust.py::test_absent_fields_and_check` (not yet written) |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
