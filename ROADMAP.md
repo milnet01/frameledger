@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=15 -->
+<!-- ants-roadmap-id-high-water: FLED=16 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -200,6 +200,15 @@ engine faster, and which pass it changed.
   Kind: implement.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
+
+- 💭 [FLED-0016] **Warn on a sanitizer build.**
+  An optional header field `sanitizers` (an array of strings, such as
+  "address") and a `sanitizer_build` trust warning when it is not empty.
+  debug_build (FLED-0005) misses a Release build with ASan, which Vestige
+  never counts as a reading. Asked by Vestige in its FLED-0005 review.
+  **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
+  Kind: enhancement.
+  Source: vestige-review-2026-10-26.
 
 ## 0.3.0 — many runs surveyed
 

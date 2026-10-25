@@ -2,7 +2,8 @@
 # FLED-0001 — Define the run file, the writer's interface and the 0.1.0 commands
 
 **Status:** accepted (2026-10-24); § 4.9 and INV-23 to INV-27
-(FLED-0005) proposed 2026-10-26, under the engines' review.
+(FLED-0005) agreed by the three engines 2026-10-26, their answers
+folded in for confirmation.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -72,9 +73,12 @@ settles.
 - Trust warnings for a Debug build, a software renderer, too few
   frames, load above a threshold, settling below the header's need,
   and a camera cut inside a measured stretch (the brief; Vestige, UT
-  Ants, DOOM Ants). *Proposed for FLED-0005:* they warn and never
-  change a verdict (§ 4.9), and `load` is a share of the machine, so
-  one threshold fits every CPU count.
+  Ants, DOOM Ants). For FLED-0005, agreed by the three engines
+  2026-10-26: they warn and never change a verdict (§ 4.9); `load` is a
+  share of the machine, so one threshold fits every CPU count; loads
+  are sampled before the engine loads anything (Vestige, UT Ants);
+  settling compares two header fields (UT Ants); a cut sits on the
+  frame that starts its segment (DOOM Ants).
 
 ## 4. Design
 
@@ -124,14 +128,24 @@ Required fields:
 
 Optional fields, absent meaning unknown: `tier` (string),
 `ray_tracing` (boolean), `frames_in_flight` (integer),
-`settling_frames` (integer), `pinned` (object: clocks the run froze),
+`settling_frames` (integer: untimed frames each segment needs drawn
+before its first recorded frame), `settled_frames` (integer: the
+fewest untimed frames the run drew before any segment's first recorded
+frame), `pinned` (object: clocks the run froze),
 `gpu_tick_ns` (number), `load` (`{"start": n, "end": n}`, CPU load
-as a share of the machine: 0 idle, 1 every logical CPU busy, on Linux
-the one-minute load average divided by the logical CPU count),
+as a share of the machine: 0 idle, 1 every logical CPU busy),
 `gpu_busy_pct` (`{"start": n, "end": n}`), `gpu_clock_mhz`
 (`{"start": n, "end": n}`), `os` (string), `extra` (object, the
-engine's own). A `start` is taken before the run's first frame; an
-`end` after its last.
+engine's own).
+
+A `start` is taken before the engine loads anything or starts GPU
+work, so it measures the machine, not the run; an `end` after the
+run's last frame. `gpu_busy_pct.start` may be the highest of a few
+samples over about half a second, the writer's choice, since one
+sample jumps. On Linux, `load` is the one-minute load average divided
+by the logical CPU count. It lags, so it is a coarse signal; it counts
+tasks waiting on disk; and it can exceed 1, which is legal. On Windows
+it is the CPU-busy share at that moment.
 
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
 `ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`.
@@ -197,7 +211,9 @@ present ones is a hole: not a breach, but `check` and every report warn
 **Events.** `event/cut` on a frame where the camera jumped or a level
 loaded; `event/tic` on a frame where the simulation stepped, its value
 the number of steps (`2.000` when it caught up two). One row per frame
-and event name. Other event names are allowed.
+and event name. Other event names are allowed. A planned cut sits on
+the first frame of its new segment, not a frame before or after, or
+§ 4.9 warns `cut_in_stretch`.
 
 **Remainders** are the analyser's: per frame, `cpu_remainder` is
 `frame/cpu_span` minus the sum of the `cpu` depth-0 rows, and
@@ -394,22 +410,24 @@ The `report` result, agreed with the three engines for FLED-0003:
 ### 4.9 Trust warnings
 
 `report` and `floor` warn on a run whose numbers should not be trusted
-(S5). FLED-0005 builds this; the engines' review settles every
-threshold marked *proposed*.
+(S5). FLED-0005 builds this.
 
 | Code | Warns when |
 |---|---|
 | `debug_build` | `build_type` is `debug`, in any case |
-| `software_renderer` | `renderer` or `device` holds, in any case, `llvmpipe`, `lavapipe`, `softpipe`, `swrast`, `swiftshader` or `microsoft basic render driver` |
-| `cpu_load` | `load.start` is above 0.5 (*proposed*) |
-| `gpu_load` | `gpu_busy_pct.start` is above 20 (*proposed*) |
-| `settling_short` | `floor` only: fewer than `settling_frames` frames end inside the warm-up (*proposed*) |
+| `software_renderer` | `renderer` or `device` holds, in any case, `llvmpipe`, `lavapipe`, `softpipe`, `swrast`, `swiftshader`, `software rasterizer`, `gdi generic` or `microsoft basic render driver` |
+| `cpu_load` | `load.start` is above 0.5 |
+| `gpu_load` | `gpu_busy_pct.start` is above 20 |
+| `settling_short` | `settled_frames` is below `settling_frames` |
 | `too_few_frames` | fewer than 100 frames are measured: for `report`, frames with a `frame/wall`; for `floor`, frames ending after the warm-up |
-| `cut_in_stretch` | an `event/cut` sits on a frame whose previous frame has the same segment (*proposed*); `floor` counts only frames ending after the warm-up |
+| `cut_in_stretch` | an `event/cut` sits on a frame whose previous frame has the same segment; `floor` counts only frames ending after the warm-up |
 
 - **A warning never changes a verdict or an exit code.** A Debug run
   that holds the floor passes, and says it was a Debug run.
 - **An absent optional field gives no warning**: absent means unknown.
+  `settling_short` needs both its fields.
+- **Each message names what it judged**, and the threshold where there
+  is one: `load.start` 0.62, above 0.5.
 - **`check` gives none of these.** It judges the file, not the run.
 - **Why 100 frames:** below that, the nearest-rank 99th percentile is
   the slowest frame, so the 1% low is one frame's time.
@@ -618,10 +636,10 @@ breaks.
 
 - **INV-23** — A run that differs from `passing-run.csv` in one header
   field gives that field's § 4.9 warning under `report` and `floor`,
-  with the same verdict and exit code: `build_type` `"Debug"`,
-  `renderer` `"LLVMpipe (LLVM 19)"`, `load.start` 0.51,
-  `gpu_busy_pct.start` 21. `load.start` 0.5 and `gpu_busy_pct.start`
-  20 give none.
+  with the same verdict and exit code, and its message names the value:
+  `build_type` `"Debug"`, `renderer` `"LLVMpipe (LLVM 19)"`, `device`
+  `"GDI Generic"`, `load.start` 0.51, `gpu_busy_pct.start` 21.
+  `load.start` 0.5 and `gpu_busy_pct.start` 20 give none.
   *Test:* `tests/test_trust.py::test_header_warnings`, runs built from
   `passing-run.csv`'s rows with the header changed by the test.
   *Breaks when:* a match is case-sensitive, a threshold is `≥` rather
@@ -635,13 +653,13 @@ breaks.
   *Breaks when:* `floor` counts the warm-up's frames, or the bound is
   `≤`.
 
-- **INV-25** — `floor` warns `settling_short` when `settling_frames`
-  is one more than the frames ending inside the warm-up, and not when
-  it equals them; `report` never gives it.
-  *Test:* `tests/test_trust.py::test_settling`, the `WARMUP` frames of
-  `tests/floor_runs.py` followed by a steady run.
-  *Breaks when:* frames starting in the warm-up are counted, or
-  `report` gives it.
+- **INV-25** — `report` and `floor` warn `settling_short` when
+  `settled_frames` is 3 and `settling_frames` 4, and not when both are
+  4 or either is absent.
+  *Test:* `tests/test_trust.py::test_settling`, runs built from
+  `passing-run.csv`'s rows with the header changed by the test.
+  *Breaks when:* the bound is `≤`, one command skips it, or an absent
+  field reads as zero.
 
 - **INV-26** — An `event/cut` on a frame whose previous frame has the
   same segment gives `cut_in_stretch` naming that frame; a cut where
