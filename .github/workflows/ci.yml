@@ -62,5 +62,13 @@ jobs:
       - name: Install uv
         run: pipx install "uv==$(./scripts/local-ci.sh --uv-version)"
 
+      # The writer's tests (tests/writer/test_compile.sh) build with GCC,
+      # Clang and mingw-w64, and write a run under a comma-decimal locale.
+      - name: Install the writer's compilers and a German locale
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang mingw-w64 locales
+          sudo locale-gen de_DE.UTF-8
+
       - name: Run the gate
         run: ./scripts/local-ci.sh

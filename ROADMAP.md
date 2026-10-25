@@ -134,13 +134,16 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0002.
 
-- 📋 [FLED-0006] **Optional C writer header.**
+- 🚧 [FLED-0006] **Optional C writer header.**
   include/frameledger.h: C99 and C++17 common subset, no allocation,
   engine-owned buffer, rows dropped and counted when full, the largest
   row size stated, locale-free number formatting. Compile tests as C
   and C++ under GCC, Clang and mingw-w64 at -Wall -Wextra -Wpedantic
   -Werror, output run through check. Vestige and UT Ants compile it
   with MSVC. Claims S10.
+  2026-10-26: include/frameledger.h and tests/writer/ built; gate
+  green with GCC, Clang and mingw-w64. Sent to the three engines for
+  code review, readability included. MSVC is theirs.
   **Layman:** A small file engines can include to write run files without writing their own.
   Kind: implement.
   Source: design-2026-10-24.

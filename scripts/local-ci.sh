@@ -144,6 +144,11 @@ step 'build'
 step 'test'
 run test py python -m pytest -q
 
+step 'writer'
+# include/frameledger.h under GCC, Clang and mingw-w64, as C and as C++;
+# its output goes through `check` under the pinned Python.
+run writer py env PYTHON=python tests/writer/test_compile.sh
+
 step 'selftest'
 # The analyser's own checks, run the way an engine runs them: isolated,
 # with nothing but the standard library.

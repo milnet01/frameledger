@@ -27,3 +27,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   longer than a budget. Exit 0 pass, 1 fail, 2 inconclusive (dropped
   rows, an unfinished run, a gap in the timeline, or no full window),
   3 error (FLED-0004).
+- `include/frameledger.h`, an optional writer an engine can include
+  instead of writing run files itself. One header, usable from C and
+  C++. It never allocates and writes no files: the engine hands it a
+  buffer and writes the bytes out when it chooses. A full buffer drops
+  rows and counts them in the file. Numbers come out the same whatever
+  the machine's language (FLED-0006).

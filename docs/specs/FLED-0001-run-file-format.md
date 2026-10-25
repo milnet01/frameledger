@@ -221,6 +221,7 @@ unfinished run: the engine crashed or was killed.
 #define FLED_PART_MAX       32   /* category; segment kind; segment id */
 #define FLED_RUN_ID_MAX     64
 #define FLED_ROW_MAX        /* largest row in bytes, computed from the above */
+#define FLED_CLOSE_MAX      /* largest close line in bytes */
 
 typedef struct fled_writer { /* fields visible, contents private */ } fled_writer;
 
@@ -243,7 +244,10 @@ size_t fled_json_escape (char *dst, size_t cap, const char *src);
 
 - `fled_open` writes the header, static and column lines into `buf`.
   `header_json` and `static_json` are complete JSON objects the engine
-  built; `fled_json_escape` helps build them.
+  built; `fled_json_escape` helps build them. It returns `FLED_BAD_ARG`,
+  writing nothing, when `cap` cannot hold those lines plus
+  `FLED_CLOSE_MAX`; so a buffer for N rows is that plus N times
+  `FLED_ROW_MAX`.
 - `fled_row` appends one row, or returns `FLED_DROPPED` and adds one to
   the drop count when fewer than `FLED_ROW_MAX` bytes remain. It
   returns `FLED_BAD_ARG`, and writes nothing, for a name over its
@@ -734,15 +738,15 @@ it on each release they pin.
 | INV-11 | `tests/test_report.py::test_remainder` |
 | INV-12 | `tests/test_report.py::test_static_exact` |
 | INV-13 | `tests/test_render.py::test_text_matches_json` |
-| INV-14 | `tests/writer/test_compile.sh` (not yet written) |
-| INV-15 | `tests/writer/test_writer.c::test_drops` (not yet written) |
-| INV-16 | `tests/writer/test_writer.c::test_output_conforms` (not yet written) |
-| INV-17 | `tests/writer/test_writer.c::test_name_limit` (not yet written) |
+| INV-14 | `tests/writer/test_compile.sh` |
+| INV-15 | `tests/writer/test_writer.c::test_drops` |
+| INV-16 | `tests/writer/test_writer.c::test_output_conforms` |
+| INV-17 | `tests/writer/test_writer.c::test_name_limit` |
 | INV-18 | `tests/test_floor.py::test_cuts_and_partial_windows`, `tests/test_floor.py::test_cut_frame_is_left_out_of_windows`, `tests/test_floor.py::test_long_cut_frame_overlaps_no_window`, `tests/test_floor.py::test_cut_on_a_window_boundary` |
-| INV-19 | `tests/writer/test_writer.c::test_rounding` (not yet written) |
-| INV-20 | `tests/writer/test_writer.c::test_bad_values` (not yet written) |
+| INV-19 | `tests/writer/test_writer.c::test_rounding` |
+| INV-20 | `tests/writer/test_writer.c::test_bad_values` |
 | INV-21 | `tests/test_check.py::test_negative_and_last_wall` |
-| INV-22 | `tests/writer/test_writer.c::test_consume_reuses` (not yet written) |
+| INV-22 | `tests/writer/test_writer.c::test_consume_reuses` |
 | INV-23 | `tests/test_trust.py::test_header_warnings` (not yet written) |
 | INV-24 | `tests/test_trust.py::test_too_few_frames` (not yet written) |
 | INV-25 | `tests/test_trust.py::test_settling` (not yet written) |

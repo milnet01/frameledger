@@ -7,7 +7,8 @@
     "roadmap": "ROADMAP.md",
     "source_roots": [
         "src",
-        "scripts"
+        "scripts",
+        "include"
     ],
     "specs_dir": "docs/specs",
     "test_roots": [
