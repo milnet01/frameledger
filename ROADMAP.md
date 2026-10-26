@@ -221,7 +221,7 @@ engine faster, and which pass it changed.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003, FLED-0005.
 
-- 📋 [FLED-0009] **Bisect verdict mode.**
+- 🚧 [FLED-0009] **Bisect verdict mode.**
   One measure against a threshold or two reference runs; 0 good, 1 bad,
   125 skip, 128 stop; a dry run printing the verdict for a value.
   Claims S17. Overlaps the compare item in compare.py.
@@ -229,6 +229,10 @@ engine faster, and which pass it changed.
   rows, as Vestige's tools/perf_gate.py gates mem,gpu_mb with a 1.0 MB
   minimum. FLED-0008's compare judges no mem rows. Vestige retires
   perf_gate.py after this item lands, if mem judging is in by then.
+  2026-10-26: spec amendment in docs/specs/FLED-0001-run-file-format.md
+  § 4.11 and INV-39 to INV-46, sent to the three engines for review.
+  It proposes mem judging for bisect (mem medians, --min-mb default
+  1.000); whether compare judges mem too is asked of the engines.
   **Layman:** Lets git bisect find the change that made a pass slower.
   Kind: implement.
   Source: design-2026-10-24.
