@@ -16,7 +16,8 @@ in. CRLF line endings become LF, so a Windows checkout builds the same
 archive. The modules and header are read from the working tree, so build
 from a clean checkout of the tag, as release.yml does.
 
-Standard library only. Exit 0 on success, 2 on a usage error.
+Standard library only. Exit 0 on success; 1 when a module sits in a
+subdirectory of src/frameledger; 2 on a usage error.
 """
 
 from __future__ import annotations
@@ -62,10 +63,19 @@ def zip_bytes(entries: dict[str, bytes], prefix: bytes = b"") -> bytes:
 
 
 def tracked_modules() -> list[Path]:
-    """Tracked files only, so a stray module in the checkout never ships."""
+    """Tracked files only, so a stray module in the checkout never ships.
+
+    The analyser is flat: its modules import each other by bare name
+    (docs/design.md § The parts). A module in a subdirectory stops the
+    build rather than going missing from the .pyz.
+    """
     listed = subprocess.run(["git", "ls-files", "-z", "--", "*.py"], cwd=ANALYSER, capture_output=True,
                             check=True).stdout.decode()
-    return [ANALYSER / name for name in listed.split("\0") if name and "/" not in name]
+    names = [name for name in listed.split("\0") if name]
+    nested = [name for name in names if "/" in name]
+    if nested:
+        sys.exit(f"build_release: src/frameledger is flat, but git tracks {', '.join(nested)}")
+    return [ANALYSER / name for name in names]
 
 
 def build_pyz() -> bytes:

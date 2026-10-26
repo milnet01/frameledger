@@ -66,7 +66,13 @@ jobs:
           sha=$(py python -I scripts/build_release.py dist "$TAG" | tail -n 1 | tr -d '\r')
           echo "built dist/frameledger-$TAG.zip, SHA256 $sha"
           py python -I scripts/release_notes.py "$version" --sha256 "$sha" >/dev/null
-          py python -I dist/frameledger.pyz --version
+          # The tag names the version; the code must report the same one.
+          reported=$(py python -I dist/frameledger.pyz --version | tr -d '\r')
+          echo "$reported"
+          if [[ $reported != "frameledger $version" ]]; then
+            echo "release: tag $TAG, but the analyser reports '$reported'" >&2
+            exit 1
+          fi
           py python -I dist/frameledger.pyz --selftest
 
   publish:

@@ -1,6 +1,6 @@
 """The release archive (scripts/build_release.py; docs/design.md § The stack,
 and what it rules out): what it holds, that it rebuilds to the same bytes,
-and that its frameledger.pyz runs."""
+and that its frameledger.pyz runs; and the release notes' hash check."""
 
 import hashlib
 import importlib.util
@@ -8,6 +8,8 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).parent.parent
 SCRIPT = ROOT / "scripts" / "build_release.py"
@@ -100,3 +102,13 @@ def test_notes_must_state_the_built_hash(tmp_path, monkeypatch, capsys):
     assert "states none" in capsys.readouterr().err
     assert release_notes.main(["Unreleased"]) == 1
     assert release_notes.main(["0.2.0", "--sha", HASH_A]) == 2
+
+
+def test_a_module_in_a_subdirectory_stops_the_build(monkeypatch):
+    """The .pyz holds the flat analyser; a nested module would go missing from it."""
+    build_release = load_script("build_release")
+    listed = b"cli.py\0sub/extra.py\0"
+    monkeypatch.setattr(build_release.subprocess, "run",
+                        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout=listed))
+    with pytest.raises(SystemExit, match="sub/extra.py"):
+        build_release.tracked_modules()
