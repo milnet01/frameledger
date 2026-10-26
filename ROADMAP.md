@@ -202,7 +202,7 @@ Compare, bisect, pass budgets and pacing: whether a change made an
 
 engine faster, and which pass it changed.
 
-- 🚧 [FLED-0008] **Compare labelled sets of runs.**
+- ✅ [FLED-0008] **Compare labelled sets of runs.**
   compare.py: interleaved labelled sets (old-1, new-1, old-2, new-2),
   each pass judged by its own spread, a verdict on the exit ladder;
   trust.py's comparability refusals with per-field overrides named,
@@ -211,6 +211,11 @@ engine faster, and which pass it changed.
   2026-10-26: amends docs/specs/FLED-0001-run-file-format.md with § 4.10
   and INV-30 onward, for the three engines' review before anything is
   built.
+  2026-10-26: built at 87fad7d, engines' code review folded in at
+  9a3b5fb and 1b271ec; Vestige, UT Ants and DOOM Ants agreed 1b271ec.
+  Spec FLED-0001 § 4.10, INV-30 to INV-38. Unreleased: ships in 0.2.0.
+  Vestige will send its run-to-run frame/wall spread from its first
+  interleaved sets, to test whether three runs a set is enough.
   **Layman:** Says whether a change made the engine faster, slower or neither, pass by pass.
   Kind: implement.
   Source: design-2026-10-24.
