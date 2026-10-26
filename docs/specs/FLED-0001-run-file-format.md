@@ -7,7 +7,9 @@
 2026-10-26 at f7dd566, with `scene` added; their code review
 settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-53
 (FLED-0009) agreed by the three engines 2026-10-26 at d68c994, with
-`tested_straddle` and `--skip-straddle` added from their answers.
+`tested_straddle` and `--skip-straddle` added from their answers; their
+code review settled `--tested`, the stops and INV-52 to INV-53, and
+they confirmed it at 32b87ac.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -661,6 +663,9 @@ always the command.
 
 A bad argument or an error inside the analyser is reported on standard
 error alone; standard output holds nothing, with or without `--json`.
+A standard output closed before the start is not a failed write: no
+one asked for the sentences, so they are dropped, and the exit code is
+the verdict's (DOOM Ants).
 
 Not covered: a failure before the analyser's own code runs, such as a
 missing or too old `python3` or a broken archive. A shell exits 127

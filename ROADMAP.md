@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=19 -->
+<!-- ants-roadmap-id-high-water: FLED=20 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -221,7 +221,7 @@ engine faster, and which pass it changed.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003, FLED-0005.
 
-- 🚧 [FLED-0009] **Bisect verdict mode.**
+- ✅ [FLED-0009] **Bisect verdict mode.**
   One measure against a threshold or two reference runs; 0 good, 1 bad,
   125 skip, 128 stop; a dry run printing the verdict for a value.
   Claims S17. Overlaps the compare item in compare.py.
@@ -242,6 +242,10 @@ engine faster, and which pass it changed.
   exited 120, read as bad (UT Ants); tested runs now follow --tested;
   bisect moved to bisecting.py. 61 hand mutants, all killed. Sent back to
   the three for review.
+  2026-10-26: shipped; the three engines confirmed 32b87ac for
+  correctness and readability, and the --tested interface. Each re-ran
+  the failure cases by hand. Unreleased, for 0.2.0. UT Ants' depth point
+  filed as FLED-0020.
   **Layman:** Lets git bisect find the change that made a pass slower.
   Kind: implement.
   Source: design-2026-10-24.
@@ -318,6 +322,20 @@ engine faster, and which pass it changed.
   **Layman:** Makes sure the tool works on a machine with no screen, such as a build server.
   Kind: test.
   Source: user-request-2026-10-26.
+
+- 💭 [FLED-0020] **A tested run at another depth skips rather than stops.**
+  UT Ants, 2026-10-26, FLED-0009 review of 32b87ac: without --depth, a
+  tested run whose pass sits at another depth from the references, or
+  tested runs at mixed depths, stop the bisect (128) in bisecting.py
+  _one_depth, while a tested run lacking the measure skips (125). A
+  commit that re-nests a pass then ends the bisect instead of skipping
+  that commit, and a bisect range can cross such a restructure
+  (UTA-0437). The references' own depth mismatch would still stop. Spec
+  § 4.11 and INV-46 change; needs the three engines' agreement, since
+  Vestige and DOOM Ants asked for the one-depth rule.
+  **Layman:** Lets a bisect step over a commit that reorganised a drawing step, instead of halting the whole search.
+  Kind: enhancement.
+  Source: ut-ants-review-2026-10-26.
 
 ## 0.3.0 — many runs surveyed
 
