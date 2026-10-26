@@ -29,21 +29,24 @@ def alike(opaque, wall=16.0, gpu_span=12.0):
             ("cpu", "sim"): 5.0, ("gpu", "opaque"): opaque}
 
 
-def run_text(rows, frames=120, close=True, dropped=0, static=None, **header):
-    """A run of `frames` frames, each carrying `rows` ({(category, name): ms});
-    the last frame has no wall, as in a real run."""
+def run_text(rows, frames=120, close=True, dropped=0, static=None, spots=0, **header):
+    """A run of `frames` frames in view:1, then `spots` in spot:1, each
+    carrying `rows` ({(category, name): ms}); the last frame has no wall,
+    as in a real run."""
     fields = {**HEADER, **header}
     lines = [f"# frameledger {json.dumps(fields)}"]
     if static is not None:
         lines.append(f"# frameledger-static {json.dumps(static)}")
     lines.append("run_id,segment,frame,category,name,depth,value")
-    for frame in range(frames):
+    total = frames + spots
+    for frame in range(total):
+        segment = "view:1" if frame < frames else "spot:1"
         for (category, name), value in rows.items():
-            if (category, name) == ("frame", "wall") and frame == frames - 1:
+            if (category, name) == ("frame", "wall") and frame == total - 1:
                 continue
-            lines.append(f"{fields['run_id']},view:1,{frame},{category},{name},0,{value:.3f}")
+            lines.append(f"{fields['run_id']},{segment},{frame},{category},{name},0,{value:.3f}")
     if close:
-        lines.append(f'# frameledger-close {{"rows_dropped":{dropped},"frames":{frames}}}')
+        lines.append(f'# frameledger-close {{"rows_dropped":{dropped},"frames":{total}}}')
     return "\n".join(lines) + "\n"
 
 
@@ -268,3 +271,13 @@ def test_text_matches_json(capsys, tmp_path, opaque):
     assert text[: len(result["summary"])] == result["summary"]
     body = text[len(result["summary"]):]
     assert body and all(len(line) <= 100 for line in body), max(body, key=len)
+
+
+def test_short_kind_missing_from_the_first_run(capsys, tmp_path):
+    """A segment kind absent from one run has 0 frames there, so it is named
+    as short even when the run lacking it comes first (UT Ants' review)."""
+    same = [10.0, 10.01, 10.02]
+    first = old(same)[:1] + old(same, spots=150)[1:]
+    code, result = compare(capsys, tmp_path, first, new(same, spots=150))
+    assert result["verdict"] == "pass"
+    assert any("spot" in s and "fewer than 100" in s for s in result["summary"])

@@ -53,7 +53,7 @@ def _parser() -> _Parser:
                                 "and did any single frame take too long?")
     floor.add_argument("file", metavar="FILE")
     floor.add_argument("--fps", type=_positive, required=True, metavar="N", help="the frame rate to hold")
-    floor.add_argument("--warmup-s", type=_seconds, default=Decimal(2), metavar="S",
+    floor.add_argument("--warmup-s", type=_non_negative, default=Decimal(2), metavar="S",
                        help="seconds at the start that are not judged (default 2)")
     floor.add_argument("--budget-ms", type=_milliseconds, metavar="B",
                        help="the longest a single frame may take (default 1000/N, rounded up to three places)")
@@ -73,7 +73,7 @@ def _parser() -> _Parser:
                       metavar="FIELD=REASON", help="let one compare-blocking header field differ")
     pair.add_argument("--min-ms", type=_floor_ms, default=Decimal("0.050"), metavar="M",
                       help="the smallest change that counts, in ms (default 0.050)")
-    pair.add_argument("--min-pct", type=_seconds, default=Decimal(3), metavar="P",
+    pair.add_argument("--min-pct", type=_non_negative, default=Decimal(3), metavar="P",
                       help="the smallest change that counts, in percent of the old (default 3)")
     pair.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                       help="print the JSON result instead of text")
@@ -100,7 +100,7 @@ def _positive(text: str) -> Decimal:
     return value
 
 
-def _seconds(text: str) -> Decimal:
+def _non_negative(text: str) -> Decimal:
     value = _number(text)
     if value < 0:
         raise argparse.ArgumentTypeError(f"'{text}' must be 0 or more")
@@ -119,7 +119,7 @@ def _milliseconds(text: str) -> Decimal:
 
 
 def _floor_ms(text: str) -> Decimal:
-    value = _seconds(text)
+    value = _non_negative(text)
     if value >= BUDGET_LIMIT:
         raise argparse.ArgumentTypeError(f"'{text}' must be below {BUDGET_LIMIT}")
     return value

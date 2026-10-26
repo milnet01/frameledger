@@ -10,6 +10,7 @@ path, in every sentence and warning.
 from __future__ import annotations
 
 import json
+from collections import Counter
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from fractions import Fraction
@@ -53,7 +54,11 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     """{"verdict", "summary", "warnings", "overrides", "result"} for two sets
     of runs that meet the format. cli.py checks the run counts and the
     override fields; a Run with a breach raises LedgerError, as under
-    `report`."""
+    `report`.
+
+    The opening sentences follow § 4.10's order: the overrides; a refusal,
+    which ends the compare; each incomplete run; one per kind of warning;
+    the verdict; the frame time per segment kind; the short kinds."""
     runs = [Named(f"{label}-{i}", label, run.path, run)
             for label, group in (("old", old), ("new", new)) for i, run in enumerate(group, 1)]
     for named in runs:
@@ -145,9 +150,14 @@ def _refusal_sentence(refused: list[dict]) -> str:
     for entry in refused:
         by_value: dict[str, list[str]] = {}
         for name, value in entry["values"].items():
+            # A blocking field holding null breaks the format, so None is absent.
             by_value.setdefault("absent" if value is None else json.dumps(value), []).append(name)
         if entry["field"] == "inputs" and "[]" in by_value:
-            what = f"inputs is empty in {', '.join(by_value['[]'])}, so the inputs are unknown"
+            empty = by_value.pop("[]")
+            listed = [name for names in by_value.values() for name in names]
+            what = f"inputs is empty in {', '.join(empty)}, so the inputs are unknown"
+            if listed:
+                what += f"; {', '.join(listed)} list some"
         else:
             what = f"{entry['field']} differs: " + "; ".join(
                 f"{value} in {', '.join(names)}" for value, names in by_value.items())
@@ -303,17 +313,12 @@ def _frame_rank(entry: dict) -> int:
 
 def _short_kinds(runs: list[Named]) -> list[str | None]:
     """Segment kinds where some run has fewer than trust.FEWEST_FRAMES frames
-    with a wall: their frame time is noisy almost every time (Vestige)."""
-    counts: dict[str | None, list[int]] = {}
-    for r in runs:
-        per_kind: dict[str | None, int] = {}
-        for rows in r.run.frames.values():
-            if ("frame", "wall") in rows:
-                kind = run_report.segment_kind(ledger.frame_segment(rows))
-                per_kind[kind] = per_kind.get(kind, 0) + 1
-        for kind in per_kind.keys() | counts.keys():
-            counts.setdefault(kind, []).append(per_kind.get(kind, 0))
-    return sorted((k for k, c in counts.items() if min(c) < trust.FEWEST_FRAMES),
+    with a wall: their frame time is noisy almost every time (Vestige). A
+    run without the kind has 0 of them."""
+    per_run = [Counter(run_report.segment_kind(ledger.frame_segment(rows))
+                       for rows in r.run.frames.values() if ("frame", "wall") in rows) for r in runs]
+    kinds = set().union(*per_run)
+    return sorted((k for k in kinds if min(c[k] for c in per_run) < trust.FEWEST_FRAMES),
                   key=run_report.kind_order)
 
 
