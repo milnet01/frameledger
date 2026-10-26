@@ -35,6 +35,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   shows the verdict a value would get. Tested runs on both sides of the
   line warn, and skip with `--skip-straddle` (FLED-0009).
 - `--selftest` checks the bisect too (FLED-0009).
+- A test locks that the analyser runs headless: no display, no terminal
+  and no input (FLED-0019).
 - An app icon, `assets/frameledger-icon.svg`, shown in the README, and
   the projects website's logo, `assets/frameledger-logo-stacked.svg`
   (FLED-0017).

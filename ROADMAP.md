@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=18 -->
+<!-- ants-roadmap-id-high-water: FLED=19 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -295,6 +295,17 @@ engine faster, and which pass it changed.
   Kind: implement.
   Source: vestige-review-2026-10-26.
   Blocked-by: FLED-0009.
+
+- ✅ [FLED-0019] **The analyser runs headless.**
+  The owner, 2026-10-26: the app must run headless. Claims S20. The
+  analyser imports the standard library only and opens no display, so it
+  already did; tests/test_cli.py::test_headless locks it: --selftest,
+  report and a bisect dry run, with only PATH (and SYSTEMROOT on
+  Windows) in the environment, stdin closed and no controlling terminal.
+  Seen failing on a copy whose entry point reads DISPLAY.
+  **Layman:** Makes sure the tool works on a machine with no screen, such as a build server.
+  Kind: test.
+  Source: user-request-2026-10-26.
 
 ## 0.3.0 — many runs surveyed
 

@@ -1,6 +1,7 @@
 """Commands, flags and the exit ladder (docs/design.md § Exit codes)."""
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -49,3 +50,22 @@ def test_directory_run_form():
         capture_output=True, text=True, check=False,
     )
     assert done.returncode == 0, done.stderr
+
+
+def test_headless():
+    """S20: with no display, no terminal and no input, each command gives
+    its output and exit code. The environment holds only PATH, and on
+    Windows SYSTEMROOT, which Python needs to start."""
+    env = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT") if key in os.environ}
+    commands = [
+        (["--selftest"], 0),
+        (["report", str(FIXTURES / "in-order.csv")], 0),
+        (["bisect", "--dry-run", "10.001", "--measure", "frame/wall", "--kind", "view",
+          "--bad-above", "10.000"], 1),
+    ]
+    for args, code in commands:
+        done = subprocess.run([sys.executable, "-I", str(ROOT / "src" / "frameledger"), *args], env=env,
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                              start_new_session=True, check=False)
+        assert done.returncode == code, done.stderr
+        assert done.stdout
