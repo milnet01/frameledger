@@ -159,11 +159,20 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0001.
 
-- 📋 [FLED-0007] **First release archive.**
+- 🚧 [FLED-0007] **First release archive.**
   frameledger.pyz and include/frameledger.h in one archive attached to a
   tagged release, its SHA256 in the notes; CHANGELOG naming every
   format change. Windows runs of --selftest by Vestige and UT Ants.
   Claims S6's pin half and S11's Windows half.
+  2026-10-26: v0.1.0-rc.1 published as a pre-release at d3ded0b, archive
+  SHA256
+  84a9254101421b223ca1429f889310ef92d1d4e4da433f19ce0d4225c89b9f5a.
+  Release run 40250446302: Linux and windows-latest builds gave that
+  hash and passed --selftest under Python 3.10.22. All three engines
+  reviewed the tooling. Waiting on the Windows --selftest runs by
+  Vestige and UT Ants; both machines are switched off. Then v0.1.0: date
+  the CHANGELOG section, cut-release 0.1.0, same bytes. No CHANGELOG
+  entry: this item is the release itself.
   **Layman:** A downloadable, pinned version the three engines can use.
   Kind: release.
   Source: design-2026-10-24.
