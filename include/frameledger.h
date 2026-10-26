@@ -10,6 +10,10 @@
  * when it chooses. When fewer than FLED_ROW_MAX bytes are free, a row is
  * dropped and counted, and the count goes into the close line.
  *
+ * Sizing: a buffer of the opening lines + FLED_CLOSE_MAX + N * FLED_ROW_MAX
+ * guarantees N rows of any size. Rows are written at their true size,
+ * typically about 40 bytes, so N * 40 + FLED_ROW_MAX is enough in practice.
+ *
  *     static char buf[1 << 20];
  *     fled_writer w;
  *     fled_open(&w, buf, sizeof buf, "run-42", header_json, NULL);
@@ -192,8 +196,9 @@ static inline size_t fled__put_text(char *dst, const char *src)
     return n;
 }
 
-/* Copies src into dst, which holds cap bytes, with every quote, backslash
-   and control character escaped for a JSON string. It adds no surrounding
+/* Copies src into dst, which holds cap bytes, with every quote, backslash,
+   control character and DEL escaped for a JSON string, so fled_open
+   always takes the result. It adds no surrounding
    quotes, and NUL-terminates dst when cap is above zero. Other bytes,
    UTF-8 included, pass through. Returns the length the whole escaped text
    needs, not counting the NUL, so a result of cap or more means dst was
@@ -218,7 +223,7 @@ static inline size_t fled_json_escape(char *dst, size_t cap, const char *src)
         } else if (c == '\t') {
             escape[n++] = '\\';
             escape[n++] = 't';
-        } else if (c < 0x20) {
+        } else if (c < 0x20 || c == 0x7f) {
             escape[n++] = '\\';
             escape[n++] = 'u';
             escape[n++] = '0';
@@ -246,7 +251,8 @@ static inline size_t fled_json_escape(char *dst, size_t cap, const char *src)
    writing nothing, for a NULL w, buf, run_id or header_json; a run_id of
    0 or over FLED_RUN_ID_MAX bytes; an empty JSON text; a line break or
    other control character in any of them; or a buf too small for those
-   lines and the close line. */
+   lines and the close line. A refused writer has nothing pending, so an
+   engine's flush path may still call fled_pending. */
 static inline int fled_open(fled_writer *w, char *buf, size_t cap, const char *run_id,
                             const char *header_json, const char *static_json)
 {
@@ -256,6 +262,10 @@ static inline int fled_open(fled_writer *w, char *buf, size_t cap, const char *r
     size_t id_len, header_len, static_len = 0, need;
     if (w == NULL)
         return FLED_BAD_ARG;
+    w->buf = NULL;
+    w->cap = 0;
+    w->len = 0;
+    w->dropped = 0;
     w->state = 0;
     if (buf == NULL || run_id == NULL || header_json == NULL)
         return FLED_BAD_ARG;
@@ -275,8 +285,6 @@ static inline int fled_open(fled_writer *w, char *buf, size_t cap, const char *r
 
     w->buf = buf;
     w->cap = cap;
-    w->len = 0;
-    w->dropped = 0;
     w->run_id_len = fled__put_field(w->run_id, run_id, id_len);
     w->len += fled__put_text(buf + w->len, header);
     memcpy(buf + w->len, header_json, header_len);
@@ -294,7 +302,8 @@ static inline int fled_open(fled_writer *w, char *buf, size_t cap, const char *r
 }
 
 /* Appends one row; segment may be NULL or "" for none. The value is
-   rounded to thousandths, ties away from zero (C99 llround).
+   rounded to thousandths: llround of value * 1000 as a double, so ties go
+   away from zero, but 8.2505 is 8250.4999... and writes 8.250.
    Returns FLED_BAD_ARG, writing nothing, for a writer not open, a field
    breaking § 4.4, a negative frame or depth, or a value that is not
    finite or rounds to 1 000 000 000 or more in size. That is checked
@@ -319,6 +328,8 @@ static inline int fled_row(fled_writer *w, const char *segment, long long frame,
     thousandths = llround(value * 1000.0);
     if (thousandths <= -1000000000000LL || thousandths >= 1000000000000LL)
         return FLED_BAD_ARG;
+    /* Cannot wrap: fled_open left FLED_CLOSE_MAX free, and every row keeps
+       it free, since a row is written only with FLED_ROW_MAX more spare. */
     if (w->cap - w->len - FLED_CLOSE_MAX < FLED_ROW_MAX) {
         w->dropped++;
         return FLED_DROPPED;
@@ -359,6 +370,8 @@ static inline void fled_consume(fled_writer *w, size_t n)
 {
     if (n > w->len)
         n = w->len;
+    if (n == 0)
+        return; /* also a refused writer, whose buf is NULL */
     memmove(w->buf, w->buf + n, w->len - n);
     w->len -= n;
 }

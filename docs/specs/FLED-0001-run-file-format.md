@@ -260,10 +260,12 @@ size_t fled_json_escape (char *dst, size_t cap, const char *src);
 
 - `fled_open` writes the header, static and column lines into `buf`.
   `header_json` and `static_json` are complete JSON objects the engine
-  built; `fled_json_escape` helps build them. It returns `FLED_BAD_ARG`,
-  writing nothing, when `cap` cannot hold those lines plus
-  `FLED_CLOSE_MAX`; so a buffer for N rows is that plus N times
-  `FLED_ROW_MAX`.
+  built; `fled_json_escape` helps build them, and `fled_open` takes
+  whatever it returns. `fled_open` returns `FLED_BAD_ARG`, writing
+  nothing, when `cap` cannot hold those lines plus `FLED_CLOSE_MAX`. A
+  refused writer has nothing pending. Adding N times `FLED_ROW_MAX`
+  guarantees N rows; rows take their true size, so typical rows fit
+  about ten times as many.
 - `fled_row` appends one row, or returns `FLED_DROPPED` and adds one to
   the drop count when fewer than `FLED_ROW_MAX` bytes remain. It
   returns `FLED_BAD_ARG`, and writes nothing, for a name over its
@@ -677,6 +679,18 @@ breaks.
   *Breaks when:* an absent field reads as a value that warns, or
   `check` reports a trust warning.
 
+- **INV-28** — A refused `fled_open` leaves the writer with nothing
+  pending, whatever its memory held before, and refuses rows.
+  *Test:* `tests/writer/test_writer.c::test_failed_open`, a writer
+  filled with `0xa5` and a 16-byte buffer.
+  *Breaks when:* `fled_open` returns before resetting the writer, so
+  `fled_pending` hands back a stale pointer and length.
+
+- **INV-29** — `fled_open` takes any header `fled_json_escape` built:
+  DEL and control characters come out as `\u00XX`.
+  *Test:* `tests/writer/test_writer.c::test_escape_opens`.
+  *Breaks when:* the escape passes a byte `fled_open` refuses.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -705,7 +719,8 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0003: INV-5, INV-10, INV-11, INV-12, INV-13.
 - FLED-0004: INV-7, INV-8, INV-9, INV-18.
 - FLED-0005: INV-23, INV-24, INV-25, INV-26, INV-27.
-- FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22.
+- FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22,
+  INV-28, INV-29.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -770,6 +785,8 @@ it on each release they pin.
 | INV-25 | `tests/test_trust.py::test_settling` (not yet written) |
 | INV-26 | `tests/test_trust.py::test_cut_in_stretch` (not yet written) |
 | INV-27 | `tests/test_trust.py::test_absent_fields_and_check` (not yet written) |
+| INV-28 | `tests/writer/test_writer.c::test_failed_open` |
+| INV-29 | `tests/writer/test_writer.c::test_escape_opens` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 

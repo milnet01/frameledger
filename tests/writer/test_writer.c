@@ -1,9 +1,11 @@
 /* The writer's behaviour: docs/specs/FLED-0001-run-file-format.md § 4.6,
- * INV-15, INV-16, INV-17, INV-19, INV-20 and INV-22. test_compile.sh
- * builds this as C and as C++ and runs it; with a path argument it also
- * writes test_output_conforms' run there, for the analyser's `check`.
- * Exit 0 when every test passes.
+ * INV-15, INV-16, INV-17, INV-19, INV-20, INV-22, INV-28 and INV-29.
+ * test_compile.sh builds this as C and as C++ and runs it; with a path
+ * argument it also writes test_output_conforms' run there, for the
+ * analyser's `check`. Exit 0 when every test passes.
  */
+/* MSVC warns on sprintf and fopen (C4996); the test needs both. */
+#define _CRT_SECURE_NO_WARNINGS
 #include <locale.h>
 #include <math.h>
 #include <stdio.h>
@@ -212,6 +214,43 @@ static void test_consume_reuses(void)
     expect(dropped == 0, "test_consume_reuses", "no row dropped");
 }
 
+/* INV-28: a refused fled_open leaves the writer with nothing pending,
+   whatever its memory held, so an engine's flush path writes nothing. */
+static void test_failed_open(void)
+{
+    static char small[16];
+    fled_writer w;
+    const char *bytes = small;
+    memset(&w, 0xa5, sizeof w);
+    expect(fled_open(&w, small, sizeof small, "w1", HEADER, NULL) == FLED_BAD_ARG, "test_failed_open",
+           "a buffer too small is refused");
+    expect(fled_pending(&w, &bytes) == 0 && bytes == NULL, "test_failed_open", "nothing is pending");
+    fled_consume(&w, 10);
+    expect(fled_pending(&w, &bytes) == 0, "test_failed_open", "consume leaves nothing pending");
+    expect(fled_row(&w, "", 0, "cpu", "a", 0, 1.0) == FLED_BAD_ARG, "test_failed_open", "rows are refused");
+    expect(fled_close(&w, 0) == FLED_BAD_ARG, "test_failed_open", "close is refused");
+}
+
+/* INV-29: whatever fled_json_escape returns, fled_open takes, DEL
+   included. */
+static void test_escape_opens(void)
+{
+    static char buf[4096];
+    char escaped[64], header[96];
+    fled_writer w;
+    const char *bytes;
+    size_t n;
+    n = fled_json_escape(escaped, sizeof escaped, "GPU\x7f\x01\n\"name\"");
+    expect(n < sizeof escaped && strcmp(escaped, "GPU\\u007f\\u0001\\n\\\"name\\\"") == 0,
+           "test_escape_opens", "DEL and control characters are escaped");
+    sprintf(header, "{\"device\":\"%s\"}", escaped);
+    expect(fled_open(&w, buf, sizeof buf, "w1", header, NULL) == FLED_OK, "test_escape_opens",
+           "an escaped header opens");
+    n = fled_pending(&w, &bytes);
+    expect(n > strlen(header) && memcmp(bytes + strlen("# frameledger "), header, strlen(header)) == 0,
+           "test_escape_opens", "the header is written as given");
+}
+
 int main(int argc, char **argv)
 {
     test_drops();
@@ -220,6 +259,8 @@ int main(int argc, char **argv)
     test_rounding();
     test_bad_values();
     test_consume_reuses();
+    test_failed_open();
+    test_escape_opens();
     if (failures == 0)
         printf("test_writer: all tests passed\n");
     return failures == 0 ? 0 : 1;
