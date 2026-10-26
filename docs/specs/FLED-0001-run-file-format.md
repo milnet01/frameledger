@@ -771,7 +771,8 @@ run's name; `override_unused`; `dirty_build`, for a tested run with
 `tested_straddle`, above. A warning never changes the exit code.
 
 **Opening sentences**, in order: one naming every override and its
-reason; why the bisect stops; each tested run's dropped rows or missing
+reason; why the bisect stops, then "The bisect stops (exit 128)."; each
+tested run's dropped rows or missing
 close line, or why it skips; one per kind of warning; the verdict
 sentence. That sentence gives the tested value, the threshold or the
 midpoint with both references' centres, and the exit code: "gpu/opaque
@@ -1201,7 +1202,9 @@ breaks.
   runs all 12.000 and bad all 10.000 stop as the wrong way round; good
   and bad all 10.000 stop as not separating.
   *Test:* `tests/test_bisect.py::test_reference_midpoint`,
-  `tests/test_bisect.py::test_references_separate`.
+  `tests/test_bisect.py::test_references_separate`,
+  `tests/test_bisect.py::test_good_range_counts`,
+  `tests/test_bisect.py::test_inverted_and_equal_references`.
   *Breaks when:* the tested value is judged against one reference, or
   the midpoint uses means or pools the runs, or the separation check is
   missing, or its bounds are off by one thousandth, or the spread is
@@ -1213,7 +1216,8 @@ breaks.
   1, when its close line is removed, when one of its rows is malformed,
   and when its path does not exist. A tested run without `gpu/opaque`
   skips, and the sentence names the kinds it has (`view`).
-  *Test:* `tests/test_bisect.py::test_skip`.
+  *Test:* `tests/test_bisect.py::test_skip`,
+  `tests/test_bisect.py::test_skip_names_the_kinds`.
   *Breaks when:* an incomplete or broken tested run is judged bad, or
   any of these exits 3.
 
@@ -1231,7 +1235,9 @@ breaks.
   in `scene`; an exception raised while reading the runs; and one raised
   while rendering the result. With `--override "resolution=upscaler
   test"`, the `resolution` case is judged.
-  *Test:* `tests/test_bisect.py::test_stop_codes`, the exceptions
+  *Test:* `tests/test_bisect.py::test_stop_codes`,
+  `tests/test_bisect.py::test_stop_before_the_command`,
+  `tests/test_bisect.py::test_stop_on_an_internal_error`, the exceptions
   patched in by the test; `tests/test_bisect.py::test_reference_refusal`.
   *Breaks when:* any case exits 0, or with the ladder's 2 or 3, or a
   Python traceback's 1, which `git bisect run` would read as good or
@@ -1438,9 +1444,9 @@ it on each release they pin.
 | INV-37 | `tests/test_compare.py::test_static_diff` |
 | INV-38 | `tests/test_compare.py::test_even_sets_and_rounding` |
 | INV-39 | `tests/test_bisect.py::test_threshold_edges`, `tests/test_bisect.py::test_tested_centre`, `tests/test_bisect.py::test_exact_comparison` |
-| INV-40 | `tests/test_bisect.py::test_reference_midpoint`, `tests/test_bisect.py::test_references_separate` |
-| INV-41 | `tests/test_bisect.py::test_skip` |
-| INV-42 | `tests/test_bisect.py::test_stop_codes`, `tests/test_bisect.py::test_reference_refusal` |
+| INV-40 | `tests/test_bisect.py::test_reference_midpoint`, `tests/test_bisect.py::test_references_separate`, `tests/test_bisect.py::test_good_range_counts`, `tests/test_bisect.py::test_inverted_and_equal_references` |
+| INV-41 | `tests/test_bisect.py::test_skip`, `tests/test_bisect.py::test_skip_names_the_kinds` |
+| INV-42 | `tests/test_bisect.py::test_stop_codes`, `tests/test_bisect.py::test_stop_before_the_command`, `tests/test_bisect.py::test_stop_on_an_internal_error`, `tests/test_bisect.py::test_reference_refusal` |
 | INV-43 | `tests/test_bisect.py::test_dry_run` |
 | INV-44 | `tests/test_bisect.py::test_mem_measure` |
 | INV-45 | `tests/test_bisect.py::test_warning_keeps_code` |

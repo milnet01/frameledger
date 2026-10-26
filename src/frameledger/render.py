@@ -127,6 +127,17 @@ def _compare_body(result: dict) -> list[str]:
     return lines
 
 
+def _bisect_body(result: dict) -> list[str]:
+    bisected = result["result"]
+    if not bisected or not bisected["runs"]:  # an error, or a dry run: the sentences say it all
+        return []
+    unit = bisected["measure"]["unit"]
+    lines = [f"Runs, with their {unit}:"]
+    lines += [_fit(f"  {r['name']:<8}  {'-' if r['value'] is None else format(r['value'], '.3f'):>14}  "
+                   f"{r['path']}", WIDTH) for r in bisected["runs"]]
+    return lines
+
+
 def _measure_row(name: str, old: str, new: str, change: str, spread: str, verdict: str) -> str:
     return f"  {_fit(name, 40):<40}  {old:>10}  {new:>10}  {change:>10}  {spread:>10}  {verdict}"
 
@@ -200,4 +211,4 @@ def _kind_name(kind: str | None) -> str:
 
 
 _BODIES = {"check": _check_body, "report": _report_body, "floor": _floor_body,
-           "compare": _compare_body, "selftest": _selftest_body}
+           "compare": _compare_body, "bisect": _bisect_body, "selftest": _selftest_body}

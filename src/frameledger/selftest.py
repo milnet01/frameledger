@@ -87,6 +87,14 @@ def _compare_verdict(new: bytes) -> str:
     return compare.compare(runs(_GOOD), runs(new), {}, Decimal("0.050"), Decimal(3))["verdict"]
 
 
+def _bisect_verdict(bad_above: str) -> str:
+    """The good sample as the tested run; its cpu/scene median in view segments is 5.250."""
+    wanted = compare.Wanted("cpu", "scene", "median", None, "view", None)
+    tested = [compare.Tested("sample", ledger.read_bytes(_GOOD, "sample"), None)]
+    floors = compare.Floors(Decimal("0.050"), Decimal("1.000"), Decimal(3))
+    return compare.bisect(wanted, tested, [], [], {}, floors, bad_above=Decimal(bad_above))["verdict"]
+
+
 def run() -> list[tuple[str, bool]]:
     """Each check's name and whether it passed."""
     good = ledger.read_bytes(_GOOD, "sample")
@@ -111,4 +119,6 @@ def run() -> list[tuple[str, bool]]:
          _floor_windows(_QUARTERS) == [{"start_s": 0.0, "fps": 3, "mean_ms": 250.0, "pass": True}]),
         ("a compare of a run with itself passes, and a slower pass fails it",
          _compare_verdict(_GOOD) == "pass" and _compare_verdict(_GOOD.replace(b"5.250", b"6.250")) == "fail"),
+        ("a bisect calls a value at the threshold good and one above it bad",
+         _bisect_verdict("5.250") == "good" and _bisect_verdict("5.249") == "bad"),
     ]

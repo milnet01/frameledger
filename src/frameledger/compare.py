@@ -1,10 +1,12 @@
-"""Compare labelled sets of runs (S4, S5's refusal half, S16).
+"""Compare labelled sets of runs (S4, S5's refusal half, S16), and give
+one commit's bisect verdict (S17).
 
-The rules are docs/specs/FLED-0001-run-file-format.md § 4.10. Each run
-gives one value per measure; a measure is judged by its own spread and a
-floor, so a pass that moved is found even when the frame total is too
-noisy to judge. Runs are named by set and order (old-1, new-2), never by
-path, in every sentence and warning.
+The rules are docs/specs/FLED-0001-run-file-format.md § 4.10 and, for
+the bisect, § 4.11. Each run gives one value per measure; a measure is
+judged by its own spread and a floor, so a pass that moved is found even
+when the frame total is too noisy to judge. Runs are named by set and
+order (old-1, new-2, tested-1), never by path, in every sentence and
+warning.
 """
 
 from __future__ import annotations
@@ -266,19 +268,10 @@ def _judge(measure: Measure, old: list[int], new: list[int], min_ms: Decimal, mi
            tick: Fraction) -> dict:
     """§ 4.10's table, in exact fractions of a thousandth."""
     old_centre, new_centre = _centre(old), _centre(new)
-    spread = max(max(old) - min(old), max(new) - min(new))
+    spread = _spread(old, new)
     change = new_centre - old_centre
-    floor = max(Fraction(min_ms) * 1000, Fraction(min_pct) / 100 * old_centre)
-    if measure.category == "gpu" or (measure.category, measure.name) == ("frame", "gpu_span"):
-        floor = max(floor, tick)
-    if change > spread and change >= floor:
-        verdict = "slower"
-    elif -change > spread and -change >= floor:
-        verdict = "faster"
-    elif spread > 0 and spread >= floor:  # runs that do not vary are never noisy (Vestige)
-        verdict = "noisy"
-    else:
-        verdict = "unchanged"
+    floor = _floor(measure, old_centre, min_ms, min_pct, tick)
+    verdict = _change_verdict(change, spread, floor)
     return {
         **_measure_fields(measure),
         "old_ms": [v / 1000 for v in old],
@@ -291,6 +284,32 @@ def _judge(measure: Measure, old: list[int], new: list[int], min_ms: Decimal, mi
         "floor_ms": _ms4(floor),
         "verdict": verdict,
     }
+
+
+def _spread(old: list[int], new: list[int]) -> int:
+    """The wider set's range, whichever set that is."""
+    return max(max(old) - min(old), max(new) - min(new))
+
+
+def _floor(measure: Measure, old_centre: Fraction, min_ms: Decimal, min_pct: Decimal,
+           tick: Fraction) -> Fraction:
+    """The smallest change that counts, in thousandths. GPU timings are
+    also no finer than the clock that took them. `min_ms` is in the
+    measure's unit, so a mem measure's caller passes --min-mb."""
+    floor = max(Fraction(min_ms) * 1000, Fraction(min_pct) / 100 * old_centre)
+    if measure.category == "gpu" or (measure.category, measure.name) == ("frame", "gpu_span"):
+        floor = max(floor, tick)
+    return floor
+
+
+def _change_verdict(change: Fraction, spread: int, floor: Fraction) -> str:
+    if change > spread and change >= floor:
+        return "slower"
+    if -change > spread and -change >= floor:
+        return "faster"
+    if spread > 0 and spread >= floor:  # runs that do not vary are never noisy (Vestige)
+        return "noisy"
+    return "unchanged"
 
 
 def _centre(values: list[int]) -> Fraction:
@@ -421,3 +440,297 @@ def _round(value: Fraction, places: int) -> float:
     scaled = abs(value) * 10**places
     whole = (2 * scaled.numerator + scaled.denominator) // (2 * scaled.denominator)
     return float(Fraction(whole if value >= 0 else -whole, 10**places))
+
+
+# ── Bisect (§ 4.11) ──────────────────────────────────────────────────────────
+
+BISECT_FRAME_NAMES = ("wall", "cpu_span", "gpu_span")  # § 4.10's frame measures
+BISECT_CATEGORIES = ("frame", "cpu", "gpu", "mem")
+FEWEST_REFERENCES = FEWEST_RUNS  # one noisy reference would move the line for every commit
+STOP_SENTENCE = "The bisect stops (exit 128)."
+
+
+class Wanted(NamedTuple):
+    """The one measure a bisect judges, and the frames it is taken over:
+    one segment kind, one segment, or frames with no segment (both None)."""
+    category: str
+    name: str
+    statistic: str  # "median" or "p99"
+    depth: int | None  # None: whichever one depth the name has
+    kind: str | None
+    segment: str | None  # KIND:ID; `kind` then holds its kind
+
+    @property
+    def unit(self) -> str:
+        return "MB" if self.category == "mem" else "ms"
+
+
+class Tested(NamedTuple):
+    """One of the tested commit's run files: its Run, or why it could not be read."""
+    path: str
+    run: ledger.Run | None
+    error: str | None
+
+
+class Floors(NamedTuple):
+    """The reference floor's settings: --min-ms, --min-mb and --min-pct."""
+    min_ms: Decimal
+    min_mb: Decimal
+    min_pct: Decimal
+
+
+class _Stop(Exception):
+    """The bisect cannot go on (exit 128). The message is the sentence
+    saying why; a refusal also carries § 4.10's `refused` entries."""
+
+    def __init__(self, sentence: str, refused: list[dict] | None = None):
+        super().__init__(sentence)
+        self.refused = refused or []
+
+
+class _Skip(Exception):
+    """This commit cannot be judged (exit 125). The message is the sentence."""
+
+
+def bisect(wanted: Wanted, tested: list[Tested], good: list[ledger.Run], bad: list[ledger.Run],
+           overrides: dict[str, str], floors: Floors, bad_above: Decimal | None = None,
+           dry_value: Decimal | None = None, skip_straddle: bool = False) -> dict:
+    """{"verdict", "summary", "warnings", "overrides", "result"} for one
+    commit: good, bad, skip or stop. Reference mode when `good` and `bad`
+    are given, threshold mode with `bad_above`; `dry_value` stands in for
+    the tested runs. cli.py has checked the flags and read the files."""
+    refs = [Named(f"{label}-{i}", label, run.path, run)
+            for label, group in (("good", good), ("bad", bad)) for i, run in enumerate(group, 1)]
+    # A tested file that could not be read is a Named whose run is None; it skips the commit.
+    tested_runs = [Named(f"tested-{i}", "tested", t.path, t.run) for i, t in enumerate(tested, 1)]
+    override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
+    values: dict[str, int] = {}  # each run's value of the measure, in thousandths
+    result = {"measure": _wanted_fields(wanted), "dry_run": dry_value is not None, "runs": [],
+              "value": None, "bad_above": None, "references": None, "refused": []}
+    notices: list[ledger.Notice] = []
+    centres = None  # the good and bad centres, in reference mode
+    try:
+        if refs:
+            line, centres = _reference_line(wanted, refs, overrides, floors, values, result)
+        else:
+            line = Fraction(bad_above) * 1000
+        result["bad_above"] = float(_exact(line))
+        if dry_value is None:
+            value = _tested_value(wanted, tested, tested_runs, refs, overrides, values)
+            notices = _tested_notices(tested_runs, refs, overrides)
+            straddle = _straddle(tested_runs, values, line, wanted.unit)
+            if straddle and skip_straddle:
+                raise _Skip(f"The tested runs fall on both sides of the line: {straddle}; so this "
+                            "commit is skipped (exit 125).")
+            if straddle:
+                notices.append(ledger.Notice("tested_straddle", f"the tested runs fall on both sides of "
+                                             f"{_shown(line, wanted.unit)}: {straddle}"))
+        else:
+            value = Fraction(dry_value) * 1000
+    except _Stop as stop:
+        verdict, sentences = "stop", [str(stop), STOP_SENTENCE]
+        result["refused"] = stop.refused
+    except _Skip as skip:
+        verdict, sentences = "skip", [str(skip)]
+    else:
+        verdict = "bad" if value > line else "good"
+        result["value"] = float(_exact(value))
+        sentences = [*run_report.warning_sentences(notices),
+                     _bisect_sentence(wanted, value, line, centres, dry_value is not None)]
+    result["runs"] = [_bisect_entry(r, values) for r in refs + tested_runs]
+    return {"verdict": verdict, "summary": overrides_sentences(override_list) + sentences,
+            "warnings": _warnings(notices), "overrides": override_list, "result": result}
+
+
+def _reference_line(wanted: Wanted, refs: list[Named], overrides: dict[str, str], floors: Floors,
+                    values: dict[str, int], result: dict) -> tuple[Fraction, tuple[Fraction, Fraction]]:
+    """The midpoint of the good and bad centres, and the centres, once
+    every reference check of § 4.11 has passed; fills `values` and
+    result["references"]."""
+    for label in ("good", "bad"):
+        count = sum(r.set == label for r in refs)
+        if count < FEWEST_REFERENCES:
+            raise _Stop(f"The {label} references are {run_report.counted(count, 'run')}; each set needs "
+                        f"at least {FEWEST_REFERENCES}, since one noisy reference would move the line "
+                        "for every commit.")
+    for r in refs:
+        try:
+            run_report.refuse_breaches(r.run)
+        except ledger.LedgerError as error:
+            raise _Stop(f"{r.name} is a broken reference file: {error}.") from None
+        if r.run.close is None:
+            raise _Stop(f"{r.name} has no close line, so the run did not finish and cannot be a reference.")
+        if r.run.close["rows_dropped"]:
+            raise _Stop(f"In {r.name} the writer dropped "
+                        f"{run_report.counted(r.run.close['rows_dropped'], 'row')}, so it cannot be a "
+                        "reference.")
+    refused, _ = _refusals(refs, overrides)
+    if refused:
+        raise _Stop(_refusal_sentence(refused), refused)
+    for r in refs:
+        value = _run_value(wanted, r)
+        if value is None:
+            raise _Stop(f"{r.name} has no {_bisect_label(wanted)}, so it cannot be a reference.")
+        values[r.name] = value
+
+    good = [values[r.name] for r in refs if r.set == "good"]
+    bad = [values[r.name] for r in refs if r.set == "bad"]
+    good_centre, bad_centre = _centre(good), _centre(bad)
+    spread = _spread(good, bad)
+    # The good runs are the old: the floor's percent is of the good centre.
+    tick_rule = Measure(wanted.kind, wanted.category, wanted.name, 0, wanted.statistic)
+    min_floor = floors.min_mb if wanted.category == "mem" else floors.min_ms
+    floor = _floor(tick_rule, good_centre, min_floor, floors.min_pct, _largest_tick(refs))
+    result["references"] = {"good_centre": float(_exact(good_centre)), "bad_centre": float(_exact(bad_centre)),
+                            "spread": float(_exact(spread)), "floor": float(_exact(floor))}
+    unit = wanted.unit
+    centres = (f"the bad runs' centre of {_shown(bad_centre, unit)} against the good runs' "
+               f"{_shown(good_centre, unit)}")
+    if _change_verdict(bad_centre - good_centre, spread, floor) != "slower":
+        if bad_centre < good_centre:
+            raise _Stop(f"The references are the wrong way round: {centres}.")
+        raise _Stop(f"The references do not separate: {centres} is not above the spread of "
+                    f"{_shown(spread, unit)} and at least the floor of {_shown(floor, unit)}.")
+
+    line = (good_centre + bad_centre) / 2
+    # A good run above the midpoint, or a bad one at it or below, would itself be misjudged (Vestige).
+    wrong = [r for r in refs if (values[r.name] > line if r.set == "good" else values[r.name] <= line)]
+    if wrong:
+        listed = ", ".join(f"{r.name} at {_shown(values[r.name], unit)}" for r in wrong)
+        raise _Stop(f"The references straddle their own midpoint of {_shown(line, unit)}: {listed}, so a "
+                    "run like it would be misjudged.")
+    return line, (good_centre, bad_centre)
+
+
+def _tested_value(wanted: Wanted, tested: list[Tested], tested_runs: list[Named], refs: list[Named],
+                  overrides: dict[str, str], values: dict[str, int]) -> Fraction:
+    """The tested runs' centre, once each can be judged; fills `values`."""
+    for t, r in zip(tested, tested_runs, strict=True):
+        if t.run is None:
+            raise _Skip(f"{r.name} cannot be read ({t.error}), so this commit is skipped (exit 125).")
+        if t.run.breaches:
+            first = t.run.breaches[0]
+            raise _Skip(f"{r.name} breaks the run-file format at line {first.line}: {first.message}; "
+                        "so this commit is skipped (exit 125).")
+    refused, _ = _refusals(refs + tested_runs, overrides)
+    if refused:
+        raise _Stop(_refusal_sentence(refused), refused)
+    for r in tested_runs:
+        if r.run.close is None:
+            raise _Skip(f"{r.name} has no close line, so the run did not finish; this commit is skipped "
+                        "(exit 125).")
+        if r.run.close["rows_dropped"]:
+            raise _Skip(f"In {r.name} the writer dropped "
+                        f"{run_report.counted(r.run.close['rows_dropped'], 'row')}; this commit is "
+                        "skipped (exit 125).")
+    for r in tested_runs:
+        value = _run_value(wanted, r)
+        if value is None:
+            kinds = ", ".join(run_report.kind_name(k) for k in _kinds(r.run)) or "none"
+            raise _Skip(f"{r.name} has no {_bisect_label(wanted)}; its segment kinds are {kinds}. This "
+                        "commit is skipped (exit 125).")
+        values[r.name] = value
+    return _centre([values[r.name] for r in tested_runs])
+
+
+def _tested_notices(tested_runs: list[Named], refs: list[Named], overrides: dict[str, str]) -> list[ledger.Notice]:
+    """§ 4.9's warnings for each tested run, then override_unused and dirty_build."""
+    notices = [n for n in _run_notices(tested_runs) if n.code not in INCOMPLETE_CODES]
+    _, unused = _refusals(refs + tested_runs, overrides)
+    notices += [ledger.Notice("override_unused", f"--override {field} was given, but every run has "
+                              "the same value") for field in unused]
+    notices += [ledger.Notice("dirty_build", f"{r.name}: the build had uncommitted changes, so it may "
+                              "not be the commit under test") for r in tested_runs if r.run.header["dirty"]]
+    return notices
+
+
+def _straddle(tested_runs: list[Named], values: dict[str, int], line: Fraction, unit: str) -> str:
+    """Each tested run and its value when some are above the line and some
+    at it or below; empty otherwise. One run cannot straddle."""
+    above = [values[r.name] > line for r in tested_runs]
+    if all(above) or not any(above):
+        return ""
+    return ", ".join(f"{r.name} {_shown(values[r.name], unit)}" for r in tested_runs)
+
+
+def _run_value(wanted: Wanted, named: Named) -> int | None:
+    """One run's value of the measure over the chosen frames, in
+    thousandths, or None when it has none there."""
+    costs = run_report.Costs(named.run, by_segment=wanted.segment is not None)
+    group = wanted.segment if wanted.segment is not None else wanted.kind
+    if wanted.category == "frame":
+        by_depth = {0: costs.frame_values.get((group, wanted.name))}
+    else:
+        source = costs.mem_values if wanted.category == "mem" else costs.pass_values
+        by_depth = {depth: times for (g, category, name, depth), times in source.items()
+                    if (g, category, name) == (group, wanted.category, wanted.name)}
+    by_depth = {depth: times for depth, times in by_depth.items() if times}
+    if wanted.depth is None and len(by_depth) > 1:
+        depths = " and ".join(str(d) for d in sorted(by_depth))
+        raise _Stop(f"{named.name} has {wanted.category}/{wanted.name} at depths {depths}; --depth picks one.")
+    if wanted.depth is None:
+        times = next(iter(by_depth.values()), None)
+    else:
+        times = by_depth.get(wanted.depth)
+    if times is None:
+        return None
+    return stats.percentile(times, 99) if wanted.statistic == "p99" else stats.median(times)
+
+
+def _kinds(run: ledger.Run) -> list[str | None]:
+    return sorted({run_report.segment_kind(ledger.frame_segment(rows)) for rows in run.frames.values()},
+                  key=run_report.kind_order)
+
+
+def _bisect_label(wanted: Wanted) -> str:
+    where = (f"segment {wanted.segment}" if wanted.segment else
+             f"{wanted.kind} segments" if wanted.kind else "frames with no segment")
+    depth = "" if wanted.depth is None else f" at depth {wanted.depth}"
+    return f"{wanted.category}/{wanted.name}{depth} {wanted.statistic} in {where}"
+
+
+def _bisect_sentence(wanted: Wanted, value: Fraction, line: Fraction,
+                     centres: tuple[Fraction, Fraction] | None, dry_run: bool) -> str:
+    unit = wanted.unit
+    side = "above" if value > line else "at or below"
+    outcome = "bad (exit 1)" if value > line else "good (exit 0)"
+    if centres is None:
+        against = f"the threshold of {_shown(line, unit)}"
+    else:
+        good_centre, bad_centre = centres
+        against = (f"the midpoint of {_shown(line, unit)} between the good runs' "
+                   f"{_shown(good_centre, unit)} and the bad runs' {_shown(bad_centre, unit)}")
+    label = _bisect_label(wanted)
+    if dry_run:
+        return f"Dry run: {label} of {_shown(value, unit)} would be {side} {against}: {outcome}."
+    return f"{label} is {_shown(value, unit)}, {side} {against}: {outcome}."
+
+
+def _bisect_entry(named: Named, values: dict[str, int]) -> dict:
+    """§ 4.11's run entry; a tested file that could not be read has only
+    its name, set and path."""
+    if named.run is None:
+        entry = {"name": named.name, "set": named.set, "path": named.path, "run_id": None, "commit": None,
+                 "dirty": None, "rows_dropped": None, "finished": None}
+    else:
+        entry = {key: value for key, value in _run_entry(named).items() if key != "started_utc"}
+    value = values.get(named.name)
+    return {**entry, "value": None if value is None else float(_exact(value))}
+
+
+def _wanted_fields(wanted: Wanted) -> dict:
+    return {"segment_kind": wanted.kind, "segment": wanted.segment, "category": wanted.category,
+            "name": wanted.name, "depth": wanted.depth, "statistic": wanted.statistic, "unit": wanted.unit}
+
+
+def _exact(thousandths: Fraction | int) -> Decimal:
+    """A value in the measure's unit, exactly, with at least three places.
+    A run's value is whole thousandths, a centre half ones and a midpoint
+    quarter ones, so five places are the most it needs (§ 4.11)."""
+    fraction = Fraction(thousandths) / 1000
+    value = Decimal(fraction.numerator) / Decimal(fraction.denominator)
+    return value if value.as_tuple().exponent <= -3 else value.quantize(Decimal("0.001"))
+
+
+def _shown(thousandths: Fraction | int, unit: str) -> str:
+    return f"{_exact(thousandths)} {unit}"

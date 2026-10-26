@@ -24,6 +24,17 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   refused. A static-line diff sits beside the measures. The format
   gains `vsync` and `scene` as compare-blocking fields (FLED-0008).
 - `--selftest` checks the compare too (FLED-0008).
+- `bisect FILE… --measure CATEGORY/NAME` gives `git bisect run` one
+  commit's verdict on one measure: exit 0 good, 1 bad, 125 skip, 128
+  stop. It judges against `--bad-above X`, or the midpoint of at least
+  three `--good` and three `--bad` reference runs, which must separate
+  and not straddle their own midpoint. `--kind`, `--segment` or
+  `--unsegmented` picks the frames; `mem` rows can be judged, with
+  `--min-mb`. A broken or incomplete tested run skips; any other
+  problem, `--help` and `--version` included, stops. `--dry-run VALUE`
+  shows the verdict a value would get. Tested runs on both sides of the
+  line warn, and skip with `--skip-straddle` (FLED-0009).
+- `--selftest` checks the bisect too (FLED-0009).
 - An app icon, `assets/frameledger-icon.svg`, shown in the README, and
   the projects website's logo, `assets/frameledger-logo-stacked.svg`
   (FLED-0017).

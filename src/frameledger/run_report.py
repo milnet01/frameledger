@@ -274,19 +274,27 @@ class Costs:
     """Every frame's rows sorted into per-pass and per-frame-measure lists,
     keyed by segment kind. A cpu or gpu row counts only in a frame that has
     that category's span (INV-5): a frame whose GPU result never arrived is
-    left out, never counted as 0 ms."""
+    left out, never counted as 0 ms.
 
-    def __init__(self, run: ledger.Run):
+    With by_segment, the lists are keyed by the whole segment (`view:2`)
+    rather than its kind, for `bisect --segment`. `mem_values` holds the mem
+    rows, which `report` does not show."""
+
+    def __init__(self, run: ledger.Run, by_segment: bool = False):
         self.pass_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, category, name, depth)
         self.span_totals: dict[tuple, int] = defaultdict(int)  # (kind, category)
         self.frame_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, name)
+        self.mem_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, "mem", name, depth)
         self.missing_gpu = 0
         for rows in run.frames.values():
-            kind = segment_kind(ledger.frame_segment(rows))
+            segment = ledger.frame_segment(rows)
+            kind = (segment or None) if by_segment else segment_kind(segment)
             self.missing_gpu += ("frame", "gpu_span") not in rows
             for (category, name), row in rows.items():
                 if category == "frame":
                     self.frame_values[(kind, name)].append(row.thousandths)
+                elif category == "mem":
+                    self.mem_values[(kind, category, name, row.depth)].append(row.thousandths)
                 elif category in SPAN and ("frame", SPAN[category]) in rows:
                     self.pass_values[(kind, category, name, row.depth)].append(row.thousandths)
             for category, span_name in SPAN.items():
