@@ -220,6 +220,10 @@ engine faster, and which pass it changed.
   One measure against a threshold or two reference runs; 0 good, 1 bad,
   125 skip, 128 stop; a dry run printing the verdict for a value.
   Claims S17. Overlaps the compare item in compare.py.
+  Open question (Vestige, 2026-10-26, FLED-0008 review): judge `mem`
+  rows, as Vestige's tools/perf_gate.py gates mem,gpu_mb with a 1.0 MB
+  minimum. FLED-0008's compare judges no mem rows. Vestige retires
+  perf_gate.py after this item lands, if mem judging is in by then.
   **Layman:** Lets git bisect find the change that made a pass slower.
   Kind: implement.
   Source: design-2026-10-24.

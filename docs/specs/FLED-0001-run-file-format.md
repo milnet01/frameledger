@@ -3,8 +3,8 @@
 
 **Status:** accepted (2026-10-24); § 4.9 and INV-23 to INV-27
 (FLED-0005) agreed by the three engines 2026-10-26 at a3eea64;
-§ 4.10 and INV-30 to INV-37 (FLED-0008) proposed 2026-10-26, for the
-engines' review.
+§ 4.10 and INV-30 to INV-37 (FLED-0008) reviewed by the three engines
+2026-10-26, their changes folded in, confirmation asked.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -80,10 +80,12 @@ settles.
   are sampled before the engine loads anything (Vestige, UT Ants);
   settling compares two header fields (UT Ants); a cut sits on the
   frame that starts its segment (DOOM Ants).
-- *Proposed here*, for FLED-0008: `compare` judges each measure by its
-  own spread and a minimum change (§ 4.10); interleaved labelled sets
-  (UT Ants), per-field overrides with reasons named first (S5; DOOM
-  Ants), a static-line diff (UT Ants).
+- For FLED-0008, reviewed by the three engines 2026-10-26: `compare`
+  judges each measure by its own spread and a minimum change (§ 4.10);
+  interleaved labelled sets of at least three runs (UT Ants, DOOM
+  Ants); per-field overrides named in one first sentence (S5; DOOM
+  Ants); `vsync` blocks a compare (DOOM Ants); a short segment kind
+  cannot make it inconclusive (Vestige); a static-line diff (UT Ants).
 
 ## 4. Design
 
@@ -153,7 +155,8 @@ tasks waiting on disk; and it can exceed 1, which is legal. On Windows
 it is the CPU-busy share at that moment.
 
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
-`ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`.
+`ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`,
+`vsync`.
 Two runs differing in any of them are not comparable without an
 override (§ 4.10). Two empty `inputs` lists are unknown, not
 equal.
@@ -450,8 +453,8 @@ The `report` result, agreed with the three engines for FLED-0003:
 
 ### 4.10 Comparing labelled sets of runs
 
-FLED-0008 builds this (S4, S5's refusal half, S16). *Proposed here*
-throughout, for the three engines' review.
+FLED-0008 builds this (S4, S5's refusal half, S16). Reviewed by the
+three engines 2026-10-26; their changes are folded in.
 
 ```
 compare --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-pct P]
@@ -463,8 +466,9 @@ refused. Defaults: `--min-ms 0.050`, `--min-pct 3`.
 - **Runs are named by set and order**: `old-1`, `old-2`, … and
   `new-1`, …, in the order given. Warnings and sentences use these
   names, never the path.
-- **Each set needs at least two runs**, or exit 3: one run has no
-  spread. Interleave them: old-1, new-1, old-2, new-2.
+- **Each set needs at least three runs**, or exit 3 (DOOM Ants). One
+  run has no spread, and two give too many false changes (below).
+  Interleave them: old-1, new-1, old-2, new-2, ….
 - **A file that cannot be read, or breaks the format**, gives exit 3,
   as under `report`.
 
@@ -473,13 +477,15 @@ across the two, on § 4.2's compare-blocking fields. `inputs` match when
 they hold the same `name` and `hash` pairs, in any order; two empty
 lists are unknown, not equal, so they refuse. An absent optional field
 (`tier`, `ray_tracing`) matches only another absent one. Any mismatch
-gives verdict `error`, exit 3, and a first sentence naming each field
-with the runs' values, and the `--override` that would allow it.
+gives verdict `error`, exit 3, and a sentence naming each field with
+the runs' values and the `--override` that would allow it. It follows
+the overrides sentence, when there is one.
 
 - **`--override FIELD=REASON`** allows one field to differ. `FIELD`
   must be a compare-blocking field and `REASON` must not be empty, or
-  exit 3. Each override goes into `overrides`, and the first sentence
-  names every one with its reason (S5).
+  exit 3. Each override goes into `overrides`. The first sentence is
+  one sentence naming every override with its reason (S5), whatever
+  else the compare says.
 - **An override for a field that does not differ** gives the warning
   `override_unused`, and is still named.
 
@@ -499,7 +505,8 @@ A measure is judged only when every run of both sets has it. One
 missing from some runs goes into `unmatched`, naming the runs that have
 it, and judges nothing.
 
-**Judging a measure.** All arithmetic is in exact thousandths.
+**Judging a measure.** Arithmetic is exact, in fractions; JSON gives
+milliseconds rounded to four places, half away from zero.
 
 - A set's **centre** is the median of its runs' values: the middle
   one, or the mean of the two middle ones.
@@ -507,8 +514,9 @@ it, and judges nothing.
   value minus lowest).
 - The **change** is the new centre minus the old.
 - The **floor** is the larger of `--min-ms` and `--min-pct` percent of
-  the old centre. For a `gpu` measure it is at least the largest
-  `gpu_tick_ns` among the runs.
+  the old centre. For a `gpu` pass, `gpu_remainder` and
+  `frame/gpu_span` it is at least the largest `gpu_tick_ns` among the
+  runs.
 
 | Verdict | When |
 |---|---|
@@ -521,7 +529,21 @@ So each measure is judged by its own spread (S16): a pass that moved
 is found even when `frame/wall` is `noisy`. The floor stops a pass
 whose runs happen not to overlap from counting as a change: between
 two sets from one build, about one measure in five would, at two runs
-a set (2026-10-26, normal noise simulated; refute by simulating it).
+a set.
+
+**How often two sets from one build fail.** Simulated 2026-10-26: 25
+measures, each with normal run-to-run noise, the default floor; refute
+by simulating it. The noise is its standard deviation as a share of
+the measure.
+
+| Runs a set | Noise 1% | Noise 2% |
+|---|---|---|
+| 2 | 2.5% | 68% |
+| 3 | 1.2% | 35% |
+| 5 | 0% | 3% |
+
+An engine whose measures vary by more than about 1% between runs
+gives more runs a set, or a higher `--min-pct`.
 
 **The command's verdict**, first match wins:
 
@@ -530,7 +552,11 @@ a set (2026-10-26, normal noise simulated; refute by simulating it).
    them"). The first sentences name each such run and its drop count.
 2. `fail` (exit 1) when any measure is `slower`.
 3. `inconclusive` (exit 2) when the `frame/wall` median is `noisy` in
-   any segment kind: re-run with more runs a set.
+   any segment kind with at least 100 frames with a `frame/wall` in
+   every run (§ 4.9's `too_few_frames` bound): re-run with more runs a
+   set. A shorter kind, such as a loading stretch, is noisy almost
+   every time; the summary names the kinds this step skipped
+   (Vestige).
 4. `pass` (exit 0) otherwise. A `faster` measure is reported, and does
    not change the verdict.
 
@@ -549,11 +575,12 @@ key whose value is not the same in every run is listed with every
 run's value, exactly as written; absent is null. The text prints the
 first 20 and counts the rest.
 
-**Opening sentences**, in order: the overrides; each run's dropped rows
-or missing close line; one per kind of warning; the verdict sentence,
-naming the slower measure with the largest change (or why it is
-inconclusive); the `frame/wall` median per segment kind, old centre
-against new. Then a table of every measure not `unchanged`, then a
+**Opening sentences**, in order: one sentence naming every override
+and its reason; a refusal; each run's dropped rows or missing close
+line; one per kind of warning; the verdict sentence, naming the slower
+measure with the largest change in milliseconds, ties by percent (or
+why it is inconclusive); the `frame/wall` median per segment kind, old
+centre against new. Then a table of every measure not `unchanged`, then a
 count of those that are, then the static diff.
 
 **Result:**
@@ -834,51 +861,63 @@ breaks.
   *Breaks when:* the escape passes a byte `fled_open` refuses.
 
 - **INV-30** — Two sets from one build report no difference, and a
-  known slowdown is reported (S4). Each run has a `gpu/opaque` pass
-  constant over its frames. Old runs 10.000 and 10.020, new runs 10.010
-  and 10.030: every measure `unchanged`, verdict `pass`, exit 0. New
-  runs 11.000 and 11.020: `gpu/opaque` median `slower`, change 1.000
-  ms, verdict `fail`, exit 1, and the verdict sentence names it.
+  known slowdown is reported (S4). Each run's frames are all alike:
+  `frame/wall` 16.000, `frame/cpu_span` 8.000, `frame/gpu_span`
+  12.000, `cpu/sim` 5.000, and a `gpu/opaque` pass. Opaque in old runs
+  10.000, 10.010 and 10.020, in new runs 10.010, 10.020 and 10.030:
+  every measure `unchanged`, verdict `pass`, exit 0. New runs 11.000,
+  11.010 and 11.020: `gpu/opaque` `slower`, change 1.000 ms,
+  `gpu_remainder` `faster`, every other measure `unchanged`; verdict
+  `fail`, exit 1, and the verdict sentence names `gpu/opaque`.
   *Test:* `tests/test_compare.py::test_same_build_and_known_slowdown`,
   runs built by the test.
   *Breaks when:* the compare judges one run against one run, or never
-  finds a change.
+  finds a change, or a measure the runs do not move is judged changed.
 
 - **INV-31** — A pass is judged by its own spread, not the frame
-  total's (S16). `frame/wall` per run: old 24.900 and 32.600, new
-  25.900 and 33.600, so its median is `noisy` (change 1.000, spread
-  7.700, floor 0.8625). `gpu/opaque`: old 18.200 and 18.300, new 19.500
-  and 19.600, so it is `slower`. Verdict `fail`, exit 1. Without the
-  opaque change the verdict is `inconclusive`, exit 2.
+  total's (S16). `frame/wall` per run: old 24.900, 28.000 and 32.600,
+  new 25.900, 29.000 and 33.600, so its median is `noisy` (change
+  1.000, spread 7.700, floor 0.840). `gpu/opaque`: old 18.200, 18.250
+  and 18.300, new 19.500, 19.550 and 19.600, so it is `slower`. Verdict `fail`, exit 1. Without the
+  opaque change the verdict is `inconclusive`, exit 2. Without it, and
+  with every run holding 99 frames, the verdict is `pass` and the
+  summary names the skipped kind.
   *Test:* `tests/test_compare.py::test_pass_judged_by_own_spread`.
   *Breaks when:* every measure is judged against `frame/wall`'s spread,
   so opaque is missed; or the spread is ignored, so `frame/wall` reads
-  `slower`.
+  `slower`; or a short segment kind makes the compare inconclusive.
 
 - **INV-32** — A change beyond the spread but under the floor is
-  `unchanged`. Every run's `gpu/opaque` is constant: old 10.000 and
-  10.000, new 10.040 and 10.040, a change of 0.040 ms, under the
-  default floor of 0.300. With `--min-ms 0.010 --min-pct 0` it is
-  `slower`. With `gpu_tick_ns` 100000 (0.100 ms) in one run's header
-  and those flags, it is `unchanged` again.
+  `unchanged`. Every old run's `gpu/opaque` is 10.000 and every new
+  run's 10.040, a change of 0.040 ms, under the default floor of
+  0.300. With `--min-ms 0.010 --min-pct 0` it is `slower`. With
+  `gpu_tick_ns` 100000 (0.100 ms) in one run's header and those flags,
+  it is `unchanged` again, and so is a 0.040 ms change in
+  `frame/gpu_span`.
   *Test:* `tests/test_compare.py::test_floor`.
-  *Breaks when:* the floor is not applied, or `gpu_tick_ns` is ignored.
+  *Breaks when:* the floor is not applied, or `gpu_tick_ns` is ignored
+  or left off `frame/gpu_span`.
 
 - **INV-33** — Runs differing in a compare-blocking field are refused,
   and an override with a reason allows it (S5). `new-2` with
   `resolution` `[2560,1440]`: verdict `error`, exit 3, `refused` names
   `resolution` with every run's value. With `--override
   "resolution=upscaler test"`: compared, `overrides` holds the field
-  and reason, and the first sentence names both. Two runs whose
-  `inputs` are both `[]` are refused. `--override vsync=x` and
-  `--override resolution=` exit 3.
+  and reason, and the first sentence names both. With the same
+  override and a matching `new-2`, the first sentence still names it,
+  with the warning `override_unused`. With a valid override and a
+  second field differing, the first sentence is the override's and the
+  second the refusal's. Two runs whose `inputs` are both `[]` are
+  refused, and so are two differing only in `vsync`. `--override
+  scene=x` and `--override resolution=` exit 3.
   *Test:* `tests/test_compare.py::test_refusal_and_override`.
-  *Breaks when:* a field is not compared, an override is silent, or
-  empty inputs count as equal.
+  *Breaks when:* a field is not compared, an override is silent or
+  not first, or empty inputs count as equal.
 
 - **INV-34** — A run with dropped rows, or with no close line, makes
   the compare `inconclusive`, exit 2, even with a `slower` measure, and
-  the first sentence names the run and its drop count.
+  the first sentence after any overrides sentence names the run and
+  its drop count.
   *Test:* `tests/test_compare.py::test_incomplete_run`, INV-30's
   slowdown sets with `rows_dropped` 3 in `new-1`, then with `old-2`'s
   close line removed.
@@ -892,8 +931,8 @@ breaks.
   *Breaks when:* the order given on the command line is judged instead
   of `started_utc`, or the warning changes the exit code.
 
-- **INV-36** — A set of one run exits 3. A measure present in only some
-  runs goes into `unmatched` and is not judged.
+- **INV-36** — A set of two runs exits 3. A measure present in only
+  some runs goes into `unmatched` and is not judged.
   *Test:* `tests/test_compare.py::test_runs_and_unmatched`.
   *Breaks when:* one run's spread is taken as zero, or a missing
   measure is taken as zero.
