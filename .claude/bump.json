@@ -1,0 +1,17 @@
+{
+  "version_source": "src/frameledger/cli.py",
+  "version_pattern": "^VERSION = \"([0-9]+\\.[0-9]+\\.[0-9]+)",
+  "files": [
+    {
+      "path": "src/frameledger/cli.py",
+      "pattern": "VERSION = \"{OLD}\"",
+      "replace": "VERSION = \"{NEW}\""
+    }
+  ],
+  "$not_bumped": "FLED_SCHEMA in include/frameledger.h and `schema` in run files are the run-file format's version, not the release's: they move only when the format breaks (docs/specs/FLED-0001-run-file-format.md § 4.2).",
+  "tag": "v{NEW}",
+  "todos": [
+    "Write the SHA256 that `python3 -I scripts/build_release.py <scratch dir> v{NEW}` prints into the release-archive bullet of CHANGELOG.md's {NEW} section, replacing any hash already there"
+  ],
+  "post_check": "./scripts/check-release.sh"
+}

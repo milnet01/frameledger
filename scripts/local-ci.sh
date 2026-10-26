@@ -14,6 +14,8 @@
 #   ./scripts/local-ci.sh           the full gate
 #   ./scripts/local-ci.sh --docs    the checks that do not need a build
 #   ./scripts/local-ci.sh --docs-glob   print what counts as documentation
+#   ./scripts/local-ci.sh --uv-version, --python-version
+#                                   print a pinned version (release.yml reads them)
 #
 # WHY --docs EXISTS, AND WHY IT IS NOT A SKIP. Rebuilding and re-testing to fix
 # a prose typo is how a person learns to reach for --no-verify. So --docs omits
@@ -43,6 +45,7 @@ RUFF_VERSION='0.17.2'
 
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
 if [[ ${1:-} == --uv-version ]]; then printf '%s\n' "$UV_VERSION"; exit 0; fi
+if [[ ${1:-} == --python-version ]]; then printf '%s\n' "$PYTHON_VERSION"; exit 0; fi
 
 DOCS_ONLY=0
 [[ ${1:-} == --docs ]] && DOCS_ONLY=1

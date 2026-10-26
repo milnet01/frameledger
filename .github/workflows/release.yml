@@ -1,0 +1,104 @@
+# Publishes a release when a version tag is pushed (docs/design.md § The
+# stack, and what it rules out): the archive scripts/build_release.py builds,
+# attached to a GitHub release whose notes are the tag's CHANGELOG section.
+#
+# The archive is built three times, on Linux and Windows and again to
+# publish, and every build must give the SHA256 the CHANGELOG section states,
+# or nothing is published. So the hash in the notes is one independent builds
+# reproduced, and the Windows build proves a Windows checkout builds the same
+# bytes. A tag with a `-` (v0.1.0-rc.1) is a pre-release; a plain triple is
+# the latest release, with a second copy of the archive as frameledger.zip.
+#
+# ci.yml runs the gate on the same commit when the branch is pushed; this
+# workflow checks the archive, not the code.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# Never cancel: a re-pushed tag must not stop a release half-way.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      # The same pin as ci.yml; bump the two together.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # pipx is how ci.yml starts uv on Linux. On Windows the runner's own
+      # Python installs it, and its scripts directory goes on the PATH. Either
+      # way it is the version the gate pins.
+      - name: Install uv
+        run: |
+          version=$(./scripts/local-ci.sh --uv-version)
+          if [[ $RUNNER_OS == Windows ]]; then
+            python -m pip install "uv==$version"
+            python -c "import sysconfig; print(sysconfig.get_path('scripts'))" >> "$GITHUB_PATH"
+          else
+            pipx install "uv==$version"
+          fi
+
+      # The release's own Python: the analyser's floor, as the gate pins it.
+      - name: Build the archive, check its hash, run its self-test
+        run: |
+          python_version=$(./scripts/local-ci.sh --python-version)
+          py() { uv run --quiet --no-project --managed-python --python "$python_version" -- "$@"; }
+          version=${TAG#v}; version=${version%%-*}
+          # The hash is the script's last line. Windows prints CRLF.
+          sha=$(py python -I scripts/build_release.py dist "$TAG" | tail -n 1 | tr -d '\r')
+          echo "built dist/frameledger-$TAG.zip, SHA256 $sha"
+          py python -I scripts/release_notes.py "$version" --sha256 "$sha" >/dev/null
+          py python -I dist/frameledger.pyz --version
+          py python -I dist/frameledger.pyz --selftest
+
+  publish:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        run: pipx install "uv==$(./scripts/local-ci.sh --uv-version)"
+
+      - name: Publish
+        run: |
+          python_version=$(./scripts/local-ci.sh --python-version)
+          py() { uv run --quiet --no-project --managed-python --python "$python_version" -- "$@"; }
+          version=${TAG#v}; version=${version%%-*}
+          archive=dist/frameledger-$TAG.zip
+          sha=$(py python -I scripts/build_release.py dist "$TAG" | tail -n 1)
+          py python -I scripts/release_notes.py "$version" --sha256 "$sha" > dist/notes.md
+          theme=$(sed -n 's/^\*\*Theme:\*\* *//p' dist/notes.md | head -n 1)
+          title="${TAG#v}${theme:+ — $theme}"
+          if [[ $TAG == *-* ]]; then
+            gh release create "$TAG" "$archive" --verify-tag --prerelease --title "$title" --notes-file dist/notes.md
+          else
+            cp "$archive" dist/frameledger.zip
+            gh release create "$TAG" "$archive" dist/frameledger.zip --verify-tag --latest --title "$title" --notes-file dist/notes.md
+          fi

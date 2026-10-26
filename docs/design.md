@@ -138,10 +138,13 @@ tool, not by any one part.
   Rules out: designated initialisers, variable-length arrays,
   `restrict`, and anything else one of the two languages rejects.
 - **Release: a git tag plus one archive attached to the release, with
-  its SHA256 in the notes.** The archive holds `frameledger.pyz` and
-  `include/frameledger.h`, so one pinned hash covers both. Engines pin
-  the archive and its hash (S6). GitHub's own tag archives are not used for the pin; their
-  hash is not promised to stay the same.
+  its SHA256 in the notes.** The archive holds `frameledger.pyz`,
+  `include/frameledger.h` and `LICENSE`, so one pinned hash covers both
+  parts. Engines pin the archive and its hash (S6). GitHub's own tag
+  archives are not used for the pin; their hash is not promised to stay
+  the same. `scripts/build_release.py` builds the archive reproducibly.
+  `.github/workflows/release.yml` publishes it only when its builds on
+  Linux and Windows give the hash in the notes.
 - **Our tests: pytest**, a test-time tool only. The analyser and its
   `--selftest` need nothing installed.
 - **No CMake ships.** An engine fetches the archive itself.
