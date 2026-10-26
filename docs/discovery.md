@@ -110,9 +110,12 @@ analyser reads their runs.
   Linux and Windows.
 - **S19** — A survey of about a million rows is analysed in under a
   minute on the owner's machine.
-- **S20** — The analyser runs headless: with no display, no terminal
-  and no input, every command gives its normal output and exit code, so
-  it runs under CI and `git bisect run` (the owner, 2026-10-26).
+- **S20** — The analyser runs headless: with no display, no terminal,
+  no input and no locale set, every command gives its normal output and
+  exit code, so it runs under CI and `git bisect run` (the owner,
+  2026-10-26). Its output may go to a file, a pipe that closes early, or
+  nowhere; a write that fails gives exit 3, or 128 under `bisect`, never
+  a code that means a verdict (UT Ants, Vestige).
 
 ## What it deliberately does not do
 

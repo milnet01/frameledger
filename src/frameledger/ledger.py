@@ -40,7 +40,7 @@ class LedgerError(Exception):
     def __init__(self, message: str, path: str | None = None, line: int | None = None):
         where = path if line is None else f"{path}, line {line}"
         super().__init__(f"{where}: {message}" if path else message)
-        self.path, self.line = path, line
+        self.reason, self.path, self.line = message, path, line
 
 
 @dataclass(frozen=True)

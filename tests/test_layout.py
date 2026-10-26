@@ -16,6 +16,7 @@ ALLOWED = {
     "trust": {"ledger", "stats"},
     "run_report": {"trust", "stats", "ledger"},
     "compare": {"run_report", "trust", "stats", "ledger"},
+    "bisecting": {"compare", "run_report", "trust", "stats", "ledger"},
     "survey": {"run_report", "trust", "stats", "ledger"},
     "render": set(),
     "selftest": MODULES - {"cli", "selftest", "render"},

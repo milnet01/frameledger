@@ -5,7 +5,7 @@
 (FLED-0005) agreed by the three engines 2026-10-26 at a3eea64;
 § 4.10 and INV-30 to INV-38 (FLED-0008) agreed by the three engines
 2026-10-26 at f7dd566, with `scene` added; their code review
-settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-51
+settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-53
 (FLED-0009) agreed by the three engines 2026-10-26 at d68c994, with
 `tested_straddle` and `--skip-straddle` added from their answers.
 **Kind:** doc.
@@ -630,26 +630,37 @@ FLED-0009 builds this (S17). Reviewed by the three engines 2026-10-26;
 their changes are folded in.
 
 ```
-bisect FILE… --measure CATEGORY/NAME (--kind KIND | --segment KIND:ID | --unsegmented)
+bisect --tested FILE… --measure CATEGORY/NAME (--kind KIND | --segment KIND:ID | --unsegmented)
        [--statistic median|p99] [--depth D] [--override FIELD=REASON]… [--skip-straddle]
        (--bad-above X | --good FILE… --bad FILE… [--min-ms M | --min-mb M] [--min-pct P])
-bisect --dry-run VALUE   with the same measure and mode flags, and no FILE
+bisect --dry-run VALUE   with the same measure and mode flags, and no --tested
 ```
 
-`FILE…` are the runs of the commit under test, named `tested-1`, … in
-the order given; the references are `good-1`, … and `bad-1`, ….
-Warnings and sentences use these names, never the path.
+`--tested FILE…` are the runs of the commit under test, named
+`tested-1`, … in the order given; the references are `good-1`, … and
+`bad-1`, …. Every list of files follows its own flag, so a file cannot
+join the wrong set: a bare file after `--bad b1 b2 b3` would otherwise
+be a fourth bad run (UT Ants). Warnings and sentences use these names,
+never the path.
 
 **Exit codes** are `git bisect run`'s (docs/design.md § Exit codes):
 0 good, 1 bad, 125 skip this commit, 128 stop the bisect. `git bisect
 run` reads 0 as good and every code from 1 to 127 except 125 as bad.
 So on a bisect command line, one whose first argument not starting
-with `-` is `bisect`, every other outcome is 128 (DOOM Ants):
+with `-` is `bisect`, every other outcome is 128 (DOOM Ants). The
+options before the command take no value, so that first argument is
+always the command.
 
 - a bad argument;
-- `--help`, `-h` and `--version`, which exit 0 elsewhere;
+- `--help`, `-h` and `--version`, which exit 0 elsewhere, and
+  `--selftest`, which is not a bisect;
 - an error anywhere in the analyser, from reading the arguments to
-  printing the result, which would otherwise exit 1.
+  printing the result, which would otherwise exit 1;
+- a write to standard output that fails, such as a pipe closed early
+  or a full disk, which Python would end with 120 (UT Ants, DOOM Ants).
+
+A bad argument or an error inside the analyser is reported on standard
+error alone; standard output holds nothing, with or without `--json`.
 
 Not covered: a failure before the analyser's own code runs, such as a
 missing or too old `python3` or a broken archive. A shell exits 127
@@ -663,7 +674,7 @@ to be judged. Three tested runs, as here, give a steadier value; one is
 allowed.
 
 ```
-git bisect run sh -c 'make || exit 125; rm -f t1.csv t2.csv t3.csv; for i in 1 2 3; do ./bench --out t$i.csv; done; python3 -I frameledger.pyz bisect t1.csv t2.csv t3.csv --measure gpu/opaque --kind view --good g1.csv g2.csv g3.csv --bad b1.csv b2.csv b3.csv'
+git bisect run sh -c 'make || exit 125; rm -f t1.csv t2.csv t3.csv; for i in 1 2 3; do ./bench --out t$i.csv; done; python3 -I frameledger.pyz bisect --tested t1.csv t2.csv t3.csv --measure gpu/opaque --kind view --good g1.csv g2.csv g3.csv --bad b1.csv b2.csv b3.csv'
 ```
 
 **The measure** is one of § 4.10's, or a `mem` row (Vestige):
@@ -676,22 +687,27 @@ git bisect run sh -c 'make || exit 125; rm -f t1.csv t2.csv t3.csv; for i in 1 2
   segment kind (S2); `--segment KIND:ID`, the frames of that one
   segment, so a slowdown in one camera view is not pooled away (UT
   Ants); `--unsegmented`, frames with no segment. A frame's segment is
-  § 4.8's.
+  § 4.8's. A `KIND` holding `:`, or a `--segment` without both parts,
+  is 128, since it would skip every commit (Vestige, DOOM Ants).
 - `--statistic` is `median`, the default, or `p99` for `frame/wall`
   only, as § 4.10 judges them. `p99` on another measure is 128.
-- `--depth D` picks the measure's depth. Without it, a name found at
-  two depths in one run, in different frames, is 128, and the sentence
-  names the depths.
+- `--depth D` picks the measure's depth; on a frame measure, which has
+  no depth to pick, it is 128 (Vestige, UT Ants). Without it, every
+  run must have the name at one and the same depth, or 128, naming each
+  run's depths: a name at two depths in one run, in different frames,
+  or at another depth in another run (Vestige, DOOM Ants).
 - **A run's value** is § 4.10's: the measure's median, or `frame/wall`'s
   99th percentile, over the chosen frames that have it. A `mem`
-  measure's value is the median of its rows in the chosen frames.
+  measure's value is the median of its rows in the chosen frames. That
+  median is `report`'s nearest rank, the lower middle of an even count,
+  not a set's centre below.
   Values and thresholds are in the measure's unit: ms, or MB for `mem`.
 - **The tested value** is the tested runs' centre, as § 4.10 defines
   it.
 - **Arithmetic is exact**, in fractions, as § 4.10's. Sentences and
-  JSON give values exactly too: a centre has at most four decimal
-  places, and a midpoint five. Sentences print at least three, so
-  "10.0005 ms, above 10.000 ms" shows why it is bad.
+  JSON give values exactly too, every one a finite decimal, and
+  sentences print at least three places, so "10.0005 ms, above 10.000
+  ms" shows why it is bad.
 
 **The runs must match.** Every run, tested and reference, is held
 against every other on § 4.10's compare-blocking fields, as its
@@ -715,7 +731,8 @@ midpoint or below. Before any tested run is read, each of these is 128:
   under § 4.10, and one noisy reference would move the midpoint for
   every commit (Vestige, DOOM Ants);
 - a reference with dropped rows, no close line, a breach, or that cannot
-  be read ("a broken reference file", docs/design.md);
+  be read ("a broken reference file", docs/design.md), named as
+  `good-2` and with its reason, not its path;
 - a reference without the measure;
 - a bad centre that is not **slower** than the good one, as § 4.10
   judges a measure, with the good runs as old: above the spread and at
@@ -752,13 +769,16 @@ an engine that prefers a visible skip to a silent wrong turn
 whatever its value: a tested file that is missing, cannot be read or
 breaks the format (UT Ants); a tested run with dropped rows or no close
 line (docs/design.md: "nor a compare that uses them"); a tested run
-without the measure in the chosen frames. The sentence names the run.
-For a missing measure it also names the segment kinds the run has, so a
-wrong `--kind` shows on the first skip.
+without the measure in the chosen frames. An empty file, the commonest
+remains of a crashed benchmark, is one that breaks the format. Each
+such run has its own sentence naming it and why. For a missing
+measure it also names the segment kinds the run has, or with
+`--segment` its segments, so a wrong `--kind` shows on the first skip.
 
 **Dry run.** `--dry-run VALUE` judges `VALUE` as the tested value, in
 the measure's unit, with at most three decimal places, and reads no
-tested file. With references, every reference check above runs. It
+tested file. With references, every reference check above runs, and
+an override no reference needs warns `override_unused`. It
 exits with the code the value would get: 0, 1, or 128 when a check
 fails. Its verdict sentence opens "Dry run:", so a `--dry-run` left in
 a bisect script shows why every commit gets one answer (DOOM Ants). Run
@@ -1181,7 +1201,9 @@ breaks.
   10.000`, and the verdict sentence shows 10.0005.
   *Test:* `tests/test_bisect.py::test_threshold_edges`,
   `tests/test_bisect.py::test_tested_centre`,
-  `tests/test_bisect.py::test_exact_comparison`, runs built by the test.
+  `tests/test_bisect.py::test_exact_comparison`,
+  `tests/test_bisect.py::test_equal_sentence`,
+  `tests/test_bisect.py::test_five_place_midpoint`, runs built by the test.
   *Breaks when:* a value at `X` reads bad, or one tested run stands for
   all, or the centre is the lower middle, the upper middle or the mean,
   or values are rounded before they are compared.
@@ -1214,34 +1236,47 @@ breaks.
   however far its value is over `X`. Against `--bad-above 10.000`, a
   tested run with `gpu/opaque` 20.000 skips when it has `rows_dropped`
   1, when its close line is removed, when one of its rows is malformed,
-  and when its path does not exist. A tested run without `gpu/opaque`
-  skips, and the sentence names the kinds it has (`view`).
+  and when its path does not exist; so does an empty file, a header
+  alone, and a header missing `dirty`, with no traceback. With three
+  tested runs and only `tested-2` broken, it still skips, and with
+  `tested-1` and `tested-3` broken, each has its own sentence. A tested
+  run without `gpu/opaque` skips, and the sentence names the kinds it
+  has (`view`); with `--segment view:9`, the segments (`view:1`).
   *Test:* `tests/test_bisect.py::test_skip`,
-  `tests/test_bisect.py::test_skip_names_the_kinds`.
+  `tests/test_bisect.py::test_skip_names_the_kinds`,
+  `tests/test_bisect.py::test_skip_any_tested_run`,
+  `tests/test_bisect.py::test_skip_broken_headers`.
   *Breaks when:* an incomplete or broken tested run is judged bad, or
-  any of these exits 3.
+  any of these exits 3 or 128, or only the first tested run is checked.
 
 - **INV-42** — Every other outcome of a bisect command line exits 128,
-  never 0 from help or 1, 2 or 3 from an error: `--help`, `-h` and
-  `--version`; `--bad-above abc`; `--bad-above 1.0001`; `--dry-run
-  1.0001`; neither mode; both modes; `--min-ms 1`, `--min-mb 1` or
-  `--min-pct 1` with `--bad-above`; `--min-mb 1` on `gpu/opaque`;
-  `--statistic p99` on `gpu/opaque`; `--measure event/cut`; `--measure
-  frame/fence_wait`; none of `--kind`, `--segment` and `--unsegmented`,
-  or two of them; `--json` given before `bisect` with a bad argument
-  after it; a reference set of two runs; a reference with
-  `rows_dropped` 1; a reference path that does not exist; good runs
-  differing in `resolution`; a tested run differing from the references
-  in `scene`; an exception raised while reading the runs; and one raised
-  while rendering the result. With `--override "resolution=upscaler
-  test"`, the `resolution` case is judged.
+  never 0 from help or 1, 2 or 3 from an error, and standard error holds
+  no traceback but for an error inside the analyser: `--help`, `-h`,
+  `--version` and `--selftest`; `--bad-above abc`; `--bad-above
+  1.0001`; `--bad-above 1000000000`; `--dry-run 1.0001`; neither mode;
+  both modes; `--min-ms 1`, `--min-mb 1` or `--min-pct 1` with
+  `--bad-above`; `--min-mb 1` on `gpu/opaque`; `--statistic p99` on
+  `gpu/opaque`; `--measure event/cut`; `--measure frame/fence_wait`;
+  `--depth 1` on `frame/wall`; `--kind view:1`; `--segment view:`;
+  none of `--kind`, `--segment` and `--unsegmented`, or two of them;
+  no `--tested` and no `--dry-run`; a bare file; `--json` given before
+  `bisect` with a bad argument after it; a reference set of two runs; a
+  reference with `rows_dropped` 1, with no close line, with a breach,
+  or without the measure; a reference path that does not exist, named
+  `good-1` and not by its path; good runs differing in `resolution`; a
+  tested run differing from the references in `scene`; an exception
+  raised while reading a run; and one raised while rendering the
+  result. With `--override "resolution=upscaler test"`, the
+  `resolution` case is judged. `check bisect`, a check of a file named
+  `bisect`, is not a bisect command line.
   *Test:* `tests/test_bisect.py::test_stop_codes`,
   `tests/test_bisect.py::test_stop_before_the_command`,
   `tests/test_bisect.py::test_stop_on_an_internal_error`, the exceptions
-  patched in by the test; `tests/test_bisect.py::test_reference_refusal`.
+  patched in by the test; `tests/test_bisect.py::test_reference_refusal`,
+  `tests/test_bisect.py::test_broken_references`.
   *Breaks when:* any case exits 0, or with the ladder's 2 or 3, or a
   Python traceback's 1, which `git bisect run` would read as good or
-  bad.
+  bad; or a stop reads as a crash.
 
 - **INV-43** — The dry run judges a value and reads no tested file.
   `--dry-run 10.001 --bad-above 10.000` exits 1 and `--dry-run 10.000
@@ -1273,13 +1308,18 @@ breaks.
   *Breaks when:* a trust warning turns bad into skip, or a dirty tested
   run gives no warning.
 
-- **INV-46** — A name at two depths needs `--depth`. A run with
-  `gpu/blur` at depth 0 (2.000) in some frames and at depth 1 (5.000)
-  in the others, since one frame cannot hold both: `--measure
+- **INV-46** — Without `--depth`, every run has the name at one depth.
+  A run with `gpu/blur` at depth 0 (2.000) in some frames and at depth
+  1 (5.000) in the others, since one frame cannot hold both: `--measure
   gpu/blur` alone stops with 128, naming depths 0 and 1; with `--depth
-  1 --bad-above 4.000` it exits 1, and with `--depth 0` it exits 0.
-  *Test:* `tests/test_bisect.py::test_depth`.
-  *Breaks when:* one depth is picked silently, or `--depth` is ignored.
+  1 --bad-above 4.000` it exits 1, and with `--depth 0` it exits 0; with
+  `--depth 2` it skips. References with `gpu/blur` at depth 0 and a
+  tested run with it at depth 1 only stop with 128, and so do good runs
+  at depth 0 and bad runs at depth 1.
+  *Test:* `tests/test_bisect.py::test_depth`,
+  `tests/test_bisect.py::test_one_depth_across_runs`.
+  *Breaks when:* one depth is picked silently, in one run or between
+  runs, or `--depth` is ignored.
 
 - **INV-47** — References that straddle their own midpoint stop the
   bisect (Vestige). Good runs at 10.000, 10.000 and 10.900, bad at
@@ -1339,6 +1379,21 @@ breaks.
   *Breaks when:* a run at the line counts as above it, or the straddle
   changes the code without the flag, or the flag skips runs on one side.
 
+- **INV-52** — A failed write never reads as a verdict. A bisect whose
+  standard output is a pipe closed before it writes, or `/dev/full`,
+  exits 128; `check` in the same case exits 3.
+  *Test:* `tests/test_cli.py::test_failed_write`.
+  *Breaks when:* Python's exit 120 on a failed flush reaches `git
+  bisect run`, which reads it as bad.
+
+- **INV-53** — Every file list follows its own flag. `--tested t1.csv
+  --good g1 g2 g3 --bad b1 b2 b3 t2.csv` judges `t2.csv` as `bad-4`,
+  as written, and `bisect t1.csv …` with a bare file stops with 128.
+  No sentence holds a path.
+  *Test:* `tests/test_bisect.py::test_file_lists`.
+  *Breaks when:* a positional file list returns, or a sentence names a
+  path.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -1370,7 +1425,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22,
   INV-28, INV-29.
 - FLED-0008: INV-30 to INV-38.
-- FLED-0009: INV-39 to INV-51.
+- FLED-0009: INV-39 to INV-53.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1443,19 +1498,21 @@ it on each release they pin.
 | INV-36 | `tests/test_compare.py::test_runs_and_unmatched` |
 | INV-37 | `tests/test_compare.py::test_static_diff` |
 | INV-38 | `tests/test_compare.py::test_even_sets_and_rounding` |
-| INV-39 | `tests/test_bisect.py::test_threshold_edges`, `tests/test_bisect.py::test_tested_centre`, `tests/test_bisect.py::test_exact_comparison` |
+| INV-39 | `tests/test_bisect.py::test_threshold_edges`, `tests/test_bisect.py::test_tested_centre`, `tests/test_bisect.py::test_exact_comparison`, `tests/test_bisect.py::test_equal_sentence`, `tests/test_bisect.py::test_five_place_midpoint` |
 | INV-40 | `tests/test_bisect.py::test_reference_midpoint`, `tests/test_bisect.py::test_references_separate`, `tests/test_bisect.py::test_good_range_counts`, `tests/test_bisect.py::test_inverted_and_equal_references` |
-| INV-41 | `tests/test_bisect.py::test_skip`, `tests/test_bisect.py::test_skip_names_the_kinds` |
-| INV-42 | `tests/test_bisect.py::test_stop_codes`, `tests/test_bisect.py::test_stop_before_the_command`, `tests/test_bisect.py::test_stop_on_an_internal_error`, `tests/test_bisect.py::test_reference_refusal` |
+| INV-41 | `tests/test_bisect.py::test_skip`, `tests/test_bisect.py::test_skip_names_the_kinds`, `tests/test_bisect.py::test_skip_any_tested_run`, `tests/test_bisect.py::test_skip_broken_headers` |
+| INV-42 | `tests/test_bisect.py::test_stop_codes`, `tests/test_bisect.py::test_stop_before_the_command`, `tests/test_bisect.py::test_stop_on_an_internal_error`, `tests/test_bisect.py::test_reference_refusal`, `tests/test_bisect.py::test_broken_references` |
 | INV-43 | `tests/test_bisect.py::test_dry_run` |
 | INV-44 | `tests/test_bisect.py::test_mem_measure` |
 | INV-45 | `tests/test_bisect.py::test_warning_keeps_code` |
-| INV-46 | `tests/test_bisect.py::test_depth` |
+| INV-46 | `tests/test_bisect.py::test_depth`, `tests/test_bisect.py::test_one_depth_across_runs` |
 | INV-47 | `tests/test_bisect.py::test_references_straddle` |
 | INV-48 | `tests/test_bisect.py::test_frames_chosen` |
 | INV-49 | `tests/test_bisect.py::test_runs_must_match` |
 | INV-50 | `tests/test_bisect.py::test_reference_floor` |
 | INV-51 | `tests/test_bisect.py::test_tested_straddle` |
+| INV-52 | `tests/test_cli.py::test_failed_write` |
+| INV-53 | `tests/test_bisect.py::test_file_lists` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 

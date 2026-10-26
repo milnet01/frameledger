@@ -404,3 +404,9 @@ def test_zero_floor(capsys, tmp_path):
     assert code == 0 and set(verdicts(result).values()) == {"unchanged"}
     code, result = compare(capsys, tmp_path, old([10.0] * 3), new([10.001] * 3), *flags)
     assert code == 1 and opaque_verdict(result) == "slower"
+
+
+def test_faster_at_the_floor(capsys, tmp_path):
+    """A faster change equal to the floor is faster, as a slower one is slower."""
+    code, result = compare(capsys, tmp_path, old([10.0] * 3), new([9.7] * 3))
+    assert opaque_verdict(result) == "faster"

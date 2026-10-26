@@ -9,11 +9,13 @@ into text or JSON.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import traceback
 from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
+import bisecting
 import compare
 import ledger
 import render
@@ -22,15 +24,14 @@ import selftest
 
 VERSION = "0.1.0"
 
-# One ladder for every command (docs/design.md § Exit codes)...
+# One ladder for every command (docs/design.md § Exit codes), but bisect's,
+# which are git bisect run's: bisecting.VERDICT_CODES. Whatever on a bisect
+# command line is not a verdict is STOP.
 PASS, FAIL, INCONCLUSIVE, ERROR = 0, 1, 2, 3
-# ...but bisect's, which are git bisect run's: it reads 0 as good and every
-# code from 1 to 127 but 125 as bad, so anything else must be STOP.
-GOOD, BAD, SKIP, STOP = 0, 1, 125, 128
-BISECT_CODES = {"good": GOOD, "bad": BAD, "skip": SKIP, "stop": STOP}
+STOP = bisecting.VERDICT_CODES["stop"]
 # The references' floor when no flag sets it; the flags default to None, so
 # a floor given with --bad-above can be refused.
-BISECT_FLOORS = compare.Floors(min_ms=Decimal("0.050"), min_mb=Decimal("1.000"), min_pct=Decimal(3))
+BISECT_FLOORS = bisecting.Floors(min_ms=Decimal("0.050"), min_mb=Decimal("1.000"), min_pct=Decimal(3))
 
 
 class _Parser(argparse.ArgumentParser):
@@ -92,7 +93,9 @@ def _parser() -> _Parser:
 def _add_bisect(commands) -> None:
     bisect = commands.add_parser("bisect", help="exit with git bisect run's code for one commit's runs: "
                                  "0 good, 1 bad, 125 skip, 128 stop")
-    bisect.add_argument("files", nargs="*", metavar="FILE", help="the runs of the commit under test")
+    # Every file list follows its own flag, so a file cannot join the wrong
+    # set by being written after --bad (UT Ants).
+    bisect.add_argument("--tested", nargs="+", metavar="FILE", help="the runs of the commit under test")
     bisect.add_argument("--measure", required=True, metavar="CATEGORY/NAME",
                         help="frame/wall, frame/cpu_span, frame/gpu_span, a cpu or gpu pass, or a mem row")
     frames = bisect.add_mutually_exclusive_group(required=True)
@@ -103,9 +106,9 @@ def _add_bisect(commands) -> None:
                         help="p99 is for frame/wall only (default median)")
     bisect.add_argument("--depth", type=_whole, metavar="D", help="the depth, where a name has two")
     bisect.add_argument("--bad-above", type=_value, metavar="X", help="bad when the value is above X")
-    bisect.add_argument("--good", nargs="+", metavar="FILE", help=f"at least {compare.FEWEST_REFERENCES} "
+    bisect.add_argument("--good", nargs="+", metavar="FILE", help=f"at least {bisecting.FEWEST_REFERENCES} "
                         "runs of a known-good commit")
-    bisect.add_argument("--bad", nargs="+", metavar="FILE", help=f"at least {compare.FEWEST_REFERENCES} "
+    bisect.add_argument("--bad", nargs="+", metavar="FILE", help=f"at least {bisecting.FEWEST_REFERENCES} "
                         "runs of a known-bad commit")
     bisect.add_argument("--override", action="append", type=_override, default=[],
                         metavar="FIELD=REASON", help="let one compare-blocking header field differ")
@@ -205,20 +208,24 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = _parser().parse_args(argv)
         if args.version:
-            print(f"frameledger {VERSION}")
+            _write(f"frameledger {VERSION}\n")
             return PASS
         result = _dispatch(args)
+        _write(render.to_json(result) if args.json else render.to_text(result))
     except ledger.LedgerError as error:
         print(f"frameledger: {error}", file=sys.stderr)
         return ERROR
     except SystemExit as stop:  # --help prints and stops
         return stop.code if isinstance(stop.code, int) else ERROR
-    print(render.to_json(result) if args.json else render.to_text(result), end="")
+    except OSError as error:  # standard output closed early, or the disk is full
+        return _failed_write(error, ERROR)
     return result["exit_code"]
 
 
 def _command(argv: list[str]) -> str | None:
-    """The command a command line names: its first argument not starting with -."""
+    """The command a command line names: its first argument not starting
+    with -. The options before a command take no value, so it cannot be an
+    option's value."""
     return next((arg for arg in argv if not arg.startswith("-")), None)
 
 
@@ -238,23 +245,48 @@ def _dispatch(args: argparse.Namespace) -> dict:
 
 
 def _bisect_main(argv: list[str]) -> int:
-    """A bisect command line exits good, bad, skip or STOP, and nothing else:
-    git bisect run reads --help's and --version's 0 as good, and a bad
-    argument's 3 or a traceback's 1 as bad (DOOM Ants)."""
+    """A bisect command line exits with a verdict's code or STOP, and nothing
+    else: git bisect run reads --help's and --version's 0 as good, and a bad
+    argument's 3, a traceback's 1 or a failed write's 120 as bad (DOOM Ants,
+    UT Ants). Only the verdict is printed on standard output."""
     try:
         args = _parser().parse_args(argv)
-        if args.version:
-            raise ledger.LedgerError("--version exits 0, which git bisect run reads as good")
+        if args.version or args.selftest:
+            raise ledger.LedgerError("--version and --selftest are not a bisect; git bisect run would "
+                                     "read their 0 as good")
         result = _bisect(args)
-        print(render.to_json(result) if args.json else render.to_text(result), end="")
+        _write(render.to_json(result) if args.json else render.to_text(result))
         return result["exit_code"]
     except ledger.LedgerError as error:
         print(f"frameledger: {error}", file=sys.stderr)
-    except SystemExit:  # --help prints and stops
-        pass
+    except SystemExit as stop:  # --help prints and stops; anything else says so
+        if stop.code:
+            print(f"frameledger: stopped ({stop.code})", file=sys.stderr)
+    except OSError as error:
+        return _failed_write(error, STOP)
     except Exception:  # a bug in the analyser must not mark the commit bad
         traceback.print_exc()
     return STOP
+
+
+def _write(text: str) -> None:
+    """Print `text` and flush it now, so a write that fails raises here and
+    not at exit, where Python would end with 120."""
+    if sys.stdout is None:  # standard output was closed before the start
+        return
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+
+def _failed_write(error: OSError, code: int) -> int:
+    """After a failed write, point standard output at the null device, so the
+    flush at exit has nothing to fail on (the signal module's note on SIGPIPE)."""
+    try:
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        print(f"frameledger: the output could not be written ({error.strerror or error})", file=sys.stderr)
+    except (OSError, ValueError):
+        pass
+    return code
 
 
 def _result(command: str, verdict: str, exit_code: int, summary: list[str],
@@ -388,44 +420,40 @@ def _bisect(args: argparse.Namespace) -> dict:
     wanted = _wanted(args)
     overrides = _overrides(args.override)
     _check_bisect_flags(args, wanted)
-    floors = compare.Floors(
+    floors = bisecting.Floors(
         min_ms=BISECT_FLOORS.min_ms if args.min_ms is None else args.min_ms,
         min_mb=BISECT_FLOORS.min_mb if args.min_mb is None else args.min_mb,
         min_pct=BISECT_FLOORS.min_pct if args.min_pct is None else args.min_pct)
-    try:
-        good = [ledger.read(p) for p in args.good or []]
-        bad = [ledger.read(p) for p in args.bad or []]
-    except ledger.LedgerError as error:  # a broken reference file stops the bisect (docs/design.md)
-        listed = [{"field": f, "reason": r} for f, r in overrides.items()]
-        return _result("bisect", "stop", STOP, [*compare.overrides_sentences(listed), f"{error}.",
-                                                compare.STOP_SENTENCE],
-                       [{"code": "file_error", "message": str(error)}], {}, listed)
-    built = compare.bisect(wanted, [_tested(p) for p in args.files], good, bad, overrides, floors,
-                           bad_above=args.bad_above, dry_value=args.dry_run,
-                           skip_straddle=args.skip_straddle)
-    return _result("bisect", built["verdict"], BISECT_CODES[built["verdict"]], built["summary"],
+    built = bisecting.bisect(wanted, _load(args.tested), _load(args.good), _load(args.bad), overrides,
+                             floors, bad_above=args.bad_above, dry_value=args.dry_run,
+                             skip_straddle=args.skip_straddle)
+    return _result("bisect", built["verdict"], bisecting.VERDICT_CODES[built["verdict"]], built["summary"],
                    built["warnings"], built["result"], built["overrides"])
 
 
-def _wanted(args: argparse.Namespace) -> compare.Wanted:
+def _wanted(args: argparse.Namespace) -> bisecting.Wanted:
+    """The measure and frames, refusing what would skip every commit."""
     category, slash, name = args.measure.partition("/")
-    if not (slash and name) or category not in compare.BISECT_CATEGORIES:
+    if not (slash and name) or category not in bisecting.CATEGORIES:
         raise ledger.LedgerError(f"--measure {args.measure} must be frame/NAME, cpu/NAME, gpu/NAME or "
                                  "mem/NAME")
-    if category == "frame" and name not in compare.BISECT_FRAME_NAMES:
+    if category == "frame" and name not in bisecting.FRAME_NAMES:
         raise ledger.LedgerError(f"--measure frame/{name} is not judged; the frame measures are "
-                                 + ", ".join(f"frame/{n}" for n in compare.BISECT_FRAME_NAMES))
+                                 + ", ".join(f"frame/{n}" for n in bisecting.FRAME_NAMES))
     if args.statistic == "p99" and (category, name) != ("frame", "wall"):
         raise ledger.LedgerError("--statistic p99 is for frame/wall only")
-    kind = args.kind
+    if category == "frame" and args.depth is not None:
+        raise ledger.LedgerError("--depth picks a pass's depth; a frame measure has none")
+    if args.kind is not None and ":" in args.kind:
+        raise ledger.LedgerError(f"--kind {args.kind} is a segment; --segment {args.kind} judges one segment")
     if args.segment is not None:
         kind, colon, ident = args.segment.partition(":")
         if not (colon and kind and ident):
             raise ledger.LedgerError(f"--segment {args.segment} must be KIND:ID, such as view:2")
-    return compare.Wanted(category, name, args.statistic, args.depth, kind, args.segment)
+    return bisecting.Wanted(category, name, args.statistic, args.depth, args.kind, args.segment)
 
 
-def _check_bisect_flags(args: argparse.Namespace, wanted: compare.Wanted) -> None:
+def _check_bisect_flags(args: argparse.Namespace, wanted: bisecting.Wanted) -> None:
     """The flag combinations § 4.11 stops on."""
     references = args.good is not None or args.bad is not None
     if references and args.bad_above is not None:
@@ -443,20 +471,24 @@ def _check_bisect_flags(args: argparse.Namespace, wanted: compare.Wanted) -> Non
         raise ledger.LedgerError("--min-ms is in ms; a mem measure's floor is --min-mb")
     if wanted.category != "mem" and args.min_mb is not None:
         raise ledger.LedgerError("--min-mb is in MB, for a mem measure; this measure's floor is --min-ms")
-    if args.dry_run is not None and args.files:
+    if args.dry_run is not None and args.tested:
         raise ledger.LedgerError("--dry-run judges a value instead of run files; give one or the other")
     if args.dry_run is not None and args.skip_straddle:
         raise ledger.LedgerError("--skip-straddle needs tested runs, and a dry run has none")
-    if args.dry_run is None and not args.files:
-        raise ledger.LedgerError("name the tested commit's run files, or give --dry-run VALUE")
+    if args.dry_run is None and not args.tested:
+        raise ledger.LedgerError("give --tested FILE... for the commit under test, or --dry-run VALUE")
 
 
-def _tested(path: str) -> compare.Tested:
-    """A tested file that cannot be read skips the commit, never stops the bisect (UT Ants)."""
-    try:
-        return compare.Tested(path, ledger.read(path), None)
-    except ledger.LedgerError as error:
-        return compare.Tested(path, None, str(error))
+def _load(paths: list[str] | None) -> list[bisecting.Loaded]:
+    """Each file's Run, or why it could not be read. bisecting.py decides what
+    that means: a tested file skips the commit (UT Ants), a reference stops."""
+    loaded = []
+    for path in paths or []:
+        try:
+            loaded.append(bisecting.Loaded(path, ledger.read(path), None))
+        except ledger.LedgerError as error:
+            loaded.append(bisecting.Loaded(path, None, error.reason))
+    return loaded
 
 
 def _notice_sentences(path: str, notices: list[ledger.Notice]) -> list[str]:

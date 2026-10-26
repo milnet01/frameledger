@@ -129,7 +129,7 @@ def _compare_body(result: dict) -> list[str]:
 
 def _bisect_body(result: dict) -> list[str]:
     bisected = result["result"]
-    if not bisected or not bisected["runs"]:  # an error, or a dry run: the sentences say it all
+    if not bisected["runs"]:  # a threshold dry run reads no runs
         return []
     unit = bisected["measure"]["unit"]
     lines = [f"Runs, with their {unit}:"]

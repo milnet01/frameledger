@@ -10,8 +10,9 @@ import json
 
 import pytest
 
+import bisecting
 import cli
-import compare
+import ledger
 import render
 
 HEADER = {
@@ -70,13 +71,12 @@ def bisect(capsys, tmp_path, tested=(), *flags, good=(), bad=()):
             path = tmp_path / f"{label}-{i}.csv"
             path.write_text(text, encoding="utf-8")
             paths.append(str(path))
-        if label == "tested":
-            args += paths
-        elif paths:
+        if paths:
             args += [f"--{label}", *paths]
     code = cli.main(["bisect", *args, *flags, "--json"])
-    out = capsys.readouterr().out
-    return code, json.loads(out) if out else None
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err  # a stop is a sentence, never a crash (DOOM Ants)
+    return code, json.loads(captured.out) if captured.out else None
 
 
 def references(capsys, tmp_path, good, bad, *flags, tested=(), measure=OPAQUE):
@@ -104,6 +104,19 @@ def test_tested_centre(capsys, tmp_path):
     assert code_of(capsys, tmp_path, middles, "--bad-above", "10.000") == 0
     # The centre is 10.000; the mean, 11.000, would read bad.
     assert code_of(capsys, tmp_path, [9.0, 9.0, 11.0, 15.0], "--bad-above", "10.000") == 0
+
+
+def test_equal_sentence(capsys, tmp_path):
+    code, result = bisect(capsys, tmp_path, [run(10.0)], *OPAQUE, "--bad-above", "10.000")
+    assert result["summary"][-1] == ("gpu/opaque median in view segments is 10.000 ms, at or below the "
+                                     "threshold of 10.000 ms: good (exit 0).")
+
+
+def test_five_place_midpoint(capsys, tmp_path):
+    code, result = references(capsys, tmp_path, [10.0, 10.0, 10.001, 10.001], [12.0] * 3, "--dry-run", "11")
+    assert code == 0
+    assert result["result"]["bad_above"] == 11.00025
+    assert "11.00025 ms" in result["summary"][-1]
 
 
 def test_exact_comparison(capsys, tmp_path):
@@ -159,7 +172,8 @@ def test_skip(capsys, tmp_path, broken):
             "malformed": run(20.0).replace("20.000", "abc", 1),
             "missing": None}[broken]
     if text is None:
-        code = cli.main(["bisect", str(tmp_path / "absent.csv"), *OPAQUE, "--bad-above", "10.000", "--json"])
+        code = cli.main(["bisect", "--tested", str(tmp_path / "absent.csv"), *OPAQUE, "--bad-above", "10.000",
+                         "--json"])
         result = json.loads(capsys.readouterr().out)
     else:
         code, result = bisect(capsys, tmp_path, [text], *OPAQUE, "--bad-above", "10.000")
@@ -179,7 +193,7 @@ def test_skip_names_the_kinds(capsys, tmp_path):
 def stop_args(tmp_path, *flags):
     path = tmp_path / "t.csv"
     path.write_text(run(10.0), encoding="utf-8")
-    return ["bisect", str(path), *flags]
+    return ["bisect", "--tested", str(path), *flags]
 
 
 @pytest.mark.parametrize("flags", [
@@ -197,14 +211,29 @@ def stop_args(tmp_path, *flags):
     ["--measure", "gpu/opaque", "--bad-above", "10"],
     ["--measure", "gpu/opaque", "--kind", "view", "--unsegmented", "--bad-above", "10"],
     [*OPAQUE, "--dry-run", "1.0001", "--bad-above", "10"],
+    [*OPAQUE, "--bad-above", "1000000000"],
+    ["--measure", "frame/wall", "--kind", "view", "--depth", "1", "--bad-above", "10"],
+    ["--measure", "gpu/opaque", "--kind", "view:1", "--bad-above", "10"],
+    ["--measure", "gpu/opaque", "--segment", "view:", "--bad-above", "10"],
+    [*OPAQUE, "--bad-above", "10", "extra.csv"],
 ])
 def test_stop_codes(capsys, tmp_path, flags):
     assert cli.main(stop_args(tmp_path, *flags)) == 128
-    capsys.readouterr()
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err
+    # Only --help prints on standard output: a stop's reason goes to standard error.
+    assert captured.err or flags in (["--help"], ["-h"])
 
 
-def test_stop_before_the_command(capsys, tmp_path):
+def test_stop_before_the_command(capsys, tmp_path, monkeypatch):
     assert cli.main(["--version", "bisect"]) == 128
+    assert cli.main(["--selftest", *stop_args(tmp_path, *OPAQUE, "--bad-above", "10")]) == 128
+    assert "not a bisect" in capsys.readouterr().err
+    assert cli.main(["bisect", *OPAQUE, "--bad-above", "10"]) == 128
+    assert "give --tested FILE..." in capsys.readouterr().err
+    # A check of a file named bisect is not a bisect command line: it exits 3, not 128.
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["check", "bisect"]) == 3
     # A command line that is otherwise sound still stops on --version.
     assert cli.main(["--version", *stop_args(tmp_path, *OPAQUE, "--bad-above", "10")]) == 128
     assert cli.main(["--json", *stop_args(tmp_path, *OPAQUE, "--bad-above", "abc")]) == 128
@@ -214,7 +243,11 @@ def test_stop_before_the_command(capsys, tmp_path):
 def test_stop_on_an_internal_error(capsys, tmp_path, monkeypatch):
     def broken(*args, **kwargs):
         raise RuntimeError("a bug")
-    monkeypatch.setattr(compare, "bisect", broken)
+    monkeypatch.setattr(ledger, "read", broken)  # an error while reading a run, not a file problem
+    assert cli.main(stop_args(tmp_path, *OPAQUE, "--bad-above", "10")) == 128
+    assert "RuntimeError: a bug" in capsys.readouterr().err
+    monkeypatch.undo()
+    monkeypatch.setattr(bisecting, "bisect", broken)
     assert cli.main(stop_args(tmp_path, *OPAQUE, "--bad-above", "10")) == 128
     monkeypatch.undo()
     monkeypatch.setattr(render, "to_json", broken)
@@ -290,12 +323,13 @@ def test_mem_measure(capsys, tmp_path):
 # INV-45
 
 def test_warning_keeps_code(capsys, tmp_path):
-    tested = [run(11.0, build_type="debug", dirty=True)]
-    code, result = bisect(capsys, tmp_path, tested, *OPAQUE, "--bad-above", "10.000")
+    tested = [run(11.0, build_type="debug"), run(11.0, dirty=True)]
+    code, result = bisect(capsys, tmp_path, tested, *OPAQUE, "--bad-above", "10.000",
+                          "--override", "build_type=a Debug run on purpose")
     assert code == 1
     messages = {w["code"]: w["message"] for w in result["warnings"]}
     assert messages["debug_build"].startswith("tested-1:")
-    assert messages["dirty_build"].startswith("tested-1:")
+    assert messages["dirty_build"].startswith("tested-2:")
 
 
 # INV-46
@@ -307,10 +341,11 @@ def test_depth(capsys, tmp_path):
     blur = ["--measure", "gpu/blur", "--kind", "view"]
     code, result = bisect(capsys, tmp_path, tested, *blur, "--bad-above", "4.000")
     assert code == 128
-    assert result["summary"] == ["tested-1 has gpu/blur at depths 0 and 1; --depth picks one.",
+    assert result["summary"] == ["gpu/blur is at more than one depth (tested-1 at 0 and 1); --depth picks one.",
                                  "The bisect stops (exit 128)."]
     assert bisect(capsys, tmp_path, tested, *blur, "--depth", "1", "--bad-above", "4.000")[0] == 1
     assert bisect(capsys, tmp_path, tested, *blur, "--depth", "0", "--bad-above", "4.000")[0] == 0
+    assert bisect(capsys, tmp_path, tested, *blur, "--depth", "2", "--bad-above", "4.000")[0] == 125
 
 
 # INV-47
@@ -341,6 +376,17 @@ def test_frames_chosen(capsys, tmp_path):
     wall = ["--measure", "frame/wall", "--kind", "view", "--bad-above", "30.000"]
     assert bisect(capsys, tmp_path, [run_text(walls)], *wall, "--statistic", "p99")[0] == 1
     assert bisect(capsys, tmp_path, [run_text(walls)], *wall)[0] == 0
+    # One 40.000 in 100 walls: rank 99 is 16.000, so the p99 is not the slowest frame.
+    one = [("view:1", {**rows(), ("frame", "wall", 0): 16.0})] * 99
+    one += [("view:1", {**rows(), ("frame", "wall", 0): 40.0}), ("view:1", rows())]
+    assert bisect(capsys, tmp_path, [run_text(one)], *wall, "--statistic", "p99")[0] == 0
+    # A run's median is report's nearest rank, the lower middle: 10.000, not 11.000.
+    halves = [run_text([("view:1", rows(10.0))] * 60 + [("view:1", rows(12.0))] * 60)]
+    assert bisect(capsys, tmp_path, halves, *OPAQUE, "--bad-above", "10.000")[0] == 0
+    code, result = bisect(capsys, tmp_path, tested, "--measure", "gpu/opaque", "--segment", "view:2",
+                          "--bad-above", "12.000")
+    assert result["result"]["measure"]["segment_kind"] == "view"
+    assert result["result"]["measure"]["segment"] == "view:2"
 
 
 # INV-49
@@ -357,6 +403,13 @@ def test_runs_must_match(capsys, tmp_path):
     wide = [run(11.5, resolution=[2560, 1440])]
     assert references(capsys, tmp_path, [10.0] * 3, [12.0] * 3, tested=wide)[0] == 128
     assert references(capsys, tmp_path, [10.0] * 3, [12.0] * 3, *override, tested=wide)[0] == 1
+    # The references use the override, so it is not unused though the tested run matches them all.
+    mixed = [run(10.0), run(10.0), run(10.0, resolution=[2560, 1440])]
+    code, result = references(capsys, tmp_path, mixed, [12.0] * 3, *override, tested=[11.5])
+    assert code == 1 and "override_unused" not in [w["code"] for w in result["warnings"]]
+    # A dry run warns on an override no reference needs (Vestige).
+    code, result = references(capsys, tmp_path, [10.0] * 3, [12.0] * 3, *override, "--dry-run", "11")
+    assert [w["code"] for w in result["warnings"]] == ["override_unused"]
 
 
 # INV-50
@@ -365,8 +418,12 @@ def test_reference_floor(capsys, tmp_path):
     good, bad = [10.0] * 3, [10.4] * 3
     assert references(capsys, tmp_path, good, bad, "--dry-run", "10")[0] == 0
     assert references(capsys, tmp_path, good, bad, "--min-ms", "0.500", "--dry-run", "10")[0] == 128
-    ticked = [run(10.0, gpu_tick_ns=500000), run(10.0), run(10.0)]
-    assert references(capsys, tmp_path, ticked, bad, "--dry-run", "10")[0] == 128
+    ticked = [run(10.4), run(10.4), run(10.4, gpu_tick_ns=500000)]  # the tick in bad-3
+    assert references(capsys, tmp_path, good, ticked, "--dry-run", "10")[0] == 128
+    # Two ticks: the largest, 0.500, is the floor; the smaller, 0.200, would pass.
+    two = [run(10.0, gpu_tick_ns=200000), run(10.0), run(10.0)]
+    assert references(capsys, tmp_path, two, ticked, "--dry-run", "10")[0] == 128
+    assert references(capsys, tmp_path, two, bad, "--dry-run", "10")[0] == 0
 
     def sim(value, **header):
         return run_text([("view:1", {**rows(), ("cpu", "sim", 0): value})] * 120, **header)
@@ -390,6 +447,11 @@ def test_tested_straddle(capsys, tmp_path):
         assert "tested_straddle" not in [w["code"] for w in result["warnings"]]
     code, result = bisect(capsys, tmp_path, [run(10.0), run(10.001)], *OPAQUE, "--bad-above", "10.000")
     assert "tested_straddle" in [w["code"] for w in result["warnings"]]
+    # Unsorted, the first and last are both above; all at or below never straddle.
+    code, result = references(capsys, tmp_path, good, bad, tested=[11.1, 10.9, 11.2])
+    assert "tested_straddle" in [w["code"] for w in result["warnings"]]
+    code, result = references(capsys, tmp_path, good, bad, tested=[10.9, 10.95, 11.0])
+    assert code == 0 and "tested_straddle" not in [w["code"] for w in result["warnings"]]
     code, result = bisect(capsys, tmp_path, [run(10.001)], *OPAQUE, "--bad-above", "10.000")
     assert result["warnings"] == []
     assert cli.main(["bisect", "--dry-run", "10", *OPAQUE, "--bad-above", "10", "--skip-straddle"]) == 128
@@ -399,7 +461,83 @@ def test_tested_straddle(capsys, tmp_path):
 def test_text_names_the_verdict(capsys, tmp_path):
     path = tmp_path / "t.csv"
     path.write_text(run(12.3), encoding="utf-8")
-    assert cli.main(["bisect", str(path), *OPAQUE, "--bad-above", "11.000"]) == 1
+    assert cli.main(["bisect", "--tested", str(path), *OPAQUE, "--bad-above", "11.000"]) == 1
     out = capsys.readouterr().out
     assert "gpu/opaque median in view segments is 12.300 ms, above the threshold of 11.000 ms: " \
            "bad (exit 1)." in out
+
+
+# INV-41: every tested run is checked, and an empty or headerless file skips.
+
+@pytest.mark.parametrize("text", ["", "# frameledger {\"schema\":1}\n",
+                                  "\x00\xff binary garbage\n",
+                                  run(20.0).replace('"dirty": false, ', "")])
+def test_skip_broken_headers(capsys, tmp_path, text):
+    code, result = bisect(capsys, tmp_path, [text], *OPAQUE, "--bad-above", "10.000")
+    assert code == 125
+    assert result["summary"][-1] == "This commit is skipped (exit 125)."
+
+
+def test_skip_any_tested_run(capsys, tmp_path):
+    whole = run(20.0)
+    for broken in (run_text([("view:1", rows(20.0))] * 120, dropped=1), run(20.0).replace("20.000", "abc", 1),
+                   run(None)):
+        assert bisect(capsys, tmp_path, [whole, broken, whole], *OPAQUE, "--bad-above", "10.000")[0] == 125
+    unclosed = run_text([("view:1", rows(20.0))] * 120, close=False)
+    code, result = bisect(capsys, tmp_path, [unclosed, whole, unclosed], *OPAQUE, "--bad-above", "10.000")
+    assert code == 125
+    assert [s.split(" ")[0] for s in result["summary"][:2]] == ["tested-1", "tested-3"]
+    code, result = bisect(capsys, tmp_path, [run(10.0)], "--measure", "gpu/opaque", "--segment", "view:9",
+                          "--bad-above", "10.000")
+    assert code == 125 and "its segments are view:1" in result["summary"][0]
+
+
+# INV-42: a broken reference stops, by name and without its path.
+
+def test_broken_references(capsys, tmp_path):
+    good, bad = [10.0] * 3, [12.0] * 3
+    unclosed = run_text([("view:1", rows(10.0))] * 120, close=False)
+    for broken in (unclosed, run(10.0).replace("10.000", "abc", 1), run(None), ""):
+        code, result = references(capsys, tmp_path, [broken, *good[1:]], bad, "--dry-run", "11")
+        assert code == 128
+        assert result["summary"][0].startswith("good-1 ")
+    code = cli.main(["bisect", "--dry-run", "11", *OPAQUE, "--good", str(tmp_path / "gone.csv"),
+                     *[str(tmp_path / "gone.csv")] * 2, "--bad", *[str(tmp_path / "gone.csv")] * 3, "--json"])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 128
+    assert result["summary"][0].startswith("good-1 is a broken reference file: it cannot be read")
+    assert str(tmp_path) not in " ".join(result["summary"])
+
+
+# INV-46: one depth across runs.
+
+def test_one_depth_across_runs(capsys, tmp_path):
+    blur = ["--measure", "gpu/blur", "--kind", "view"]
+
+    def at(depth, value):
+        return run_text([("view:1", {**rows(), ("gpu", "blur", depth): value})] * 120)
+    shallow, deep = [at(0, 2.0)] * 3, [at(0, 5.0)] * 3
+    assert references(capsys, tmp_path, shallow, deep, tested=[at(1, 5.0)], measure=blur)[0] == 128
+    assert references(capsys, tmp_path, shallow, [at(1, 5.0)] * 3, "--dry-run", "3", measure=blur)[0] == 128
+    assert references(capsys, tmp_path, shallow, deep, tested=[at(0, 5.0)], measure=blur)[0] == 1
+
+
+# INV-53
+
+def test_file_lists(capsys, tmp_path):
+    tested = tmp_path / "t1.csv"
+    tested.write_text(run(11.5), encoding="utf-8")
+    refs = []
+    for name, value in (("g1", 10.0), ("g2", 10.0), ("g3", 10.0), ("b1", 12.0), ("b2", 12.0), ("b3", 12.0)):
+        path = tmp_path / f"{name}.csv"
+        path.write_text(run(value), encoding="utf-8")
+        refs.append(str(path))
+    code = cli.main(["bisect", "--tested", str(tested), *OPAQUE, "--good", *refs[:3], "--bad", *refs[3:],
+                     str(tested), "--json"])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert [r["name"] for r in result["result"]["runs"]][-2:] == ["bad-4", "tested-1"]
+    assert cli.main(["bisect", str(tested), *OPAQUE, "--bad-above", "10"]) == 128
+    capsys.readouterr()
+    code, result = bisect(capsys, tmp_path, [""], *OPAQUE, "--bad-above", "10")
+    assert str(tmp_path) not in " ".join(result["summary"])

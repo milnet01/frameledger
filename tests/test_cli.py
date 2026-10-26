@@ -81,9 +81,9 @@ HEADLESS = [
     ["report", RUN],
     ["floor", RUN, "--fps", "60", "--warmup-s", "0"],
     ["compare", "--old", RUN, RUN, RUN, "--new", RUN, RUN, RUN],
-    ["bisect", RUN, "--measure", "frame/wall", "--kind", "view", "--bad-above", "15.999"],
-    ["bisect", RUN, "--measure", "frame/wall", "--kind", "view", "--bad-above", "15.999", "--json"],
-    ["bisect", RUN, "--measure", "frame/wall", "--kind", "view"],
+    ["bisect", "--tested", RUN, "--measure", "frame/wall", "--kind", "view", "--bad-above", "15.999"],
+    ["bisect", "--tested", RUN, "--measure", "frame/wall", "--kind", "view", "--bad-above", "15.999", "--json"],
+    ["bisect", "--tested", RUN, "--measure", "frame/wall", "--kind", "view"],
 ]
 
 
@@ -114,3 +114,30 @@ def test_headless_tree():
     """The tree runs headless too: `python3 -I src/frameledger`."""
     done = headless(ROOT / "src" / "frameledger", ["--selftest"])
     assert done.returncode == 0, done.stderr
+
+
+def closed_pipe(args):
+    """Run the tree with standard output a pipe whose reader is gone."""
+    reader, writer = os.pipe()
+    os.close(reader)
+    try:
+        done = subprocess.run([sys.executable, "-I", str(ROOT / "src" / "frameledger"), *args],
+                              stdout=writer, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, check=False)
+    finally:
+        os.close(writer)
+    return done.returncode
+
+
+BISECT = ["bisect", "--tested", RUN, "--measure", "frame/wall", "--kind", "view", "--bad-above", "15.999"]
+
+
+def test_failed_write():
+    """INV-52: a write that fails never reads as a verdict: Python's own
+    exit on a failed flush is 120, which git bisect run reads as bad."""
+    assert closed_pipe(BISECT) == 128
+    assert closed_pipe(["check", RUN]) == 3
+    if os.path.exists("/dev/full"):
+        with open("/dev/full", "w") as full:
+            done = subprocess.run([sys.executable, "-I", str(ROOT / "src" / "frameledger"), *BISECT],
+                                  stdout=full, stderr=subprocess.PIPE, check=False)
+        assert done.returncode == 128

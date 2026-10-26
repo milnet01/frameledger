@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from decimal import Decimal
 
+import bisecting
 import compare
 import ledger
 import run_report
@@ -89,10 +90,10 @@ def _compare_verdict(new: bytes) -> str:
 
 def _bisect_verdict(bad_above: str) -> str:
     """The good sample as the tested run; its cpu/scene median in view segments is 5.250."""
-    wanted = compare.Wanted("cpu", "scene", "median", None, "view", None)
-    tested = [compare.Tested("sample", ledger.read_bytes(_GOOD, "sample"), None)]
-    floors = compare.Floors(Decimal("0.050"), Decimal("1.000"), Decimal(3))
-    return compare.bisect(wanted, tested, [], [], {}, floors, bad_above=Decimal(bad_above))["verdict"]
+    wanted = bisecting.Wanted("cpu", "scene", "median", None, "view", None)
+    tested = [bisecting.Loaded("sample", ledger.read_bytes(_GOOD, "sample"), None)]
+    floors = bisecting.Floors(Decimal("0.050"), Decimal("1.000"), Decimal(3))
+    return bisecting.bisect(wanted, tested, [], [], {}, floors, bad_above=Decimal(bad_above))["verdict"]
 
 
 def run() -> list[tuple[str, bool]]:

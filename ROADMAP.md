@@ -237,6 +237,11 @@ engine faster, and which pass it changed.
   2026-10-26: the three engines' review folded in; § 4.11 and INV-39
   to INV-50 sent back for confirmation. Open: DOOM Ants asks that tested
   runs straddling the verdict line skip (125); UT Ants and Vestige do not.
+  2026-10-26: built at 8fd7b83; the three engines' code review folded
+  in: an empty tested file crashed to 128 (all three); a closed pipe
+  exited 120, read as bad (UT Ants); tested runs now follow --tested;
+  bisect moved to bisecting.py. 61 hand mutants, all killed. Sent back to
+  the three for review.
   **Layman:** Lets git bisect find the change that made a pass slower.
   Kind: implement.
   Source: design-2026-10-24.
