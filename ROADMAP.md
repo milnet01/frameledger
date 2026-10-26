@@ -173,6 +173,12 @@ Engines can write files and pin a release.
   Vestige and UT Ants; both machines are switched off. Then v0.1.0: date
   the CHANGELOG section, cut-release 0.1.0, same bytes. No CHANGELOG
   entry: this item is the release itself.
+  2026-10-26: Vestige's Windows run passed. Windows 10 22H2, Python
+  3.13.15 via py: archive SHA256 matched (certutil); `py -I
+  frameledger.pyz --version` printed "frameledger 0.1.0", exit 0;
+  `--selftest` printed 11 of 11 passed, exit 0; a `--bogus` control
+  exited 3. The Python 3.10 floor on Windows is covered by release run
+  40250446302's windows-latest job. UT Ants' run is still owed.
   **Layman:** A downloadable, pinned version the three engines can use.
   Kind: release.
   Source: design-2026-10-24.
