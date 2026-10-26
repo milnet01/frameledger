@@ -93,6 +93,7 @@ jobs:
           version=${TAG#v}; version=${version%%-*}
           archive=dist/frameledger-$TAG.zip
           sha=$(py python -I scripts/build_release.py dist "$TAG" | tail -n 1)
+          echo "publishing $archive, SHA256 $sha"
           py python -I scripts/release_notes.py "$version" --sha256 "$sha" > dist/notes.md
           theme=$(sed -n 's/^\*\*Theme:\*\* *//p' dist/notes.md | head -n 1)
           title="${TAG#v}${theme:+ — $theme}"
