@@ -159,7 +159,7 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0001.
 
-- 🚧 [FLED-0007] **First release archive.**
+- ✅ [FLED-0007] **First release archive.**
   frameledger.pyz and include/frameledger.h in one archive attached to a
   tagged release, its SHA256 in the notes; CHANGELOG naming every
   format change. Windows runs of --selftest by Vestige and UT Ants.
@@ -185,6 +185,12 @@ Engines can write files and pin a release.
   84a9254101421b223ca1429f889310ef92d1d4e4da433f19ce0d4225c89b9f5a.
   `--version` printed "frameledger 0.1.0", exit 0; `--selftest` passed
   11 of 11, exit 0. Both Windows runs are in.
+  2026-10-26: v0.1.0 published as the latest release at 022214e (release
+  run 40250873697, all jobs green). Assets: frameledger-v0.1.0.zip, plus
+  frameledger.zip, the same bytes; SHA256
+  84a9254101421b223ca1429f889310ef92d1d4e4da433f19ce0d4225c89b9f5a,
+  re-downloaded and matched, and the same bytes as rc.1's. The release
+  notes are the CHANGELOG section verbatim.
   **Layman:** A downloadable, pinned version the three engines can use.
   Kind: release.
   Source: design-2026-10-24.
