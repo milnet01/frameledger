@@ -114,7 +114,7 @@ static inline int fled__is_category(const char *src)
     if (strcmp(src, "frame") == 0 || strcmp(src, "cpu") == 0 || strcmp(src, "gpu") == 0 ||
         strcmp(src, "mem") == 0 || strcmp(src, "event") == 0)
         return 1;
-    return n > 4 && memcmp(src, "ext.", 4) == 0 && fled__is_name(src + 4, FLED_PART_MAX);
+    return n > 4 && memcmp(src, "ext.", 4) == 0 && fled__is_name(src + 4, FLED_PART_MAX - 4);
 }
 
 /* § 4.4: empty, or <kind>:<id> with each part 1 to 32 bytes. The kind
