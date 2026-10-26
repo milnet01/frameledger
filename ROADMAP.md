@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=16 -->
+<!-- ants-roadmap-id-high-water: FLED=17 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -202,12 +202,15 @@ Compare, bisect, pass budgets and pacing: whether a change made an
 
 engine faster, and which pass it changed.
 
-- 📋 [FLED-0008] **Compare labelled sets of runs.**
+- 🚧 [FLED-0008] **Compare labelled sets of runs.**
   compare.py: interleaved labelled sets (old-1, new-1, old-2, new-2),
   each pass judged by its own spread, a verdict on the exit ladder;
   trust.py's comparability refusals with per-field overrides named,
   with their reasons, in the opening sentence; static-line diff beside
   the pass comparison. Claims S4, S16 and S5's refusal half.
+  2026-10-26: amends docs/specs/FLED-0001-run-file-format.md with § 4.10
+  and INV-30 onward, for the three engines' review before anything is
+  built.
   **Layman:** Says whether a change made the engine faster, slower or neither, pass by pass.
   Kind: implement.
   Source: design-2026-10-24.
@@ -246,6 +249,19 @@ engine faster, and which pass it changed.
   **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
   Kind: enhancement.
   Source: vestige-review-2026-10-26.
+
+- 📋 [FLED-0017] **An app icon and a site logo.**
+  The owner, relayed by the ants-projects-hub-website session
+  (message 849): a square app icon kept in this repository, and a
+  wordmark logo for the site, per that repository's
+  src/assets/img/logos/README.md: SVG with text as outlines, about
+  3:1 to 2:1, transparent, readable on a dark teal (#5eead4) panel,
+  strong contrast. Send the path back by session_message. Keep the
+  release zip named frameledger.zip, which the site's Download link
+  uses.
+  **Layman:** Gives frameledger a picture of its own for the repository and the projects website.
+  Kind: marketing.
+  Source: ants-projects-hub-website-2026-10-26.
 
 ## 0.3.0 — many runs surveyed
 
