@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from datetime import datetime
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from fractions import Fraction
 from typing import NamedTuple
 
@@ -30,8 +30,8 @@ FEWEST_RUNS = 3  # a set of two gives too many false changes (§ 4.10's table)
 FRAME_MEASURES = (("cpu_span", "median"), ("gpu_span", "median"), ("wall", "median"), ("wall", "p99"))
 CATEGORY_ORDER = {"frame": 0, "cpu": 1, "gpu": 2}
 ABSENT = object()  # a run's header field that is absent: it matches only another absent one
-# The opening sentences say these themselves, per run.
-INCOMPLETE = ("rows_dropped", "unfinished")
+# Notice codes the opening sentences say themselves, per run.
+INCOMPLETE_CODES = ("rows_dropped", "unfinished")
 
 
 class Named(NamedTuple):
@@ -58,37 +58,37 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
 
     The opening sentences follow § 4.10's order: the overrides; a refusal,
     which ends the compare; each incomplete run; one per kind of warning;
-    the verdict; the frame time per segment kind; the short kinds."""
+    the verdict; the short kinds; the frame time per segment kind."""
     runs = [Named(f"{label}-{i}", label, run.path, run)
             for label, group in (("old", old), ("new", new)) for i, run in enumerate(group, 1)]
     for named in runs:
         run_report.refuse_breaches(named.run)
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
-    summary = [_overrides_sentence(override_list)] if override_list else []
+    summary = overrides_sentences(override_list)
     refused, unused = _refusals(runs, overrides)
     notices = [ledger.Notice("override_unused", f"--override {field} was given, but every run has the "
                              "same value") for field in unused]
     run_list = [_run_entry(r) for r in runs]
     if refused:
-        summary.append(_refusal_sentence(refused))
+        summary += [_refusal_sentence(refused), *run_report.warning_sentences(notices)]
         return {"verdict": "error", "summary": summary, "warnings": _warnings(notices),
                 "overrides": override_list, "result": {"runs": run_list, "refused": refused}}
 
     incomplete = _incomplete_sentences(runs)
     notices += _run_notices(runs) + _set_notices(runs)
-    shown = [n for n in notices if n.code not in INCOMPLETE]
+    shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + run_report.warning_sentences(shown)
 
     measures, unmatched = _judge_all(runs, min_ms, min_pct)
     short = _short_kinds(runs)
     verdict, sentence = _verdict(incomplete, measures, short)
     summary.append(sentence)
-    summary += _wall_sentences(measures)
-    if short:
+    if short:  # straight after the verdict, which it explains (Vestige)
         kinds = ", ".join(run_report.kind_name(k) for k in short)
         summary.append(f"Some run has fewer than {trust.FEWEST_FRAMES} frames with a frame/wall in "
                        f"{kinds} segments, so a noisy frame time there cannot make the compare "
                        "inconclusive.")
+    summary += _wall_sentences(measures)
     result = {
         "runs": run_list,
         "min_ms": float(min_ms),
@@ -109,10 +109,13 @@ def _run_entry(named: Named) -> dict:
             "rows_dropped": close["rows_dropped"] if close else None, "finished": close is not None}
 
 
-def _overrides_sentence(overrides: list[dict]) -> str:
-    """S5: every override and its reason, in the first sentence (DOOM Ants)."""
+def overrides_sentences(overrides: list[dict]) -> list[str]:
+    """S5: every override and its reason, in the first sentence, whatever
+    else the compare says (DOOM Ants); none when there are none."""
+    if not overrides:
+        return []
     listed = "; ".join(f"{o['field']} may differ (\"{o['reason']}\")" for o in overrides)
-    return f"Overrides given: {listed}."
+    return [f"Overrides given: {listed}."]
 
 
 def _refusals(runs: list[Named], overrides: dict[str, str]) -> tuple[list[dict], list[str]]:
@@ -133,16 +136,34 @@ def _refusals(runs: list[Named], overrides: dict[str, str]) -> tuple[list[dict],
 
 
 def _match_key(field: str, value) -> str | None:
-    """What two runs must share in `field`. `inputs` match on their name and
-    hash pairs in any order; an empty list gives None, which matches
-    nothing."""
+    """What two runs must share in `field`, as a string. `inputs` match on
+    their name and hash pairs in any order, and numbers by value, so
+    render_scale 1 matches 1.0 (Vestige).
+
+    Three stand-ins for "missing": ABSENT is a field the header leaves out,
+    and its key "absent" matches only another absent field; None is an
+    empty inputs list, which _refusals treats as matching nothing; and in a
+    refusal's values a None is an absent field, since a null one is a
+    breach."""
     if value is ABSENT:
         return "absent"
     if field == "inputs":
         if not value:
             return None
         value = sorted([i["name"], i["hash"]] for i in value)
-    return json.dumps(value, sort_keys=True)
+    return json.dumps(_by_value(value), sort_keys=True)
+
+
+def _by_value(value):
+    """`value` with every number as the exact text of its value, so JSON's
+    1 and 1.0 give one key. Booleans stay booleans."""
+    if isinstance(value, bool) or not isinstance(value, (int, float, list, dict)):
+        return value
+    if isinstance(value, list):
+        return [_by_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _by_value(v) for k, v in value.items()}
+    return str(Fraction(str(value)))
 
 
 def _refusal_sentence(refused: list[dict]) -> str:
@@ -152,15 +173,13 @@ def _refusal_sentence(refused: list[dict]) -> str:
         for name, value in entry["values"].items():
             # A blocking field holding null breaks the format, so None is absent.
             by_value.setdefault("absent" if value is None else json.dumps(value), []).append(name)
-        if entry["field"] == "inputs" and "[]" in by_value:
-            empty = by_value.pop("[]")
-            listed = [name for names in by_value.values() for name in names]
-            what = f"inputs is empty in {', '.join(empty)}, so the inputs are unknown"
-            if listed:
-                what += f"; {', '.join(listed)} list some"
+        if entry["field"] == "inputs" and list(by_value) == ["[]"]:
+            what = "inputs is empty in every run, so the inputs are unknown"
         else:
+            # Two empty input lists are unknown, not equal (§ 4.2), so say so.
             what = f"{entry['field']} differs: " + "; ".join(
-                f"{value} in {', '.join(names)}" for value, names in by_value.items())
+                f"{'[] (unknown)' if value == '[]' else value} in {', '.join(names)}"
+                for value, names in by_value.items())
         parts.append(f"{what} (--override {entry['field']}=REASON compares anyway)")
     return f"The runs cannot be compared: {'; '.join(parts)}."
 
@@ -232,7 +251,7 @@ def _judge_all(runs: list[Named], min_ms: Decimal, min_pct: Decimal) -> tuple[li
     per_run = [_values(r.run) for r in runs]
     tick = _largest_tick(runs)
     measures, unmatched = [], []
-    for measure in sorted(set().union(*per_run), key=_unranked_order):
+    for measure in set().union(*per_run):
         present = [r.name for r, values in zip(runs, per_run, strict=True) if measure in values]
         if len(present) < len(runs):
             unmatched.append({**_measure_fields(measure), "present_in": present})
@@ -240,10 +259,7 @@ def _judge_all(runs: list[Named], min_ms: Decimal, min_pct: Decimal) -> tuple[li
         old = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "old"]
         new = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "new"]
         measures.append(_judge(measure, old, new, min_ms, min_pct, tick))
-    measures.sort(key=lambda m: (run_report.kind_order(m["segment_kind"]),
-                                 CATEGORY_ORDER[m["category"]], _frame_rank(m), -m["old_centre_ms"],
-                                 m["name"], m["depth"], m["statistic"]))
-    return measures, unmatched
+    return sorted(measures, key=_rank), sorted(unmatched, key=_rank)
 
 
 def _judge(measure: Measure, old: list[int], new: list[int], min_ms: Decimal, min_pct: Decimal,
@@ -259,7 +275,7 @@ def _judge(measure: Measure, old: list[int], new: list[int], min_ms: Decimal, mi
         verdict = "slower"
     elif -change > spread and -change >= floor:
         verdict = "faster"
-    elif spread >= floor:
+    elif spread > 0 and spread >= floor:  # runs that do not vary are never noisy (Vestige)
         verdict = "noisy"
     else:
         verdict = "unchanged"
@@ -270,7 +286,7 @@ def _judge(measure: Measure, old: list[int], new: list[int], min_ms: Decimal, mi
         "old_centre_ms": _ms4(old_centre),
         "new_centre_ms": _ms4(new_centre),
         "change_ms": _ms4(change),
-        "change_pct": None if old_centre == 0 else _round(change / old_centre * 100, "0.01"),
+        "change_pct": None if old_centre == 0 else _round(change / old_centre * 100, 2),
         "spread_ms": _ms4(spread),
         "floor_ms": _ms4(floor),
         "verdict": verdict,
@@ -300,15 +316,14 @@ def _measure_fields(measure: Measure) -> dict:
             "depth": measure.depth, "statistic": measure.statistic}
 
 
-def _unranked_order(measure: Measure) -> tuple:
-    return (run_report.kind_order(measure.kind), CATEGORY_ORDER[measure.category], measure.name,
-            measure.depth, measure.statistic)
-
-
-def _frame_rank(entry: dict) -> int:
-    """Frame measures keep FRAME_MEASURES' order; passes rank by old centre."""
-    key = (entry["name"], entry["statistic"])
-    return FRAME_MEASURES.index(key) if entry["category"] == "frame" else 0
+def _rank(entry: dict) -> tuple:
+    """§ 4.10's order: segment kind, then frame measures in FRAME_MEASURES'
+    order, then cpu, then gpu passes by old centre, largest first. An
+    unmatched entry has no centre, so ranks by name."""
+    frame_rank = (FRAME_MEASURES.index((entry["name"], entry["statistic"]))
+                  if entry["category"] == "frame" else 0)
+    return (run_report.kind_order(entry["segment_kind"]), CATEGORY_ORDER[entry["category"]], frame_rank,
+            -entry.get("old_centre_ms", 0), entry["name"], entry["depth"], entry["statistic"])
 
 
 def _short_kinds(runs: list[Named]) -> list[str | None]:
@@ -396,9 +411,13 @@ def _warnings(notices: list[ledger.Notice]) -> list[dict]:
 
 def _ms4(thousandths: Fraction | int) -> float:
     """Milliseconds to four places, half away from zero (§ 4.10)."""
-    return _round(Fraction(thousandths) / 1000, "0.0001")
+    return _round(Fraction(thousandths) / 1000, 4)
 
 
-def _round(value: Fraction, places: str) -> float:
-    exact = Decimal(value.numerator) / Decimal(value.denominator)
-    return float(exact.quantize(Decimal(places), rounding=ROUND_HALF_UP))
+def _round(value: Fraction, places: int) -> float:
+    """`value` to `places` decimal places, half away from zero, in integers:
+    a Decimal division would round once at its own precision first (DOOM
+    Ants)."""
+    scaled = abs(value) * 10**places
+    whole = (2 * scaled.numerator + scaled.denominator) // (2 * scaled.denominator)
+    return float(Fraction(whole if value >= 0 else -whole, 10**places))

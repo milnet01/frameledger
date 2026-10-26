@@ -63,20 +63,20 @@ def _parser() -> _Parser:
                        help="frames over the budget to tolerate (default 0)")
     floor.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                        help="print the JSON result instead of text")
-    pair = commands.add_parser("compare", help="did the new runs get slower than the old, "
-                               "measure by measure?")
-    pair.add_argument("--old", nargs="+", required=True, metavar="FILE",
-                      help=f"the old build's runs, at least {compare.FEWEST_RUNS}")
-    pair.add_argument("--new", nargs="+", required=True, metavar="FILE",
-                      help=f"the new build's runs, at least {compare.FEWEST_RUNS}")
-    pair.add_argument("--override", action="append", type=_override, default=[],
-                      metavar="FIELD=REASON", help="let one compare-blocking header field differ")
-    pair.add_argument("--min-ms", type=_floor_ms, default=Decimal("0.050"), metavar="M",
-                      help="the smallest change that counts, in ms (default 0.050)")
-    pair.add_argument("--min-pct", type=_non_negative, default=Decimal(3), metavar="P",
-                      help="the smallest change that counts, in percent of the old (default 3)")
-    pair.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                      help="print the JSON result instead of text")
+    compare_cmd = commands.add_parser("compare", help="did the new runs get slower than the old, "
+                                      "measure by measure?")
+    compare_cmd.add_argument("--old", nargs="+", required=True, metavar="FILE",
+                             help=f"the old build's runs, at least {compare.FEWEST_RUNS}")
+    compare_cmd.add_argument("--new", nargs="+", required=True, metavar="FILE",
+                             help=f"the new build's runs, at least {compare.FEWEST_RUNS}")
+    compare_cmd.add_argument("--override", action="append", type=_override, default=[],
+                             metavar="FIELD=REASON", help="let one compare-blocking header field differ")
+    compare_cmd.add_argument("--min-ms", type=_floor_ms, default=Decimal("0.050"), metavar="M",
+                             help="the smallest change that counts, in ms (default 0.050)")
+    compare_cmd.add_argument("--min-pct", type=_non_negative, default=Decimal(3), metavar="P",
+                             help="the smallest change that counts, in percent of the old (default 3)")
+    compare_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                             help="print the JSON result instead of text")
     return parser
 
 
@@ -281,9 +281,10 @@ def _compare(args: argparse.Namespace) -> dict:
     try:
         built = compare.compare([ledger.read(p) for p in args.old], [ledger.read(p) for p in args.new],
                                 overrides, args.min_ms, args.min_pct)
-    except ledger.LedgerError as error:
-        return _result("compare", "error", ERROR, [f"{error}."],
-                       [{"code": "file_error", "message": str(error)}], {})
+    except ledger.LedgerError as error:  # S5: the overrides are named even here
+        listed = [{"field": f, "reason": r} for f, r in overrides.items()]
+        return _result("compare", "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
+                       [{"code": "file_error", "message": str(error)}], {}, listed)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])

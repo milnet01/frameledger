@@ -281,3 +281,126 @@ def test_short_kind_missing_from_the_first_run(capsys, tmp_path):
     code, result = compare(capsys, tmp_path, first, new(same, spots=150))
     assert result["verdict"] == "pass"
     assert any("spot" in s and "fewer than 100" in s for s in result["summary"])
+
+
+# DOOM Ants' review found rules whose removal no test above noticed; each
+# test below pins one at its edge.
+
+def opaque_verdict(result):
+    return verdicts(result)[("gpu", "opaque", "median")]
+
+
+def test_spread_is_the_wider_set(capsys, tmp_path):
+    """INV-31's rule, asymmetric: the spread is the larger range, whichever
+    set holds it. A change of 1.000 within a range of 1.600 is noisy."""
+    code, result = compare(capsys, tmp_path, old([10.0] * 3), new([10.4, 11.0, 12.0]))
+    assert opaque_verdict(result) == "noisy"
+    code, result = compare(capsys, tmp_path, old([9.0, 10.0, 10.6]), new([11.0] * 3))
+    assert opaque_verdict(result) == "noisy"
+
+
+def test_verdict_edges(capsys, tmp_path):
+    """§ 4.10's table at its edges, with a floor of 0.100: a change equal to
+    the spread is not slower; a change equal to the floor is; a spread
+    equal to the floor is noisy."""
+    flags = ("--min-ms", "0.100", "--min-pct", "0")
+    _, result = compare(capsys, tmp_path, old([10.0, 10.0, 10.2]), new([10.2] * 3), *flags)
+    assert opaque_verdict(result) == "noisy"
+    _, result = compare(capsys, tmp_path, old([10.0] * 3), new([10.1] * 3), *flags)
+    assert opaque_verdict(result) == "slower"
+    _, result = compare(capsys, tmp_path, old([10.0, 10.0, 10.1]), new([10.0] * 3), *flags)
+    assert opaque_verdict(result) == "noisy"
+
+
+def test_even_sets_and_rounding(capsys, tmp_path):
+    """An even set's centre is the mean of its two middle runs, and JSON
+    rounds half away from zero: a change of -0.0005 ms on 10.000 ms is
+    -0.005%, which is -0.01, not 0."""
+    _, result = compare(capsys, tmp_path, old([10.0] * 4), new([9.999, 10.0, 9.999, 10.0]))
+    opaque = next(m for m in result["result"]["measures"] if m["name"] == "opaque")
+    assert (opaque["new_centre_ms"], opaque["change_ms"], opaque["change_pct"]) == (9.9995, -0.0005, -0.01)
+
+
+def test_largest_slower_measure_is_named(capsys, tmp_path):
+    """The verdict sentence names the slower measure with the largest change
+    in ms, ties by percent."""
+    def with_sim(opaque, sim):
+        return {**alike(opaque), ("cpu", "sim"): sim}
+    tie = new([with_sim(11.0, 6.0)] * 3)  # both 1.000 ms: sim is 20%, opaque 10%
+    _, result = compare(capsys, tmp_path, old([10.0] * 3), tie)
+    assert "the largest is cpu/sim median" in " ".join(result["summary"])
+    ms_first = new([with_sim(12.0, 6.5)] * 3)  # opaque 2.000 ms at 20%, sim 1.500 at 30%
+    _, result = compare(capsys, tmp_path, old([10.0] * 3), ms_first)
+    assert "the largest is gpu/opaque median" in " ".join(result["summary"])
+
+
+def test_header_matching(capsys, tmp_path):
+    """Inputs match in any order; an absent optional field matches only
+    another absent one."""
+    same = [10.0, 10.01, 10.02]
+    two = [{"name": "a", "hash": "md5:" + "1" * 32, "bytes": 1},
+           {"name": "b", "hash": "md5:" + "2" * 32, "bytes": 2}]
+    code, _ = compare(capsys, tmp_path, old(same, inputs=two), new(same, inputs=two[::-1]))
+    assert code == 0
+    tiered = new(same)
+    tiered[1] = tiered[1].replace('"schema": 1', '"schema": 1, "tier": "high"')
+    code, result = compare(capsys, tmp_path, old(same), tiered)
+    assert code == 3 and [r["field"] for r in result["result"]["refused"]] == ["tier"]
+
+
+def test_set_warnings(capsys, tmp_path):
+    """not_interleaved fires whichever set ran first; mixed_build fires when
+    a set's runs differ in commit."""
+    same = [10.0, 10.01, 10.02]
+    earlier = [text.replace("T12:", "T11:") for text in new(same)]
+    _, result = compare(capsys, tmp_path, old(same), earlier)
+    assert "not_interleaved" in {w["code"] for w in result["warnings"]}
+    mixed = old(same)
+    mixed[1] = mixed[1].replace('"commit": "abc123"', '"commit": "def456"')
+    _, result = compare(capsys, tmp_path, mixed, new(same))
+    assert "mixed_build" in {w["code"] for w in result["warnings"]}
+
+
+def test_overrides_stay_first(capsys, tmp_path):
+    """S5: the overrides sentence opens the report beside an incomplete run,
+    a refusal and an unreadable file; a repeated override exits 3."""
+    override = ("--override", "resolution=upscaler test")
+    slow = new([11.0, 11.01, 11.02])
+    slow[0] = slow[0].replace('"rows_dropped":0', '"rows_dropped":3')
+    code, result = compare(capsys, tmp_path, old([10.0, 10.01, 10.02]), slow, *override)
+    assert code == 2 and "upscaler test" in result["summary"][0] and "new-1" in result["summary"][1]
+
+    same = [10.0, 10.01, 10.02]
+    _, result = compare(capsys, tmp_path, old(same), new(same, vsync=True), *override)
+    assert "upscaler test" in result["summary"][0] and "vsync" in result["summary"][1]
+    assert any("override_unused" not in s and "resolution was given" in s for s in result["summary"][2:])
+
+    paths = [str(tmp_path / "missing.csv")] * 3
+    code = cli.main(["compare", "--old", *paths, "--new", *paths, *override, "--json"])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 3 and "upscaler test" in result["summary"][0]
+    assert result["overrides"] == [{"field": "resolution", "reason": "upscaler test"}]
+
+    twice = (*override, "--override", "resolution=again")
+    assert compare(capsys, tmp_path, old(same), new(same), *twice)[0] == 3
+
+
+# Vestige's review.
+
+def test_equal_numbers_match(capsys, tmp_path):
+    """A header number matches by value: render_scale 1 and 1.0 are one
+    scale, not a refusal."""
+    same = [10.0, 10.01, 10.02]
+    whole = [text.replace('"render_scale": 1.0', '"render_scale": 1') for text in new(same)]
+    code, result = compare(capsys, tmp_path, old(same), whole)
+    assert code == 0, result["summary"]
+
+
+def test_zero_floor(capsys, tmp_path):
+    """With a floor of 0, runs that do not vary are unchanged, not noisy, so
+    identical sets pass; any change beyond a spread of 0 is slower."""
+    flags = ("--min-ms", "0", "--min-pct", "0")
+    code, result = compare(capsys, tmp_path, old([10.0] * 3), new([10.0] * 3), *flags)
+    assert code == 0 and set(verdicts(result).values()) == {"unchanged"}
+    code, result = compare(capsys, tmp_path, old([10.0] * 3), new([10.001] * 3), *flags)
+    assert code == 1 and opaque_verdict(result) == "slower"

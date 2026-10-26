@@ -3,8 +3,9 @@
 
 **Status:** accepted (2026-10-24); § 4.9 and INV-23 to INV-27
 (FLED-0005) agreed by the three engines 2026-10-26 at a3eea64;
-§ 4.10 and INV-30 to INV-37 (FLED-0008) agreed by the three engines
-2026-10-26 at f7dd566, with `scene` added.
+§ 4.10 and INV-30 to INV-38 (FLED-0008) agreed by the three engines
+2026-10-26 at f7dd566, with `scene` added; their code review
+settled the § 4.10 edges and INV-38.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -477,14 +478,15 @@ refused. Defaults: `--min-ms 0.050`, `--min-pct 3`.
 across the two, on § 4.2's compare-blocking fields. `inputs` match when
 they hold the same `name` and `hash` pairs, in any order; two empty
 lists are unknown, not equal, so they refuse. An absent optional field
-(`tier`, `ray_tracing`) matches only another absent one. Any mismatch
+(`tier`, `ray_tracing`) matches only another absent one. Numbers match
+by value: `render_scale` `1` matches `1.0`. Any mismatch
 gives verdict `error`, exit 3, and a sentence naming each field with
 the runs' values and the `--override` that would allow it. It follows
 the overrides sentence, when there is one.
 
 - **`--override FIELD=REASON`** allows one field to differ. `FIELD`
   must be a compare-blocking field and `REASON` must not be empty, or
-  exit 3. Each override goes into `overrides`. The first sentence is
+  exit 3; so does a field given twice. Each override goes into `overrides`. The first sentence is
   one sentence naming every override with its reason (S5), whatever
   else the compare says.
 - **An override for a field that does not differ** gives the warning
@@ -523,7 +525,7 @@ milliseconds rounded to four places, half away from zero.
 |---|---|
 | `slower` | the change is above the spread and at least the floor |
 | `faster` | minus the change is above the spread and at least the floor |
-| `noisy` | neither, and the spread is at least the floor |
+| `noisy` | neither, and the spread is above 0 and at least the floor |
 | `unchanged` | otherwise |
 
 So each measure is judged by its own spread (S16): a pass that moved
@@ -580,8 +582,10 @@ first 20 and counts the rest.
 and its reason; a refusal; each run's dropped rows or missing close
 line; one per kind of warning; the verdict sentence, naming the slower
 measure with the largest change in milliseconds, ties by percent (or
-why it is inconclusive); the `frame/wall` median per segment kind, old
-centre against new. Then a table of every measure not `unchanged`, then a
+why it is inconclusive); the segment kinds step 3 skipped; the `frame/wall`
+median per segment kind, old centre against new. A refusal ends the
+compare after its warning sentences; a file that cannot be read still
+opens with the overrides. Then a table of every measure not `unchanged`, then a
 count of those that are, then the static diff.
 
 **Result:**
@@ -870,10 +874,13 @@ breaks.
   11.010 and 11.020: `gpu/opaque` `slower`, change 1.000 ms,
   `gpu_remainder` `faster`, every other measure `unchanged`; verdict
   `fail`, exit 1, and the verdict sentence names `gpu/opaque`.
+  With two slower measures, the sentence names the larger change in ms,
+  and of two equal in ms, the larger in percent.
   *Test:* `tests/test_compare.py::test_same_build_and_known_slowdown`,
-  runs built by the test.
+  runs built by the test; `tests/test_compare.py::test_largest_slower_measure_is_named`.
   *Breaks when:* the compare judges one run against one run, or never
-  finds a change, or a measure the runs do not move is judged changed.
+  finds a change, or a measure the runs do not move is judged changed,
+  or the wrong slower measure is named.
 
 - **INV-31** — A pass is judged by its own spread, not the frame
   total's (S16). `frame/wall` per run: old 24.900, 28.000 and 32.600,
@@ -883,10 +890,15 @@ breaks.
   opaque change the verdict is `inconclusive`, exit 2. Without it, and
   with every run holding 99 frames, the verdict is `pass` and the
   summary names the skipped kind.
-  *Test:* `tests/test_compare.py::test_pass_judged_by_own_spread`.
+  The spread is the wider set's range, whichever set that is. A kind
+  missing from a run counts 0 frames there.
+  *Test:* `tests/test_compare.py::test_pass_judged_by_own_spread`,
+  `tests/test_compare.py::test_spread_is_the_wider_set`,
+  `tests/test_compare.py::test_short_kind_missing_from_the_first_run`.
   *Breaks when:* every measure is judged against `frame/wall`'s spread,
   so opaque is missed; or the spread is ignored, so `frame/wall` reads
-  `slower`; or a short segment kind makes the compare inconclusive.
+  `slower`; or a short segment kind makes the compare inconclusive; or
+  one set's range stands for both.
 
 - **INV-32** — A change beyond the spread but under the floor is
   `unchanged`. Every old run's `gpu/opaque` is 10.000 and every new
@@ -895,9 +907,14 @@ breaks.
   `gpu_tick_ns` 100000 (0.100 ms) in one run's header and those flags,
   it is `unchanged` again, and so is a 0.040 ms change in
   `frame/gpu_span`.
-  *Test:* `tests/test_compare.py::test_floor`.
+  At a floor of 0.100: a change equal to the spread is `noisy`, a change
+  equal to the floor is `slower`, a spread equal to the floor is
+  `noisy`. At a floor of 0, identical sets pass.
+  *Test:* `tests/test_compare.py::test_floor`, `tests/test_compare.py::test_verdict_edges`,
+  `tests/test_compare.py::test_zero_floor`.
   *Breaks when:* the floor is not applied, or `gpu_tick_ns` is ignored
-  or left off `frame/gpu_span`.
+  or left off `frame/gpu_span`, or a bound is strict where the table
+  says "at least", or runs that do not vary read `noisy`.
 
 - **INV-33** — Runs differing in a compare-blocking field are refused,
   and an override with a reason allows it (S5). `new-2` with
@@ -912,9 +929,16 @@ breaks.
   refused, and so are two differing only in `vsync`, or only in
   `scene`. `--override pipelined=x` and `--override resolution=` exit
   3.
-  *Test:* `tests/test_compare.py::test_refusal_and_override`.
+  `render_scale` `1` against `1.0` compares; inputs listed in another
+  order compare; a `tier` in one run only refuses. The overrides
+  sentence stays first beside an incomplete run, a refusal with its
+  warning sentences, and an unreadable file; a field overridden twice
+  exits 3.
+  *Test:* `tests/test_compare.py::test_refusal_and_override`,
+  `tests/test_compare.py::test_header_matching`, `tests/test_compare.py::test_equal_numbers_match`,
+  `tests/test_compare.py::test_overrides_stay_first`.
   *Breaks when:* a field is not compared, an override is silent or
-  not first, or empty inputs count as equal.
+  not first, empty inputs count as equal, or numbers match as text.
 
 - **INV-34** — A run with dropped rows, or with no close line, makes
   the compare `inconclusive`, exit 2, even with a `slower` measure, and
@@ -928,8 +952,11 @@ breaks.
 - **INV-35** — `not_interleaved` warns when every old run started
   before every new run, and not for old, new, old, new; it changes no
   verdict.
+  It fires whichever set ran first. `mixed_build` warns when a set's
+  runs differ in `commit`.
   *Test:* `tests/test_compare.py::test_interleaving`, INV-30's
-  same-build sets with `started_utc` set by the test.
+  same-build sets with `started_utc` set by the test;
+  `tests/test_compare.py::test_set_warnings`.
   *Breaks when:* the order given on the command line is judged instead
   of `started_utc`, or the warning changes the exit code.
 
@@ -946,6 +973,14 @@ breaks.
   lines differ in one nested statistic.
   *Breaks when:* values are converted to numbers, or equal keys are
   listed.
+
+- **INV-38** — A set of four runs has the mean of its two middle runs
+  as its centre, and JSON rounds half away from zero: old runs all
+  10.000, new runs 9.999, 10.000, 9.999 and 10.000 give a new centre of
+  9.9995, a change of -0.0005 ms and a `change_pct` of -0.01, not 0.
+  *Test:* `tests/test_compare.py::test_even_sets_and_rounding`.
+  *Breaks when:* the centre is the lower middle, or rounding is half
+  to even or toward zero.
 
 ## 6. Failure modes
 
@@ -977,7 +1012,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0005: INV-23, INV-24, INV-25, INV-26, INV-27.
 - FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22,
   INV-28, INV-29.
-- FLED-0008: INV-30 to INV-37.
+- FLED-0008: INV-30 to INV-38.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1042,14 +1077,15 @@ it on each release they pin.
 | INV-27 | `tests/test_trust.py::test_absent_fields_and_check` |
 | INV-28 | `tests/writer/test_writer.c::test_failed_open` |
 | INV-29 | `tests/writer/test_writer.c::test_escape_opens` |
-| INV-30 | `tests/test_compare.py::test_same_build_and_known_slowdown` |
-| INV-31 | `tests/test_compare.py::test_pass_judged_by_own_spread` |
-| INV-32 | `tests/test_compare.py::test_floor` |
-| INV-33 | `tests/test_compare.py::test_refusal_and_override` |
+| INV-30 | `tests/test_compare.py::test_same_build_and_known_slowdown`, `tests/test_compare.py::test_largest_slower_measure_is_named` |
+| INV-31 | `tests/test_compare.py::test_pass_judged_by_own_spread`, `tests/test_compare.py::test_spread_is_the_wider_set`, `tests/test_compare.py::test_short_kind_missing_from_the_first_run` |
+| INV-32 | `tests/test_compare.py::test_floor`, `tests/test_compare.py::test_verdict_edges`, `tests/test_compare.py::test_zero_floor` |
+| INV-33 | `tests/test_compare.py::test_refusal_and_override`, `tests/test_compare.py::test_header_matching`, `tests/test_compare.py::test_equal_numbers_match`, `tests/test_compare.py::test_overrides_stay_first` |
 | INV-34 | `tests/test_compare.py::test_incomplete_run` |
-| INV-35 | `tests/test_compare.py::test_interleaving` |
+| INV-35 | `tests/test_compare.py::test_interleaving`, `tests/test_compare.py::test_set_warnings` |
 | INV-36 | `tests/test_compare.py::test_runs_and_unmatched` |
 | INV-37 | `tests/test_compare.py::test_static_diff` |
+| INV-38 | `tests/test_compare.py::test_even_sets_and_rounding` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
