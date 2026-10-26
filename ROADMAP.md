@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=17 -->
+<!-- ants-roadmap-id-high-water: FLED=18 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -171,8 +171,8 @@ Engines can write files and pin a release.
   hash and passed --selftest under Python 3.10.22. All three engines
   reviewed the tooling. Waiting on the Windows --selftest runs by
   Vestige and UT Ants; both machines are switched off. Then v0.1.0: date
-  the CHANGELOG section, cut-release 0.1.0, same bytes. No CHANGELOG
-  entry: this item is the release itself.
+  the CHANGELOG section, cut-release 0.1.0, same bytes. Release note
+  (release): no CHANGELOG entry — this item is the release itself.
   2026-10-26: Vestige's Windows run passed. Windows 10 22H2, Python
   3.13.15 via py: archive SHA256 matched (certutil); `py -I
   frameledger.pyz --version` printed "frameledger 0.1.0", exit 0;
@@ -227,12 +227,16 @@ engine faster, and which pass it changed.
   Claims S17. Overlaps the compare item in compare.py.
   Open question (Vestige, 2026-10-26, FLED-0008 review): judge `mem`
   rows, as Vestige's tools/perf_gate.py gates mem,gpu_mb with a 1.0 MB
-  minimum. FLED-0008's compare judges no mem rows. Vestige retires
-  perf_gate.py after this item lands, if mem judging is in by then.
+  minimum. FLED-0008's compare judges no mem rows. Vestige, 2026-10-26: bisect's
+  mem judging does not retire perf_gate.py, a baseline gate; that needs
+  compare to judge mem (FLED-0018).
   2026-10-26: spec amendment in docs/specs/FLED-0001-run-file-format.md
   § 4.11 and INV-39 to INV-46, sent to the three engines for review.
   It proposes mem judging for bisect (mem medians, --min-mb default
   1.000); whether compare judges mem too is asked of the engines.
+  2026-10-26: the three engines' review folded in; § 4.11 and INV-39
+  to INV-50 sent back for confirmation. Open: DOOM Ants asks that tested
+  runs straddling the verdict line skip (125); UT Ants and Vestige do not.
   **Layman:** Lets git bisect find the change that made a pass slower.
   Kind: implement.
   Source: design-2026-10-24.
@@ -279,6 +283,18 @@ engine faster, and which pass it changed.
   **Layman:** Gives frameledger a picture of its own for the repository and the projects website.
   Kind: marketing.
   Source: ants-projects-hub-website-2026-10-26.
+
+- 📋 [FLED-0018] **Compare judges mem measures.**
+  Amend spec FLED-0001 § 4.10 so compare judges each mem row's median
+  per segment kind, with a --min-mb floor (default 1.000) in place of
+  --min-ms, as FLED-0009's § 4.11 does for bisect. Vestige retires
+  tools/perf_gate.py (gates frame,total, gpu,total, cpu,total and
+  mem,gpu_mb against a committed baseline, min_abs_mb 1.0) once this
+  lands (Vestige, 2026-10-26, FLED-0009 review).
+  **Layman:** Lets the comparison catch a build that uses more memory, so Vestige can retire its own gate script.
+  Kind: implement.
+  Source: vestige-review-2026-10-26.
+  Blocked-by: FLED-0009.
 
 ## 0.3.0 — many runs surveyed
 

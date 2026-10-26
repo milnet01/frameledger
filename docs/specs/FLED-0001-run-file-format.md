@@ -5,8 +5,9 @@
 (FLED-0005) agreed by the three engines 2026-10-26 at a3eea64;
 § 4.10 and INV-30 to INV-38 (FLED-0008) agreed by the three engines
 2026-10-26 at f7dd566, with `scene` added; their code review
-settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-46
-(FLED-0009) proposed 2026-10-26, for the three engines' review.
+settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-50
+(FLED-0009) reviewed by the three engines 2026-10-26, their changes
+folded in, for their confirmation.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -89,11 +90,13 @@ settles.
   Ants); `vsync` and `scene` block a compare (DOOM Ants; all three
   for `scene`); a short segment kind
   cannot make it inconclusive (Vestige); a static-line diff (UT Ants).
-- For FLED-0009, *proposed here*: `bisect` judges one measure against a
-  threshold or against good and bad reference runs (§ 4.11); it never
-  exits 2 or 3, which `git bisect run` reads as bad; references that do
-  not separate stop the bisect; a `mem` measure has a floor in MB
-  (Vestige).
+- For FLED-0009, reviewed by the three engines 2026-10-26: `bisect`
+  judges one measure against a threshold or the midpoint of good and
+  bad reference runs (§ 4.11); on a bisect command line every outcome
+  but good, bad and skip is 128 (DOOM Ants); three runs a reference set,
+  which must not straddle its midpoint (Vestige, DOOM Ants); one
+  segment can be judged alone (UT Ants); a `mem` measure has a floor in
+  MB (Vestige).
 
 ## 4. Design
 
@@ -622,12 +625,13 @@ maps run names to values. Measures are ranked by segment kind, then
 
 ### 4.11 Bisect verdicts
 
-FLED-0009 builds this (S17). *Proposed here* in full, for the three
-engines' review.
+FLED-0009 builds this (S17). Reviewed by the three engines 2026-10-26;
+their changes are folded in.
 
 ```
-bisect FILE… --measure CATEGORY/NAME (--kind KIND | --unsegmented) [--statistic median|p99] [--depth D]
-       (--bad-above X | --good FILE… --bad FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P])
+bisect FILE… --measure CATEGORY/NAME (--kind KIND | --segment KIND:ID | --unsegmented)
+       [--statistic median|p99] [--depth D] [--override FIELD=REASON]…
+       (--bad-above X | --good FILE… --bad FILE… [--min-ms M | --min-mb M] [--min-pct P])
 bisect --dry-run VALUE   with the same measure and mode flags, and no FILE
 ```
 
@@ -637,22 +641,29 @@ Warnings and sentences use these names, never the path.
 
 **Exit codes** are `git bisect run`'s (docs/design.md § Exit codes):
 0 good, 1 bad, 125 skip this commit, 128 stop the bisect. `git bisect
-run` reads every code from 1 to 127 except 125 as bad, so `bisect`
-never exits 2 or 3. Every other problem is 128: a bad argument, in a
-command line whose first argument not starting with `-` is `bisect`;
-and an error inside the analyser, which would otherwise exit 1.
+run` reads 0 as good and every code from 1 to 127 except 125 as bad.
+So on a bisect command line, one whose first argument not starting
+with `-` is `bisect`, every other outcome is 128 (DOOM Ants):
+
+- a bad argument;
+- `--help`, `-h` and `--version`, which exit 0 elsewhere;
+- an error anywhere in the analyser, from reading the arguments to
+  printing the result, which would otherwise exit 1.
+
+Not covered: a failure before the analyser's own code runs, such as a
+missing or too old `python3` or a broken archive. A shell exits 127
+when it cannot find `python3`, which reads as bad. Running the dry run
+below by hand first shows these.
 
 A script builds, runs the benchmark, then calls `bisect`. A build that
-fails skips. The run file is deleted first, so a benchmark that writes
-nothing skips too, rather than leaving the last commit's file to be
-judged:
+fails skips. The run files are deleted first, so a benchmark that
+writes nothing skips too, rather than leaving the last commit's files
+to be judged. Three tested runs, as here, give a steadier value; one is
+allowed.
 
 ```
-git bisect run sh -c 'make || exit 125; rm -f run.csv; ./bench --out run.csv; python3 -I frameledger.pyz bisect run.csv --measure gpu/opaque --kind view --good g1.csv g2.csv g3.csv --bad b1.csv b2.csv b3.csv'
+git bisect run sh -c 'make || exit 125; rm -f t1.csv t2.csv t3.csv; for i in 1 2 3; do ./bench --out t$i.csv; done; python3 -I frameledger.pyz bisect t1.csv t2.csv t3.csv --measure gpu/opaque --kind view --good g1.csv g2.csv g3.csv --bad b1.csv b2.csv b3.csv'
 ```
-
-A shell that cannot find `python3` exits 127, which `git bisect run`
-reads as bad; running the dry run below by hand first shows that.
 
 **The measure** is one of § 4.10's, or a `mem` row (Vestige):
 
@@ -660,69 +671,91 @@ reads as bad; running the dry run below by hand first shows that.
   `frame/gpu_span`, a `cpu` or `gpu` pass (remainders included), or a
   `mem` name such as `mem/gpu_mb`. Any other category, or a frame
   measure § 4.10 does not judge, is 128.
-- `--kind KIND` takes frames of that segment kind; `--unsegmented`,
-  frames with no segment. One of them is required, since segment kinds
-  are judged apart (S2).
+- **Which frames**, exactly one of: `--kind KIND`, the frames of that
+  segment kind (S2); `--segment KIND:ID`, the frames of that one
+  segment, so a slowdown in one camera view is not pooled away (UT
+  Ants); `--unsegmented`, frames with no segment. A frame's segment is
+  § 4.8's.
 - `--statistic` is `median`, the default, or `p99` for `frame/wall`
   only, as § 4.10 judges them. `p99` on another measure is 128.
 - `--depth D` picks the measure's depth. Without it, a name found at
   two depths in one run, in different frames, is 128, and the sentence
   names the depths.
 - **A run's value** is § 4.10's: the measure's median, or `frame/wall`'s
-  99th percentile, over the frames of the kind that have it. A `mem`
-  measure's value is the median of its rows. Values and thresholds are
-  in the measure's unit: ms, or MB for `mem`.
+  99th percentile, over the chosen frames that have it. A `mem`
+  measure's value is the median of its rows in the chosen frames.
+  Values and thresholds are in the measure's unit: ms, or MB for `mem`.
 - **The tested value** is the tested runs' centre, as § 4.10 defines
   it.
+- **Arithmetic is exact**, in fractions, as § 4.10's. Sentences and
+  JSON give values exactly too: a centre has at most four decimal
+  places, and a midpoint five. Sentences print at least three, so
+  "10.0005 ms, above 10.000 ms" shows why it is bad.
+
+**The runs must match.** Every run, tested and reference, is held
+against every other on § 4.10's compare-blocking fields, as its
+refusals are, in both modes: tested runs of one commit that differ in
+`scene` would be judged silently otherwise (DOOM Ants). A mismatch is
+128, and the sentence names each field, the runs' values and the
+`--override` that would allow it. `--override` and its
+`override_unused` warning are § 4.10's.
 
 **Threshold mode.** `--bad-above X`: bad when the tested value is above
 `X`, good when it is `X` or less. `X` has at most three decimal places
-and is below 1000000000. `--override`, `--min-ms`, `--min-mb` and
-`--min-pct` are 128 here, since none of them would change anything.
+and is below 1000000000. `--min-ms`, `--min-mb` and `--min-pct` are 128
+here, since none of them would change anything.
 
-**Reference mode.** `--good FILE…` and `--bad FILE…`, at least one run
-each: runs of a known-good and a known-bad commit. Bad when the tested
-value is above the **midpoint** of the good and bad centres, good when
-it is at the midpoint or below. Before any tested run is read, each of
-these is 128:
+**Reference mode.** `--good FILE…` and `--bad FILE…`: runs of a
+known-good and a known-bad commit. Bad when the tested value is above
+the **midpoint** of the good and bad centres, good when it is at the
+midpoint or below. Before any tested run is read, each of these is 128:
 
-- references that differ from each other in a compare-blocking field,
-  held as § 4.10's refusals are, with its `--override`; the sentence
-  names each field and the `--override` that would allow it;
+- a reference set of fewer than three runs: one run has no spread, as
+  under § 4.10, and one noisy reference would move the midpoint for
+  every commit (Vestige, DOOM Ants);
 - a reference with dropped rows, no close line, a breach, or that cannot
   be read ("a broken reference file", docs/design.md);
 - a reference without the measure;
 - a bad centre that is not **slower** than the good one, as § 4.10
-  judges a measure: above the spread and at least the floor.
-  `--min-ms` (default 0.050), `--min-pct` (default 3) and `gpu_tick_ns`
-  set the floor as there. For a `mem` measure, `--min-mb` (default
-  1.000, as Vestige's `perf_gate.py`) stands in for `--min-ms`. A bad
-  centre at or below the good one is reported as references the wrong
-  way round; one above it but not slower, as references that do not
-  separate.
+  judges a measure, with the good runs as old: above the spread and at
+  least the floor. A bad centre below the good one is reported as
+  references the wrong way round; one equal to it or above it but not
+  slower, as references that do not separate;
+- a reference on the wrong side of the midpoint: a good run above it,
+  or a bad run at it or below (Vestige). Otherwise a good run could
+  itself be judged bad, and nothing later in the bisect would show it.
 
-So a bisect against inverted or overlapping references stops on its
-first commit, before it marks one. Then the tested runs are held against
-the references on the same fields, and a mismatch is 128 too.
+**The floor** is § 4.10's: the larger of `--min-ms` (default 0.050) and
+`--min-pct` (default 3) percent of the good centre, and for a `gpu`
+pass, `gpu_remainder` and `frame/gpu_span` at least the largest
+`gpu_tick_ns` among the references. For a `mem` measure, `--min-mb`
+(default 1.000, as Vestige's `perf_gate.py`) stands in for `--min-ms`,
+and `gpu_tick_ns` does not apply. `--min-mb` on a ms measure, or
+`--min-ms` on a `mem` one, is 128: a floor in the wrong unit would
+silently do nothing. On `mem` the percent usually decides: 3 percent of
+500 MB is 15 MB, so `--min-mb 1` matters only with a lower `--min-pct`.
 
 **Skip (125).** Each of these makes the tested commit untestable,
 whatever its value: a tested file that is missing, cannot be read or
 breaks the format (UT Ants); a tested run with dropped rows or no close
 line (docs/design.md: "nor a compare that uses them"); a tested run
-without the measure. The sentence names the run. For a missing measure
-it also names the segment kinds the run has, so a wrong `--kind` shows
-on the first skip.
+without the measure in the chosen frames. The sentence names the run.
+For a missing measure it also names the segment kinds the run has, so a
+wrong `--kind` shows on the first skip.
 
 **Dry run.** `--dry-run VALUE` judges `VALUE` as the tested value, in
 the measure's unit, with at most three decimal places, and reads no
 tested file. With references, every reference check above runs. It
-prints the verdict the value would get and exits with that code: 0, 1,
-or 128 when a check fails. It is the guard against an inverted verdict:
-run it once with a value from each side before `git bisect run`.
+exits with the code the value would get: 0, 1, or 128 when a check
+fails. Its verdict sentence opens "Dry run:", so a `--dry-run` left in
+a bisect script shows why every commit gets one answer (DOOM Ants). Run
+it by hand with a value from each side before `git bisect run`: it is
+the guard against an inverted verdict.
 
 **Warnings**: § 4.9's for each tested run, its message opening with the
-run's name, and § 4.10's `override_unused`. A warning never changes the
-exit code.
+run's name; `override_unused`; and `dirty_build`, for a tested run with
+`dirty` true, which may not be the commit under test (Vestige). A
+warning never changes the exit code.
 
 **Opening sentences**, in order: one naming every override and its
 reason; why the bisect stops; each tested run's dropped rows or missing
@@ -737,7 +770,7 @@ between the good runs' 10.000 ms and the bad runs' 12.300 ms: bad
 
 ```json
 {
-  "measure": {"segment_kind", "category", "name", "depth", "statistic", "unit"},
+  "measure": {"segment_kind", "segment", "category", "name", "depth", "statistic", "unit"},
   "dry_run": false,
   "runs": [{"name", "set", "path", "run_id", "commit", "dirty",
             "rows_dropped", "finished", "value"}],
@@ -747,11 +780,12 @@ between the good runs' 10.000 ms and the bad runs' 12.300 ms: bad
 }
 ```
 
-`set` is `tested`, `good` or `bad`. `unit` is `ms` or `MB`. `value` is
-the tested value, or the dry run's `VALUE`; null on `skip` and `stop`.
-A run's own `value` is null when it has none. `bad_above` is `X` or the
-midpoint. `references` is null in threshold mode. Numbers are rounded as
-§ 4.10's, to four places.
+`segment` is the `--segment` given, or null; `segment_kind` is its
+kind, or `--kind`'s, or null for `--unsegmented`. `set` is `tested`,
+`good` or `bad`. `unit` is `ms` or `MB`. `value` is the tested value, or
+the dry run's `VALUE`; null on `skip` and `stop`. A run's own `value` is
+null when it has none. `bad_above` is `X` or the midpoint. `references`
+is null in threshold mode.
 
 ## 5. Invariants
 
@@ -1122,31 +1156,43 @@ breaks.
   *Breaks when:* the centre is the lower middle, or rounding is half
   to even or toward zero.
 
-- **INV-39** — Threshold mode: a value equal to `X` is good. One tested
-  run whose `view` frames all have `gpu/opaque` 10.000: `--bad-above
-  10.000` exits 0, `--bad-above 9.999` exits 1. Four tested runs at
-  9.000, 9.000, 11.000 and 11.000 have a tested value of 10.000:
-  `--bad-above 9.999` exits 1 and `--bad-above 10.000` exits 0.
+- **INV-39** — Threshold mode: a value equal to `X` is good, and the
+  tested value is the exact centre. One tested run whose `view` frames
+  all have `gpu/opaque` 10.000: `--bad-above 10.000` exits 0,
+  `--bad-above 9.999` exits 1. Four tested runs at 9.000, 9.000, 11.000
+  and 11.000 have a tested value of 10.000: `--bad-above 9.999` exits 1
+  and `--bad-above 10.000` exits 0. Runs at 9.000, 9.000, 11.000 and
+  15.000 (centre 10.000, mean 11.000) exit 0 at `--bad-above 10.000`.
+  Runs at 10.000 and 10.001 (centre 10.0005) exit 1 at `--bad-above
+  10.000`, and the verdict sentence shows 10.0005.
   *Test:* `tests/test_bisect.py::test_threshold_edges`,
-  `tests/test_bisect.py::test_even_tested_set`, runs built by the test.
+  `tests/test_bisect.py::test_tested_centre`,
+  `tests/test_bisect.py::test_exact_comparison`, runs built by the test.
   *Breaks when:* a value at `X` reads bad, or one tested run stands for
-  all, or the centre is the lower or the upper middle.
+  all, or the centre is the lower middle, the upper middle or the mean,
+  or values are rounded before they are compared.
 
-- **INV-40** — Reference mode judges against the midpoint, and stops
-  on references that do not separate. Good runs' `gpu/opaque` 10.000,
-  10.000 and 10.000; bad runs' 12.000, 12.000 and 12.000; midpoint
-  11.000. A tested 11.000 exits 0 and 11.001 exits 1. With the default
-  floor of 0.300: bad runs at 10.200, 10.300 and 10.400 separate (change
-  0.300, spread 0.200); at 10.200, 10.299 and 10.400 they stop with 128
-  (change under the floor); at 10.500, 11.000 and 11.500 they stop
-  (change equal to the spread); at 10.501, 11.000 and 11.500 they
-  separate. Good runs at 12.000 and bad at 10.000 stop, and the sentence
-  says the references are the wrong way round.
+- **INV-40** — Reference mode judges against the midpoint of the
+  centres, and stops on references that do not separate. Good runs'
+  `gpu/opaque` 10.000, 10.000 and 10.000; bad runs' 12.000, 12.000 and
+  12.000; midpoint 11.000. A tested 11.000 exits 0 and 11.001 exits 1.
+  Good runs at 9.900, 10.000 and 10.600 (centre 10.000, mean 10.167)
+  against the same bad runs: a tested 11.001 exits 1. With the default
+  floor of 0.300, good runs all 10.000: bad runs at 10.200, 10.300 and
+  10.400 separate (change 0.300, spread 0.200); at 10.200, 10.299 and
+  10.400 they stop with 128 (change under the floor); at 10.500, 11.000
+  and 11.500 they stop (change equal to the spread); at 10.501, 11.000
+  and 11.500 they separate. The good set's range counts: good runs at
+  9.500, 10.000 and 10.500 against bad runs all 11.000 stop (change
+  equal to the spread), and at 9.501, 10.000 and 10.500 separate. Good
+  runs all 12.000 and bad all 10.000 stop as the wrong way round; good
+  and bad all 10.000 stop as not separating.
   *Test:* `tests/test_bisect.py::test_reference_midpoint`,
   `tests/test_bisect.py::test_references_separate`.
   *Breaks when:* the tested value is judged against one reference, or
-  the separation check is missing, or its bounds are off by one
-  thousandth, or inverted references are accepted.
+  the midpoint uses means or pools the runs, or the separation check is
+  missing, or its bounds are off by one thousandth, or the spread is
+  one set's range, or equal centres read as the wrong way round.
 
 - **INV-41** — A tested commit that cannot be judged skips with 125,
   however far its value is over `X`. Against `--bad-above 10.000`, a
@@ -1158,46 +1204,55 @@ breaks.
   *Breaks when:* an incomplete or broken tested run is judged bad, or
   any of these exits 3.
 
-- **INV-42** — Every other problem exits 128, never 2 or 3:
-  `--bad-above abc`; `--bad-above 1.0001`; neither mode; both modes;
-  `--min-ms 1` with `--bad-above`; `--statistic p99` on `gpu/opaque`;
-  `--measure event/cut`; `--measure frame/fence_wait`; neither `--kind`
-  nor `--unsegmented`; `--json` given before `bisect` with a bad
-  argument after it; a reference with `rows_dropped` 1; a reference path
-  that does not exist; good runs differing in `resolution`; a tested run
-  differing from the references in `scene`; and an exception raised
-  inside the analyser. With `--override "resolution=upscaler test"`, the
-  `resolution` case is judged.
-  *Test:* `tests/test_bisect.py::test_stop_codes`, the exception
+- **INV-42** — Every other outcome of a bisect command line exits 128,
+  never 0 from help or 1, 2 or 3 from an error: `--help`, `-h` and
+  `--version`; `--bad-above abc`; `--bad-above 1.0001`; `--dry-run
+  1.0001`; neither mode; both modes; `--min-ms 1`, `--min-mb 1` or
+  `--min-pct 1` with `--bad-above`; `--min-mb 1` on `gpu/opaque`;
+  `--statistic p99` on `gpu/opaque`; `--measure event/cut`; `--measure
+  frame/fence_wait`; none of `--kind`, `--segment` and `--unsegmented`,
+  or two of them; `--json` given before `bisect` with a bad argument
+  after it; a reference set of two runs; a reference with
+  `rows_dropped` 1; a reference path that does not exist; good runs
+  differing in `resolution`; a tested run differing from the references
+  in `scene`; an exception raised while reading the runs; and one raised
+  while rendering the result. With `--override "resolution=upscaler
+  test"`, the `resolution` case is judged.
+  *Test:* `tests/test_bisect.py::test_stop_codes`, the exceptions
   patched in by the test; `tests/test_bisect.py::test_reference_refusal`.
-  *Breaks when:* any case exits with the ladder's 2 or 3, or a Python
-  traceback's 1, which `git bisect run` would read as bad.
+  *Breaks when:* any case exits 0, or with the ladder's 2 or 3, or a
+  Python traceback's 1, which `git bisect run` would read as good or
+  bad.
 
 - **INV-43** — The dry run judges a value and reads no tested file.
   `--dry-run 10.001 --bad-above 10.000` exits 1 and `--dry-run 10.000
-  --bad-above 10.000` exits 0, each naming its verdict. `--dry-run` with
-  a `FILE` is 128. With INV-40's wrong-way-round references, the dry run
-  stops with 128.
+  --bad-above 10.000` exits 0; each verdict sentence opens "Dry run:".
+  `--dry-run` with a `FILE` is 128. With INV-40's wrong-way-round
+  references, the dry run stops with 128.
   *Test:* `tests/test_bisect.py::test_dry_run`.
   *Breaks when:* the dry run always exits 0, or skips the reference
-  checks.
+  checks, or reads like a real verdict.
 
-- **INV-44** — A `mem` measure is judged in MB, with `--min-mb` for
-  its floor, not `--min-ms`. With `--min-pct 0`: a good run's
-  `mem/gpu_mb` at 500.000 and a bad run's at 500.999 stop with 128; a
-  bad run's at 501.000 separate, and so they still do with `--min-ms 5`
-  added. `--min-mb 100` does not stop INV-40's `gpu/opaque` references.
-  Threshold mode: a tested 501.000 against `--bad-above 500.999` exits
-  1, and the result's `unit` is `MB`.
+- **INV-44** — A `mem` measure is the median of its rows in the chosen
+  frames, in MB, with `--min-mb` for its floor and no tick floor. A
+  tested run whose `view` frames have `mem/gpu_mb` 100.000, 500.000 and
+  900.000, and whose two `load` frames have 9000.000: with `--kind
+  view`, `--bad-above 500.000` exits 0 and `--bad-above 499.999` exits
+  1, and the result's `unit` is `MB`. With `--min-pct 0` and three runs
+  a set: good runs at 500.000 and bad at 500.999 stop with 128; bad at
+  501.000 separate, and still do with `gpu_tick_ns` 5000000 in a good
+  run's header. `--min-ms 5` on `mem/gpu_mb` is 128.
   *Test:* `tests/test_bisect.py::test_mem_measure`.
-  *Breaks when:* a `mem` floor uses `--min-ms`, or `--min-mb` reaches a
-  ms measure.
+  *Breaks when:* the rows are not filtered by kind, or a `mem` floor
+  uses `--min-ms` or the tick, or a wrong-unit floor is ignored.
 
 - **INV-45** — A warning never changes the exit code. A tested run with
-  `build_type` `debug` and `gpu/opaque` 11.000 against `--bad-above
-  10.000` exits 1, with `debug_build` opening `tested-1:`.
+  `build_type` `debug` and `dirty` true, and `gpu/opaque` 11.000,
+  against `--bad-above 10.000` exits 1, with `debug_build` and
+  `dirty_build` each opening `tested-1:`.
   *Test:* `tests/test_bisect.py::test_warning_keeps_code`.
-  *Breaks when:* a trust warning turns bad into skip.
+  *Breaks when:* a trust warning turns bad into skip, or a dirty tested
+  run gives no warning.
 
 - **INV-46** — A name at two depths needs `--depth`. A run with
   `gpu/blur` at depth 0 (2.000) in some frames and at depth 1 (5.000)
@@ -1206,6 +1261,50 @@ breaks.
   1 --bad-above 4.000` it exits 1, and with `--depth 0` it exits 0.
   *Test:* `tests/test_bisect.py::test_depth`.
   *Breaks when:* one depth is picked silently, or `--depth` is ignored.
+
+- **INV-47** — References that straddle their own midpoint stop the
+  bisect (Vestige). Good runs at 10.000, 10.000 and 10.900, bad at
+  11.000, 11.200 and 11.300: they separate (change 1.200, spread 0.900)
+  but the midpoint is 10.600, so they stop with 128, naming `good-3`.
+  Good runs all 10.000 and bad at 11.000, 12.000 and 12.500: the
+  midpoint is 11.000, so `bad-1` at it stops; with `bad-1` at 11.001
+  they are accepted.
+  *Test:* `tests/test_bisect.py::test_references_straddle`.
+  *Breaks when:* only the centres are checked, or a bad run at the
+  midpoint is accepted.
+
+- **INV-48** — The frames judged are the ones chosen. A run with
+  `gpu/opaque` 10.000 in 200 `view:1` frames and 14.000 in 100 `view:2`
+  frames: `--segment view:2 --bad-above 12.000` exits 1, `--kind view
+  --bad-above 12.000` exits 0, and `--segment view:3` skips with 125.
+  With frames of no segment at 8.000 added, `--unsegmented --bad-above
+  9.000` exits 0. A run of 101 `view` frames whose `frame/wall` is
+  16.000 in 98 of them and 40.000 in two: `--measure frame/wall
+  --statistic p99 --bad-above 30.000` exits 1, and the median exits 0.
+  *Test:* `tests/test_bisect.py::test_frames_chosen`.
+  *Breaks when:* `--segment` pools its kind, `--unsegmented` takes
+  segmented frames, or `--statistic` is ignored.
+
+- **INV-49** — The runs must match in both modes. Threshold mode: three
+  tested runs, `tested-2` with `resolution` `[2560,1440]`, stop with
+  128; with `--override "resolution=upscaler test"` they are judged,
+  and the first sentence names the override. The same override with
+  matching runs warns `override_unused`. Reference mode: references
+  that match each other and a tested run whose `resolution` differs
+  from theirs stop with 128, and are judged with the override.
+  *Test:* `tests/test_bisect.py::test_runs_must_match`.
+  *Breaks when:* threshold mode skips the check, or an override does
+  not reach the tested runs.
+
+- **INV-50** — The reference floor is § 4.10's. Good runs' `gpu/opaque`
+  all 10.000 and bad all 10.400 separate at the default floor of 0.300,
+  and stop with 128 under `--min-ms 0.500`. The same with
+  `gpu_tick_ns` 500000 (0.500 ms) in `good-1`'s header stop; with
+  `cpu/sim` in place of `gpu/opaque`, the tick does not apply and they
+  separate.
+  *Test:* `tests/test_bisect.py::test_reference_floor`.
+  *Breaks when:* `--min-ms` cannot raise the floor above the percent,
+  or the tick is ignored, or it reaches a `cpu` pass.
 
 ## 6. Failure modes
 
@@ -1238,7 +1337,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22,
   INV-28, INV-29.
 - FLED-0008: INV-30 to INV-38.
-- FLED-0009: INV-39 to INV-46.
+- FLED-0009: INV-39 to INV-50.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1311,7 +1410,7 @@ it on each release they pin.
 | INV-36 | `tests/test_compare.py::test_runs_and_unmatched` |
 | INV-37 | `tests/test_compare.py::test_static_diff` |
 | INV-38 | `tests/test_compare.py::test_even_sets_and_rounding` |
-| INV-39 | `tests/test_bisect.py::test_threshold_edges`, `tests/test_bisect.py::test_even_tested_set` |
+| INV-39 | `tests/test_bisect.py::test_threshold_edges`, `tests/test_bisect.py::test_tested_centre`, `tests/test_bisect.py::test_exact_comparison` |
 | INV-40 | `tests/test_bisect.py::test_reference_midpoint`, `tests/test_bisect.py::test_references_separate` |
 | INV-41 | `tests/test_bisect.py::test_skip` |
 | INV-42 | `tests/test_bisect.py::test_stop_codes`, `tests/test_bisect.py::test_reference_refusal` |
@@ -1319,6 +1418,10 @@ it on each release they pin.
 | INV-44 | `tests/test_bisect.py::test_mem_measure` |
 | INV-45 | `tests/test_bisect.py::test_warning_keeps_code` |
 | INV-46 | `tests/test_bisect.py::test_depth` |
+| INV-47 | `tests/test_bisect.py::test_references_straddle` |
+| INV-48 | `tests/test_bisect.py::test_frames_chosen` |
+| INV-49 | `tests/test_bisect.py::test_runs_must_match` |
+| INV-50 | `tests/test_bisect.py::test_reference_floor` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
