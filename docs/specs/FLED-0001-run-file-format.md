@@ -5,9 +5,9 @@
 (FLED-0005) agreed by the three engines 2026-10-26 at a3eea64;
 § 4.10 and INV-30 to INV-38 (FLED-0008) agreed by the three engines
 2026-10-26 at f7dd566, with `scene` added; their code review
-settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-50
-(FLED-0009) reviewed by the three engines 2026-10-26, their changes
-folded in, for their confirmation.
+settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-51
+(FLED-0009) agreed by the three engines 2026-10-26 at d68c994, with
+`tested_straddle` and `--skip-straddle` added from their answers.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -96,7 +96,8 @@ settles.
   but good, bad and skip is 128 (DOOM Ants); three runs a reference set,
   which must not straddle its midpoint (Vestige, DOOM Ants); one
   segment can be judged alone (UT Ants); a `mem` measure has a floor in
-  MB (Vestige).
+  MB (Vestige); tested runs straddling the line warn, and skip only
+  with `--skip-straddle` (UT Ants, DOOM Ants; Vestige would skip).
 
 ## 4. Design
 
@@ -630,7 +631,7 @@ their changes are folded in.
 
 ```
 bisect FILE… --measure CATEGORY/NAME (--kind KIND | --segment KIND:ID | --unsegmented)
-       [--statistic median|p99] [--depth D] [--override FIELD=REASON]…
+       [--statistic median|p99] [--depth D] [--override FIELD=REASON]… [--skip-straddle]
        (--bad-above X | --good FILE… --bad FILE… [--min-ms M | --min-mb M] [--min-pct P])
 bisect --dry-run VALUE   with the same measure and mode flags, and no FILE
 ```
@@ -735,6 +736,18 @@ and `gpu_tick_ns` does not apply. `--min-mb` on a ms measure, or
 silently do nothing. On `mem` the percent usually decides: 3 percent of
 500 MB is 15 MB, so `--min-mb 1` matters only with a lower `--min-pct`.
 
+**Tested runs on both sides of the line.** With two or more tested
+runs, they straddle when one run's value is above the line (`X` or the
+midpoint) and another's is at it or below. By default the centre still
+decides, and the warning `tested_straddle` names each run's value, so a
+verdict near the line leaves a trace in the bisect log. More tested
+runs straddle more often, so a default skip would punish the steadier
+setup, and a gradual slowdown would end in a range rather than a
+commit (UT Ants, DOOM Ants). `--skip-straddle` skips (125) instead, for
+an engine that prefers a visible skip to a silent wrong turn
+(Vestige). One tested run cannot straddle. `--skip-straddle` with
+`--dry-run` is 128, since a dry run has no tested runs.
+
 **Skip (125).** Each of these makes the tested commit untestable,
 whatever its value: a tested file that is missing, cannot be read or
 breaks the format (UT Ants); a tested run with dropped rows or no close
@@ -753,9 +766,9 @@ it by hand with a value from each side before `git bisect run`: it is
 the guard against an inverted verdict.
 
 **Warnings**: § 4.9's for each tested run, its message opening with the
-run's name; `override_unused`; and `dirty_build`, for a tested run with
-`dirty` true, which may not be the commit under test (Vestige). A
-warning never changes the exit code.
+run's name; `override_unused`; `dirty_build`, for a tested run with
+`dirty` true, which may not be the commit under test (Vestige); and
+`tested_straddle`, above. A warning never changes the exit code.
 
 **Opening sentences**, in order: one naming every override and its
 reason; why the bisect stops; each tested run's dropped rows or missing
@@ -1278,8 +1291,9 @@ breaks.
   frames: `--segment view:2 --bad-above 12.000` exits 1, `--kind view
   --bad-above 12.000` exits 0, and `--segment view:3` skips with 125.
   With frames of no segment at 8.000 added, `--unsegmented --bad-above
-  9.000` exits 0. A run of 101 `view` frames whose `frame/wall` is
-  16.000 in 98 of them and 40.000 in two: `--measure frame/wall
+  9.000` exits 0. A run of 102 `view` frames whose `frame/wall` is
+  16.000 in 99 of them and 40.000 in two, the last frame having none
+  (§ 4.4): `--measure frame/wall
   --statistic p99 --bad-above 30.000` exits 1, and the median exits 0.
   *Test:* `tests/test_bisect.py::test_frames_chosen`.
   *Breaks when:* `--segment` pools its kind, `--unsegmented` takes
@@ -1305,6 +1319,19 @@ breaks.
   *Test:* `tests/test_bisect.py::test_reference_floor`.
   *Breaks when:* `--min-ms` cannot raise the floor above the percent,
   or the tick is ignored, or it reaches a `cpu` pass.
+
+- **INV-51** — Tested runs that straddle the line warn, and skip only
+  with `--skip-straddle`. Against INV-40's references (midpoint
+  11.000), tested runs at 10.900, 11.000 and 11.100 exit 0 on their
+  centre of 11.000, with `tested_straddle` naming all three values;
+  with `--skip-straddle` they skip with 125. Runs at 11.001, 11.100 and
+  11.200 exit 1 with no warning, and so do they with `--skip-straddle`.
+  Against `--bad-above 10.000`, runs at 10.000 and 10.001 straddle.
+  One tested run never warns. `--skip-straddle` with `--dry-run` is
+  128.
+  *Test:* `tests/test_bisect.py::test_tested_straddle`.
+  *Breaks when:* a run at the line counts as above it, or the straddle
+  changes the code without the flag, or the flag skips runs on one side.
 
 ## 6. Failure modes
 
@@ -1337,7 +1364,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0006: INV-14, INV-15, INV-16, INV-17, INV-19, INV-20, INV-22,
   INV-28, INV-29.
 - FLED-0008: INV-30 to INV-38.
-- FLED-0009: INV-39 to INV-50.
+- FLED-0009: INV-39 to INV-51.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1422,6 +1449,7 @@ it on each release they pin.
 | INV-48 | `tests/test_bisect.py::test_frames_chosen` |
 | INV-49 | `tests/test_bisect.py::test_runs_must_match` |
 | INV-50 | `tests/test_bisect.py::test_reference_floor` |
+| INV-51 | `tests/test_bisect.py::test_tested_straddle` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
