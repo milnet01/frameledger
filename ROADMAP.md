@@ -121,7 +121,7 @@ Engines can write files and pin a release.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
 
-- 🚧 [FLED-0005] **Trust warnings.**
+- ✅ [FLED-0005] **Trust warnings.**
   trust.py's run half of S5: Debug builds, software renderers, too few
   frames, high CPU or GPU load, settling below the header's need, a
   camera cut inside a measured stretch, dropped rows, missing timings
@@ -129,12 +129,17 @@ Engines can write files and pin a release.
   2026-10-26: spec amendment drafted in
   docs/specs/FLED-0001-run-file-format.md § 4.9, INV-23 to INV-27;
   sent to the three engines for review before the build.
+  2026-10-26: shipped at acc1e99. Spec § 4.9 agreed by Vestige, UT Ants
+  and DOOM Ants at a3eea64; code agreed at 2e8e0cd, DOOM's gap fix at
+  cad32de, Vestige's pinning test at acc1e99. UT Ants' optional notes
+  (negative settling counts; a doubled sentence when floor judges
+  nothing) left as they are.
   **Layman:** Warns when a run's numbers should not be trusted.
   Kind: implement.
   Source: design-2026-10-24.
   Blocked-by: FLED-0002.
 
-- 🚧 [FLED-0006] **Optional C writer header.**
+- ✅ [FLED-0006] **Optional C writer header.**
   include/frameledger.h: C99 and C++17 common subset, no allocation,
   engine-owned buffer, rows dropped and counted when full, the largest
   row size stated, locale-free number formatting. Compile tests as C
@@ -144,6 +149,11 @@ Engines can write files and pin a release.
   2026-10-26: include/frameledger.h and tests/writer/ built; gate
   green with GCC, Clang and mingw-w64. Sent to the three engines for
   code review, readability included. MSVC is theirs.
+  2026-10-26: shipped at f963e9f. The three engines agreed f6fef40 and
+  f963e9f after their review found the failed-open read and the DEL
+  mismatch. Vestige compiled the header clean under MSVC cl 19.51 as C11
+  and C++17; UT Ants' MSVC leg runs when it adopts the header
+  (UTA-0437).
   **Layman:** A small file engines can include to write run files without writing their own.
   Kind: implement.
   Source: design-2026-10-24.
