@@ -421,7 +421,7 @@ The `report` result, agreed with the three engines for FLED-0003:
 | `gpu_load` | `gpu_busy_pct.start` is above 20 |
 | `settling_short` | `settled_frames` is below `settling_frames` |
 | `too_few_frames` | fewer than 100 frames are measured: for `report`, frames with a `frame/wall`; for `floor`, frames ending after the warm-up |
-| `cut_in_stretch` | an `event/cut` sits on a frame whose previous frame has the same segment; `floor` counts only frames ending after the warm-up |
+| `cut_in_stretch` | an `event/cut` sits on a frame whose nearest earlier frame has the same segment; `floor` counts only frames ending after the warm-up |
 
 - **A warning never changes a verdict or an exit code.** A Debug run
   that holds the floor passes, and says it was a Debug run.
@@ -435,7 +435,9 @@ The `report` result, agreed with the three engines for FLED-0003:
 - **Why only `start` loads:** an `end` includes the run's own work.
 - **A frame's segment** is as § 4.8 defines it. A cut on frame 0, or
   where the segment changes, starts a stretch and gives no warning. A
-  `cut_in_stretch` warning names the frame, one entry per cut.
+  missing frame is skipped, not taken as a change, since dropped rows
+  can take a whole frame. A `cut_in_stretch` warning names the frame,
+  one entry per cut.
 - **Missing timings are already counted, never zeroed**: `gpu_missing`
   (INV-5), `wall_missing`, `frame_missing`, `cpu_span_missing`,
   `rows_dropped` and `unfinished`. FLED-0005 adds none.
@@ -662,14 +664,16 @@ breaks.
   *Breaks when:* the bound is `≤`, one command skips it, or an absent
   field reads as zero.
 
-- **INV-26** — An `event/cut` on a frame whose previous frame has the
-  same segment gives `cut_in_stretch` naming that frame; a cut where
-  the segment changes, or on frame 0, gives none; under `floor`, a
-  mid-segment cut on a frame ending inside the warm-up gives none.
+- **INV-26** — An `event/cut` on a frame whose nearest earlier frame
+  has the same segment gives `cut_in_stretch` naming that frame, also
+  across a missing frame; a cut where the segment changes, or on frame
+  0, gives none; under `floor`, a mid-segment cut on a frame ending
+  inside the warm-up gives none.
   *Test:* `tests/test_trust.py::test_cut_in_stretch`, runs built by the
   test, and `cut-mid-second.csv`, whose cuts all change segment.
-  *Breaks when:* every cut warns, so `cut-mid-second.csv` does, or a
-  warm-up cut warns under `floor`.
+  *Breaks when:* every cut warns, so `cut-mid-second.csv` does, a
+  warm-up cut warns under `floor`, or a cut after a missing frame goes
+  unjudged.
 
 - **INV-27** — A run with no optional header field gives no § 4.9
   warning, and `check` gives none of them on any run.

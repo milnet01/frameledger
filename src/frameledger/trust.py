@@ -56,13 +56,16 @@ def warnings(run: ledger.Run, measured: int, cut_frames: set[int] | None = None)
     if measured < FEWEST_FRAMES:
         warn("too_few_frames", f"only {measured} {'frame is' if measured == 1 else 'frames are'} "
              f"measured, fewer than {FEWEST_FRAMES}, so the 99th percentile is the slowest frame")
+    # A cut is judged against the nearest earlier frame present, not frame
+    # - 1: dropped rows can take a whole frame from the middle of a segment.
+    previous = None
     for frame in sorted(run.frames):
         rows = run.frames[frame]
-        previous = run.frames.get(frame - 1)
         if (("event", "cut") in rows and previous is not None
                 and (cut_frames is None or frame in cut_frames)
                 and ledger.frame_segment(previous) == ledger.frame_segment(rows)):
             warn("cut_in_stretch", f"frame {frame} has an event/cut inside segment "
                  f"'{ledger.frame_segment(rows) or 'none'}', so the frames after it may cost "
                  "more than the segment's own")
+        previous = rows
     return found

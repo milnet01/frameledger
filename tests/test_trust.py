@@ -112,6 +112,14 @@ def test_cut_in_stretch(capsys, tmp_path):
     assert [w["code"] for w in floor] == ["cut_in_stretch"]
     assert "frame 150 " in floor[0]["message"]
 
+    # A mid-segment cut after a missing frame is judged against the frame
+    # before the gap (DOOM Ants' review): dropped rows can take a whole frame.
+    gap = "\n".join(line for line in run_text([16.0] * 200).split("\n")
+                    if not line.startswith("f1,view:1,4,"))
+    after_gap = trust(run(capsys, tmp_path, "report", with_rows(gap, "f1,view:1,5,event,cut,0,1.000")))
+    assert [w["code"] for w in after_gap] == ["cut_in_stretch"]
+    assert "frame 5 " in after_gap[0]["message"]
+
 
 def test_absent_fields_and_check(capsys, tmp_path):
     header = json.loads(PASSING.split("\n", 1)[0].removeprefix("# frameledger "))
