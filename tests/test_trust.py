@@ -68,6 +68,11 @@ def test_header_warnings(capsys, tmp_path):
             assert value in warned[0]["message"]
             assert f"Warning: {warned[0]['message']}." in out["summary"]
             assert (out["verdict"], out["exit_code"]) == (plain["verdict"], plain["exit_code"])
+        # Both fields naming a software renderer is one warning, naming renderer.
+        both = trust(run(capsys, tmp_path, command, with_header(PASSING, renderer="llvmpipe",
+                                                                device="llvmpipe")))
+        assert [w["code"] for w in both] == ["software_renderer"]
+        assert "renderer" in both[0]["message"]
         for changes in ({"load": {"start": 0.5, "end": 0.9}}, {"gpu_busy_pct": {"start": 20, "end": 99}}):
             assert trust(run(capsys, tmp_path, command, with_header(PASSING, **changes))) == []
 
