@@ -93,6 +93,54 @@ def _floor_body(result: dict) -> list[str]:
     return lines
 
 
+def _compare_body(result: dict) -> list[str]:
+    compared = result["result"]
+    if not compared:  # an error: the opening sentences say why
+        return []
+    lines = ["Runs:", *[_fit(f"  {r['name']:<8}  {r['path']}", WIDTH) for r in compared["runs"]], ""]
+    if compared["refused"]:
+        return lines[:-1]
+    changed = [m for m in compared["measures"] if m["verdict"] != "unchanged"]
+    if changed:
+        lines += ["Measures that moved or are too noisy to judge, old and new as the runs' median:",
+                  _measure_row("measure", "old ms", "new ms", "change", "spread", "verdict")]
+        lines += [_measure_row(_measure_name(m), f"{m['old_centre_ms']:.3f}", f"{m['new_centre_ms']:.3f}",
+                               f"{m['change_ms']:+.3f}", f"{m['spread_ms']:.3f}", m["verdict"])
+                  for m in changed]
+    unchanged = len(compared["measures"]) - len(changed)
+    lines += [f"{unchanged} of {len(compared['measures'])} measures unchanged.", ""]
+    if compared["unmatched"]:
+        lines.append("Not in every run, so not judged:")
+        lines += [_fit(f"  {_measure_name(m)}: only in {', '.join(m['present_in'])}", WIDTH)
+                  for m in compared["unmatched"]]
+        lines.append("")
+    diff = compared["static_diff"]
+    if diff:
+        lines.append("Static facts that differ between runs:")
+        lines += [_fit(f"  {d['key']}: " + ", ".join(f"{name} {_fact(value)}"
+                                                      for name, value in d["values"].items()), WIDTH)
+                  for d in diff[:STATIC_LINES]]
+        if len(diff) > STATIC_LINES:
+            lines.append(f"  {len(diff) - STATIC_LINES} more: see --json.")
+    while lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
+def _measure_row(name: str, old: str, new: str, change: str, spread: str, verdict: str) -> str:
+    return f"  {_fit(name, 40):<40}  {old:>10}  {new:>10}  {change:>10}  {spread:>10}  {verdict}"
+
+
+def _measure_name(measure: dict) -> str:
+    statistic = " p99" if measure["statistic"] == "p99" else ""
+    indent = "  " * measure["depth"]
+    return f"{_kind_name(measure['segment_kind'])}: {indent}{measure['category']}/{measure['name']}{statistic}"
+
+
+def _fact(value) -> str:
+    return "absent" if value is None else value if isinstance(value, str) else json.dumps(value)
+
+
 def _frame_table(frames: list[dict]) -> list[str]:
     lines = [f"  {'frame':>10}  {'segment':<30}  {'wall ms':>12}  top pass"]
     lines += [f"  {w['frame']:>10}  {_fit(w['segment'] or '-', 30):<30}  {w['wall_ms']:>12.3f}  "
@@ -152,4 +200,4 @@ def _kind_name(kind: str | None) -> str:
 
 
 _BODIES = {"check": _check_body, "report": _report_body, "floor": _floor_body,
-           "selftest": _selftest_body}
+           "compare": _compare_body, "selftest": _selftest_body}

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from decimal import Decimal
 
+import compare
 import ledger
 import run_report
 
@@ -79,6 +80,13 @@ def _floor_windows(data: bytes) -> list[dict]:
     return run_report.floor(run, Decimal(3), 0, 250_000)["result"]["windows"]
 
 
+def _compare_verdict(new: bytes) -> str:
+    """Three copies of the good sample against three of `new`."""
+    def runs(data: bytes) -> list[ledger.Run]:
+        return [ledger.read_bytes(data, "sample") for _ in range(compare.FEWEST_RUNS)]
+    return compare.compare(runs(_GOOD), runs(new), {}, Decimal("0.050"), Decimal(3))["verdict"]
+
+
 def run() -> list[tuple[str, bool]]:
     """Each check's name and whether it passed."""
     good = ledger.read_bytes(_GOOD, "sample")
@@ -101,4 +109,6 @@ def run() -> list[tuple[str, bool]]:
         ("the remainder subtracts depth-0 rows only", _gpu_figure(_report(_NESTED), "gpu_remainder") == 11.004),
         ("a window counts the frames ending inside it",
          _floor_windows(_QUARTERS) == [{"start_s": 0.0, "fps": 3, "mean_ms": 250.0, "pass": True}]),
+        ("a compare of a run with itself passes, and a slower pass fails it",
+         _compare_verdict(_GOOD) == "pass" and _compare_verdict(_GOOD.replace(b"5.250", b"6.250")) == "fail"),
     ]

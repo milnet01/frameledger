@@ -12,6 +12,22 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Added
+
+- `compare --old FILE… --new FILE…` says whether the new runs got
+  slower than the old, measure by measure: frame time, CPU and GPU
+  spans, and every pass, each judged by its own run-to-run spread and a
+  smallest change (`--min-ms`, `--min-pct`). At least three runs a set.
+  Runs differing in a compare-blocking header field are refused, unless
+  `--override FIELD=REASON` allows it; every override and its reason
+  open the report. Exit 0 pass, 1 slower, 2 inconclusive, 3 error or
+  refused. A static-line diff sits beside the measures. The format
+  gains `vsync` and `scene` as compare-blocking fields (FLED-0008).
+- `--selftest` checks the compare too (FLED-0008).
+- An app icon, `assets/frameledger-icon.svg`, shown in the README, and
+  the projects website's logo, `assets/frameledger-logo-stacked.svg`
+  (FLED-0017).
+
 ## [0.1.0] - 2026-10-26
 
 **Theme:** One run, read and checked.

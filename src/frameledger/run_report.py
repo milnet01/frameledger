@@ -31,8 +31,8 @@ FIRST_WARNINGS = ("rows_dropped", "unfinished")
 def report(run: ledger.Run) -> dict:
     """{"summary", "warnings", "result"} for one Run. A Run that breaks the
     format raises LedgerError naming its first breach: § 6, never skip a row."""
-    _refuse_breaches(run)
-    costs = _Costs(run)
+    refuse_breaches(run)
+    costs = Costs(run)
     result = {
         "passes": costs.passes(),
         "frame_times": costs.frame_times(),
@@ -44,7 +44,7 @@ def report(run: ledger.Run) -> dict:
     measured = sum(("frame", "wall") in rows for rows in run.frames.values())
     notices = run.notices + trust.warnings(run, measured)
     warnings = [{"code": n.code, "message": n.message} for n in notices]
-    summary = _warning_sentences(notices)
+    summary = warning_sentences(notices)
     if costs.missing_gpu:
         message = (f"{_frames(costs.missing_gpu)} no GPU result; they are left out of the GPU "
                    "figures, not counted as zero")
@@ -54,7 +54,7 @@ def report(run: ledger.Run) -> dict:
     return {"summary": summary, "warnings": warnings, "result": result}
 
 
-def _refuse_breaches(run: ledger.Run) -> None:
+def refuse_breaches(run: ledger.Run) -> None:
     if run.breaches:
         first = run.breaches[0]
         raise ledger.LedgerError(f"{first.message}; the file breaks the run-file format, so it "
@@ -79,7 +79,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
     since its own wall row is real and missing rows only shorten the
     timeline, so a frame placed after the warm-up truly ended after it
     (the three engines' review)."""
-    _refuse_breaches(run)
+    refuse_breaches(run)
     timed, cuts, stop, end = _timeline(run)
     judged = [t for t in timed if t[2] >= warmup_us]
     full, skipped = (_windows([t[2] for t in timed], [t[3] for t in timed], cuts, warmup_us, end)
@@ -90,7 +90,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
 
     reasons = []
     if dropped:
-        reasons.append(f"The writer dropped {_count(dropped, 'row')}, so frames may be missing "
+        reasons.append(f"The writer dropped {counted(dropped, 'row')}, so frames may be missing "
                        "from the timeline.")
     if run.close is None:
         reasons.append("The file has no close line, so the run did not finish.")
@@ -111,9 +111,9 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         verdict = "fail"
         failures = []
         if window_state == "fail":
-            failures.append(f"{_count(len(failed), 'one-second window')} fell below {_num(fps)} FPS")
+            failures.append(f"{counted(len(failed), 'one-second window')} fell below {_num(fps)} FPS")
         if frame_state == "fail":
-            failures.append(f"{_count(len(slow), 'frame')} took longer than {_ms(budget):.3f} ms "
+            failures.append(f"{counted(len(slow), 'frame')} took longer than {_ms(budget):.3f} ms "
                             f"({allowed} allowed)")
         opening = f"The run fails the {_num(fps)} FPS floor: {' and '.join(failures)}."
     elif "inconclusive" in states:
@@ -135,7 +135,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
 
     notices = run.notices + trust.warnings(run, len(judged), {t[0] for t in judged})
     shown = [n for n in notices if n.code not in FLOOR_REASONS]
-    summary = reasons + _warning_sentences(shown) + [opening]
+    summary = reasons + warning_sentences(shown) + [opening]
     if not windows:
         summary.append("The window check is off (--no-windows).")
     elif full:
@@ -146,12 +146,12 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
                        f"the {warmup} held {_num(fps)} FPS; the slowest, at {slowest.start / SECOND:.3f} s, "
                        f"{held}.")
         if reasons and failed:
-            summary.append(f"With frames missing, the {_count(len(failed), 'window')} below "
+            summary.append(f"With frames missing, the {counted(len(failed), 'window')} below "
                            f"{_num(fps)} FPS may be an artefact, so the window check is inconclusive.")
     elif "windows" not in said:
         summary.append(f"{no_window[0].upper()}{no_window[1:]}.")
     if skipped:
-        summary.append(f"{_count(skipped, 'window')} shorter than one second, cut short by an "
+        summary.append(f"{counted(skipped, 'window')} shorter than one second, cut short by an "
                        f"event/cut or the end of the run, {'was' if skipped == 1 else 'were'} skipped.")
     if not frames:
         summary.append("The single-frame check is off (--no-frames).")
@@ -270,7 +270,7 @@ def _windows(ends: list[int], walls: list[int], cuts: list[tuple[int, int]], war
     return full, skipped
 
 
-class _Costs:
+class Costs:
     """Every frame's rows sorted into per-pass and per-frame-measure lists,
     keyed by segment kind. A cpu or gpu row counts only in a frame that has
     that category's span (INV-5): a frame whose GPU result never arrived is
@@ -282,7 +282,7 @@ class _Costs:
         self.frame_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, name)
         self.missing_gpu = 0
         for rows in run.frames.values():
-            kind = _kind(ledger.frame_segment(rows))
+            kind = segment_kind(ledger.frame_segment(rows))
             self.missing_gpu += ("frame", "gpu_span") not in rows
             for (category, name), row in rows.items():
                 if category == "frame":
@@ -309,7 +309,7 @@ class _Costs:
                 "share": round(sum(values) / span_total, 4) if span_total > 0 else None,
                 "frames": len(values),
             })
-        entries.sort(key=lambda e: (_kind_key(e["segment_kind"]), e["category"], -self.total(e),
+        entries.sort(key=lambda e: (kind_order(e["segment_kind"]), e["category"], -self.total(e),
                                     -e["median_ms"], e["name"], e["depth"]))
         return entries
 
@@ -323,7 +323,7 @@ class _Costs:
                     "p99_ms": _ms(stats.percentile(values, 99)), "frames": len(values)}
                    for (kind, name), values in self.frame_values.items()]
         order = {name: i for i, name in enumerate(FRAME_ORDER)}
-        entries.sort(key=lambda e: (_kind_key(e["segment_kind"]),
+        entries.sort(key=lambda e: (kind_order(e["segment_kind"]),
                                     order.get(e["name"], len(order)), e["name"]))
         return entries
 
@@ -366,7 +366,7 @@ def _top_pass(rows: dict) -> str | None:
     return min(costs, key=lambda c: (-c[0], c[1]))[1]
 
 
-def _warning_sentences(notices: list[ledger.Notice]) -> list[str]:
+def warning_sentences(notices: list[ledger.Notice]) -> list[str]:
     """One sentence per kind of warning, as `check` gives, without the path
     or line; dropped rows and an unfinished run first."""
     by_code: dict[str, list[ledger.Notice]] = {}
@@ -379,10 +379,10 @@ def _warning_sentences(notices: list[ledger.Notice]) -> list[str]:
     return sentences
 
 
-def _headline(run: ledger.Run, result: dict, costs: _Costs) -> list[str]:
-    kinds = sorted({_kind(ledger.frame_segment(rows)) for rows in run.frames.values()}, key=_kind_key)
-    sentences = [f"The run has {_count(len(run.frames), 'frame')}, in "
-                 f"{', '.join(_kind_name(k) for k in kinds) or 'no'} segments."]
+def _headline(run: ledger.Run, result: dict, costs: Costs) -> list[str]:
+    kinds = sorted({segment_kind(ledger.frame_segment(rows)) for rows in run.frames.values()}, key=kind_order)
+    sentences = [f"The run has {counted(len(run.frames), 'frame')}, in "
+                 f"{', '.join(kind_name(k) for k in kinds) or 'no'} segments."]
     for kind in kinds:
         top = [e for e in result["passes"] if e["segment_kind"] == kind and e["depth"] == 0]
         if not top:
@@ -391,7 +391,7 @@ def _headline(run: ledger.Run, result: dict, costs: _Costs) -> list[str]:
         best = min(top, key=lambda e: (-costs.total(e), -e["median_ms"], e["category"], e["name"]))
         share = "" if best["share"] is None else \
             f", {best['share'] * 100:.1f}% of {best['category'].upper()} time"
-        sentences.append(f"In {_kind_name(kind)} segments the costliest pass is "
+        sentences.append(f"In {kind_name(kind)} segments the costliest pass is "
                          f"{best['category']}/{best['name']}: median {best['median_ms']:.3f} ms{share}.")
     bound = result["bound_by"]
     if not bound["applies"]:
@@ -410,15 +410,17 @@ def _top_level_sum(rows: dict, category: str) -> int:
     return sum(row.thousandths for (cat, _), row in rows.items() if cat == category and row.depth == 0)
 
 
-def _kind(segment: str) -> str | None:
+def segment_kind(segment: str) -> str | None:
+    """`view` for `view:3`; None for a frame with no segment."""
     return segment.partition(":")[0] or None
 
 
-def _kind_key(kind: str | None) -> tuple:
+def kind_order(kind: str | None) -> tuple:
+    """A sort key putting frames with no segment first, then kinds by name."""
     return (kind is not None, kind or "")
 
 
-def _kind_name(kind: str | None) -> str:
+def kind_name(kind: str | None) -> str:
     return kind or "unsegmented"
 
 
@@ -426,7 +428,7 @@ def _ms(thousandths: int) -> float:
     return thousandths / 1000
 
 
-def _count(n: int, noun: str) -> str:
+def counted(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 

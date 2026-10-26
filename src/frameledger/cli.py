@@ -1,4 +1,5 @@
-"""Commands, flags and exit codes (docs/specs/FLED-0001-run-file-format.md § 4.7).
+"""Commands, flags and exit codes (docs/specs/FLED-0001-run-file-format.md
+§ 4.7, and § 4.10 for `compare`).
 
 The only module that prints or decides an exit code. Every command
 builds one result dict in the shape of § 4.8, and render.py turns it
@@ -9,8 +10,10 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
+import compare
 import ledger
 import render
 import run_report
@@ -60,6 +63,20 @@ def _parser() -> _Parser:
                        help="frames over the budget to tolerate (default 0)")
     floor.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                        help="print the JSON result instead of text")
+    pair = commands.add_parser("compare", help="did the new runs get slower than the old, "
+                               "measure by measure?")
+    pair.add_argument("--old", nargs="+", required=True, metavar="FILE",
+                      help=f"the old build's runs, at least {compare.FEWEST_RUNS}")
+    pair.add_argument("--new", nargs="+", required=True, metavar="FILE",
+                      help=f"the new build's runs, at least {compare.FEWEST_RUNS}")
+    pair.add_argument("--override", action="append", type=_override, default=[],
+                      metavar="FIELD=REASON", help="let one compare-blocking header field differ")
+    pair.add_argument("--min-ms", type=_floor_ms, default=Decimal("0.050"), metavar="M",
+                      help="the smallest change that counts, in ms (default 0.050)")
+    pair.add_argument("--min-pct", type=_seconds, default=Decimal(3), metavar="P",
+                      help="the smallest change that counts, in percent of the old (default 3)")
+    pair.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                      help="print the JSON result instead of text")
     return parser
 
 
@@ -101,6 +118,24 @@ def _milliseconds(text: str) -> Decimal:
     return value
 
 
+def _floor_ms(text: str) -> Decimal:
+    value = _seconds(text)
+    if value >= BUDGET_LIMIT:
+        raise argparse.ArgumentTypeError(f"'{text}' must be below {BUDGET_LIMIT}")
+    return value
+
+
+def _override(text: str) -> tuple[str, str]:
+    """FIELD=REASON: a compare-blocking field, and a reason that is not empty."""
+    field, _, reason = text.partition("=")
+    if field not in compare.BLOCKING:
+        raise argparse.ArgumentTypeError(f"'{field}' is not a compare-blocking field; those are "
+                                         f"{', '.join(compare.BLOCKING)}")
+    if not reason.strip():
+        raise argparse.ArgumentTypeError(f"--override {field} needs a reason: {field}=REASON")
+    return field, reason
+
+
 def _whole(text: str) -> int:
     if not text.isdigit():
         raise argparse.ArgumentTypeError(f"'{text}' must be a whole number, 0 or more")
@@ -121,8 +156,10 @@ def main(argv: list[str] | None = None) -> int:
             result = _report(args.file)
         elif args.command == "floor":
             result = _floor(args)
+        elif args.command == "compare":
+            result = _compare(args)
         else:
-            raise ledger.LedgerError("name a command (check, report, floor) or --selftest; "
+            raise ledger.LedgerError("name a command (check, report, floor, compare) or --selftest; "
                                      "--help lists them")
     except ledger.LedgerError as error:
         print(f"frameledger: {error}", file=sys.stderr)
@@ -134,14 +171,14 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _result(command: str, verdict: str, exit_code: int, summary: list[str],
-            warnings: list[dict], result: dict) -> dict:
+            warnings: list[dict], result: dict, overrides: Sequence[dict] = ()) -> dict:
     return {
         "frameledger": VERSION,
         "command": command,
         "verdict": verdict,
         "exit_code": exit_code,
         "summary": summary,
-        "overrides": [],
+        "overrides": list(overrides),
         "warnings": warnings,
         "result": result,
     }
@@ -227,6 +264,29 @@ def _floor(args: argparse.Namespace) -> dict:
                        [{"code": "file_error", "message": str(error)}], {})
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
     return _result("floor", built["verdict"], code, built["summary"], built["warnings"], built["result"])
+
+
+def _compare(args: argparse.Namespace) -> dict:
+    """§ 4.10: exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 when a
+    file cannot be read or breaks the format, or the compare is refused."""
+    for label, paths in (("--old", args.old), ("--new", args.new)):
+        if len(paths) < compare.FEWEST_RUNS:
+            raise ledger.LedgerError(f"{label} has {len(paths)} runs; each set needs at least "
+                                     f"{compare.FEWEST_RUNS}, since two give too many false changes")
+    overrides: dict[str, str] = {}
+    for field, reason in args.override:
+        if field in overrides:
+            raise ledger.LedgerError(f"--override {field} is given twice")
+        overrides[field] = reason
+    try:
+        built = compare.compare([ledger.read(p) for p in args.old], [ledger.read(p) for p in args.new],
+                                overrides, args.min_ms, args.min_pct)
+    except ledger.LedgerError as error:
+        return _result("compare", "error", ERROR, [f"{error}."],
+                       [{"code": "file_error", "message": str(error)}], {})
+    code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
+    return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
+                   built["result"], built["overrides"])
 
 
 def _notice_sentences(path: str, notices: list[ledger.Notice]) -> list[str]:
