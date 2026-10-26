@@ -1,5 +1,7 @@
 # frameledger
 
+<img src="assets/frameledger-icon.svg" width="96" height="96" alt="">
+
 > Finds what slows a game engine's frames: one run-file format and one
 > analyser, shared by the Vestige, UT Ants and DOOM Ants engines.
 

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256.00 256.00" width="512" height="512" role="img" aria-label="frameledger icon">
+  <rect width="256" height="256" rx="48" fill="#0E1A22"/>
+  <rect x="38.00" y="38.00" width="180.00" height="180.00" rx="32.00" fill="none" stroke="#F4F6FA" stroke-width="16.00"/>
+  <line x1="58.00" y1="98.00" x2="198.00" y2="98.00" stroke="#9FB3C2" stroke-width="7.00" stroke-dasharray="12.00 8.00"/>
+  <rect x="66.00" y="128.00" width="18.00" height="60.00" rx="4.00" fill="#F4F6FA"/>
+  <rect x="93.00" y="112.00" width="18.00" height="76.00" rx="4.00" fill="#F4F6FA"/>
+  <rect x="120.00" y="136.00" width="18.00" height="52.00" rx="4.00" fill="#F4F6FA"/>
+  <rect x="147.00" y="72.00" width="18.00" height="116.00" rx="4.00" fill="#FFB020"/>
+  <rect x="174.00" y="120.00" width="18.00" height="68.00" rx="4.00" fill="#F4F6FA"/>
+</svg>
