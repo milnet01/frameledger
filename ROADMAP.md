@@ -179,6 +179,12 @@ Engines can write files and pin a release.
   `--selftest` printed 11 of 11 passed, exit 0; a `--bogus` control
   exited 3. The Python 3.10 floor on Windows is covered by release run
   40250446302's windows-latest job. UT Ants' run is still owed.
+  2026-10-26: UT Ants' Windows run passed. Windows 10 Home 10.0.19045, a
+  real PC; Python 3.13.15, run as `python -I`. The archive was
+  downloaded with curl.exe; Get-FileHash gave
+  84a9254101421b223ca1429f889310ef92d1d4e4da433f19ce0d4225c89b9f5a.
+  `--version` printed "frameledger 0.1.0", exit 0; `--selftest` passed
+  11 of 11, exit 0. Both Windows runs are in.
   **Layman:** A downloadable, pinned version the three engines can use.
   Kind: release.
   Source: design-2026-10-24.
