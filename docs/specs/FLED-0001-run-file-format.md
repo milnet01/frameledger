@@ -3,8 +3,8 @@
 
 **Status:** accepted (2026-10-24); § 4.9 and INV-23 to INV-27
 (FLED-0005) agreed by the three engines 2026-10-26 at a3eea64;
-§ 4.10 and INV-30 to INV-37 (FLED-0008) reviewed by the three engines
-2026-10-26, their changes folded in, confirmation asked.
+§ 4.10 and INV-30 to INV-37 (FLED-0008) agreed by the three engines
+2026-10-26 at f7dd566, with `scene` added.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -80,11 +80,12 @@ settles.
   are sampled before the engine loads anything (Vestige, UT Ants);
   settling compares two header fields (UT Ants); a cut sits on the
   frame that starts its segment (DOOM Ants).
-- For FLED-0008, reviewed by the three engines 2026-10-26: `compare`
+- For FLED-0008, agreed by the three engines 2026-10-26: `compare`
   judges each measure by its own spread and a minimum change (§ 4.10);
   interleaved labelled sets of at least three runs (UT Ants, DOOM
   Ants); per-field overrides named in one first sentence (S5; DOOM
-  Ants); `vsync` blocks a compare (DOOM Ants); a short segment kind
+  Ants); `vsync` and `scene` block a compare (DOOM Ants; all three
+  for `scene`); a short segment kind
   cannot make it inconclusive (Vestige); a static-line diff (UT Ants).
 
 ## 4. Design
@@ -156,7 +157,7 @@ it is the CPU-busy share at that moment.
 
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
 `ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`,
-`vsync`.
+`vsync`, `scene`.
 Two runs differing in any of them are not comparable without an
 override (§ 4.10). Two empty `inputs` lists are unknown, not
 equal.
@@ -908,8 +909,9 @@ breaks.
   with the warning `override_unused`. With a valid override and a
   second field differing, the first sentence is the override's and the
   second the refusal's. Two runs whose `inputs` are both `[]` are
-  refused, and so are two differing only in `vsync`. `--override
-  scene=x` and `--override resolution=` exit 3.
+  refused, and so are two differing only in `vsync`, or only in
+  `scene`. `--override pipelined=x` and `--override resolution=` exit
+  3.
   *Test:* `tests/test_compare.py::test_refusal_and_override`.
   *Breaks when:* a field is not compared, an override is silent or
   not first, or empty inputs count as equal.

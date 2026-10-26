@@ -254,7 +254,7 @@ engine faster, and which pass it changed.
   Kind: enhancement.
   Source: vestige-review-2026-10-26.
 
-- 📋 [FLED-0017] **An app icon and a site logo.**
+- ✅ [FLED-0017] **An app icon and a site logo.**
   The owner, relayed by the ants-projects-hub-website session
   (message 849): a square app icon kept in this repository, and a
   wordmark logo for the site, per that repository's
@@ -263,6 +263,10 @@ engine faster, and which pass it changed.
   strong contrast. Send the path back by session_message. Keep the
   release zip named frameledger.zip, which the site's Download link
   uses.
+  2026-10-26: assets/frameledger-icon.svg (README shows it),
+  assets/frameledger-logo-stacked.svg sent to the website session for
+  logos/frameledger.svg (message 851), and the one-line
+  assets/frameledger-logo.svg. 8fffb85, 764f4f6.
   **Layman:** Gives frameledger a picture of its own for the repository and the projects website.
   Kind: marketing.
   Source: ants-projects-hub-website-2026-10-26.
