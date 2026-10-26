@@ -276,6 +276,13 @@ class _Reader:
         self.run.breaches.sort(key=lambda breach: breach.line)
 
 
+def frame_segment(rows: dict) -> str:
+    """A frame's segment (§ 4.8): its frame/cpu_span row's, or else its
+    first row's. `rows` is one entry of Run.frames."""
+    row = rows.get(("frame", "cpu_span")) or min(rows.values(), key=lambda r: r.line)
+    return row.segment
+
+
 def _row_problem(run_id, segment, frame, category, name, depth, value, header_run_id):
     """The first rule a row's fields break, as (rule, message), or None."""
     if header_run_id is not None and run_id != header_run_id:
@@ -401,6 +408,7 @@ HEADER_FIELDS = {
     "ray_tracing": (False, _is_bool, "true or false"),
     "frames_in_flight": (False, _is_int, "a whole number"),
     "settling_frames": (False, _is_int, "a whole number"),
+    "settled_frames": (False, _is_int, "a whole number"),
     "pinned": (False, _is_object, "an object"),
     "gpu_tick_ns": (False, _is_number, "a number"),
     "load": (False, _is_span, '{"start": number, "end": number}'),

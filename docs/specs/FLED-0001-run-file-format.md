@@ -2,8 +2,7 @@
 # FLED-0001 — Define the run file, the writer's interface and the 0.1.0 commands
 
 **Status:** accepted (2026-10-24); § 4.9 and INV-23 to INV-27
-(FLED-0005) agreed by the three engines 2026-10-26, their answers
-folded in for confirmation.
+(FLED-0005) agreed by the three engines 2026-10-26 at a3eea64.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -780,11 +779,11 @@ it on each release they pin.
 | INV-20 | `tests/writer/test_writer.c::test_bad_values` |
 | INV-21 | `tests/test_check.py::test_negative_and_last_wall` |
 | INV-22 | `tests/writer/test_writer.c::test_consume_reuses` |
-| INV-23 | `tests/test_trust.py::test_header_warnings` (not yet written) |
-| INV-24 | `tests/test_trust.py::test_too_few_frames` (not yet written) |
-| INV-25 | `tests/test_trust.py::test_settling` (not yet written) |
-| INV-26 | `tests/test_trust.py::test_cut_in_stretch` (not yet written) |
-| INV-27 | `tests/test_trust.py::test_absent_fields_and_check` (not yet written) |
+| INV-23 | `tests/test_trust.py::test_header_warnings` |
+| INV-24 | `tests/test_trust.py::test_too_few_frames` |
+| INV-25 | `tests/test_trust.py::test_settling` |
+| INV-26 | `tests/test_trust.py::test_cut_in_stretch` |
+| INV-27 | `tests/test_trust.py::test_absent_fields_and_check` |
 | INV-28 | `tests/writer/test_writer.c::test_failed_open` |
 | INV-29 | `tests/writer/test_writer.c::test_escape_opens` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

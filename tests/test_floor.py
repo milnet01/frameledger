@@ -222,7 +222,9 @@ def test_nothing_judged_is_inconclusive(capsys):
     path = FIXTURES / "passing-run.csv"
     code, out = run_floor(capsys, path, "--no-windows", "--warmup-s", "100")
     assert (code, out["verdict"]) == (2, "inconclusive")
-    assert "no frame ends after" in out["summary"][0]
+    # The verdict sentence follows the warnings, here too_few_frames (§ 4.8).
+    assert any(s.startswith("The floor check is inconclusive: no frame ends after")
+               for s in out["summary"])
 
 
 def test_timeline_gap_is_inconclusive(capsys, tmp_path):

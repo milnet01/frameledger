@@ -18,6 +18,7 @@ from typing import NamedTuple
 
 import ledger
 import stats
+import trust
 
 WORST_FRAMES = 10
 SPAN = {"cpu": "cpu_span", "gpu": "gpu_span"}  # the span each category's passes are shares of
@@ -40,8 +41,10 @@ def report(run: ledger.Run) -> dict:
         "missing_gpu_frames": costs.missing_gpu,
         "static": run.static,
     }
-    warnings = [{"code": n.code, "message": n.message} for n in run.notices]
-    summary = _warning_sentences(run.notices)
+    measured = sum(("frame", "wall") in rows for rows in run.frames.values())
+    notices = run.notices + trust.warnings(run, measured)
+    warnings = [{"code": n.code, "message": n.message} for n in notices]
+    summary = _warning_sentences(notices)
     if costs.missing_gpu:
         message = (f"{_frames(costs.missing_gpu)} no GPU result; they are left out of the GPU "
                    "figures, not counted as zero")
@@ -130,7 +133,8 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         verdict = "pass"
         opening = f"The run passes the {_num(fps)} FPS floor."
 
-    shown = [n for n in run.notices if n.code not in FLOOR_REASONS]
+    notices = run.notices + trust.warnings(run, len(judged), {t[0] for t in judged})
+    shown = [n for n in notices if n.code not in FLOOR_REASONS]
     summary = reasons + _warning_sentences(shown) + [opening]
     if not windows:
         summary.append("The window check is off (--no-windows).")
@@ -167,7 +171,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
                      "mean_ms": round(_window_mean(w), 3) if w.frames else None,
                      "pass": _window_passes(w, limit)} for w in full],
         "windows_skipped": skipped,
-        "slow_frames": [{"frame": frame, "segment": _segment(rows), "wall_ms": _ms(wall),
+        "slow_frames": [{"frame": frame, "segment": ledger.frame_segment(rows), "wall_ms": _ms(wall),
                          "top_pass": _top_pass(rows)} for frame, rows, _, wall in slow],
         "frames_over_budget": len(slow),
         "allowed": allowed,
@@ -175,7 +179,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         "finished": run.close is not None,
     }
     return {"verdict": verdict, "summary": summary,
-            "warnings": [{"code": n.code, "message": n.message} for n in run.notices], "result": result}
+            "warnings": [{"code": n.code, "message": n.message} for n in notices], "result": result}
 
 
 def frame_time_us(fps: Decimal) -> int:
@@ -278,7 +282,7 @@ class _Costs:
         self.frame_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, name)
         self.missing_gpu = 0
         for rows in run.frames.values():
-            kind = _kind(_segment(rows))
+            kind = _kind(ledger.frame_segment(rows))
             self.missing_gpu += ("frame", "gpu_span") not in rows
             for (category, name), row in rows.items():
                 if category == "frame":
@@ -344,7 +348,7 @@ def _worst_frames(run: ledger.Run) -> list[dict]:
     timed = [(rows[("frame", "wall")].thousandths, frame, rows)
              for frame, rows in run.frames.items() if ("frame", "wall") in rows]
     timed.sort(key=lambda t: (-t[0], t[1]))
-    return [{"frame": frame, "segment": _segment(rows), "wall_ms": _ms(wall), "top_pass": _top_pass(rows)}
+    return [{"frame": frame, "segment": ledger.frame_segment(rows), "wall_ms": _ms(wall), "top_pass": _top_pass(rows)}
             for wall, frame, rows in timed[:WORST_FRAMES]]
 
 
@@ -376,7 +380,7 @@ def _warning_sentences(notices: list[ledger.Notice]) -> list[str]:
 
 
 def _headline(run: ledger.Run, result: dict, costs: _Costs) -> list[str]:
-    kinds = sorted({_kind(_segment(rows)) for rows in run.frames.values()}, key=_kind_key)
+    kinds = sorted({_kind(ledger.frame_segment(rows)) for rows in run.frames.values()}, key=_kind_key)
     sentences = [f"The run has {_count(len(run.frames), 'frame')}, in "
                  f"{', '.join(_kind_name(k) for k in kinds) or 'no'} segments."]
     for kind in kinds:
@@ -404,12 +408,6 @@ def _headline(run: ledger.Run, result: dict, costs: _Costs) -> list[str]:
 
 def _top_level_sum(rows: dict, category: str) -> int:
     return sum(row.thousandths for (cat, _), row in rows.items() if cat == category and row.depth == 0)
-
-
-def _segment(rows: dict) -> str:
-    """A frame's segment: its cpu_span row's, or else its first row's."""
-    row = rows.get(("frame", "cpu_span")) or min(rows.values(), key=lambda r: r.line)
-    return row.segment
 
 
 def _kind(segment: str) -> str | None:
