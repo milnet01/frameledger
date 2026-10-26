@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 import cli
 
 ROOT = Path(__file__).parent.parent
@@ -52,20 +54,63 @@ def test_directory_run_form():
     assert done.returncode == 0, done.stderr
 
 
-def test_headless():
-    """S20: with no display, no terminal and no input, each command gives
-    its output and exit code. The environment holds only PATH, and on
-    Windows SYSTEMROOT, which Python needs to start."""
+
+@pytest.fixture(scope="module")
+def pyz(tmp_path_factory):
+    """frameledger.pyz as the release builds it: what an engine runs."""
+    outdir = tmp_path_factory.mktemp("release")
+    subprocess.run([sys.executable, "-I", str(ROOT / "scripts" / "build_release.py"), str(outdir), "v0.0.0"],
+                   capture_output=True, check=True)
+    return outdir / "frameledger.pyz"
+
+
+def headless(target, args):
+    """Run `target` with no display, no terminal and no input: only PATH,
+    and on Windows SYSTEMROOT, which Python needs to start; no LANG, so
+    Python runs in the C locale."""
     env = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT") if key in os.environ}
-    commands = [
-        (["--selftest"], 0),
-        (["report", str(FIXTURES / "in-order.csv")], 0),
-        (["bisect", "--dry-run", "10.001", "--measure", "frame/wall", "--kind", "view",
-          "--bad-above", "10.000"], 1),
-    ]
-    for args, code in commands:
-        done = subprocess.run([sys.executable, "-I", str(ROOT / "src" / "frameledger"), *args], env=env,
-                              stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                              start_new_session=True, check=False)
-        assert done.returncode == code, done.stderr
-        assert done.stdout
+    return subprocess.run([sys.executable, "-I", str(target), *args], env=env, stdin=subprocess.DEVNULL,
+                          capture_output=True, text=True, encoding="utf-8", start_new_session=True,
+                          check=False)
+
+
+RUN = str(FIXTURES / "in-order.csv")
+HEADLESS = [
+    ["--selftest"],
+    ["check", RUN],
+    ["report", RUN],
+    ["floor", RUN, "--fps", "60", "--warmup-s", "0"],
+    ["compare", "--old", RUN, RUN, RUN, "--new", RUN, RUN, RUN],
+    ["bisect", RUN, "--measure", "frame/wall", "--kind", "view", "--bad-above", "15.999"],
+    ["bisect", RUN, "--measure", "frame/wall", "--kind", "view", "--bad-above", "15.999", "--json"],
+    ["bisect", RUN, "--measure", "frame/wall", "--kind", "view"],
+]
+
+
+@pytest.mark.parametrize("args", HEADLESS, ids=lambda args: " ".join(a for a in args if a != RUN))
+def test_headless(capsys, pyz, args):
+    """S20: run headless from the release's frameledger.pyz, each command
+    gives the same output and exit code as it does in this process,
+    reading real run files (DOOM Ants)."""
+    code = cli.main(list(args))
+    expected = capsys.readouterr()
+    done = headless(pyz, args)
+    assert (done.returncode, done.stdout, done.stderr) == (code, expected.out, expected.err)
+
+
+def test_headless_results_are_whole(pyz):
+    """The output is right, not only present: a sentence, a JSON result, and
+    an error message all come through intact."""
+    done = headless(pyz, ["check", RUN])
+    assert (done.returncode, done.stdout) == (0, "The file meets the run-file format.\n")
+    done = headless(pyz, HEADLESS[6])
+    assert done.returncode == 1 and json.loads(done.stdout)["verdict"] == "bad"
+    done = headless(pyz, HEADLESS[7])
+    assert done.returncode == 128
+    assert "give --bad-above X, or --good FILE... and --bad FILE..." in done.stderr
+
+
+def test_headless_tree():
+    """The tree runs headless too: `python3 -I src/frameledger`."""
+    done = headless(ROOT / "src" / "frameledger", ["--selftest"])
+    assert done.returncode == 0, done.stderr

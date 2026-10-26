@@ -429,9 +429,9 @@ def _check_bisect_flags(args: argparse.Namespace, wanted: compare.Wanted) -> Non
     """The flag combinations § 4.11 stops on."""
     references = args.good is not None or args.bad is not None
     if references and args.bad_above is not None:
-        raise ledger.LedgerError("give --bad-above X, or --good FILE… and --bad FILE…, not both")
+        raise ledger.LedgerError("give --bad-above X, or --good FILE... and --bad FILE..., not both")
     if not references and args.bad_above is None:
-        raise ledger.LedgerError("give --bad-above X, or --good FILE… and --bad FILE…")
+        raise ledger.LedgerError("give --bad-above X, or --good FILE... and --bad FILE...")
     if references and (args.good is None or args.bad is None):
         raise ledger.LedgerError("--good and --bad go together")
     floors = [flag for flag, given in (("--min-ms", args.min_ms), ("--min-mb", args.min_mb),

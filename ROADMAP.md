@@ -303,6 +303,13 @@ engine faster, and which pass it changed.
   report and a bisect dry run, with only PATH (and SYSTEMROOT on
   Windows) in the environment, stdin closed and no controlling terminal.
   Seen failing on a copy whose entry point reads DISPLAY.
+  2026-10-26, DOOM Ants' review: the test now runs every command (check,
+  report, floor, compare, bisect on real run files, --json) through the
+  frameledger.pyz the release builds, and requires the same output and
+  exit code as in-process; test_headless_results_are_whole checks a
+  sentence, a parsed JSON result and an error message. Seen failing on a
+  clone whose archive leaves out render.py. The two "FILE…" messages are
+  now ASCII.
   **Layman:** Makes sure the tool works on a machine with no screen, such as a build server.
   Kind: test.
   Source: user-request-2026-10-26.
