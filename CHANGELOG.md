@@ -12,8 +12,25 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.1.0]
+
+**Theme:** One run, read and checked.
+
 ### Added
 
+- The release archive, `frameledger-v0.1.0.zip`: `frameledger.pyz`,
+  `include/frameledger.h` and `LICENSE`. SHA256
+  `84a9254101421b223ca1429f889310ef92d1d4e4da433f19ce0d4225c89b9f5a`.
+  A release candidate's archive, `frameledger-v0.1.0-rc.N.zip`, is the
+  same bytes under another name. `python3 -I scripts/build_release.py
+  OUTDIR v0.1.0`, run on the tag, rebuilds it; the release workflow
+  does so under Python 3.10.22.
+- The run-file format, schema 1: a header line, an optional static
+  line, a column line, CSV rows, and a close line ending a finished
+  run, as
+  `docs/specs/FLED-0001-run-file-format.md` § 4 defines them. This is
+  the first schema. Every later change to it will be named here
+  (FLED-0001).
 - `check FILE…` says whether each run file meets the format, with exit
   codes 0, 1 and 3 and a `--json` result (FLED-0002).
 - `--selftest` and `--version` (FLED-0002).

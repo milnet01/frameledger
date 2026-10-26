@@ -5,7 +5,7 @@
 
 ## Status
 
-In development; nothing is released yet. The run-file format is
+0.1.0 is the first release. The run-file format is
 agreed ([spec](docs/specs/FLED-0001-run-file-format.md)). Three commands
 are built: `check`, which says whether a run file meets it; `report`,
 which says where one run's frame time went; and `floor`, which says
@@ -14,11 +14,31 @@ whether a run held a set frame rate. The
 
 ## Install
 
-(Once there is something to install.)
+Download `frameledger-v<version>.zip` from the
+[releases page](https://github.com/milnet01/frameledger/releases), and
+check its SHA256 against the one in that release's notes. It holds:
+
+- `frameledger.pyz` — the analyser. It needs Python 3.10 or newer and
+  nothing else.
+- `include/frameledger.h` — the optional writer, one header for C and
+  C++.
+- `LICENSE`.
+
+`frameledger.zip` on the latest release is the same bytes under a name
+that does not change.
 
 ## Usage
 
-(Once there is something to use.)
+```sh
+python3 -I frameledger.pyz check run.csv
+python3 -I frameledger.pyz report run.csv
+python3 -I frameledger.pyz floor run.csv --fps 60
+python3 -I frameledger.pyz --selftest
+```
+
+On Windows, use `py -I` or `python -I`. Every command takes `--json`.
+The [spec](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands)
+lists the flags and exit codes.
 
 ## Working on it
 

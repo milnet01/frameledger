@@ -16,7 +16,7 @@ import render
 import run_report
 import selftest
 
-VERSION = "0.1.0.dev0"
+VERSION = "0.1.0"
 
 # One ladder for every command (docs/design.md § Exit codes).
 PASS, FAIL, INCONCLUSIVE, ERROR = 0, 1, 2, 3
