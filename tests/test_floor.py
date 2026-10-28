@@ -270,6 +270,7 @@ def test_bad_options_are_exit_3(capsys):
     path = str(FIXTURES / "passing-run.csv")
     for flags in (["--fps", "0"], ["--fps", "sixty"], ["--fps", "60", "--budget-ms", "16.6667"],
                   ["--fps", "60", "--warmup-s", "-1"], ["--fps", "60", "--allow-frames", "-1"],
+                  ["--fps", "60", "--allow-frames", "\u0663"], ["--fps", "60", "--allow-frames", "\u00b2"],
                   ["--fps", "60", "--no-windows", "--no-frames"], [], ["--fps", "1e-30"], ["--fps", "1e7"],
                   ["--fps", "60", "--budget-ms", "1e30"], ["--fps", "1e-999999"],
                   ["--fps", "60", "--warmup-s", "1e999999"], ["--fps", "1e7", "--budget-ms", "16"]):
