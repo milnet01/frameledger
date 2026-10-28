@@ -41,9 +41,8 @@ def report(run: ledger.Run) -> dict:
         "missing_gpu_frames": costs.missing_gpu,
         "static": run.static,
     }
-    measured = sum(("frame", "wall") in rows for rows in run.frames.values())
-    notices = run.notices + trust.warnings(run, measured)
-    warnings = [{"code": n.code, "message": n.message} for n in notices]
+    notices = run.notices + trust.warnings(run, walled_frames(run))
+    warnings = warning_entries(notices)
     summary = warning_sentences(notices)
     if costs.missing_gpu:
         message = (f"{_frames(costs.missing_gpu)} no GPU result; they are left out of the GPU "
@@ -52,6 +51,16 @@ def report(run: ledger.Run) -> dict:
         summary.append(f"{message[0].upper()}{message[1:]}.")
     summary += _headline(run, result, costs)
     return {"summary": summary, "warnings": warnings, "result": result}
+
+
+def walled_frames(run: ledger.Run) -> int:
+    """How many frames have a frame/wall row: the frames `report` measures."""
+    return sum(("frame", "wall") in rows for rows in run.frames.values())
+
+
+def warning_entries(notices: list[ledger.Notice]) -> list[dict]:
+    """Notices as the result's `warnings` list (§ 4.8)."""
+    return [{"code": n.code, "message": n.message} for n in notices]
 
 
 def refuse_breaches(run: ledger.Run) -> None:
@@ -179,7 +188,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         "finished": run.close is not None,
     }
     return {"verdict": verdict, "summary": summary,
-            "warnings": [{"code": n.code, "message": n.message} for n in notices], "result": result}
+            "warnings": warning_entries(notices), "result": result}
 
 
 def frame_time_us(fps: Decimal) -> int:

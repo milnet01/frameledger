@@ -160,7 +160,7 @@ def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[L
         "refused": refused,
     }
     return {"verdict": verdict, "summary": compare.overrides_sentences(override_list) + sentences,
-            "warnings": compare.warning_entries(notices), "overrides": override_list, "result": result}
+            "warnings": run_report.warning_entries(notices), "overrides": override_list, "result": result}
 
 
 def _named(label: str, loaded: list[Loaded]) -> list[_Run]:
@@ -328,8 +328,7 @@ def _tested_notices(refs: list[_Run], tested_runs: list[_Run], overrides: dict[s
 
 def _unused_overrides(runs: list[_Run], overrides: dict[str, str]) -> list[ledger.Notice]:
     _, unused = compare.refusals(runs, overrides)
-    return [ledger.Notice("override_unused", f"--override {field} was given, but every run has the "
-                          "same value") for field in unused]
+    return compare.unused_override_notices(unused)
 
 
 def _straddle(tested_runs: list[_Run], values: dict[str, int], line: Fraction, unit: str) -> str:

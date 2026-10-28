@@ -68,12 +68,11 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
     summary = overrides_sentences(override_list)
     refused, unused = refusals(runs, overrides)
-    notices = [ledger.Notice("override_unused", f"--override {field} was given, but every run has the "
-                             "same value") for field in unused]
+    notices = unused_override_notices(unused)
     run_list = [run_entry(r) for r in runs]
     if refused:
         summary += [refusal_sentence(refused), *run_report.warning_sentences(notices)]
-        return {"verdict": "error", "summary": summary, "warnings": warning_entries(notices),
+        return {"verdict": "error", "summary": summary, "warnings": run_report.warning_entries(notices),
                 "overrides": override_list, "result": {"runs": run_list, "refused": refused}}
 
     incomplete = _incomplete_sentences(runs)
@@ -100,7 +99,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         "static_diff": _static_diff(runs),
         "refused": [],
     }
-    return {"verdict": verdict, "summary": summary, "warnings": warning_entries(notices),
+    return {"verdict": verdict, "summary": summary, "warnings": run_report.warning_entries(notices),
             "overrides": override_list, "result": result}
 
 
@@ -186,6 +185,12 @@ def refusal_sentence(refused: list[dict]) -> str:
     return f"The runs cannot be compared: {'; '.join(parts)}."
 
 
+def unused_override_notices(unused: list[str]) -> list[ledger.Notice]:
+    """An override_unused warning for each overridden field that did not differ."""
+    return [ledger.Notice("override_unused", f"--override {field} was given, but every run has the "
+                          "same value") for field in unused]
+
+
 def _incomplete_sentences(runs: list[Named]) -> list[str]:
     """A run with dropped rows or no close line cannot pass or fail a compare
     (docs/design.md, the writer)."""
@@ -205,8 +210,7 @@ def run_notices(runs: list[Named]) -> list[ledger.Notice]:
     """Each run's own notices and § 4.9 warnings, opening with its name."""
     found = []
     for r in runs:
-        measured = sum(("frame", "wall") in rows for rows in r.run.frames.values())
-        for notice in r.run.notices + trust.warnings(r.run, measured):
+        for notice in r.run.notices + trust.warnings(r.run, run_report.walled_frames(r.run)):
             found.append(ledger.Notice(notice.code, f"{r.name}: {notice.message}"))
     return found
 
@@ -429,8 +433,6 @@ def _flatten(value: dict, prefix: str = "") -> dict:
     return facts
 
 
-def warning_entries(notices: list[ledger.Notice]) -> list[dict]:
-    return [{"code": n.code, "message": n.message} for n in notices]
 
 
 def _ms4(thousandths: Fraction | int) -> float:
