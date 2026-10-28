@@ -239,10 +239,12 @@ def _values(run: ledger.Run) -> dict[Measure, int]:
     costs = run_report.Costs(run)
     values = {}
     for (kind, name), times in costs.frame_values.items():
-        for wanted, statistic in FRAME_MEASURES:
-            if name == wanted:
-                values[Measure(kind, "frame", name, 0, statistic)] = (
-                    stats.median(times) if statistic == "median" else stats.percentile(times, 99))
+        statistics = [statistic for wanted, statistic in FRAME_MEASURES if wanted == name]
+        if not statistics:  # a wait, which is not judged
+            continue
+        ranks = [50 if statistic == "median" else 99 for statistic in statistics]
+        for statistic, value in zip(statistics, stats.percentiles(times, *ranks), strict=True):
+            values[Measure(kind, "frame", name, 0, statistic)] = value
     for (kind, category, name, depth), times in costs.pass_values.items():
         values[Measure(kind, category, name, depth, "median")] = stats.median(times)
     return values
