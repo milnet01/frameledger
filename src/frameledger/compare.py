@@ -447,4 +447,3 @@ def _round(value: Fraction, places: int) -> float:
     scaled = abs(value) * 10**places
     whole = (2 * scaled.numerator + scaled.denominator) // (2 * scaled.denominator)
     return float(Fraction(whole if value >= 0 else -whole, 10**places))
-

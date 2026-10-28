@@ -313,6 +313,8 @@ class Costs:
                 self.span_totals[(kind, category)] += span.thousandths
                 self.pass_values[(kind, category, REMAINDER[category], 0)].append(
                     span.thousandths - _top_level_sum(rows, category))
+        # Each pass's total time over the run, in thousandths: the ranking's key.
+        self.pass_totals = {key: sum(values) for key, values in self.pass_values.items()}
 
     def passes(self) -> list[dict]:
         """Ranked by the time the run spent on each pass, so a pass in every
@@ -324,7 +326,8 @@ class Costs:
             entries.append({
                 "category": category, "name": name, "segment_kind": kind, "depth": depth,
                 "median_ms": _ms(median), "p99_ms": _ms(p99),
-                "share": round(sum(values) / span_total, 4) if span_total > 0 else None,
+                "share": round(self.pass_totals[(kind, category, name, depth)] / span_total, 4)
+                if span_total > 0 else None,
                 "frames": len(values),
             })
         entries.sort(key=lambda e: (kind_order(e["segment_kind"]), e["category"], -self.total(e),
@@ -333,8 +336,7 @@ class Costs:
 
     def total(self, entry: dict) -> int:
         """A pass entry's total time over the run, in thousandths."""
-        key = (entry["segment_kind"], entry["category"], entry["name"], entry["depth"])
-        return sum(self.pass_values[key])
+        return self.pass_totals[(entry["segment_kind"], entry["category"], entry["name"], entry["depth"])]
 
     def frame_times(self) -> list[dict]:
         entries = []
