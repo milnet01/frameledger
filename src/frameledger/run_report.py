@@ -311,9 +311,10 @@ class Costs:
         entries = []
         for (kind, category, name, depth), values in self.pass_values.items():
             span_total = self.span_totals[(kind, category)]
+            median, p99 = stats.percentiles(values, 50, 99)
             entries.append({
                 "category": category, "name": name, "segment_kind": kind, "depth": depth,
-                "median_ms": _ms(stats.median(values)), "p99_ms": _ms(stats.percentile(values, 99)),
+                "median_ms": _ms(median), "p99_ms": _ms(p99),
                 "share": round(sum(values) / span_total, 4) if span_total > 0 else None,
                 "frames": len(values),
             })
@@ -327,9 +328,11 @@ class Costs:
         return sum(self.pass_values[key])
 
     def frame_times(self) -> list[dict]:
-        entries = [{"name": name, "segment_kind": kind, "median_ms": _ms(stats.median(values)),
-                    "p99_ms": _ms(stats.percentile(values, 99)), "frames": len(values)}
-                   for (kind, name), values in self.frame_values.items()]
+        entries = []
+        for (kind, name), values in self.frame_values.items():
+            median, p99 = stats.percentiles(values, 50, 99)
+            entries.append({"name": name, "segment_kind": kind, "median_ms": _ms(median),
+                            "p99_ms": _ms(p99), "frames": len(values)})
         order = {name: i for i, name in enumerate(FRAME_ORDER)}
         entries.sort(key=lambda e: (kind_order(e["segment_kind"]),
                                     order.get(e["name"], len(order)), e["name"]))

@@ -10,11 +10,17 @@ from __future__ import annotations
 def percentile(values: list[int], p: int) -> int:
     """The p-th percentile by nearest rank (docs/specs/FLED-0001-run-file-format.md
     § 4.8): of n sorted values, the one at rank ceil(p * n / 100)."""
+    return percentiles(values, p)[0]
+
+
+def percentiles(values: list[int], *ps: int) -> tuple[int, ...]:
+    """Several nearest-rank percentiles of one list, sorting it once."""
     if not values:
         raise ValueError("a percentile needs at least one value")
     ordered = sorted(values)
-    rank = -(-p * len(ordered) // 100)  # ceiling division, in integers
-    return ordered[max(rank, 1) - 1]
+    n = len(ordered)
+    # -(-p * n // 100) is ceil(p * n / 100), in integers.
+    return tuple(ordered[max(-(-p * n // 100), 1) - 1] for p in ps)
 
 
 def median(values: list[int]) -> int:
