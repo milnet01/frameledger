@@ -196,7 +196,8 @@ def _override(text: str) -> tuple[str, str]:
 
 
 def _whole(text: str) -> int:
-    if not text.isdigit():
+    # str.isdigit alone takes any script's digits, and superscripts int() refuses.
+    if not (text.isascii() and text.isdigit()):
         raise argparse.ArgumentTypeError(f"'{text}' must be a whole number, 0 or more")
     return int(text)
 
@@ -282,7 +283,9 @@ def _failed_write(error: OSError, code: int) -> int:
     """After a failed write, point standard output at the null device, so the
     flush at exit has nothing to fail on (the signal module's note on SIGPIPE)."""
     try:
-        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        null = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(null, sys.stdout.fileno())
+        os.close(null)
         print(f"frameledger: the output could not be written ({error.strerror or error})", file=sys.stderr)
     except (OSError, ValueError):
         pass
