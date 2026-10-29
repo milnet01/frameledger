@@ -10,8 +10,9 @@ settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-53
 `tested_straddle` and `--skip-straddle` added from their answers; their
 code review settled `--tested`, the stops and INV-52 to INV-53, and
 they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-63
-(FLED-0010) proposed 2026-10-29; the three engines' review is folded
-in, for their confirmation.
+(FLED-0010) agreed by the three engines 2026-10-29 at f766388; their
+code review settled the resolved depths and the exit-3 stops, and they
+confirmed it at e3984fe, with eb47707's depth-set fix.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -841,7 +842,7 @@ is null in threshold mode.
 ### 4.12 Pass budgets
 
 FLED-0010 builds this (S12). Reviewed by the three engines 2026-10-29;
-their changes are folded in, for their confirmation.
+their changes are folded in.
 
 ```
 budget FILE --budgets BUDGETS [--warmup-s S]

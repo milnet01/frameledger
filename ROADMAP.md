@@ -251,7 +251,7 @@ engine faster, and which pass it changed.
   Source: design-2026-10-24.
   Blocked-by: FLED-0008.
 
-- 🚧 [FLED-0010] **Pass budgets.**
+- ✅ [FLED-0010] **Pass budgets.**
   A budget file naming passes, each with a statistic (median or p99)
   and a limit; names each pass over budget and exits non-zero. Claims
   S12.
@@ -259,6 +259,8 @@ engine faster, and which pass it changed.
   (amend-0010, 2026-10-29); with the three engines for review.
   Spec confirmed by the three engines at f766388 (2026-10-29). Built in
   src/frameledger/budgeting.py; with the engines for code review.
+  Shipped 2026-10-29 at eb47707: the three engines confirmed the code
+  review fold (Vestige, UT Ants; DOOM Ants' last case is the test).
   **Layman:** Gives each drawing step a time budget and names the one that goes over.
   Kind: implement.
   Source: design-2026-10-24.
