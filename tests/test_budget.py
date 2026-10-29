@@ -241,6 +241,23 @@ def test_named_kind_replaces_star(capsys, tmp_path):
     assert code == 0
     assert [(e["segment_kind"], e["depth"]) for e in out["result"]["budgets"]] == [("move", 0), ("view", 1)]
 
+    # Two named lines at two depths: each takes its own depth from `*` (DOOM Ants).
+    blur = run_text([frame("view:1", blur=2.5)] * 101 + [frame("view:2", blur=(1.0, 1))] * 101)
+    code, out = budget(capsys, tmp_path, blur, budget_text("gpu,blur,*,0,p99,2.000", "gpu,blur,view,0,p99,3.000",
+                                                           "gpu,blur,view,1,p99,4.000"))
+    assert code == 0
+    assert [(e["line"], e["depth"]) for e in out["result"]["budgets"]] == [(4, 0), (5, 1)]
+    # In the other order, the `*` line at depth 1 would slip through (UT Ants).
+    code, out = budget(capsys, tmp_path, blur, budget_text("gpu,blur,view,0,p99,3.000", "gpu,blur,view,1,p99,4.000",
+                                                           "gpu,blur,*,1,p99,0.500"))
+    assert (code, [e["line"] for e in out["result"]["budgets"]]) == (0, [3, 4])
+
+    # Two lines that resolve to one pass, kind and depth are exit 3, naming both.
+    code, out = budget(capsys, tmp_path, run, budget_text("gpu,ssao,view,,p99,2.000",
+                                                          "gpu,ssao,view,0,p99,3.000"))
+    assert code == 3
+    assert "line 4:" in out["summary"][-1] and "as line 3 does" in out["summary"][-1], out["summary"]
+
 
 def test_warmup(capsys, tmp_path):
     """INV-63: --warmup-s leaves out the frames floor leaves out."""

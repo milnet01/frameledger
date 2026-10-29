@@ -888,7 +888,10 @@ cpu,cpu_remainder,*,,median,1.500
   depth is resolved (UT Ants, Vestige). `gpu,ssao,*,,p99,2.000` with
   `gpu,ssao,view,0,p99,3.000` judges view at 3.000 and every other kind
   at 2.000, when `ssao` is at depth 0. A named line resolves its depth
-  in its own kind; a `*` line in the kinds it still judges.
+  in its own kind; a `*` line in the kinds it still judges. Named lines
+  at two depths of one kind each take their own depth (DOOM Ants, UT
+  Ants). Two lines that resolve to one pass, kind, depth and statistic
+  are exit 3, naming both.
 - **`match`**, optional, names § 4.2's compare-blocking fields and the
   values the budgets were set for (UT Ants). The run's values must
   match as § 4.10's refusals match runs: numbers by value, `inputs` as
@@ -913,8 +916,9 @@ cpu,cpu_remainder,*,,median,1.500
   otherwise hold its budget forever. A `kind` not in the run, a pass
   in no frame of its kind, or a `*` pass in no frame at all is listed
   in `unmatched` and named in a sentence. It makes the verdict
-  inconclusive; it is not a warning. The pass did not run, so the fix
-  is in the budget file or the engine (Vestige, UT Ants).
+  inconclusive; it is not a warning. The pass is in none of those
+  frames, so a re-run gives the same: the fix is in the budget file or
+  the engine (Vestige).
 - **Dropped rows or no close line** make the verdict inconclusive: the
   frames judged may be missing their costliest rows.
 - **A pass over budget fails regardless** of either, as § 4.7's frame
@@ -1599,10 +1603,13 @@ breaks.
   move at 2.000. Without the `view` line, it fails in view. A `view`
   line at depth 0 replaces a `*` line with an empty depth there. A pass
   at depths 0 and 1 in view only, with a `view` line at depth 1, leaves
-  the `*` line judging move at depth 0, not exit 3.
+  the `*` line judging move at depth 0, not exit 3. `view` lines at
+  depths 0 and 1 both take view from a `*` line at either depth. A
+  `view` line with an empty depth and one at depth 0, for a pass at
+  depth 0, exit 3 naming both lines.
   *Test:* `tests/test_budget.py::test_named_kind_replaces_star`.
-  *Breaks when:* the stricter line wins, both judge view, or depths
-  compare as written.
+  *Breaks when:* the stricter line wins, both judge view, depths
+  compare as written, or one named line's depth hides another's.
 
 - **INV-63** — `--warmup-s` leaves out the frames `floor` leaves out.
   A run of 200 frames, each with a 10.000 ms `frame/wall`, has
