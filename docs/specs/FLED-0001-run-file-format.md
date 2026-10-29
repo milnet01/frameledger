@@ -9,8 +9,9 @@ settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-53
 (FLED-0009) agreed by the three engines 2026-10-26 at d68c994, with
 `tested_straddle` and `--skip-straddle` added from their answers; their
 code review settled `--tested`, the stops and INV-52 to INV-53, and
-they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-60
-(FLED-0010) proposed 2026-10-29, for the three engines' review.
+they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-63
+(FLED-0010) proposed 2026-10-29; the three engines' review is folded
+in, for their confirmation.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -101,11 +102,15 @@ settles.
   segment can be judged alone (UT Ants); a `mem` measure has a floor in
   MB (Vestige); tested runs straddling the line warn, and skip only
   with `--skip-straddle` (UT Ants, DOOM Ants; Vestige would skip).
-- For FLED-0010, *proposed here*: `budget` judges each pass's median
+- For FLED-0010: `budget` judges each pass's median
   or p99 over the run against a limit in a budget file (§ 4.12), never
   a single frame (DOOM Ants, DOOM-0502); a CSV file, as the run file
   is; `*` judges every kind apart (S2); a budget nothing matches is
-  inconclusive, never a pass.
+  inconclusive, never a pass. Reviewed by the three engines
+  2026-10-29: `match` ties a budget file to its settings and a named
+  kind replaces `*` (UT Ants); *proposed here*, `--warmup-s` with default
+  0, between Vestige's floor-style 2 and UT Ants' and DOOM Ants' none; `over_ms` (DOOM
+  Ants, UT Ants).
 
 ## 4. Design
 
@@ -835,21 +840,22 @@ is null in threshold mode.
 
 ### 4.12 Pass budgets
 
-FLED-0010 builds this (S12). *Proposed here*, for the three engines'
-review.
+FLED-0010 builds this (S12). Reviewed by the three engines 2026-10-29;
+their changes are folded in, for their confirmation.
 
 ```
-budget FILE --budgets BUDGETS
+budget FILE --budgets BUDGETS [--warmup-s S]
 ```
 
 Exit codes are § 4.7's ladder: 0 every budget holds; 1 a pass is over
 budget; 2 inconclusive; 3 an error in either file.
 
 **The budget file** is UTF-8 CSV, as § 4.1's: LF or CRLF, `.` as the
-decimal point, fields quoted CSV-style.
+decimal point, fields quoted CSV-style. A blank line is skipped
+(Vestige).
 
 ```
-# frameledger-budget {"schema":1}                     line 1, required
+# frameledger-budget {"schema":1,"match":{"tier":"high"}}   line 1, required
 category,name,kind,depth,statistic,limit_ms           column line, required
 gpu,ssao,view,0,p99,2.000                             one budget per line
 cpu,cpu_remainder,*,,median,1.500
@@ -867,18 +873,40 @@ cpu,cpu_remainder,*,,median,1.500
 
 - **A budget's value is `report`'s figure**: the pass's median or 99th
   percentile over the frames of its kind that have it, as § 4.8
-  defines `passes`. A frame without its category's span is left out,
-  never counted as 0 (INV-5). Values and limits are exact thousandths.
+  defines `passes`, less any warm-up. A frame without its category's
+  span is left out, never counted as 0 (INV-5). Values and limits are exact thousandths.
 - **A pass is over budget** when its value is greater than the limit.
   Equal holds. A single frame never breaches: the statistic is over
   the run (DOOM Ants, DOOM-0502).
+- **A pass budget is not a frame-time budget.** With frames in
+  flight, two frames' passes overlap, so a frame's pass limits need not
+  add up to its frame time. `floor` judges frame time (DOOM Ants).
+- **`*` takes every kind**, a warm-up kind too. A run with one names
+  its kinds instead of using `*` (DOOM Ants).
+- **A named kind replaces `*`** for that kind, on a line with the same
+  `category`, `name`, `depth` and `statistic` (UT Ants).
+  `gpu,ssao,*,,p99,2.000` with `gpu,ssao,view,,p99,3.000` judges view
+  at 3.000 and every other kind at 2.000.
+- **`match`**, optional, names § 4.2's compare-blocking fields and the
+  values the budgets were set for (UT Ants). The run's values must
+  match as § 4.10's refusals match runs: numbers by value, `inputs` as
+  `name` and `hash` pairs in any order. A field the run leaves out does
+  not match. A mismatch is exit 3, naming each field with both values.
+- **`--warmup-s S`**, default 0, leaves out frames ending before S
+  seconds, on § 4.7's timeline, as `floor` does (Vestige). At 0 every
+  value is `report`'s (UT Ants, DOOM Ants); at 2 the frames judged are
+  `floor`'s. Above 0, a hole in the frame numbers or a frame other
+  than the last with no `frame/wall` makes the verdict inconclusive:
+  the frames after it cannot be placed. A negative `S` is exit 3.
 - **An empty `depth`** needs the name at one depth in the frames
-  judged, as § 4.11's `--depth`; at two it is exit 3, naming both.
+  judged, as § 4.11's `--depth`; at two it is exit 3, naming the pass
+  and both depths (Vestige).
 - **A budget nothing matches** is never a pass: a renamed pass would
   otherwise hold its budget forever. A `kind` not in the run, a pass
   in no frame of its kind, or a `*` pass in no frame at all is listed
   in `unmatched` and named in a sentence. It makes the verdict
-  inconclusive; it is not a warning.
+  inconclusive; it is not a warning. A re-run gives the same: the fix
+  is in the budget file or the engine (Vestige).
 - **Dropped rows or no close line** make the verdict inconclusive: the
   frames judged may be missing their costliest rows.
 - **A pass over budget fails regardless** of either, as § 4.7's frame
@@ -888,14 +916,16 @@ cpu,cpu_remainder,*,,median,1.500
   is the slowest frame. § 4.9's warnings are given too. A warning never
   changes a verdict.
 - **Exit 3** for the budget file: no header or a `schema` other than
-  1, a different column line, a value breaking its column's rule, or
-  two lines with the same `category`, `name`, `kind`, `depth` and
-  `statistic`. The summary names the budget file's line. For the run
-  file, as `report`'s.
+  1, a `match` key that is not a compare-blocking field, a different
+  column line, a value breaking its column's rule, or two lines with
+  the same `category`, `name`, `kind`, `depth` and `statistic`. The
+  summary names the budget file's line. For the run file, as
+  `report`'s.
 
 **Text** opens with § 4.8's sentences, then one sentence per pass over
-budget, most milliseconds over first, then one per unmatched budget: "gpu/ssao p99 in view segments is 2.310 ms,
-over its 2.000 ms budget." Then the verdict, and a table of every
+budget, most milliseconds over first, then one per unmatched budget:
+"gpu/ssao p99 in view segments is 2.310 ms, over its 2.000 ms
+budget." Then the verdict, and a table of every
 budget judged.
 
 **Result.** The verdict is `pass`, `fail`, `inconclusive` or `error`.
@@ -903,15 +933,21 @@ budget judged.
 ```json
 {
   "budgets": [{"line", "category", "name", "segment_kind", "depth",
-               "statistic", "limit_ms", "value_ms", "frames", "over"}],
-  "unmatched": [{"line", "category", "name", "kind", "depth", "statistic"}],
-  "rows_dropped", "finished"
+               "statistic", "limit_ms", "value_ms", "over_ms", "frames", "over"}],
+  "unmatched": [{"line", "category", "name", "segment_kind", "depth", "statistic"}],
+  "warmup_s", "rows_dropped", "finished"
 }
 ```
 
+`over_ms` is `value_ms` minus `limit_ms`, exactly; negative when the
+budget holds (DOOM Ants, UT Ants). The sentences rank by it.
+`segment_kind` in `unmatched` is the line's `kind`: `*`, a kind, or
+null for an empty one.
+
 `budgets` holds one entry per budget line and kind judged, in the
 file's order, then § 4.8's kind order. `line` is the budget file's
-line. A `*` line gives one entry per kind the pass appears in.
+line. A `*` line gives one entry per kind the pass appears in, except
+a kind a named line replaces.
 
 ## 5. Invariants
 
@@ -1486,8 +1522,8 @@ breaks.
   *Breaks when:* a positional file list returns, or a sentence names a
   path.
 
-- **INV-54** — A budget's value is `report`'s figure, compared
-  exactly. In a run whose `gpu/ssao` in view frames has `report`'s
+- **INV-54** — At `--warmup-s 0`, a budget's value is `report`'s
+  figure, compared exactly. In a run whose `gpu/ssao` in view frames has `report`'s
   median 1.500 and p99 2.310, a median limit of 1.500 holds and a p99
   limit of 2.309 fails with exit 1. Its `value_ms` equals `report`'s
   `p99_ms`.
@@ -1505,7 +1541,9 @@ breaks.
 - **INV-56** — `*` judges each kind apart. A pass at 1.000 ms in 60
   view frames and 3.000 ms in 40 move frames, against a `*` median
   limit of 2.000, fails in move only. Pooled, its median is 1.000 and
-  it would hold.
+  it would hold. Add a `warmup` kind at 5.000 ms and the `*` line fails
+  there too; `view` and `move` lines in its place leave `warmup`
+  unjudged, with no entry.
   *Test:* `tests/test_budget.py::test_each_kind_apart`.
   *Breaks when:* the kinds are pooled.
 
@@ -1524,15 +1562,42 @@ breaks.
 - **INV-59** — A bad budget file exits 3 and names its line. Each
   alone: no header; `schema` 2; another column line; `statistic` `p95`;
   `limit_ms` `2.0005`; `category` `frame`; a repeated line; an empty
-  `depth` for a pass at two depths.
+  `depth` for a pass at two depths, named with both; a `match` key
+  `fps`. A blank line between two budgets is skipped.
   *Test:* `tests/test_budget.py::test_bad_budget_files`.
-  *Breaks when:* a bad line is skipped or read as a budget.
+  *Breaks when:* a bad line is skipped or read as a budget, or a
+  blank line stops the file.
 
 - **INV-60** — A `p99` budget over 99 frames warns `budget_few_frames`
   and keeps its verdict and exit code; over exactly 100 frames it
   does not warn.
   *Test:* `tests/test_budget.py::test_few_frames_warns`.
   *Breaks when:* the warning changes the verdict, or fires at 100.
+
+- **INV-61** — A budget file holds only for the settings it names. With
+  `"match":{"tier":"high","render_scale":1}`, a run with `tier` `high`
+  and `render_scale` `1.0` is judged; one with `tier` `low`, or with no
+  `tier`, exits 3 naming `tier` and both values.
+  *Test:* `tests/test_budget.py::test_match`.
+  *Breaks when:* `match` is ignored, numbers match as text, or an
+  absent field matches.
+
+- **INV-62** — A named kind replaces `*` for that kind. `gpu/ssao` at
+  2.500 ms in view and 1.500 ms in move, against `*` p99 2.000 and
+  `view` p99 3.000, holds with exit 0: one entry each, view at 3.000 and
+  move at 2.000. Without the `view` line, it fails in view.
+  *Test:* `tests/test_budget.py::test_named_kind_replaces_star`.
+  *Breaks when:* the stricter line wins, or both judge view.
+
+- **INV-63** — `--warmup-s` leaves out the frames `floor` leaves out.
+  A run of 200 frames, each with a 10.000 ms `frame/wall`, has
+  `gpu/x` at 5.000 ms in its first 20 frames and 1.000 ms after. A p99
+  limit of 2.000 fails at the default, and holds at `--warmup-s 0.5`,
+  with `warmup_s` 0.5. The same run with a hole at frame 100 is
+  inconclusive at `--warmup-s 0.5`, and still fails at 0.
+  *Test:* `tests/test_budget.py::test_warmup`.
+  *Breaks when:* warm-up frames are judged, the default leaves any
+  out, or a hole is ignored above 0.
 
 ## 6. Failure modes
 
@@ -1566,7 +1631,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
   INV-28, INV-29.
 - FLED-0008: INV-30 to INV-38.
 - FLED-0009: INV-39 to INV-53.
-- FLED-0010: INV-54 to INV-60.
+- FLED-0010: INV-54 to INV-63.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1667,6 +1732,9 @@ it on each release they pin.
 | INV-58 | `tests/test_budget.py::test_dropped_and_unfinished` |
 | INV-59 | `tests/test_budget.py::test_bad_budget_files` |
 | INV-60 | `tests/test_budget.py::test_few_frames_warns` |
+| INV-61 | `tests/test_budget.py::test_match` |
+| INV-62 | `tests/test_budget.py::test_named_kind_replaces_star` |
+| INV-63 | `tests/test_budget.py::test_warmup` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
