@@ -337,11 +337,14 @@ engine faster, and which pass it changed.
   Kind: enhancement.
   Source: ut-ants-review-2026-10-26.
 
-- 🚧 [FLED-0021] **Analyser review fixes from PR #1.**
+- ✅ [FLED-0021] **Analyser review fixes from PR #1.**
   PR #1 (branch claude/exciting-cray-d4fxmf). Its commits are labelled
   FLED-0009, which had already shipped; they land under this item.
   Fixes: --allow-frames / --depth take only ASCII digits; the null
   device's descriptor is closed after dup2. Engines review before merge.
+  Landed f89be63..4737180 (PR #1, relabelled from FLED-0009) and b3acb89
+  (the engines' review). Vestige, UT Ants and DOOM Ants confirmed
+  b3acb89, 2026-10-29.
   **Layman:** A cloud session's review of the analyser: two small bug fixes, faster statistics, and shared helpers in place of repeated code. No output changes.
   Kind: review-fix.
   Source: github-pr-1-2026-10-28.
