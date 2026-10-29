@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=20 -->
+<!-- ants-roadmap-id-high-water: FLED=21 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -336,6 +336,15 @@ engine faster, and which pass it changed.
   **Layman:** Lets a bisect step over a commit that reorganised a drawing step, instead of halting the whole search.
   Kind: enhancement.
   Source: ut-ants-review-2026-10-26.
+
+- 🚧 [FLED-0021] **Analyser review fixes from PR #1.**
+  PR #1 (branch claude/exciting-cray-d4fxmf). Its commits are labelled
+  FLED-0009, which had already shipped; they land under this item.
+  Fixes: --allow-frames / --depth take only ASCII digits; the null
+  device's descriptor is closed after dup2. Engines review before merge.
+  **Layman:** A cloud session's review of the analyser: two small bug fixes, faster statistics, and shared helpers in place of repeated code. No output changes.
+  Kind: review-fix.
+  Source: github-pr-1-2026-10-28.
 
 ## 0.3.0 — many runs surveyed
 
