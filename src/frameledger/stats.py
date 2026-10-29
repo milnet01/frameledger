@@ -7,6 +7,10 @@ statistic here rounds.
 from __future__ import annotations
 
 
+# The percentile rank each statistic a command can judge stands for.
+RANKS = {"median": 50, "p99": 99}
+
+
 def percentile(values: list[int], p: int) -> int:
     """The p-th percentile by nearest rank (docs/specs/FLED-0001-run-file-format.md
     § 4.8): of n sorted values, the one at rank ceil(p * n / 100)."""

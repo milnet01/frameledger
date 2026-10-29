@@ -244,9 +244,9 @@ def _values(run: ledger.Run) -> dict[Measure, int]:
     values = {}
     for (kind, name), times in costs.frame_values.items():
         statistics = [statistic for wanted, statistic in FRAME_MEASURES if wanted == name]
-        if not statistics:  # a wait, which is not judged
+        if not statistics:  # a frame row FRAME_MEASURES does not judge
             continue
-        ranks = [50 if statistic == "median" else 99 for statistic in statistics]
+        ranks = [stats.RANKS[statistic] for statistic in statistics]
         for statistic, value in zip(statistics, stats.percentiles(times, *ranks), strict=True):
             values[Measure(kind, "frame", name, 0, statistic)] = value
     for (kind, category, name, depth), times in costs.pass_values.items():
@@ -431,8 +431,6 @@ def _flatten(value: dict, prefix: str = "") -> dict:
         else:
             facts[dotted] = item
     return facts
-
-
 
 
 def _ms4(thousandths: Fraction | int) -> float:

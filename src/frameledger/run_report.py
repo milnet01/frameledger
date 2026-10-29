@@ -323,11 +323,11 @@ class Costs:
         for (kind, category, name, depth), values in self.pass_values.items():
             span_total = self.span_totals[(kind, category)]
             median, p99 = stats.percentiles(values, 50, 99)
+            total = self.pass_totals[(kind, category, name, depth)]
+            share = round(total / span_total, 4) if span_total > 0 else None
             entries.append({
                 "category": category, "name": name, "segment_kind": kind, "depth": depth,
-                "median_ms": _ms(median), "p99_ms": _ms(p99),
-                "share": round(self.pass_totals[(kind, category, name, depth)] / span_total, 4)
-                if span_total > 0 else None,
+                "median_ms": _ms(median), "p99_ms": _ms(p99), "share": share,
                 "frames": len(values),
             })
         entries.sort(key=lambda e: (kind_order(e["segment_kind"]), e["category"], -self.total(e),

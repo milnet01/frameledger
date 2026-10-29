@@ -213,6 +213,7 @@ def stop_args(tmp_path, *flags):
     [*OPAQUE, "--dry-run", "1.0001", "--bad-above", "10"],
     [*OPAQUE, "--bad-above", "1000000000"],
     ["--measure", "frame/wall", "--kind", "view", "--depth", "1", "--bad-above", "10"],
+    [*OPAQUE, "--depth", "\u0663", "--bad-above", "10"],
     ["--measure", "gpu/opaque", "--kind", "view:1", "--bad-above", "10"],
     ["--measure", "gpu/opaque", "--segment", "view:", "--bad-above", "10"],
     [*OPAQUE, "--bad-above", "10", "extra.csv"],

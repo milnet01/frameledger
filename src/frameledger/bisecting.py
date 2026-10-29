@@ -303,7 +303,7 @@ def _value(wanted: Wanted, by_depth: dict[int | None, list[int]], depth: int | N
     times = by_depth.get(depth)
     if not times:
         return None
-    return stats.percentile(times, 99 if wanted.statistic == "p99" else 50)
+    return stats.percentile(times, stats.RANKS[wanted.statistic])
 
 
 def _frames_it_has(wanted: Wanted, run: ledger.Run) -> str:
