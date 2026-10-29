@@ -10,6 +10,7 @@ import json
 from decimal import Decimal
 
 import bisecting
+import budgeting
 import compare
 import ledger
 import run_report
@@ -96,6 +97,13 @@ def _bisect_verdict(bad_above: str) -> str:
     return bisecting.bisect(wanted, tested, [], [], {}, floors, bad_above=Decimal(bad_above))["verdict"]
 
 
+def _budget_verdict(limit: str) -> str:
+    """The good sample against one budget on its cpu/scene median, 5.250."""
+    text = f'# frameledger-budget {{"schema":1}}\n{budgeting.COLUMNS}\ncpu,scene,view,,median,{limit}\n'
+    budgets = budgeting.read_bytes(text.encode(), "sample")
+    return budgeting.judge(ledger.read_bytes(_GOOD, "sample"), budgets, 0)["verdict"]
+
+
 def run() -> list[tuple[str, bool]]:
     """Each check's name and whether it passed."""
     good = ledger.read_bytes(_GOOD, "sample")
@@ -122,4 +130,6 @@ def run() -> list[tuple[str, bool]]:
          _compare_verdict(_GOOD) == "pass" and _compare_verdict(_GOOD.replace(b"5.250", b"6.250")) == "fail"),
         ("a bisect calls a value at the threshold good and one above it bad",
          _bisect_verdict("5.250") == "good" and _bisect_verdict("5.249") == "bad"),
+        ("a pass at its budget holds, and one over it fails",
+         _budget_verdict("5.250") == "pass" and _budget_verdict("5.249") == "fail"),
     ]

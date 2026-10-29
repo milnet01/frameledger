@@ -898,7 +898,10 @@ cpu,cpu_remainder,*,,median,1.500
   value is `report`'s (UT Ants, DOOM Ants); at 2 the frames judged are
   `floor`'s. Above 0, a hole in the frame numbers or a frame other
   than the last with no `frame/wall` makes the verdict inconclusive:
-  the frames after it cannot be placed. A negative `S` is exit 3.
+  the frames after it cannot be placed. A pass over budget still
+  fails, as under § 4.7: past a hole the ends come too early, so a frame
+  placed after the warm-up truly ended after it. A negative `S` is
+  exit 3.
 - **An empty `depth`** needs the name at one depth in the frames
   judged, as § 4.11's `--depth`; at two it is exit 3, naming the pass
   and both depths (Vestige).
@@ -918,13 +921,14 @@ cpu,cpu_remainder,*,,median,1.500
   changes a verdict.
 - **Exit 3** for the budget file: no header or a `schema` other than
   1, a `match` key that is not a compare-blocking field, a different
-  column line, a value breaking its column's rule, or two lines with
-  the same `category`, `name`, `kind`, `depth` and `statistic`. The
+  column line, a value breaking its column's rule, no budget line, or
+  two lines with the same `category`, `name`, `kind`, `depth` and `statistic`. The
   summary names the budget file's line. For the run file, as
   `report`'s.
 
-**Text** opens with § 4.8's sentences, then one sentence per pass over
-budget, most milliseconds over first, then one per unmatched budget:
+**Text** opens with § 4.8's warning sentences, then one sentence per
+pass over budget, most milliseconds over first, then one per unmatched
+budget:
 "gpu/ssao p99 in view segments is 2.310 ms, over its 2.000 ms
 budget." Then the verdict, and a table of every
 budget judged.
@@ -1564,7 +1568,7 @@ breaks.
   alone: no header; `schema` 2; another column line; `statistic` `p95`;
   `limit_ms` `2.0005`; `category` `frame`; a repeated line; an empty
   `depth` for a pass at two depths, named with both; a `match` key
-  `fps`. A blank line between two budgets is skipped.
+  `fps`; no budget line. A blank line between two budgets is skipped.
   *Test:* `tests/test_budget.py::test_bad_budget_files`.
   *Breaks when:* a bad line is skipped or read as a budget, or a
   blank line stops the file.
@@ -1595,12 +1599,13 @@ breaks.
   `gpu/x` at 5.000 ms in its first 20 frames and 1.000 ms after. A p99
   limit of 2.000 fails at the default, and holds at `--warmup-s 0.5`,
   with `warmup_s` 0.5. The same run with a hole at frame 100 is
-  inconclusive at `--warmup-s 0.5`, and still fails at 0. At
+  inconclusive at `--warmup-s 0.5`, and still fails at 0. With
+  `gpu/x` at 5.000 ms from frame 150 on, it fails at 0.5. At
   `--warmup-s 3`, longer than the run, no frame is judged: the budget
   is unmatched, exit 2 (Vestige).
   *Test:* `tests/test_budget.py::test_warmup`.
   *Breaks when:* warm-up frames are judged, the default leaves any
-  out, or a hole is ignored above 0.
+  out, a hole is ignored above 0, or hides a breach.
 
 ## 6. Failure modes
 

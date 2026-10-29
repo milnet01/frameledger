@@ -1,5 +1,5 @@
 """Commands, flags and exit codes (docs/specs/FLED-0001-run-file-format.md
-§ 4.7, § 4.10 for `compare` and § 4.11 for `bisect`).
+§ 4.7, § 4.10 for `compare`, § 4.11 for `bisect` and § 4.12 for `budget`).
 
 The only module that prints or decides an exit code. Every command
 builds one result dict in the shape of § 4.8, and render.py turns it
@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
 import bisecting
+import budgeting
 import compare
 import ledger
 import render
@@ -87,6 +88,13 @@ def _parser() -> _Parser:
     compare_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                              help="print the JSON result instead of text")
     _add_bisect(commands)
+    budget = commands.add_parser("budget", help="is any pass over its time budget?")
+    budget.add_argument("file", metavar="FILE")
+    budget.add_argument("--budgets", required=True, metavar="BUDGETS", help="the budget file")
+    budget.add_argument("--warmup-s", type=_non_negative, default=Decimal(0), metavar="S",
+                        help="seconds at the start that are not judged, as floor's (default 0)")
+    budget.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                        help="print the JSON result instead of text")
     return parser
 
 
@@ -241,7 +249,9 @@ def _dispatch(args: argparse.Namespace) -> dict:
         return _floor(args)
     if args.command == "compare":
         return _compare(args)
-    raise ledger.LedgerError("name a command (check, report, floor, compare, bisect) or --selftest; "
+    if args.command == "budget":
+        return _budget(args)
+    raise ledger.LedgerError("name a command (check, report, floor, compare, bisect, budget) or --selftest; "
                              "--help lists them")
 
 
@@ -406,6 +416,23 @@ def _compare(args: argparse.Namespace) -> dict:
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
+
+
+def _budget(args: argparse.Namespace) -> dict:
+    """§ 4.12: exit 0 every budget holds, 1 a pass is over budget, 2
+    inconclusive, 3 when either file cannot be read or is wrong, or the run
+    does not have the budget file's settings."""
+    try:
+        warmup_us = int((args.warmup_s * 1_000_000).to_integral_value(ROUND_HALF_UP))
+    except DecimalException as error:
+        raise ledger.LedgerError(f"--warmup-s is out of range ({type(error).__name__})") from None
+    try:
+        built = budgeting.judge(ledger.read(args.file), budgeting.read(args.budgets), warmup_us)
+    except ledger.LedgerError as error:
+        return _result("budget", "error", ERROR, [f"{error}."],
+                       [{"code": "file_error", "message": str(error)}], {})
+    code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
+    return _result("budget", built["verdict"], code, built["summary"], built["warnings"], built["result"])
 
 
 def _overrides(pairs: list[tuple[str, str]]) -> dict[str, str]:

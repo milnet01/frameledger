@@ -124,7 +124,7 @@ def refusals(runs: list[Named], overrides: dict[str, str]) -> tuple[list[dict], 
     run's value; and the overridden fields that did not differ."""
     refused, unused = [], []
     for field in BLOCKING:
-        keys = {_match_key(field, r.run.header.get(field, ABSENT)) for r in runs}
+        keys = {match_key(field, r.run.header.get(field, ABSENT)) for r in runs}
         # Two empty input lists are unknown, not equal (§ 4.2).
         blocked = len(keys) > 1 or (field == "inputs" and None in keys)
         if field in overrides:
@@ -136,7 +136,7 @@ def refusals(runs: list[Named], overrides: dict[str, str]) -> tuple[list[dict], 
     return refused, unused
 
 
-def _match_key(field: str, value) -> str | None:
+def match_key(field: str, value) -> str | None:
     """What two runs must share in `field`, as a string. `inputs` match on
     their name and hash pairs in any order, and numbers by value, so
     render_scale 1 matches 1.0 (Vestige).

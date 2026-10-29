@@ -35,6 +35,17 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   shows the verdict a value would get. Tested runs on both sides of the
   line warn, and skip with `--skip-straddle` (FLED-0009).
 - `--selftest` checks the bisect too (FLED-0009).
+- `budget FILE --budgets BUDGETS` names every pass over its time
+  budget. The budget file is CSV, with comments: each line gives a pass,
+  a segment kind or `*` for each kind apart, a depth, `median` or `p99`,
+  and a limit in ms. A budget is judged on `report`'s own figure for
+  the pass, never a single frame. `match` in the file's header names
+  the settings it was written for, and a run without them is refused.
+  `--warmup-s` leaves out the first seconds, as `floor` does (default
+  0). A budget that matches nothing, dropped rows or an unfinished run
+  are inconclusive. Exit 0 every budget holds, 1 over, 2 inconclusive,
+  3 error (FLED-0010).
+- `--selftest` checks the budget too (FLED-0010).
 - A test locks that the analyser runs headless: no display, no
   terminal, no input and no locale (FLED-0019).
 - A write to standard output that fails, such as a pipe closed early,

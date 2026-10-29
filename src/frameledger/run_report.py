@@ -45,12 +45,17 @@ def report(run: ledger.Run) -> dict:
     warnings = warning_entries(notices)
     summary = warning_sentences(notices)
     if costs.missing_gpu:
-        message = (f"{_frames(costs.missing_gpu)} no GPU result; they are left out of the GPU "
-                   "figures, not counted as zero")
+        message = missing_gpu_message(costs.missing_gpu)
         warnings.append({"code": "gpu_missing", "message": message})
         summary.append(f"{message[0].upper()}{message[1:]}.")
     summary += _headline(run, result, costs)
     return {"summary": summary, "warnings": warnings, "result": result}
+
+
+def missing_gpu_message(count: int) -> str:
+    """The gpu_missing warning, for `count` frames with no GPU result (INV-5)."""
+    return (f"{_frames(count)} no GPU result; they are left out of the GPU figures, not "
+            "counted as zero")
 
 
 def walled_frames(run: ledger.Run) -> int:
@@ -89,7 +94,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
     timeline, so a frame placed after the warm-up truly ended after it
     (the three engines' review)."""
     refuse_breaches(run)
-    timed, cuts, stop, end = _timeline(run)
+    timed, cuts, stop, end = timeline(run)
     judged = [t for t in timed if t[2] >= warmup_us]
     full, skipped = (_windows([t[2] for t in timed], [t[3] for t in timed], cuts, warmup_us, end)
                      if windows else ([], 0))
@@ -220,7 +225,7 @@ def _window_mean(window: Window) -> float:
     return _ms(window.wall_us) / window.frames if window.frames else math.inf
 
 
-def _timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str | None, int]:
+def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str | None, int]:
     """Each frame with a wall, as (frame, rows, end, wall) in frame order,
     its end summed from the first frame in integer microseconds; the
     (start, end) of every frame carrying event/cut; what stops the timeline early, a
@@ -287,15 +292,18 @@ class Costs:
 
     With by_segment, the lists are keyed by the whole segment (`view:2`)
     rather than its kind, for `bisect --segment`. `mem_values` holds the mem
-    rows, which `report` does not show."""
+    rows, which `report` does not show. With `only`, just those frame
+    numbers count, for `budget --warmup-s`."""
 
-    def __init__(self, run: ledger.Run, by_segment: bool = False):
+    def __init__(self, run: ledger.Run, by_segment: bool = False, only: set[int] | None = None):
         self.pass_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, category, name, depth)
         self.span_totals: dict[tuple, int] = defaultdict(int)  # (kind, category)
         self.frame_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, name)
         self.mem_values: dict[tuple, list[int]] = defaultdict(list)  # (kind, "mem", name, depth)
         self.missing_gpu = 0
-        for rows in run.frames.values():
+        for number, rows in run.frames.items():
+            if only is not None and number not in only:
+                continue
             segment = ledger.frame_segment(rows)
             kind = (segment or None) if by_segment else segment_kind(segment)
             self.missing_gpu += ("frame", "gpu_span") not in rows

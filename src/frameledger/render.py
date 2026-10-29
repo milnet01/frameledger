@@ -138,6 +138,20 @@ def _bisect_body(result: dict) -> list[str]:
     return lines
 
 
+def _budget_body(result: dict) -> list[str]:
+    budgets = result["result"]
+    if not budgets:  # an error: the opening sentences say why
+        return []
+    lines = ["Budgets judged, in the budget file's order:",
+             f"  {'budget':<40}  {'limit ms':>10}  {'value ms':>10}  {'over ms':>10}  {'frames':>8}  verdict"]
+    for b in budgets["budgets"]:
+        name = (f"{_kind_name(b['segment_kind'])}: {'  ' * b['depth']}{b['category']}/{b['name']} "
+                f"{b['statistic']}")
+        lines.append(f"  {_fit(name, 40):<40}  {b['limit_ms']:>10.3f}  {b['value_ms']:>10.3f}  "
+                     f"{b['over_ms']:>+10.3f}  {b['frames']:>8}  {'over' if b['over'] else 'holds'}")
+    return lines
+
+
 def _measure_row(name: str, old: str, new: str, change: str, spread: str, verdict: str) -> str:
     return f"  {_fit(name, 40):<40}  {old:>10}  {new:>10}  {change:>10}  {spread:>10}  {verdict}"
 
@@ -211,4 +225,5 @@ def _kind_name(kind: str | None) -> str:
 
 
 _BODIES = {"check": _check_body, "report": _report_body, "floor": _floor_body,
-           "compare": _compare_body, "bisect": _bisect_body, "selftest": _selftest_body}
+           "compare": _compare_body, "bisect": _bisect_body, "budget": _budget_body,
+           "selftest": _selftest_body}

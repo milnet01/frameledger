@@ -257,6 +257,8 @@ engine faster, and which pass it changed.
   S12.
   Spec: docs/specs/FLED-0001-run-file-format.md § 4.12, INV-54 to INV-60
   (amend-0010, 2026-10-29); with the three engines for review.
+  Spec confirmed by the three engines at f766388 (2026-10-29). Built in
+  src/frameledger/budgeting.py; with the engines for code review.
   **Layman:** Gives each drawing step a time budget and names the one that goes over.
   Kind: implement.
   Source: design-2026-10-24.
