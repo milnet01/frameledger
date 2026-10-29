@@ -890,8 +890,9 @@ cpu,cpu_remainder,*,,median,1.500
 - **`match`**, optional, names § 4.2's compare-blocking fields and the
   values the budgets were set for (UT Ants). The run's values must
   match as § 4.10's refusals match runs: numbers by value, `inputs` as
-  `name` and `hash` pairs in any order. A field the run leaves out does
-  not match. A mismatch is exit 3, naming each field with both values.
+  `name` and `hash` pairs in any order. There is no tolerance: copy
+  each value as the run's header writes it, since `0.667` does not
+  match `0.6667` (UT Ants). A field the run leaves out does not match. A mismatch is exit 3, naming each field with both values.
 - **`--warmup-s S`**, default 0, leaves out frames ending before S
   seconds, on § 4.7's timeline, as `floor` does (Vestige). At 0 every
   value is `report`'s (UT Ants, DOOM Ants); at 2 the frames judged are
@@ -1594,7 +1595,9 @@ breaks.
   `gpu/x` at 5.000 ms in its first 20 frames and 1.000 ms after. A p99
   limit of 2.000 fails at the default, and holds at `--warmup-s 0.5`,
   with `warmup_s` 0.5. The same run with a hole at frame 100 is
-  inconclusive at `--warmup-s 0.5`, and still fails at 0.
+  inconclusive at `--warmup-s 0.5`, and still fails at 0. At
+  `--warmup-s 3`, longer than the run, no frame is judged: the budget
+  is unmatched, exit 2 (Vestige).
   *Test:* `tests/test_budget.py::test_warmup`.
   *Breaks when:* warm-up frames are judged, the default leaves any
   out, or a hole is ignored above 0.
