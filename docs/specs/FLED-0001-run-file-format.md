@@ -867,7 +867,7 @@ cpu,cpu_remainder,*,,median,1.500
 | `category` | `cpu` or `gpu` |
 | `name` | a pass name, as § 4.4's; `cpu_remainder` and `gpu_remainder` included |
 | `kind` | a segment kind; `*` for every kind in the run, frames with no segment included, each judged apart; empty for frames with no segment |
-| `depth` | an integer from 0, or empty |
+| `depth` | an integer from 0, at most nine digits, or empty |
 | `statistic` | `median` or `p99` |
 | `limit_ms` | 0.001 to 999999999.999, at most three places |
 
@@ -884,9 +884,11 @@ cpu,cpu_remainder,*,,median,1.500
 - **`*` takes every kind**, a warm-up kind too. A run with one names
   its kinds instead of using `*` (DOOM Ants).
 - **A named kind replaces `*`** for that kind, on a line with the same
-  `category`, `name`, `depth` and `statistic` (UT Ants).
-  `gpu,ssao,*,,p99,2.000` with `gpu,ssao,view,,p99,3.000` judges view
-  at 3.000 and every other kind at 2.000.
+  `category`, `name` and `statistic`, at the same depth once an empty
+  depth is resolved (UT Ants, Vestige). `gpu,ssao,*,,p99,2.000` with
+  `gpu,ssao,view,0,p99,3.000` judges view at 3.000 and every other kind
+  at 2.000, when `ssao` is at depth 0. A named line resolves its depth
+  in its own kind; a `*` line in the kinds it still judges.
 - **`match`**, optional, names § 4.2's compare-blocking fields and the
   values the budgets were set for (UT Ants). The run's values must
   match as § 4.10's refusals match runs: numbers by value, `inputs` as
@@ -900,8 +902,10 @@ cpu,cpu_remainder,*,,median,1.500
   than the last with no `frame/wall` makes the verdict inconclusive:
   the frames after it cannot be placed. A pass over budget still
   fails, as under § 4.7: past a hole the ends come too early, so a frame
-  placed after the warm-up truly ended after it. A negative `S` is
-  exit 3.
+  placed after the warm-up truly ended after it. When no frame ends
+  after the warm-up, one sentence says so in place of one per unmatched
+  budget: the run is too short, not the file wrong (UT Ants). A
+  negative `S` is exit 3.
 - **An empty `depth`** needs the name at one depth in the frames
   judged, as § 4.11's `--depth`; at two it is exit 3, naming the pass
   and both depths (Vestige).
@@ -909,8 +913,8 @@ cpu,cpu_remainder,*,,median,1.500
   otherwise hold its budget forever. A `kind` not in the run, a pass
   in no frame of its kind, or a `*` pass in no frame at all is listed
   in `unmatched` and named in a sentence. It makes the verdict
-  inconclusive; it is not a warning. A re-run gives the same: the fix
-  is in the budget file or the engine (Vestige).
+  inconclusive; it is not a warning. The pass did not run, so the fix
+  is in the budget file or the engine (Vestige, UT Ants).
 - **Dropped rows or no close line** make the verdict inconclusive: the
   frames judged may be missing their costliest rows.
 - **A pass over budget fails regardless** of either, as § 4.7's frame
@@ -920,7 +924,8 @@ cpu,cpu_remainder,*,,median,1.500
   is the slowest frame. § 4.9's warnings are given too. A warning never
   changes a verdict.
 - **Exit 3** for the budget file: no header or a `schema` other than
-  1, a `match` key that is not a compare-blocking field, a different
+  1, a `match` key that is not a compare-blocking field or a value
+  breaking § 4.2's rule for that field (Vestige), a different
   column line, a value breaking its column's rule, no budget line, or
   two lines with the same `category`, `name`, `kind`, `depth` and `statistic`. The
   summary names the budget file's line. For the run file, as
@@ -1568,10 +1573,11 @@ breaks.
   alone: no header; `schema` 2; another column line; `statistic` `p95`;
   `limit_ms` `2.0005`; `category` `frame`; a repeated line; an empty
   `depth` for a pass at two depths, named with both; a `match` key
-  `fps`; no budget line. A blank line between two budgets is skipped.
+  `fps`; `match` `inputs` of `"abc"`; a `limit_ms` or `depth` of
+  5000 digits (Vestige); no budget line. A blank line between two budgets is skipped.
   *Test:* `tests/test_budget.py::test_bad_budget_files`.
-  *Breaks when:* a bad line is skipped or read as a budget, or a
-  blank line stops the file.
+  *Breaks when:* a bad line is skipped or read as a budget, a blank
+  line stops the file, or a bad value crashes to exit 1.
 
 - **INV-60** — A `p99` budget over 99 frames warns `budget_few_frames`
   and keeps its verdict and exit code; over exactly 100 frames it
@@ -1590,9 +1596,13 @@ breaks.
 - **INV-62** — A named kind replaces `*` for that kind. `gpu/ssao` at
   2.500 ms in view and 1.500 ms in move, against `*` p99 2.000 and
   `view` p99 3.000, holds with exit 0: one entry each, view at 3.000 and
-  move at 2.000. Without the `view` line, it fails in view.
+  move at 2.000. Without the `view` line, it fails in view. A `view`
+  line at depth 0 replaces a `*` line with an empty depth there. A pass
+  at depths 0 and 1 in view only, with a `view` line at depth 1, leaves
+  the `*` line judging move at depth 0, not exit 3.
   *Test:* `tests/test_budget.py::test_named_kind_replaces_star`.
-  *Breaks when:* the stricter line wins, or both judge view.
+  *Breaks when:* the stricter line wins, both judge view, or depths
+  compare as written.
 
 - **INV-63** — `--warmup-s` leaves out the frames `floor` leaves out.
   A run of 200 frames, each with a 10.000 ms `frame/wall`, has
@@ -1602,7 +1612,8 @@ breaks.
   inconclusive at `--warmup-s 0.5`, and still fails at 0. With
   `gpu/x` at 5.000 ms from frame 150 on, it fails at 0.5. At
   `--warmup-s 3`, longer than the run, no frame is judged: the budget
-  is unmatched, exit 2 (Vestige).
+  is unmatched, exit 2 (Vestige), in one sentence naming the warm-up,
+  with none telling the reader to fix the budget file (UT Ants).
   *Test:* `tests/test_budget.py::test_warmup`.
   *Breaks when:* warm-up frames are judged, the default leaves any
   out, a hole is ignored above 0, or hides a breach.

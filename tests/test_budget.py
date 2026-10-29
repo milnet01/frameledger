@@ -135,7 +135,7 @@ def test_unmatched(capsys, tmp_path):
     unmatched = out["result"]["unmatched"]
     assert [(u["line"], u["name"], u["segment_kind"]) for u in unmatched] == [
         (4, "renamed", "view"), (5, "x", "move"), (6, "gone", "*")]
-    assert sum("re-run gives the same" in s for s in out["summary"]) == 3
+    assert sum("fix the budget file or the engine" in s for s in out["summary"]) == 3
 
     code, out = budget(capsys, tmp_path, run, budget_text("gpu,x,view,,median,0.500",
                                                           "gpu,renamed,view,,median,2.000"))
@@ -168,6 +168,11 @@ GOOD = "gpu,x,view,,median,2.000"
     (budget_text(GOOD, GOOD), 4, "line 3"),
     (budget_text("gpu,y,view,,median,2.000"), 3, "gpu/y is at depths 0 and 1"),
     (budget_text(GOOD, header='{"schema":1,"match":{"fps":60}}'), 1, "fps"),
+    (budget_text("gpu,x,view,," + "median," + "9" * 5000), 3, "limit_ms"),
+    (budget_text("gpu,x,view," + "9" * 5000 + ",median,2.000"), 3, "depth"),
+    (budget_text(GOOD, header='{"schema":1,"match":{"inputs":"abc"}}'), 1, "inputs"),
+    (budget_text(GOOD, header='{"schema":1,"match":{"inputs":[1,2]}}'), 1, "inputs"),
+    (budget_text(GOOD, header='{"schema":1,"match":{"tier":["a"]}}'), 1, "tier"),
 ])
 def test_bad_budget_files(capsys, tmp_path, text, line, says):
     """INV-59: a bad budget file exits 3 and names its line."""
@@ -223,6 +228,19 @@ def test_named_kind_replaces_star(capsys, tmp_path):
     assert code == 1
     assert [e["segment_kind"] for e in out["result"]["budgets"] if e["over"]] == ["view"]
 
+    # Depths compare once resolved: an empty depth is the pass's one depth.
+    code, out = budget(capsys, tmp_path, run, budget_text("gpu,ssao,*,,p99,2.000",
+                                                          "gpu,ssao,view,0,p99,3.000"))
+    assert code == 0
+    assert [(e["segment_kind"], e["limit_ms"]) for e in out["result"]["budgets"]] == [("move", 2.0), ("view", 3.0)]
+
+    # A kind a named line takes is not the `*` line's: its second depth stops nothing.
+    two = run_text([frame("view:1", x=1.0)] * 101 + [frame("view:2", x=(1.0, 1))] * 101
+                   + [frame("move:1-2", x=1.0)] * 101)
+    code, out = budget(capsys, tmp_path, two, budget_text("gpu,x,*,,median,2.000", "gpu,x,view,1,median,2.000"))
+    assert code == 0
+    assert [(e["segment_kind"], e["depth"]) for e in out["result"]["budgets"]] == [("move", 0), ("view", 1)]
+
 
 def test_warmup(capsys, tmp_path):
     """INV-63: --warmup-s leaves out the frames floor leaves out."""
@@ -248,6 +266,9 @@ def test_warmup(capsys, tmp_path):
 
     code, out = budget(capsys, tmp_path, run_text(frames), budgets, "--warmup-s", "3")
     assert (code, [u["name"] for u in out["result"]["unmatched"]]) == (2, ["x"])
+    # One sentence for the run, not a broken budget file per line.
+    assert any("No frame ends after the 3 s warm-up" in s for s in out["summary"])
+    assert not any("fix the budget file" in s for s in out["summary"])
 
 
 def test_text_and_errors(capsys, tmp_path):

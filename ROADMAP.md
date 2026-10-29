@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=21 -->
+<!-- ants-roadmap-id-high-water: FLED=22 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -352,6 +352,18 @@ engine faster, and which pass it changed.
   **Layman:** A cloud session's review of the analyser: two small bug fixes, faster statistics, and shared helpers in place of repeated code. No output changes.
   Kind: review-fix.
   Source: github-pr-1-2026-10-28.
+
+- 📋 [FLED-0022] **A huge frame or depth number crashes the reader.**
+  ledger._row_problem accepts any length of digits for `frame` and
+  `depth` (COUNT_RE), then _Reader converts them with int(). Past
+  Python's 4300-digit limit that raises ValueError: `check` on a row
+  whose depth has 5000 digits ends in a traceback (run 2026-10-29),
+  not a breach. Exit 1 then reads as "fail" to a gate. A breach naming
+  the line is the fix. Found beside Vestige's FLED-0010 code review,
+  which hit the same limit in the budget file (fixed there).
+  **Layman:** A run file with an absurdly long number makes frameledger crash instead of saying the file is broken.
+  Kind: fix.
+  Source: vestige-review-2026-10-29.
 
 ## 0.3.0 — many runs surveyed
 
