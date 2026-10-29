@@ -9,7 +9,8 @@ settled the § 4.10 edges and INV-38. § 4.11 and INV-39 to INV-53
 (FLED-0009) agreed by the three engines 2026-10-26 at d68c994, with
 `tested_straddle` and `--skip-straddle` added from their answers; their
 code review settled `--tested`, the stops and INV-52 to INV-53, and
-they confirmed it at 32b87ac.
+they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-60
+(FLED-0010) proposed 2026-10-29, for the three engines' review.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -23,7 +24,7 @@ any later engine produce the same file.
 A run file has one written definition. An engine can write one from
 this document alone (S7), with or without the optional C header. The
 analyser's 0.1.0 commands (`check`, `report`, `floor`), 0.2.0's
-`compare` and `bisect`, its exit codes and the outer shape of its JSON
+`compare`, `bisect` and `budget`, its exit codes and the outer shape of its JSON
 result are fixed, so engines can script against them before the analyser exists.
 
 ## 2. Problem
@@ -100,6 +101,11 @@ settles.
   segment can be judged alone (UT Ants); a `mem` measure has a floor in
   MB (Vestige); tested runs straddling the line warn, and skip only
   with `--skip-straddle` (UT Ants, DOOM Ants; Vestige would skip).
+- For FLED-0010, *proposed here*: `budget` judges each pass's median
+  or p99 over the run against a limit in a budget file (§ 4.12), never
+  a single frame (DOOM Ants, DOOM-0502); a CSV file, as the run file
+  is; `*` judges every kind apart (S2); a budget nothing matches is
+  inconclusive, never a pass.
 
 ## 4. Design
 
@@ -392,7 +398,8 @@ than 100 columns. No meaning is carried by colour.
 "worst_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
 "missing_gpu_frames", "static"}`. For `check`: `{"files": [{"path",
 "breaches": [{"line", "rule", "message"}]}]}`. For `compare`: § 4.10.
-For `bisect`, whose verdicts are the last four: § 4.11.
+For `bisect`, whose verdicts are the last four: § 4.11. For `budget`:
+§ 4.12.
 
 1% low is 1000 divided by the 99th-percentile `frame/wall`;
 percentiles are nearest-rank.
@@ -825,6 +832,86 @@ kind, or `--kind`'s, or null for `--unsegmented`. `set` is `tested`,
 the dry run's `VALUE`; null on `skip` and `stop`. A run's own `value` is
 null when it has none. `bad_above` is `X` or the midpoint. `references`
 is null in threshold mode.
+
+### 4.12 Pass budgets
+
+FLED-0010 builds this (S12). *Proposed here*, for the three engines'
+review.
+
+```
+budget FILE --budgets BUDGETS
+```
+
+Exit codes are § 4.7's ladder: 0 every budget holds; 1 a pass is over
+budget; 2 inconclusive; 3 an error in either file.
+
+**The budget file** is UTF-8 CSV, as § 4.1's: LF or CRLF, `.` as the
+decimal point, fields quoted CSV-style.
+
+```
+# frameledger-budget {"schema":1}                     line 1, required
+category,name,kind,depth,statistic,limit_ms           column line, required
+gpu,ssao,view,0,p99,2.000                             one budget per line
+cpu,cpu_remainder,*,,median,1.500
+# any later line beginning # is a comment
+```
+
+| Column | Rule |
+|---|---|
+| `category` | `cpu` or `gpu` |
+| `name` | a pass name, as § 4.4's; `cpu_remainder` and `gpu_remainder` included |
+| `kind` | a segment kind; `*` for every kind in the run, frames with no segment included, each judged apart; empty for frames with no segment |
+| `depth` | an integer from 0, or empty |
+| `statistic` | `median` or `p99` |
+| `limit_ms` | 0.001 to 999999999.999, at most three places |
+
+- **A budget's value is `report`'s figure**: the pass's median or 99th
+  percentile over the frames of its kind that have it, as § 4.8
+  defines `passes`. A frame without its category's span is left out,
+  never counted as 0 (INV-5). Values and limits are exact thousandths.
+- **A pass is over budget** when its value is greater than the limit.
+  Equal holds. A single frame never breaches: the statistic is over
+  the run (DOOM Ants, DOOM-0502).
+- **An empty `depth`** needs the name at one depth in the frames
+  judged, as § 4.11's `--depth`; at two it is exit 3, naming both.
+- **A budget nothing matches** is never a pass: a renamed pass would
+  otherwise hold its budget forever. A `kind` not in the run, a pass
+  in no frame of its kind, or a `*` pass in no frame at all is listed
+  in `unmatched` and named in a sentence. It makes the verdict
+  inconclusive; it is not a warning.
+- **Dropped rows or no close line** make the verdict inconclusive: the
+  frames judged may be missing their costliest rows.
+- **A pass over budget fails regardless** of either, as § 4.7's frame
+  check does: its value is over the frames that were measured.
+- **`budget_few_frames`** warns when a `p99` budget is judged over
+  fewer than 100 frames: below that, the nearest-rank 99th percentile
+  is the slowest frame. § 4.9's warnings are given too. A warning never
+  changes a verdict.
+- **Exit 3** for the budget file: no header or a `schema` other than
+  1, a different column line, a value breaking its column's rule, or
+  two lines with the same `category`, `name`, `kind`, `depth` and
+  `statistic`. The summary names the budget file's line. For the run
+  file, as `report`'s.
+
+**Text** opens with § 4.8's sentences, then one sentence per pass over
+budget, most milliseconds over first, then one per unmatched budget: "gpu/ssao p99 in view segments is 2.310 ms,
+over its 2.000 ms budget." Then the verdict, and a table of every
+budget judged.
+
+**Result.** The verdict is `pass`, `fail`, `inconclusive` or `error`.
+
+```json
+{
+  "budgets": [{"line", "category", "name", "segment_kind", "depth",
+               "statistic", "limit_ms", "value_ms", "frames", "over"}],
+  "unmatched": [{"line", "category", "name", "kind", "depth", "statistic"}],
+  "rows_dropped", "finished"
+}
+```
+
+`budgets` holds one entry per budget line and kind judged, in the
+file's order, then § 4.8's kind order. `line` is the budget file's
+line. A `*` line gives one entry per kind the pass appears in.
 
 ## 5. Invariants
 
@@ -1399,6 +1486,54 @@ breaks.
   *Breaks when:* a positional file list returns, or a sentence names a
   path.
 
+- **INV-54** — A budget's value is `report`'s figure, compared
+  exactly. In a run whose `gpu/ssao` in view frames has `report`'s
+  median 1.500 and p99 2.310, a median limit of 1.500 holds and a p99
+  limit of 2.309 fails with exit 1. Its `value_ms` equals `report`'s
+  `p99_ms`.
+  *Test:* `tests/test_budget.py::test_value_is_reports`.
+  *Breaks when:* equal counts as over, or the value is over other
+  frames than `report`'s, such as GPU rows in frames with no
+  `frame/gpu_span`.
+
+- **INV-55** — Every pass over budget is named. Two over and one under
+  give exit 1, a sentence for each of the two, most over first, and
+  none for the third.
+  *Test:* `tests/test_budget.py::test_every_breach_named`.
+  *Breaks when:* the check stops at the first breach.
+
+- **INV-56** — `*` judges each kind apart. A pass at 1.000 ms in 60
+  view frames and 3.000 ms in 40 move frames, against a `*` median
+  limit of 2.000, fails in move only. Pooled, its median is 1.000 and
+  it would hold.
+  *Test:* `tests/test_budget.py::test_each_kind_apart`.
+  *Breaks when:* the kinds are pooled.
+
+- **INV-57** — A budget nothing matches is never a pass. A budget for
+  a pass not in the run gives exit 2 and names it. With a breach
+  beside it, the exit is 1 and it is still named.
+  *Test:* `tests/test_budget.py::test_unmatched`.
+  *Breaks when:* an unmatched budget is skipped, or holds.
+
+- **INV-58** — Dropped rows and a missing close line make holding
+  budgets inconclusive, and leave a breach failing. With either, every
+  budget holding gives exit 2; one over gives exit 1.
+  *Test:* `tests/test_budget.py::test_dropped_and_unfinished`.
+  *Breaks when:* a run missing rows passes, or its breach is hidden.
+
+- **INV-59** — A bad budget file exits 3 and names its line. Each
+  alone: no header; `schema` 2; another column line; `statistic` `p95`;
+  `limit_ms` `2.0005`; `category` `frame`; a repeated line; an empty
+  `depth` for a pass at two depths.
+  *Test:* `tests/test_budget.py::test_bad_budget_files`.
+  *Breaks when:* a bad line is skipped or read as a budget.
+
+- **INV-60** — A `p99` budget over 99 frames warns `budget_few_frames`
+  and keeps its verdict and exit code; over exactly 100 frames it
+  does not warn.
+  *Test:* `tests/test_budget.py::test_few_frames_warns`.
+  *Breaks when:* the warning changes the verdict, or fires at 100.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -1431,6 +1566,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
   INV-28, INV-29.
 - FLED-0008: INV-30 to INV-38.
 - FLED-0009: INV-39 to INV-53.
+- FLED-0010: INV-54 to INV-60.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1450,10 +1586,16 @@ it on each release they pin.
 - **The writer owning a `FILE *`.** Rejected: file I/O in the frame
   loop is what DOOM Ants and Vestige ruled out, and the engine already
   owns its files.
+- **A TOML or JSON budget file.** Rejected: TOML needs Python 3.11's
+  `tomllib`, above the 3.10 floor; JSON has no comments, and a budget
+  without its reason beside it gets loosened. CSV is the run file's
+  own form.
+- **Budgets as a flag on `report` or `floor`.** Rejected: `report`
+  has no failing exit, and `floor` judges frames against a frame rate. A
+  budget breach needs its own exit 1.
 
 ## 9. Out of scope
 
-- The budget file — FLED-0010, which amends this spec.
 - The pacing figure — FLED-0011, which amends this spec.
 - `survey` and survey comparison — FLED-0012 and FLED-0013, which amend
   this spec.
@@ -1518,6 +1660,13 @@ it on each release they pin.
 | INV-51 | `tests/test_bisect.py::test_tested_straddle` |
 | INV-52 | `tests/test_cli.py::test_failed_write` |
 | INV-53 | `tests/test_bisect.py::test_file_lists` |
+| INV-54 | `tests/test_budget.py::test_value_is_reports` |
+| INV-55 | `tests/test_budget.py::test_every_breach_named` |
+| INV-56 | `tests/test_budget.py::test_each_kind_apart` |
+| INV-57 | `tests/test_budget.py::test_unmatched` |
+| INV-58 | `tests/test_budget.py::test_dropped_and_unfinished` |
+| INV-59 | `tests/test_budget.py::test_bad_budget_files` |
+| INV-60 | `tests/test_budget.py::test_few_frames_warns` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
