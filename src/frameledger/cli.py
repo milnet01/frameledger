@@ -32,7 +32,7 @@ PASS, FAIL, INCONCLUSIVE, ERROR = 0, 1, 2, 3
 STOP = bisecting.VERDICT_CODES["stop"]
 # The references' floor when no flag sets it; the flags default to None, so
 # a floor given with --bad-above can be refused.
-BISECT_FLOORS = bisecting.Floors(min_ms=Decimal("0.050"), min_mb=Decimal("1.000"), min_pct=Decimal(3))
+BISECT_FLOORS = compare.Floors(min_ms=Decimal("0.050"), min_mb=Decimal("1.000"), min_pct=Decimal(3))
 
 
 class _Parser(argparse.ArgumentParser):
@@ -83,6 +83,8 @@ def _parser() -> _Parser:
                              metavar="FIELD=REASON", help="let one compare-blocking header field differ")
     compare_cmd.add_argument("--min-ms", type=_floor_ms, default=Decimal("0.050"), metavar="M",
                              help="the smallest change that counts, in ms (default 0.050)")
+    compare_cmd.add_argument("--min-mb", type=_floor_ms, default=Decimal("1.000"), metavar="M",
+                             help="the smallest change that counts for a mem measure, in MB (default 1.000)")
     compare_cmd.add_argument("--min-pct", type=_non_negative, default=Decimal(3), metavar="P",
                              help="the smallest change that counts, in percent of the old (default 3)")
     compare_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
@@ -408,7 +410,7 @@ def _compare(args: argparse.Namespace) -> dict:
     overrides = _overrides(args.override)
     try:
         built = compare.compare([ledger.read(p) for p in args.old], [ledger.read(p) for p in args.new],
-                                overrides, args.min_ms, args.min_pct)
+                                overrides, compare.Floors(args.min_ms, args.min_mb, args.min_pct))
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = [{"field": f, "reason": r} for f, r in overrides.items()]
         return _result("compare", "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -450,7 +452,7 @@ def _bisect(args: argparse.Namespace) -> dict:
     wanted = _wanted(args)
     overrides = _overrides(args.override)
     _check_bisect_flags(args, wanted)
-    floors = bisecting.Floors(
+    floors = compare.Floors(
         min_ms=BISECT_FLOORS.min_ms if args.min_ms is None else args.min_ms,
         min_mb=BISECT_FLOORS.min_mb if args.min_mb is None else args.min_mb,
         min_pct=BISECT_FLOORS.min_pct if args.min_pct is None else args.min_pct)

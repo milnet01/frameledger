@@ -14,6 +14,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Added
 
+- **`compare` judges memory too** (FLED-0018)
+  Each `mem` measure is judged in MB, with `--min-mb` (default 1.000). A measure that grew reads `larger` and fails the compare; one that shrank reads `smaller`. In the JSON, each measure gains `unit` and its values lose the `_ms` suffix: `old`, `new`, `old_centre`, `new_centre`, `change`, `spread`, `floor`.
+
 - `compare --old FILE… --new FILE…` says whether the new runs got
   slower than the old, measure by measure: frame time, CPU and GPU
   spans, and every pass, each judged by its own run-to-run spread and a

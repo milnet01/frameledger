@@ -101,12 +101,14 @@ def _compare_body(result: dict) -> list[str]:
     if compared["refused"]:
         return lines[:-1]
     changed = [m for m in compared["measures"] if m["verdict"] != "unchanged"]
-    if changed:
-        lines += ["Measures that moved or are too noisy to judge, old and new as the runs' median:",
-                  _measure_row("measure", "old ms", "new ms", "change", "spread", "verdict")]
-        lines += [_measure_row(_measure_name(m), f"{m['old_centre_ms']:.3f}", f"{m['new_centre_ms']:.3f}",
-                               f"{m['change_ms']:+.3f}", f"{m['spread_ms']:.3f}", m["verdict"])
-                  for m in changed]
+    for unit, title in (("ms", "Measures"), ("MB", "Memory measures")):
+        rows = [m for m in changed if m["unit"] == unit]
+        if rows:
+            lines += [f"{title} that moved or are too noisy to judge, old and new as the runs' median:",
+                      _measure_row("measure", f"old {unit}", f"new {unit}", "change", "spread", "verdict")]
+            lines += [_measure_row(_measure_name(m), f"{m['old_centre']:.3f}", f"{m['new_centre']:.3f}",
+                                   f"{m['change']:+.3f}", f"{m['spread']:.3f}", m["verdict"])
+                      for m in rows]
     unchanged = len(compared["measures"]) - len(changed)
     lines += [f"{unchanged} of {len(compared['measures'])} measures unchanged.", ""]
     if compared["unmatched"]:

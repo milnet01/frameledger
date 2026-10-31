@@ -105,7 +105,7 @@ def test_same_build_and_known_slowdown(capsys, tmp_path):
     assert judged.pop(("gpu", "gpu_remainder", "median")) == "faster"
     assert set(judged.values()) == {"unchanged"}
     opaque = next(m for m in result["result"]["measures"] if m["name"] == "opaque")
-    assert opaque["change_ms"] == 1.0
+    assert opaque["change"] == 1.0
     assert any("gpu/opaque" in s and "slower" in s for s in result["summary"])
 
 
@@ -125,7 +125,7 @@ def test_pass_judged_by_own_spread(capsys, tmp_path):
     assert verdicts(result)[("gpu", "opaque", "median")] == "slower"
     wall = next(m for m in result["result"]["measures"]
                 if m["name"] == "wall" and m["statistic"] == "median")
-    assert (wall["verdict"], wall["change_ms"], wall["spread_ms"], wall["floor_ms"]) == \
+    assert (wall["verdict"], wall["change"], wall["spread"], wall["floor"]) == \
         ("noisy", 1.0, 7.7, 0.84)
 
     code, result = compare(capsys, tmp_path, *sets([18.2, 18.25, 18.3], [18.2, 18.25, 18.3]))
@@ -240,7 +240,7 @@ def test_runs_and_unmatched(capsys, tmp_path):
     assert code == 0
     assert result["result"]["unmatched"] == [{"segment_kind": "view", "category": "gpu",
                                               "name": "bloom", "depth": 0, "statistic": "median",
-                                              "present_in": ["new-3"]}]
+                                              "unit": "ms", "present_in": ["new-3"]}]
     assert ("gpu", "bloom", "median") not in verdicts(result)
 
 
@@ -318,7 +318,7 @@ def test_even_sets_and_rounding(capsys, tmp_path):
     -0.005%, which is -0.01, not 0."""
     _, result = compare(capsys, tmp_path, old([10.0] * 4), new([9.999, 10.0, 9.999, 10.0]))
     opaque = next(m for m in result["result"]["measures"] if m["name"] == "opaque")
-    assert (opaque["new_centre_ms"], opaque["change_ms"], opaque["change_pct"]) == (9.9995, -0.0005, -0.01)
+    assert (opaque["new_centre"], opaque["change"], opaque["change_pct"]) == (9.9995, -0.0005, -0.01)
 
 
 def test_largest_slower_measure_is_named(capsys, tmp_path):

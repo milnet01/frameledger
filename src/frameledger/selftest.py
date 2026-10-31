@@ -86,14 +86,15 @@ def _compare_verdict(new: bytes) -> str:
     """Three copies of the good sample against three of `new`."""
     def runs(data: bytes) -> list[ledger.Run]:
         return [ledger.read_bytes(data, "sample") for _ in range(compare.FEWEST_RUNS)]
-    return compare.compare(runs(_GOOD), runs(new), {}, Decimal("0.050"), Decimal(3))["verdict"]
+    floors = compare.Floors(Decimal("0.050"), Decimal("1.000"), Decimal(3))
+    return compare.compare(runs(_GOOD), runs(new), {}, floors)["verdict"]
 
 
 def _bisect_verdict(bad_above: str) -> str:
     """The good sample as the tested run; its cpu/scene median in view segments is 5.250."""
     wanted = bisecting.Wanted("cpu", "scene", "median", None, "view", None)
     tested = [bisecting.Loaded("sample", ledger.read_bytes(_GOOD, "sample"), None)]
-    floors = bisecting.Floors(Decimal("0.050"), Decimal("1.000"), Decimal(3))
+    floors = compare.Floors(Decimal("0.050"), Decimal("1.000"), Decimal(3))
     return bisecting.bisect(wanted, tested, [], [], {}, floors, bad_above=Decimal(bad_above))["verdict"]
 
 

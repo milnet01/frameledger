@@ -30,10 +30,26 @@ FEWEST_RUNS = 3  # a set of two gives too many false changes (§ 4.10's table)
 # The frame measures judged, in § 4.8's frame_times order; the waits are not
 # judged, since a wait moves when the work around it moves.
 FRAME_MEASURES = (("cpu_span", "median"), ("gpu_span", "median"), ("wall", "median"), ("wall", "p99"))
-CATEGORY_ORDER = {"frame": 0, "cpu": 1, "gpu": 2}
+CATEGORY_ORDER = {"frame": 0, "cpu": 1, "gpu": 2, "mem": 3}
+MEM_VERDICTS = {"slower": "larger", "faster": "smaller"}  # memory has no speed
 ABSENT = object()  # a run's header field that is absent: it matches only another absent one
 # Notice codes the opening sentences say themselves, per run.
 INCOMPLETE_CODES = ("rows_dropped", "unfinished")
+
+
+class Floors(NamedTuple):
+    """The smallest change that counts: --min-ms, --min-mb and --min-pct."""
+    min_ms: Decimal
+    min_mb: Decimal
+    min_pct: Decimal
+
+    def minimum(self, category: str) -> Decimal:
+        """The absolute floor, in the unit of a measure of `category`."""
+        return self.min_mb if category == "mem" else self.min_ms
+
+
+def unit_of(category: str) -> str:
+    return "MB" if category == "mem" else "ms"
 
 
 class Named(NamedTuple):
@@ -51,8 +67,7 @@ class Measure(NamedTuple):
     statistic: str  # "median" or "p99"
 
 
-def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str],
-            min_ms: Decimal, min_pct: Decimal) -> dict:
+def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for two sets
     of runs that meet the format. cli.py checks the run counts and the
     override fields; a Run with a breach raises LedgerError, as under
@@ -80,10 +95,10 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + run_report.warning_sentences(shown)
 
-    measures, unmatched = _judge_all(runs, min_ms, min_pct)
+    measures, unmatched = _judge_all(runs, floors)
     short = _short_kinds(runs)
-    verdict, sentence = _verdict(incomplete, measures, short)
-    summary.append(sentence)
+    verdict, sentences = _verdict(incomplete, measures, short)
+    summary += sentences
     if short:  # straight after the verdict, which it explains (Vestige)
         kinds = ", ".join(run_report.kind_name(k) for k in short)
         summary.append(f"Some run has fewer than {trust.FEWEST_FRAMES} frames with a frame/wall in "
@@ -92,8 +107,9 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     summary += _wall_sentences(measures)
     result = {
         "runs": run_list,
-        "min_ms": float(min_ms),
-        "min_pct": float(min_pct),
+        "min_ms": float(floors.min_ms),
+        "min_mb": float(floors.min_mb),
+        "min_pct": float(floors.min_pct),
         "measures": measures,
         "unmatched": unmatched,
         "static_diff": _static_diff(runs),
@@ -239,7 +255,8 @@ def _started(utc: str) -> tuple[datetime, Fraction]:
 
 def _values(run: ledger.Run) -> dict[Measure, int]:
     """One value per measure for one run, in thousandths: the medians and
-    the wall's 99th percentile, as `report` gives them."""
+    the wall's 99th percentile, as `report` gives them. A mem measure's
+    value is in MB, the others' in ms."""
     costs = run_report.Costs(run)
     values = {}
     for (kind, name), times in costs.frame_values.items():
@@ -249,12 +266,12 @@ def _values(run: ledger.Run) -> dict[Measure, int]:
         ranks = [stats.RANKS[statistic] for statistic in statistics]
         for statistic, value in zip(statistics, stats.percentiles(times, *ranks), strict=True):
             values[Measure(kind, "frame", name, 0, statistic)] = value
-    for (kind, category, name, depth), times in costs.pass_values.items():
+    for (kind, category, name, depth), times in (*costs.pass_values.items(), *costs.mem_values.items()):
         values[Measure(kind, category, name, depth, "median")] = stats.median(times)
     return values
 
 
-def _judge_all(runs: list[Named], min_ms: Decimal, min_pct: Decimal) -> tuple[list[dict], list[dict]]:
+def _judge_all(runs: list[Named], floors: Floors) -> tuple[list[dict], list[dict]]:
     """Every measure all runs share, judged; and those only some runs have."""
     per_run = [_values(r.run) for r in runs]
     tick = largest_tick(runs)
@@ -266,28 +283,30 @@ def _judge_all(runs: list[Named], min_ms: Decimal, min_pct: Decimal) -> tuple[li
             continue
         old = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "old"]
         new = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "new"]
-        measures.append(_judge(measure, old, new, min_ms, min_pct, tick))
+        measures.append(_judge(measure, old, new, floors, tick))
     return sorted(measures, key=_rank), sorted(unmatched, key=_rank)
 
 
-def _judge(measure: Measure, old: list[int], new: list[int], min_ms: Decimal, min_pct: Decimal,
-           tick: Fraction) -> dict:
+def _judge(measure: Measure, old: list[int], new: list[int], floors: Floors, tick: Fraction) -> dict:
     """§ 4.10's table, in exact fractions of a thousandth."""
     old_centre, new_centre = centre(old), centre(new)
     spread = spread_of(old, new)
     change = new_centre - old_centre
-    floor = change_floor(measure.category, measure.name, old_centre, min_ms, min_pct, tick)
+    floor = change_floor(measure.category, measure.name, old_centre, floors.minimum(measure.category),
+                         floors.min_pct, tick)
     verdict = change_verdict(change, spread, floor)
+    if measure.category == "mem":
+        verdict = MEM_VERDICTS.get(verdict, verdict)
     return {
         **_measure_fields(measure),
-        "old_ms": [v / 1000 for v in old],
-        "new_ms": [v / 1000 for v in new],
-        "old_centre_ms": _ms4(old_centre),
-        "new_centre_ms": _ms4(new_centre),
-        "change_ms": _ms4(change),
+        "old": [v / 1000 for v in old],
+        "new": [v / 1000 for v in new],
+        "old_centre": _four_places(old_centre),
+        "new_centre": _four_places(new_centre),
+        "change": _four_places(change),
         "change_pct": None if old_centre == 0 else _round(change / old_centre * 100, 2),
-        "spread_ms": _ms4(spread),
-        "floor_ms": _ms4(floor),
+        "spread": _four_places(spread),
+        "floor": _four_places(floor),
         "verdict": verdict,
     }
 
@@ -341,17 +360,17 @@ def largest_tick(runs: list[Named]) -> Fraction:
 
 def _measure_fields(measure: Measure) -> dict:
     return {"segment_kind": measure.kind, "category": measure.category, "name": measure.name,
-            "depth": measure.depth, "statistic": measure.statistic}
+            "depth": measure.depth, "statistic": measure.statistic, "unit": unit_of(measure.category)}
 
 
 def _rank(entry: dict) -> tuple:
     """§ 4.10's order: segment kind, then frame measures in FRAME_MEASURES'
-    order, then cpu, then gpu passes by old centre, largest first. An
+    order, then cpu, gpu and mem by old centre, largest first. An
     unmatched entry has no centre, so ranks by name."""
     frame_rank = (FRAME_MEASURES.index((entry["name"], entry["statistic"]))
                   if entry["category"] == "frame" else 0)
     return (run_report.kind_order(entry["segment_kind"]), CATEGORY_ORDER[entry["category"]], frame_rank,
-            -entry.get("old_centre_ms", 0), entry["name"], entry["depth"], entry["statistic"])
+            -entry.get("old_centre", 0), entry["name"], entry["depth"], entry["statistic"])
 
 
 def _short_kinds(runs: list[Named]) -> list[str | None]:
@@ -365,35 +384,49 @@ def _short_kinds(runs: list[Named]) -> list[str | None]:
                   key=run_report.kind_order)
 
 
-def _verdict(incomplete: list[str], measures: list[dict], short: list) -> tuple[str, str]:
-    """§ 4.10's verdict, first match wins, and the sentence saying it."""
-    slower = [m for m in measures if m["verdict"] == "slower"]
-    faster = [m for m in measures if m["verdict"] == "faster"]
+def _verdict(incomplete: list[str], measures: list[dict], short: list) -> tuple[str, list[str]]:
+    """§ 4.10's verdict, first match wins, and the sentences saying it. ms
+    and MB never rank against each other, so slower passes and larger
+    memory each get a sentence."""
+    moved = {word: [m for m in measures if m["verdict"] == word]
+             for word in ("slower", "larger", "faster", "smaller")}
     noisy_walls = [m for m in measures if (m["category"], m["name"], m["statistic"]) ==
                    ("frame", "wall", "median") and m["verdict"] == "noisy"
                    and m["segment_kind"] not in short]
     if incomplete:
-        return "inconclusive", ("The compare is inconclusive: a run is incomplete, so a change could "
-                                "be a missing frame.")
-    if slower:
-        worst = max(slower, key=lambda m: (m["change_ms"], m["change_pct"] or 0))
-        return "fail", (f"The new runs are slower: {run_report.counted(len(slower), 'measure')} got "
-                        f"slower; the largest is {_label(worst)}, up {worst['change_ms']:.3f} ms"
-                        f"{_pct(worst)}, beyond the runs' spread of {worst['spread_ms']:.3f} ms.")
+        return "inconclusive", ["The compare is inconclusive: a run is incomplete, so a change could "
+                                "be a missing frame."]
+    if moved["slower"] or moved["larger"]:
+        sentences = []
+        if moved["slower"]:
+            sentences.append(_worse_sentence("The new runs are slower", "slower", moved["slower"]))
+        if moved["larger"]:
+            sentences.append(_worse_sentence("The new runs use more memory", "larger", moved["larger"]))
+        return "fail", sentences
     if noisy_walls:
         wall = noisy_walls[0]
-        return "inconclusive", (f"The compare is inconclusive: {_label(wall)} moved "
-                                f"{wall['change_ms']:+.3f} ms, within the runs' spread of "
-                                f"{wall['spread_ms']:.3f} ms; re-run with more runs a set.")
-    sentence = "No measure got slower between the old and new runs"
-    if faster:
-        sentence += f"; {run_report.counted(len(faster), 'measure')} got faster"
-    return "pass", sentence + "."
+        return "inconclusive", [f"The compare is inconclusive: {_label(wall)} moved "
+                                f"{wall['change']:+.3f} ms, within the runs' spread of "
+                                f"{wall['spread']:.3f} ms; re-run with more runs a set."]
+    sentence = "No measure got slower or larger between the old and new runs"
+    for word in ("faster", "smaller"):
+        if moved[word]:
+            sentence += f"; {run_report.counted(len(moved[word]), 'measure')} got {word}"
+    return "pass", [sentence + "."]
+
+
+def _worse_sentence(opening: str, word: str, measures: list[dict]) -> str:
+    """Names the largest change among `measures`, all in one unit."""
+    worst = max(measures, key=lambda m: (m["change"], m["change_pct"] or 0))
+    unit = worst["unit"]
+    return (f"{opening}: {run_report.counted(len(measures), 'measure')} got {word}; the largest is "
+            f"{_label(worst)}, up {worst['change']:.3f} {unit}{_pct(worst)}, beyond the runs' spread of "
+            f"{worst['spread']:.3f} {unit}.")
 
 
 def _wall_sentences(measures: list[dict]) -> list[str]:
     return [f"In {run_report.kind_name(m['segment_kind'])} segments the median frame/wall went from "
-            f"{m['old_centre_ms']:.3f} ms to {m['new_centre_ms']:.3f} ms ({m['verdict']})."
+            f"{m['old_centre']:.3f} ms to {m['new_centre']:.3f} ms ({m['verdict']})."
             for m in measures if (m["category"], m["name"], m["statistic"]) == ("frame", "wall", "median")]
 
 
@@ -433,8 +466,8 @@ def _flatten(value: dict, prefix: str = "") -> dict:
     return facts
 
 
-def _ms4(thousandths: Fraction | int) -> float:
-    """Milliseconds to four places, half away from zero (§ 4.10)."""
+def _four_places(thousandths: Fraction | int) -> float:
+    """A measure's value in its unit, to four places, half away from zero (§ 4.10)."""
     return _round(Fraction(thousandths) / 1000, 4)
 
 

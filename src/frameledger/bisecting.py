@@ -42,7 +42,7 @@ class Wanted(NamedTuple):
 
     @property
     def unit(self) -> str:
-        return "MB" if self.category == "mem" else "ms"
+        return compare.unit_of(self.category)
 
     @property
     def label(self) -> str:
@@ -57,13 +57,6 @@ class Loaded(NamedTuple):
     path: str
     run: ledger.Run | None
     error: str | None  # the reason alone; sentences never name a path
-
-
-class Floors(NamedTuple):
-    """The reference floor's settings: --min-ms, --min-mb and --min-pct."""
-    min_ms: Decimal
-    min_mb: Decimal
-    min_pct: Decimal
 
 
 class _Run(NamedTuple):
@@ -104,7 +97,7 @@ class _Skip(Exception):
 
 
 def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[Loaded],
-           overrides: dict[str, str], floors: Floors, bad_above: Decimal | None = None,
+           overrides: dict[str, str], floors: compare.Floors, bad_above: Decimal | None = None,
            dry_value: Decimal | None = None, skip_straddle: bool = False) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for one
     commit. Reference mode when `good` and `bad` are given, threshold mode
@@ -168,7 +161,7 @@ def _named(label: str, loaded: list[Loaded]) -> list[_Run]:
 
 
 def _judge_references(wanted: Wanted, refs: list[_Run], overrides: dict[str, str],
-                      floors: Floors) -> _References:
+                      floors: compare.Floors) -> _References:
     """The references' values and midpoint, once every reference check of
     § 4.11 has passed."""
     for label in ("good", "bad"):
@@ -198,7 +191,7 @@ def _judge_references(wanted: Wanted, refs: list[_Run], overrides: dict[str, str
     good_centre, bad_centre = compare.centre(good), compare.centre(bad)
     spread = compare.spread_of(good, bad)
     # The good runs are the old: the floor's percent is of the good centre.
-    minimum = floors.min_mb if wanted.category == "mem" else floors.min_ms
+    minimum = floors.minimum(wanted.category)
     floor = compare.change_floor(wanted.category, wanted.name, good_centre, minimum, floors.min_pct,
                                  compare.largest_tick(refs))
     unit = wanted.unit
