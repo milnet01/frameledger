@@ -13,7 +13,8 @@ they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-63
 (FLED-0010) agreed by the three engines 2026-10-29 at f766388; their
 code review settled the resolved depths and the exit-3 stops, and they
 confirmed it at e3984fe, with eb47707's depth-set fix. INV-64 and
-§ 4.4's digit limit (FLED-0022) await the three engines' review.
+§ 4.4's digit limit (FLED-0022), and § 4.10's `mem` measures with
+INV-65 to INV-67 (FLED-0018), await the three engines' review.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -486,11 +487,11 @@ FLED-0008 builds this (S4, S5's refusal half, S16). Reviewed by the
 three engines 2026-10-26; their changes are folded in.
 
 ```
-compare --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-pct P]
+compare --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
 ```
 
-Exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 error or
-refused. Defaults: `--min-ms 0.050`, `--min-pct 3`.
+Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
+or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`.
 
 - **Runs are named by set and order**: `old-1`, `old-2`, … and
   `new-1`, …, in the order given. Warnings and sentences use these
@@ -525,18 +526,21 @@ the overrides sentence, when there is one.
 - `frame/wall` median and 99th percentile;
 - `frame/cpu_span` and `frame/gpu_span` median;
 - each `cpu` and `gpu` pass, every depth, remainders included: its
-  median over the frames it appears in, as `report` gives it.
+  median over the frames it appears in, as `report` gives it;
+- each `mem` name, every depth: its median over the frames it appears
+  in, in MB, as § 4.11 gives it.
 
 `frame/fence_wait` and `frame/present_wait` are not judged: a wait
-moves when the work around it moves. `mem`, `event` and `ext` rows are
-not judged.
+moves when the work around it moves. `event` and `ext` rows are not
+judged.
 
 A measure is judged only when every run of both sets has it. One
 missing from some runs goes into `unmatched`, naming the runs that have
 it, and judges nothing.
 
 **Judging a measure.** Arithmetic is exact, in fractions; JSON gives
-milliseconds rounded to four places, half away from zero.
+values in the measure's unit, ms or MB, rounded to four places, half
+away from zero.
 
 - A set's **centre** is the median of its runs' values: the middle
   one, or the mean of the two middle ones.
@@ -546,7 +550,9 @@ milliseconds rounded to four places, half away from zero.
 - The **floor** is the larger of `--min-ms` and `--min-pct` percent of
   the old centre. For a `gpu` pass, `gpu_remainder` and
   `frame/gpu_span` it is at least the largest `gpu_tick_ns` among the
-  runs.
+  runs. For a `mem` measure `--min-mb` stands in for `--min-ms`, and
+  `gpu_tick_ns` does not apply. As under § 4.11, the percent usually
+  decides on `mem`.
 
 | Verdict | When |
 |---|---|
@@ -554,6 +560,9 @@ milliseconds rounded to four places, half away from zero.
 | `faster` | minus the change is above the spread and at least the floor |
 | `noisy` | neither, and the spread is above 0 and at least the floor |
 | `unchanged` | otherwise |
+
+A `mem` measure has no speed, so its `slower` is `larger` and its
+`faster` is `smaller`.
 
 So each measure is judged by its own spread (S16): a pass that moved
 is found even when `frame/wall` is `noisy`. The floor stops a pass
@@ -580,15 +589,16 @@ gives more runs a set, or a higher `--min-pct`.
 1. `inconclusive` (exit 2) when any run has dropped rows or no close
    line, whatever the measures say (design: "nor a compare that uses
    them"). The first sentences name each such run and its drop count.
-2. `fail` (exit 1) when any measure is `slower`.
+2. `fail` (exit 1) when any measure is `slower` or `larger`.
 3. `inconclusive` (exit 2) when the `frame/wall` median is `noisy` in
    any segment kind with at least 100 frames with a `frame/wall` in
    every run (§ 4.9's `too_few_frames` bound): re-run with more runs a
    set. A shorter kind, such as a loading stretch, is noisy almost
    every time; the summary names the kinds this step skipped
    (Vestige).
-4. `pass` (exit 0) otherwise. A `faster` measure is reported, and does
-   not change the verdict.
+4. `pass` (exit 0) otherwise. A `faster` or `smaller` measure is
+   reported, and does not change the verdict. A `noisy` `mem` measure
+   is reported too, and only `frame/wall` makes step 3 inconclusive.
 
 **Warnings** (`warnings`, one sentence per code):
 
@@ -609,11 +619,14 @@ first 20 and counts the rest.
 and its reason; a refusal; each run's dropped rows or missing close
 line; one per kind of warning; the verdict sentence, naming the slower
 measure with the largest change in milliseconds, ties by percent (or
-why it is inconclusive); the segment kinds step 3 skipped; the `frame/wall`
+why it is inconclusive); the `larger` `mem` measure with the largest
+change in MB, ties by percent, which is the verdict sentence when no
+measure is `slower`; the segment kinds step 3 skipped; the `frame/wall`
 median per segment kind, old centre against new. A refusal ends the
 compare after its warning sentences; a file that cannot be read still
-opens with the overrides. Then a table of every measure not `unchanged`, then a
-count of those that are, then the static diff.
+opens with the overrides. Then a table of every ms measure not `unchanged`, one of
+every such `mem` measure in MB, a count of those that are, then the
+static diff.
 
 **Result:**
 
@@ -621,23 +634,23 @@ count of those that are, then the static diff.
 {
   "runs": [{"name", "set", "path", "run_id", "commit", "dirty", "started_utc",
             "rows_dropped", "finished"}],
-  "min_ms", "min_pct",
-  "measures": [{"segment_kind", "category", "name", "depth", "statistic",
-                "old_ms": [], "new_ms": [], "old_centre_ms", "new_centre_ms",
-                "change_ms", "change_pct", "spread_ms", "floor_ms", "verdict"}],
-  "unmatched": [{"segment_kind", "category", "name", "depth", "statistic",
+  "min_ms", "min_mb", "min_pct",
+  "measures": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
+                "old": [], "new": [], "old_centre", "new_centre",
+                "change", "change_pct", "spread", "floor", "verdict"}],
+  "unmatched": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                  "present_in": []}],
   "static_diff": [{"key", "values": {}}],
   "refused": [{"field", "values": {}}]
 }
 ```
 
-`statistic` is `median` or `p99`; `old_ms` and `new_ms` list the runs'
-values in run order; `change_pct` is the change over the old centre,
+`statistic` is `median` or `p99`; `unit` is `ms` or `MB`, as under
+§ 4.11; `old` and `new` list the runs' values in run order; `change_pct` is the change over the old centre,
 in percent to two places, or null when the old centre is 0; `values`
 maps run names to values. Measures are ranked by segment kind, then
 `frame` measures in § 4.8's `frame_times` order, then `cpu`, then
-`gpu`, each by old centre, largest first. A refused compare gives only
+`gpu`, then `mem`, each by old centre, largest first. A refused compare gives only
 `runs` and `refused`.
 
 ### 4.11 Bisect verdicts
@@ -1637,6 +1650,40 @@ breaks.
   *Breaks when:* a long number ends in a traceback, a legal one is a
   breach, or the message repeats the whole field.
 
+- **INV-65** — A `mem` measure is judged by its own spread and floor,
+  in MB. Every run has one `mem/gpu_mb` value in every frame, and frames
+  otherwise alike. Old runs all 500.000. New runs all 515.000, exactly 3
+  percent: `larger`, change 15.000, `unit` `MB`, exit 1. New runs all
+  514.999: `unchanged`, exit 0. New runs all 485.000: `smaller`, exit 0.
+  Old runs 500.000, 510.000 and 520.000, new runs 525.000, 530.000 and
+  535.000: change equal to the spread, `noisy`, exit 0.
+  *Test:* `tests/test_compare_mem.py::test_mem_judged`.
+  *Breaks when:* `mem` is not judged, a change at the floor is missed,
+  a smaller or noisy `mem` measure fails or stops the compare, or a
+  `mem` measure reads `slower`.
+
+- **INV-66** — `--min-mb` is a `mem` measure's floor and nothing else's.
+  Old runs all 10.000. New runs all 10.999: `unchanged`, under the
+  default 1.000 floor. New runs all 11.000: `larger`. The same with
+  `--min-mb 2`: `unchanged`. The same with `--min-ms 2`, or a
+  `gpu_tick_ns` of 5000000: still `larger`. `--min-mb 5` leaves a
+  `gpu/opaque` change of 1.000 ms `slower`. `--min-mb -1` exits 3.
+  *Test:* `tests/test_compare_mem.py::test_mem_floor`.
+  *Breaks when:* a floor in the other unit, or the GPU tick, decides a
+  `mem` measure, or `--min-mb` decides a ms one.
+
+- **INV-67** — Memory is reported in its own unit. With only a `mem`
+  measure larger, the verdict sentence names it, in MB, with no "ms". With
+  `gpu/opaque` 1.000 ms slower and `mem/gpu_mb` 20.000 MB larger, the
+  verdict sentence names `gpu/opaque` and the next names `mem/gpu_mb`.
+  Of two larger, the larger change in MB is named. `mem` ranks after
+  `gpu` in `measures`, and the text puts it in a table headed in MB. A
+  `mem` name in only some runs goes into `unmatched`, `unit` `MB`, and
+  judges nothing. An `event` or `ext` row that moves judges nothing.
+  *Test:* `tests/test_compare_mem.py::test_mem_sentences`.
+  *Breaks when:* MB and ms are compared with each other, a `mem` figure
+  is labelled ms, or an unjudged category is judged.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -1671,6 +1718,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0009: INV-39 to INV-53.
 - FLED-0010: INV-54 to INV-63.
 - FLED-0022: INV-64.
+- FLED-0018: INV-65 to INV-67.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1775,6 +1823,9 @@ it on each release they pin.
 | INV-62 | `tests/test_budget.py::test_named_kind_replaces_star` |
 | INV-63 | `tests/test_budget.py::test_warmup` |
 | INV-64 | `tests/test_check.py::test_twenty_digits_are_read`, `test_too_many_digits_is_a_breach`, `test_too_many_digits_stops_a_report` |
+| INV-65 | `tests/test_compare_mem.py::test_mem_judged` |
+| INV-66 | `tests/test_compare_mem.py::test_mem_floor` |
+| INV-67 | `tests/test_compare_mem.py::test_mem_sentences` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 

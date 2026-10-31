@@ -299,13 +299,17 @@ engine faster, and which pass it changed.
   Kind: marketing.
   Source: ants-projects-hub-website-2026-10-26.
 
-- 📋 [FLED-0018] **Compare judges mem measures.**
+- 🚧 [FLED-0018] **Compare judges mem measures.**
   Amend spec FLED-0001 § 4.10 so compare judges each mem row's median
   per segment kind, with a --min-mb floor (default 1.000) in place of
   --min-ms, as FLED-0009's § 4.11 does for bisect. Vestige retires
   tools/perf_gate.py (gates frame,total, gpu,total, cpu,total and
   mem,gpu_mb against a committed baseline, min_abs_mb 1.0) once this
   lands (Vestige, 2026-10-26, FLED-0009 review).
+  Spec amendment in docs/specs/FLED-0001-run-file-format.md § 4.10 and
+  INV-65 to INV-67, at the engines' review. Vestige's perf_gate.py fails
+  memory at 25 percent, so compare's default 3 percent is stricter and
+  no separate memory percent is proposed. Read 2026-10-31.
   **Layman:** Lets the comparison catch a build that uses more memory, so Vestige can retire its own gate script.
   Kind: implement.
   Source: vestige-review-2026-10-26.
