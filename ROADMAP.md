@@ -370,6 +370,13 @@ engine faster, and which pass it changed.
   The value's whole part crashed the same way, in _thousandths, and with
   leading zeros too; all three now stop at 20 digits (INV-64). Run
   2026-10-31.
+  Correction to f5e476b's commit body, which says 21 of 22 new cases
+  were red on the old reader. There are 23 new cases. 19 failed on the
+  old reader for the intended reason. The first red run showed 22
+  failing, but 3 of those were a fault in the test (a duplicate
+  cpu/scene row), since fixed. The 4 acceptance cases are expected to
+  pass on both readers; after that test fix they were run on the new
+  reader only.
   **Layman:** A run file with an absurdly long number makes frameledger crash instead of saying the file is broken.
   Kind: fix.
   Source: vestige-review-2026-10-29.
