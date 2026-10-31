@@ -14,8 +14,9 @@ they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-63
 code review settled the resolved depths and the exit-3 stops, and they
 confirmed it at e3984fe, with eb47707's depth-set fix. INV-64 and
 § 4.4's digit limit (FLED-0022) reviewed by the three engines at
-f5e476b. § 4.10's `mem` measures with INV-65 to INV-67 (FLED-0018)
-agreed by the three engines 2026-10-31 at 3be4465.
+f5e476b, and confirmed at 0c5b57d. § 4.10's `mem` measures with INV-65
+to INV-67 (FLED-0018) agreed by the three engines 2026-10-31 at
+3be4465, and confirmed at 0ebcf7d.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1661,8 +1662,11 @@ breaks.
   Old runs 500.000, 510.000 and 520.000, new runs 525.000, 530.000 and
   535.000: change equal to the spread, `noisy`, exit 0. Old runs all
   0.000, new runs all 5.000: `larger`, `change_pct` null, floor 1.000
-  (DOOM Ants).
-  *Test:* `tests/test_compare_mem.py::test_mem_judged`.
+  (DOOM Ants). One name at depths 0 and 1, in different frames, is two
+  measures: only depth 1 growing gives depth 1 `larger` and depth 0
+  `unchanged` (DOOM Ants).
+  *Test:* `tests/test_compare_mem.py::test_mem_judged`,
+  `tests/test_compare_mem.py::test_mem_each_depth_apart`.
   *Breaks when:* `mem` is not judged, a change at the floor is missed,
   a smaller or noisy `mem` measure fails or stops the compare, or a
   `mem` measure reads `slower`.
@@ -1832,7 +1836,7 @@ it on each release they pin.
 | INV-62 | `tests/test_budget.py::test_named_kind_replaces_star` |
 | INV-63 | `tests/test_budget.py::test_warmup` |
 | INV-64 | `tests/test_check.py::test_twenty_digits_are_read`, `test_too_many_digits_is_a_breach`, `test_too_many_digits_stops_a_report`, `test_a_long_field_is_quoted_short` |
-| INV-65 | `tests/test_compare_mem.py::test_mem_judged` |
+| INV-65 | `tests/test_compare_mem.py::test_mem_judged`, `test_mem_each_depth_apart` |
 | INV-66 | `tests/test_compare_mem.py::test_mem_floor` |
 | INV-67 | `tests/test_compare_mem.py::test_mem_sentences`, `test_mem_unmatched_and_unjudged` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

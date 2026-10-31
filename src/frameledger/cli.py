@@ -81,9 +81,9 @@ def _parser() -> _Parser:
                              help=f"the new build's runs, at least {compare.FEWEST_RUNS}")
     compare_cmd.add_argument("--override", action="append", type=_override, default=[],
                              metavar="FIELD=REASON", help="let one compare-blocking header field differ")
-    compare_cmd.add_argument("--min-ms", type=_floor_ms, default=Decimal("0.050"), metavar="M",
+    compare_cmd.add_argument("--min-ms", type=_smallest_change, default=Decimal("0.050"), metavar="M",
                              help="the smallest change that counts, in ms (default 0.050)")
-    compare_cmd.add_argument("--min-mb", type=_floor_ms, default=Decimal("1.000"), metavar="M",
+    compare_cmd.add_argument("--min-mb", type=_smallest_change, default=Decimal("1.000"), metavar="M",
                              help="the smallest change that counts for a mem measure, in MB (default 1.000)")
     compare_cmd.add_argument("--min-pct", type=_non_negative, default=Decimal(3), metavar="P",
                              help="the smallest change that counts, in percent of the old (default 3)")
@@ -122,9 +122,9 @@ def _add_bisect(commands) -> None:
                         "runs of a known-bad commit")
     bisect.add_argument("--override", action="append", type=_override, default=[],
                         metavar="FIELD=REASON", help="let one compare-blocking header field differ")
-    bisect.add_argument("--min-ms", type=_floor_ms, metavar="M",
+    bisect.add_argument("--min-ms", type=_smallest_change, metavar="M",
                         help=f"the references' smallest change, in ms (default {BISECT_FLOORS.min_ms})")
-    bisect.add_argument("--min-mb", type=_floor_ms, metavar="M",
+    bisect.add_argument("--min-mb", type=_smallest_change, metavar="M",
                         help="the references' smallest change for a mem measure, in MB "
                         f"(default {BISECT_FLOORS.min_mb})")
     bisect.add_argument("--min-pct", type=_non_negative, metavar="P",
@@ -187,7 +187,7 @@ def _value(text: str) -> Decimal:
     return value
 
 
-def _floor_ms(text: str) -> Decimal:
+def _smallest_change(text: str) -> Decimal:
     value = _non_negative(text)
     if value >= BUDGET_LIMIT:
         raise argparse.ArgumentTypeError(f"'{text}' must be below {BUDGET_LIMIT}")

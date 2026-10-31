@@ -1,6 +1,8 @@
 """`compare` on mem measures: docs/specs/FLED-0001-run-file-format.md § 4.10,
 INV-65 to INV-67. Every run is built by test_compare's helpers."""
 
+import re
+
 import cli
 from test_compare import alike, compare, new, old
 
@@ -43,6 +45,22 @@ def test_mem_judged(capsys, tmp_path):
     assert (code, mem["verdict"], mem["change_pct"], mem["floor"]) == (1, "larger", None, 1.0)
     code, mem = judged(capsys, tmp_path, [0.0] * 3, [0.999] * 3)
     assert (code, mem["verdict"]) == (0, "unchanged")
+
+
+def test_mem_each_depth_apart(capsys, tmp_path):
+    """INV-65: one name at two depths gives two measures. A frame holds a
+    name once, so the depths are in different frames."""
+    def at_two_depths(texts, deep):
+        # Frames 60 on hold the row at depth 1 with the value `deep`.
+        late_row = r"^(.*?,(?:[6-9][0-9]|1[0-9][0-9]),mem,gpu_mb),0,[0-9.]+$"
+        return [re.sub(late_row, rf"\g<1>,1,{deep:.3f}", text, flags=re.M) for text in texts]
+
+    code, result = compare(capsys, tmp_path, at_two_depths(old([rows(100.0)] * 3), 200.0),
+                           at_two_depths(new([rows(100.0)] * 3), 220.0))
+    mem = {m["depth"]: m for m in result["result"]["measures"] if m["category"] == "mem"}
+    assert code == 1
+    assert (mem[0]["verdict"], mem[0]["old_centre"]) == ("unchanged", 100.0)
+    assert (mem[1]["verdict"], mem[1]["change"]) == ("larger", 20.0)
 
 
 def test_mem_floor(capsys, tmp_path):

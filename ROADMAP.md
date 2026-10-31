@@ -299,7 +299,7 @@ engine faster, and which pass it changed.
   Kind: marketing.
   Source: ants-projects-hub-website-2026-10-26.
 
-- 🚧 [FLED-0018] **Compare judges mem measures.**
+- ✅ [FLED-0018] **Compare judges mem measures.**
   Amend spec FLED-0001 § 4.10 so compare judges each mem row's median
   per segment kind, with a --min-mb floor (default 1.000) in place of
   --min-ms, as FLED-0009's § 4.11 does for bisect. Vestige retires
@@ -310,6 +310,10 @@ engine faster, and which pass it changed.
   INV-65 to INV-67, at the engines' review. Vestige's perf_gate.py fails
   memory at 25 percent, so compare's default 3 percent is stricter and
   no separate memory percent is proposed. Read 2026-10-31.
+  Vestige, UT Ants and DOOM Ants confirmed 0ebcf7d, 2026-10-31. Vestige
+  keeps tools/perf_gate.py for now: its mem/gpu_mb reads the whole card,
+  which Vestige fixes on its own roadmap, and it waits for a compare
+  release to pin.
   **Layman:** Lets the comparison catch a build that uses more memory, so Vestige can retire its own gate script.
   Kind: implement.
   Source: vestige-review-2026-10-26.
@@ -359,7 +363,7 @@ engine faster, and which pass it changed.
   Kind: review-fix.
   Source: github-pr-1-2026-10-28.
 
-- 🚧 [FLED-0022] **A huge frame or depth number crashes the reader.**
+- ✅ [FLED-0022] **A huge frame or depth number crashes the reader.**
   ledger._row_problem accepts any length of digits for `frame` and
   `depth` (COUNT_RE), then _Reader converts them with int(). Past
   Python's 4300-digit limit that raises ValueError: `check` on a row
@@ -377,6 +381,7 @@ engine faster, and which pass it changed.
   cpu/scene row), since fixed. The 4 acceptance cases are expected to
   pass on both readers; after that test fix they were run on the new
   reader only.
+  Vestige, UT Ants and DOOM Ants confirmed 0c5b57d, 2026-10-31.
   **Layman:** A run file with an absurdly long number makes frameledger crash instead of saying the file is broken.
   Kind: fix.
   Source: vestige-review-2026-10-29.
