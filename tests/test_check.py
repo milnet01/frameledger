@@ -133,6 +133,58 @@ def test_row_breaches(capsys, tmp_path, text, rule):
     assert found(out) == [(expected_line, rule)]
 
 
+def run_with_row(tmp_path, row):
+    lines = (FIXTURES / "schema-1.csv").read_text(encoding="utf-8").splitlines()
+    lines.insert(lines.index("r1,view:1,1,frame,cpu_span,0,9.000") + 1, row)
+    path = tmp_path / "run.csv"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+TWENTY, TWENTY_ONE, HUGE = "9" * 20, "9" * 21, "9" * 5000
+
+
+@pytest.mark.parametrize("row", [
+    f"r1,view:1,{TWENTY},frame,cpu_span,0,9.000",
+    f"r1,view:1,1,cpu,extra,{TWENTY},6.000",
+    f"r1,view:1,1,cpu,extra,0,{'0' * 19}6.000",
+    f"r1,view:1,1,cpu,extra,0,-{'0' * 19}6.000",
+], ids=["frame", "depth", "value", "negative value"])
+def test_twenty_digits_are_read(capsys, tmp_path, row):
+    """INV-64: 20 digits are within the format."""
+    code, out = run_check(capsys, run_with_row(tmp_path, row))
+    assert (code, found(out)) == (0, [])
+
+
+@pytest.mark.parametrize("digits", [TWENTY_ONE, HUGE, "0" * 20 + "1", "0" * 5000 + "1"],
+                         ids=["21 digits", "5000 digits", "21 with leading zeros", "5001 with leading zeros"])
+@pytest.mark.parametrize(("template", "rule"), [
+    ("r1,view:1,{},frame,cpu_span,0,9.000", "frame"),
+    ("r1,view:1,1,cpu,scene,{},6.000", "depth"),
+    ("r1,view:1,1,cpu,scene,0,{}.000", "value"),
+    ("r1,view:1,1,cpu,scene,0,-{}.000", "value"),
+], ids=["frame", "depth", "value", "negative value"])
+def test_too_many_digits_is_a_breach(capsys, tmp_path, template, rule, digits):
+    """INV-64: past 20 digits a number is a breach on its line, quoted
+    short; never int()'s 4300-digit ValueError."""
+    path = run_with_row(tmp_path, template.format(digits))
+    code, out = run_check(capsys, path)
+    assert code == 1
+    assert found(out) == [(line_of(path, template.format(digits)), rule)]
+    assert digits not in out["result"]["files"][0]["breaches"][0]["message"]
+
+
+@pytest.mark.parametrize("template", [
+    "r1,view:1,{},frame,cpu_span,0,9.000",
+    "r1,view:1,1,cpu,scene,{},6.000",
+    "r1,view:1,1,cpu,scene,0,{}.000",
+], ids=["frame", "depth", "value"])
+def test_too_many_digits_stops_a_report(capsys, tmp_path, template):
+    """INV-64: a command judging the file stops at 3, as for any breach."""
+    assert cli.main(["report", str(run_with_row(tmp_path, template.format(HUGE)))]) == 3
+    capsys.readouterr()
+
+
 def header_with(**changes):
     fields = json.loads(HEADER.split(" ", 2)[2])
     for key, value in changes.items():

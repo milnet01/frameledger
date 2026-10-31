@@ -147,7 +147,7 @@ def _budget(text: str, number: int, path: str) -> Budget:
         raise bad(f"kind '{kind}' must be a segment kind of at most {ledger.PART_MAX} bytes, "
                   f"'{EVERY_KIND}', or empty")
     if depth and not DEPTH_RE.fullmatch(depth):
-        raise bad(f"depth '{_clip(depth)}' must be a whole number of at most nine digits, or empty")
+        raise bad(f"depth '{ledger.clip(depth)}' must be a whole number of at most nine digits, or empty")
     if statistic not in stats.RANKS:
         raise bad(f"statistic '{statistic}' must be median or p99")
     parts = LIMIT_RE.fullmatch(limit)
@@ -156,7 +156,7 @@ def _budget(text: str, number: int, path: str) -> Budget:
         whole, places = parts.groups()
         thousandths = int(whole) * 1000 + int((places or "").ljust(3, "0"))
     if thousandths < 1:  # also a limit_ms that is not a number at all
-        raise bad(f"limit_ms '{_clip(limit)}' must be 0.001 to 999999999.999, at most three places")
+        raise bad(f"limit_ms '{ledger.clip(limit)}' must be 0.001 to 999999999.999, at most three places")
     return Budget(number, category, name, kind or None, int(depth) if depth else None, statistic, thousandths)
 
 
@@ -344,11 +344,6 @@ def _unmatched_sentence(budget: Budget) -> str:
 
 def _seconds(microseconds: int) -> str:
     return f"{microseconds / run_report.SECOND:g}"
-
-
-def _clip(text: str) -> str:
-    """A field short enough to quote in a sentence."""
-    return text if len(text) <= 20 else text[:17] + "..."
 
 
 def _incomplete(run: ledger.Run, stop: str | None) -> list[str]:

@@ -22,14 +22,15 @@ HEADER, STATIC, CLOSE = "# frameledger ", "# frameledger-static ", "# frameledge
 NAME_MAX = 64
 PART_MAX = 32  # category; segment kind; segment id
 VALUE_LIMIT = 1_000_000_000_000  # 1 000 000 000, in thousandths
+DIGITS_MAX = 20  # any 64-bit counter fits, and int() raises past 4300 digits
 
 FRAME_NAMES = {"cpu_span", "gpu_span", "wall", "fence_wait", "present_wait"}
 SIGNED_CATEGORIES = {"frame", "cpu", "gpu"}  # milliseconds, where a negative is a clock fault
 
 NAME_RE = re.compile(r"[A-Za-z0-9_./-]+")
 CATEGORY_RE = re.compile(r"frame|cpu|gpu|mem|event|ext\.[A-Za-z0-9_./-]+")
-VALUE_RE = re.compile(r"(-?)([0-9]+)\.([0-9]{3})")
-COUNT_RE = re.compile(r"[0-9]+")
+VALUE_RE = re.compile(rf"(-?)([0-9]{{1,{DIGITS_MAX}}})\.([0-9]{{3}})")
+COUNT_RE = re.compile(rf"[0-9]{{1,{DIGITS_MAX}}}")
 HASH_RE = re.compile(r"sha256:[0-9A-Fa-f]{64}|md5:[0-9A-Fa-f]{32}")
 UTC_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z")
 
@@ -294,7 +295,7 @@ def _row_problem(run_id, segment, frame, category, name, depth, value, header_ru
         if len(kind.encode()) > PART_MAX or len(ident.encode()) > PART_MAX:
             return "segment", f"a segment's kind and id are at most {PART_MAX} bytes each"
     if not COUNT_RE.fullmatch(frame):
-        return "frame", f"frame '{frame}' must be a whole number, 0 or more"
+        return "frame", f"frame '{clip(frame)}' must be a whole number, 0 or more, of at most {DIGITS_MAX} digits"
     if not CATEGORY_RE.fullmatch(category) or len(category) > PART_MAX:
         return "category", (f"category '{category}' must be frame, cpu, gpu, mem, event or "
                             f"ext.<engine>, at most {PART_MAX} bytes")
@@ -302,13 +303,18 @@ def _row_problem(run_id, segment, frame, category, name, depth, value, header_ru
         return "name", (f"name '{name}' must be 1 to {NAME_MAX} ASCII letters, digits "
                         "and '_ . / -'")
     if not COUNT_RE.fullmatch(depth):
-        return "depth", f"depth '{depth}' must be a whole number, 0 or more"
+        return "depth", f"depth '{clip(depth)}' must be a whole number, 0 or more, of at most {DIGITS_MAX} digits"
     if not VALUE_RE.fullmatch(value):
-        return "value", (f"value '{value}' must be a decimal number with '.' as the point "
-                         "and exactly three places after it")
+        return "value", (f"value '{clip(value)}' must be a decimal number of at most {DIGITS_MAX} whole "
+                         "digits, with '.' as the point and exactly three places after it")
     if abs(_thousandths(value)) >= VALUE_LIMIT:
         return "value", f"value '{value}' must be below 1000000000 in size"
     return None
+
+
+def clip(text: str) -> str:
+    """A field short enough to quote in a sentence."""
+    return text if len(text) <= 20 else text[:17] + "..."
 
 
 def _thousandths(value: str) -> int:

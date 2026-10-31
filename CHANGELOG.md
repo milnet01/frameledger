@@ -55,6 +55,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   the projects website's logo, `assets/frameledger-logo-stacked.svg`
   (FLED-0017).
 
+### Fixed
+
+- **A run file with a very long number is a breach, not a crash** (FLED-0022)
+  A `frame`, a `depth` or a value's whole part past 20 digits now breaks the format and is named by line. Past 4300 digits it used to end in a traceback.
+
 ## [0.1.0] - 2026-10-26
 
 **Theme:** One run, read and checked.

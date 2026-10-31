@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=22 -->
+<!-- ants-roadmap-id-high-water: FLED=23 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -355,7 +355,7 @@ engine faster, and which pass it changed.
   Kind: review-fix.
   Source: github-pr-1-2026-10-28.
 
-- 📋 [FLED-0022] **A huge frame or depth number crashes the reader.**
+- 🚧 [FLED-0022] **A huge frame or depth number crashes the reader.**
   ledger._row_problem accepts any length of digits for `frame` and
   `depth` (COUNT_RE), then _Reader converts them with int(). Past
   Python's 4300-digit limit that raises ValueError: `check` on a row
@@ -363,9 +363,23 @@ engine faster, and which pass it changed.
   not a breach. Exit 1 then reads as "fail" to a gate. A breach naming
   the line is the fix. Found beside Vestige's FLED-0010 code review,
   which hit the same limit in the budget file (fixed there).
+  The value's whole part crashed the same way, in _thousandths, and with
+  leading zeros too; all three now stop at 20 digits (INV-64). Run
+  2026-10-31.
   **Layman:** A run file with an absurdly long number makes frameledger crash instead of saying the file is broken.
   Kind: fix.
   Source: vestige-review-2026-10-29.
+
+- 📋 [FLED-0023] **A huge --warmup-s crashes floor.**
+  floor --warmup-s 1e400, or a 5000-digit whole number, ends in a
+  traceback at run_report.floor's warmup_us / SECOND (OverflowError),
+  exit 1, which a gate reads as "fail" (run 2026-10-31). _non_negative has
+  no upper limit, unlike _value and _floor_ms, which stop at BUDGET_LIMIT.
+  Exit 3 with a sentence is the fix. budget --warmup-s shares the parser;
+  not yet tried with a valid budget file. Found beside FLED-0022.
+  **Layman:** An absurdly long warm-up time makes frameledger crash instead of saying the setting is wrong.
+  Kind: fix.
+  Source: fled-0022-probe-2026-10-31.
 
 ## 0.3.0 — many runs surveyed
 

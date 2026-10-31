@@ -12,7 +12,8 @@ code review settled `--tested`, the stops and INV-52 to INV-53, and
 they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-63
 (FLED-0010) agreed by the three engines 2026-10-29 at f766388; their
 code review settled the resolved depths and the exit-3 stops, and they
-confirmed it at e3984fe, with eb47707's depth-set fix.
+confirmed it at e3984fe, with eb47707's depth-set fix. INV-64 and
+§ 4.4's digit limit (FLED-0022) await the three engines' review.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -205,11 +206,11 @@ prints the first 20 facts and counts the rest.
 |---|---|
 | `run_id` | equals the header's |
 | `segment` | `<kind>:<id>` (`view:3`, `move:3-4`, `leg:2`, `spot:e1m1-a`), or empty |
-| `frame` | non-negative integer; the frame that submitted the work |
+| `frame` | non-negative integer, at most 20 digits; the frame that submitted the work |
 | `category` | `frame`, `cpu`, `gpu`, `mem`, `event`, or `ext.<engine>` |
 | `name` | the pass or measure; ASCII letters, digits and `_ . / -`, at most 64 bytes |
-| `depth` | integer from 0; 0 is a top-level pass |
-| `value` | decimal number, exactly three places after the point, below 1 000 000 000 in size |
+| `depth` | integer from 0, at most 20 digits; 0 is a top-level pass |
+| `value` | decimal number, at most 20 digits before the point, exactly three after it, below 1 000 000 000 in size |
 
 Segment kind and id are at most 32 bytes each; category at most 32.
 Fields are quoted only when they hold a comma or a quote, CSV-style
@@ -1626,6 +1627,16 @@ breaks.
   *Breaks when:* warm-up frames are judged, the default leaves any
   out, a hole is ignored above 0, or hides a breach.
 
+- **INV-64** — A `frame`, `depth` or value's whole part of 20 digits
+  is read; leading zeros count. At 21 digits, and at 5000, it is a
+  breach naming the line and rule, quoting the field cut short: `check`
+  exits 1 and `report` exits 3.
+  *Test:* `tests/test_check.py::test_twenty_digits_are_read`,
+  `tests/test_check.py::test_too_many_digits_is_a_breach`,
+  `tests/test_check.py::test_too_many_digits_stops_a_report`.
+  *Breaks when:* a long number ends in a traceback, a legal one is a
+  breach, or the message repeats the whole field.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -1659,6 +1670,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0008: INV-30 to INV-38.
 - FLED-0009: INV-39 to INV-53.
 - FLED-0010: INV-54 to INV-63.
+- FLED-0022: INV-64.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1762,6 +1774,7 @@ it on each release they pin.
 | INV-61 | `tests/test_budget.py::test_match` |
 | INV-62 | `tests/test_budget.py::test_named_kind_replaces_star` |
 | INV-63 | `tests/test_budget.py::test_warmup` |
+| INV-64 | `tests/test_check.py::test_twenty_digits_are_read`, `test_too_many_digits_is_a_breach`, `test_too_many_digits_stops_a_report` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
