@@ -57,6 +57,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Fixed
 
+- **`--allow-frames` and `bisect --depth` take only ASCII digits** (FLED-0021)
+  Another script's digits were read as a number, and a superscript got a generic error. Both now get the flag's own message.
+
 - **A run file with a very long number is a breach, not a crash** (FLED-0022)
   A `frame`, a `depth` or a value's whole part past 20 digits now breaks the format and is named by line. Past 4300 digits it used to end in a traceback.
 
