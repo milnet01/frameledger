@@ -13,8 +13,9 @@ they confirmed it at 32b87ac. § 4.12 and INV-54 to INV-63
 (FLED-0010) agreed by the three engines 2026-10-29 at f766388; their
 code review settled the resolved depths and the exit-3 stops, and they
 confirmed it at e3984fe, with eb47707's depth-set fix. INV-64 and
-§ 4.4's digit limit (FLED-0022), and § 4.10's `mem` measures with
-INV-65 to INV-67 (FLED-0018), await the three engines' review.
+§ 4.4's digit limit (FLED-0022) reviewed by the three engines at
+f5e476b. § 4.10's `mem` measures with INV-65 to INV-67 (FLED-0018)
+agreed by the three engines 2026-10-31 at 3be4465.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1593,7 +1594,7 @@ breaks.
   `limit_ms` `2.0005`; `category` `frame`; a repeated line; an empty
   `depth` for a pass at two depths, named with both; a `match` key
   `fps`; `match` `inputs` of `"abc"`; a `limit_ms` or `depth` of
-  5000 digits (Vestige); no budget line. A blank line between two budgets is skipped.
+  5000 digits (Vestige); a header `schema` of 5000 digits (UT Ants); no budget line. A blank line between two budgets is skipped.
   *Test:* `tests/test_budget.py::test_bad_budget_files`.
   *Breaks when:* a bad line is skipped or read as a budget, a blank
   line stops the file, or a bad value crashes to exit 1.
@@ -1643,9 +1644,11 @@ breaks.
 - **INV-64** — A `frame`, `depth` or value's whole part of 20 digits
   is read; leading zeros count. At 21 digits, and at 5000, it is a
   breach naming the line and rule, quoting the field cut short: `check`
-  exits 1 and `report` exits 3.
+  exits 1 and `report` exits 3. A long `run_id`, `segment`, `category`
+  or `name` that breaks its rule is quoted cut short too (DOOM Ants).
   *Test:* `tests/test_check.py::test_twenty_digits_are_read`,
   `tests/test_check.py::test_too_many_digits_is_a_breach`,
+  `tests/test_check.py::test_a_long_field_is_quoted_short`,
   `tests/test_check.py::test_too_many_digits_stops_a_report`.
   *Breaks when:* a long number ends in a traceback, a legal one is a
   breach, or the message repeats the whole field.
@@ -1656,7 +1659,9 @@ breaks.
   percent: `larger`, change 15.000, `unit` `MB`, exit 1. New runs all
   514.999: `unchanged`, exit 0. New runs all 485.000: `smaller`, exit 0.
   Old runs 500.000, 510.000 and 520.000, new runs 525.000, 530.000 and
-  535.000: change equal to the spread, `noisy`, exit 0.
+  535.000: change equal to the spread, `noisy`, exit 0. Old runs all
+  0.000, new runs all 5.000: `larger`, `change_pct` null, floor 1.000
+  (DOOM Ants).
   *Test:* `tests/test_compare_mem.py::test_mem_judged`.
   *Breaks when:* `mem` is not judged, a change at the floor is missed,
   a smaller or noisy `mem` measure fails or stops the compare, or a
@@ -1667,7 +1672,9 @@ breaks.
   default 1.000 floor. New runs all 11.000: `larger`. The same with
   `--min-mb 2`: `unchanged`. The same with `--min-ms 2`, or a
   `gpu_tick_ns` of 5000000: still `larger`. `--min-mb 5` leaves a
-  `gpu/opaque` change of 1.000 ms `slower`. `--min-mb -1` exits 3.
+  `gpu/opaque` change of 1.000 ms `slower`. Old 10.000, new 11.000 with
+  `--min-pct 20`: `unchanged`, the percent deciding (DOOM Ants).
+  `--min-mb -1` exits 3.
   *Test:* `tests/test_compare_mem.py::test_mem_floor`.
   *Breaks when:* a floor in the other unit, or the GPU tick, decides a
   `mem` measure, or `--min-mb` decides a ms one.
@@ -1679,8 +1686,10 @@ breaks.
   Of two larger, the larger change in MB is named. `mem` ranks after
   `gpu` in `measures`, and the text puts it in a table headed in MB. A
   `mem` name in only some runs goes into `unmatched`, `unit` `MB`, and
-  judges nothing. An `event` or `ext` row that moves judges nothing.
-  *Test:* `tests/test_compare_mem.py::test_mem_sentences`.
+  judges nothing, and the text lists it too. An `event` or `ext` row
+  that moves judges nothing.
+  *Test:* `tests/test_compare_mem.py::test_mem_sentences`,
+  `tests/test_compare_mem.py::test_mem_unmatched_and_unjudged`.
   *Breaks when:* MB and ms are compared with each other, a `mem` figure
   is labelled ms, or an unjudged category is judged.
 
@@ -1822,10 +1831,10 @@ it on each release they pin.
 | INV-61 | `tests/test_budget.py::test_match` |
 | INV-62 | `tests/test_budget.py::test_named_kind_replaces_star` |
 | INV-63 | `tests/test_budget.py::test_warmup` |
-| INV-64 | `tests/test_check.py::test_twenty_digits_are_read`, `test_too_many_digits_is_a_breach`, `test_too_many_digits_stops_a_report` |
+| INV-64 | `tests/test_check.py::test_twenty_digits_are_read`, `test_too_many_digits_is_a_breach`, `test_too_many_digits_stops_a_report`, `test_a_long_field_is_quoted_short` |
 | INV-65 | `tests/test_compare_mem.py::test_mem_judged` |
 | INV-66 | `tests/test_compare_mem.py::test_mem_floor` |
-| INV-67 | `tests/test_compare_mem.py::test_mem_sentences` |
+| INV-67 | `tests/test_compare_mem.py::test_mem_sentences`, `test_mem_unmatched_and_unjudged` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 

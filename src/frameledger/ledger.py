@@ -287,20 +287,20 @@ def frame_segment(rows: dict) -> str:
 def _row_problem(run_id, segment, frame, category, name, depth, value, header_run_id):
     """The first rule a row's fields break, as (rule, message), or None."""
     if header_run_id is not None and run_id != header_run_id:
-        return "run_id", f"run_id '{run_id}' differs from the header's '{header_run_id}'"
+        return "run_id", f"run_id '{clip(run_id)}' differs from the header's '{header_run_id}'"
     if segment:
         kind, colon, ident = segment.partition(":")
         if not (colon and kind and ident):
-            return "segment", f"segment '{segment}' must be '<kind>:<id>' or empty"
+            return "segment", f"segment '{clip(segment)}' must be '<kind>:<id>' or empty"
         if len(kind.encode()) > PART_MAX or len(ident.encode()) > PART_MAX:
             return "segment", f"a segment's kind and id are at most {PART_MAX} bytes each"
     if not COUNT_RE.fullmatch(frame):
         return "frame", f"frame '{clip(frame)}' must be a whole number, 0 or more, of at most {DIGITS_MAX} digits"
     if not CATEGORY_RE.fullmatch(category) or len(category) > PART_MAX:
-        return "category", (f"category '{category}' must be frame, cpu, gpu, mem, event or "
+        return "category", (f"category '{clip(category)}' must be frame, cpu, gpu, mem, event or "
                             f"ext.<engine>, at most {PART_MAX} bytes")
     if not NAME_RE.fullmatch(name) or len(name) > NAME_MAX:
-        return "name", (f"name '{name}' must be 1 to {NAME_MAX} ASCII letters, digits "
+        return "name", (f"name '{clip(name)}' must be 1 to {NAME_MAX} ASCII letters, digits "
                         "and '_ . / -'")
     if not COUNT_RE.fullmatch(depth):
         return "depth", f"depth '{clip(depth)}' must be a whole number, 0 or more, of at most {DIGITS_MAX} digits"
@@ -308,7 +308,7 @@ def _row_problem(run_id, segment, frame, category, name, depth, value, header_ru
         return "value", (f"value '{clip(value)}' must be a decimal number of at most {DIGITS_MAX} whole "
                          "digits, with '.' as the point and exactly three places after it")
     if abs(_thousandths(value)) >= VALUE_LIMIT:
-        return "value", f"value '{value}' must be below 1000000000 in size"
+        return "value", f"value '{clip(value)}' must be below 1000000000 in size"
     return None
 
 

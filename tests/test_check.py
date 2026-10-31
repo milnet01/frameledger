@@ -174,6 +174,22 @@ def test_too_many_digits_is_a_breach(capsys, tmp_path, template, rule, digits):
     assert digits not in out["result"]["files"][0]["breaches"][0]["message"]
 
 
+@pytest.mark.parametrize(("row", "rule"), [
+    (f"{'r' * 5000},view:1,1,cpu,extra,0,6.000", "run_id"),
+    (f"r1,{'s' * 5000},1,cpu,extra,0,6.000", "segment"),
+    (f"r1,view:1,1,{'c' * 5000},extra,0,6.000", "category"),
+    (f"r1,view:1,1,cpu,{'n' * 5000},0,6.000", "name"),
+    ("r1,view:1,1,cpu,extra,0,123456789012345678.000", "value"),
+], ids=["run_id", "segment", "category", "name", "value too large"])
+def test_a_long_field_is_quoted_short(capsys, tmp_path, row, rule):
+    """INV-64: a breach never repeats a long field whole (DOOM Ants)."""
+    code, out = run_check(capsys, run_with_row(tmp_path, row))
+    breach = out["result"]["files"][0]["breaches"][0]
+    assert (code, breach["rule"]) == (1, rule)
+    assert "..." in breach["message"]
+    assert len(breach["message"]) < 200
+
+
 @pytest.mark.parametrize("template", [
     "r1,view:1,{},frame,cpu_span,0,9.000",
     "r1,view:1,1,cpu,scene,{},6.000",
