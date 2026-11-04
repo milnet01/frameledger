@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=24 -->
+<!-- ants-roadmap-id-high-water: FLED=25 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -513,6 +513,16 @@ another's.
   **Layman:** A warm-up of millions of seconds is printed as a rounded number like 1e+09 instead of as typed.
   Kind: fix.
   Source: album-builder-fact-check-2026-11-04.
+
+- 💭 [FLED-0025] **Survey's table drops the paths' shared directory.**
+  DOOM Ants, reviewing 3e7006b on 60+ real runs: with every file under
+  one long directory, the left-cut file column spends its width on the
+  shared prefix ("…OM_Ants/scratch/fled/g-12.csv"). Name the common
+  directory once above the table and show each path after it. Not
+  needed for 0.3.0.
+  **Layman:** When every file sits in one folder, the survey table would show each file's own name instead of the folder again and again.
+  Kind: ux.
+  Source: doom-ants-review-2026-11-04.
 
 ## Later — for anyone
 

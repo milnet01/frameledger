@@ -38,6 +38,13 @@ check its SHA256 against the one in that release's notes. It holds:
 `frameledger.zip` on the latest release is the same bytes under a name
 that does not change.
 
+To unpack it without `unzip`, which minimal Linux images leave out,
+use Python itself:
+
+```sh
+python3 -m zipfile -e frameledger-v<version>.zip frameledger
+```
+
 ## Usage
 
 ```sh

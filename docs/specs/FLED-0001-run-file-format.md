@@ -1060,7 +1060,8 @@ exit-3 bounds on each.
   kind, `frame/wall`'s median and 99th percentile over its judged
   frames. A run's worst kind has the highest 99th percentile, ties by
   median, then name; its worst segment is that kind's segment with the
-  highest 99th percentile, ties by median, then segment (UT Ants).
+  highest 99th percentile, ties by median, then segment compared as
+  text, so `view:10` before `view:2` (UT Ants).
   Runs rank by their worst kind's 99th percentile, slowest first, ties
   by its median, then the order given. A run with no kind of 100
   judged frames, or unjudged, has no rank and is listed after the
