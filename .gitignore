@@ -4,6 +4,9 @@
 # Python (the analyser and its tests)
 __pycache__/
 .pytest_cache/
+# Made by a bare `uv run`; the gate passes --no-project, and the
+# analyser has no dependencies to lock.
+uv.lock
 
 # OS
 .DS_Store
