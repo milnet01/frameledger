@@ -534,6 +534,14 @@ another's.
   Waiting-on: DOOM Ants (review of ee0dd83, 2026-11-04).
   2026-11-04: DOOM Ants agrees ee0dd83 with no change, so all three
   have. Building.
+  2026-11-04: build not started; no code or tests written. Plan: tests
+  first in tests/test_compare_scenes.py (the five names § 10 cites),
+  seen red, then the code. compare.compare() takes the runs of one
+  scene unchanged; the by-scene layer groups, ranks and counts. Where it
+  lives is open: docs/design.md puts survey against survey in compare.py,
+  but a new module may read better; if one is added, update design.md's
+  module list and git add it before the tests run. Segment-level values
+  for the named segment are new: compare._values works per kind only.
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
