@@ -447,7 +447,7 @@ Many runs at once: one per map, ranked, and one build's survey against
 
 another's.
 
-- 🚧 [FLED-0012] **Survey ranking.**
+- ✅ [FLED-0012] **Survey ranking.**
   survey.py: many runs ranked by worst-segment median and p99, those
   over budget flagged with their costliest pass, per-effect ext rows
   as a ranked table. A survey of about a million rows in under a
@@ -485,6 +485,11 @@ another's.
   Their notes folded in after. Waiting on Vestige's code review (asked
   2026-11-04); on agreement, flip to shipped and add a confirm-impl-0012
   loop-log row.
+  2026-11-04: Vestige agreed the code at 3e7006b with no defect, so all
+  three engines have agreed. Its two optional readability notes were not
+  taken: the sort stays as written, and the inconclusive sentence's
+  capital matches frame_check's reasons, which are whole sentences.
+  Shipped.
   **Layman:** Ranks every map's run and flags the slow ones.
   Kind: implement.
   Source: design-2026-10-24.
