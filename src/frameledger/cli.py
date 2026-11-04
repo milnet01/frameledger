@@ -138,8 +138,8 @@ def _add_bisect(commands) -> None:
                         help="print the JSON result instead of text")
 
 
-# In each flag's own unit: ms or MB for a value compared with the
-# file's, which are below it (spec § 4.4), and s for --warmup-s.
+# In the unit of the flag it bounds. A file's values are below it
+# (spec § 4.4).
 BUDGET_LIMIT = Decimal(1_000_000_000)
 
 
