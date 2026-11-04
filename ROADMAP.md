@@ -508,6 +508,14 @@ another's.
   largest slower change in ms. Asked: flag or new command, 3 runs a side,
   unjudged or exit 3, anything missing.
   Waiting-on: Vestige, UT Ants and DOOM Ants (FLED-0013 design, 2026-11-04).
+  2026-11-04, UT Ants and DOOM Ants: agree 1 to 5, the flag, 3 runs a
+  side kept as the minimum, run on a chosen subset of scenes. DOOM Ants:
+  `scene` named as the key, a file without one unjudged; a one-sided
+  scene names the side it lacks; say plainly when no scene could be
+  judged. UT Ants: exit 3 when no scene could be judged; compare's
+  `not_interleaved` per scene; the failing sentence names the segment
+  (view:N) where the slower measure changed most. To reconcile with
+  Vestige's answer, which is still awaited.
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
