@@ -23,7 +23,7 @@ import render
 import run_report
 import selftest
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 # One ladder for every command (docs/design.md § Exit codes), but bisect's,
 # which are git bisect run's: bisecting.VERDICT_CODES. Whatever on a bisect

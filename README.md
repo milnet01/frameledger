@@ -7,12 +7,21 @@
 
 ## Status
 
-0.1.0 is the first release. The run-file format is
-agreed ([spec](docs/specs/FLED-0001-run-file-format.md)). Three commands
-are built: `check`, which says whether a run file meets it; `report`,
-which says where one run's frame time went; and `floor`, which says
-whether a run held a set frame rate. The
-[roadmap](ROADMAP.md) lists what comes next.
+0.2.0 compares two builds. The run-file format is agreed
+([spec](docs/specs/FLED-0001-run-file-format.md)). Six commands are
+built:
+
+- `check` says whether a run file meets the format.
+- `report` says where one run's frame time went, and how evenly its
+  frames were paced.
+- `floor` says whether a run held a set frame rate.
+- `compare` says whether a new build's runs got slower than an old
+  build's, measure by measure, memory included.
+- `bisect` gives `git bisect run` a good, bad or skip verdict for one
+  commit's runs.
+- `budget` says whether any pass went over its time budget.
+
+The [roadmap](ROADMAP.md) lists what comes next.
 
 ## Install
 
@@ -35,12 +44,18 @@ that does not change.
 python3 -I frameledger.pyz check run.csv
 python3 -I frameledger.pyz report run.csv
 python3 -I frameledger.pyz floor run.csv --fps 60
+python3 -I frameledger.pyz compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
+python3 -I frameledger.pyz bisect --tested run.csv --measure gpu/opaque --kind view --bad-above 12
+python3 -I frameledger.pyz budget run.csv --budgets budgets.csv
 python3 -I frameledger.pyz --selftest
 ```
 
 On Windows, use `py -I` or `python -I`. Every command takes `--json`.
-The [spec](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands)
-lists the flags and exit codes.
+The spec lists the flags and exit codes:
+[check, report and floor](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands),
+[compare](docs/specs/FLED-0001-run-file-format.md#410-comparing-labelled-sets-of-runs),
+[bisect](docs/specs/FLED-0001-run-file-format.md#411-bisect-verdicts) and
+[budget](docs/specs/FLED-0001-run-file-format.md#412-pass-budgets).
 
 ## Working on it
 

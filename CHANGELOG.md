@@ -12,7 +12,17 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-04
+
+**Theme:** Two builds compared.
+
 ### Added
+
+- The release archive, `frameledger-v0.2.0.zip`: `frameledger.pyz`,
+  `include/frameledger.h` and `LICENSE`. SHA256
+  `cfb692516c48e45534657b1ce5dc903f1e91156716b7265063b579d6b930b01c`.
+  `python3 -I scripts/build_release.py OUTDIR v0.2.0`, run on the tag,
+  rebuilds it; the release workflow does so under Python 3.10.22.
 
 - **`report` shows frame pacing** (FLED-0011)
   A run can hold its frame rate and still judder. Per segment kind, `report` now gives the median and 99th-percentile change in frame time between neighbouring frames, never across a load, a missing frame or a segment change. The JSON's `pacing` list carries it; the text gives a `wall change (pairs)` row under `wall`.
