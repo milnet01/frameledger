@@ -532,6 +532,8 @@ another's.
   2026-11-04: Vestige and UT Ants agree ee0dd83 with no change,
   including the three details settled in drafting.
   Waiting-on: DOOM Ants (review of ee0dd83, 2026-11-04).
+  2026-11-04: DOOM Ants agrees ee0dd83 with no change, so all three
+  have. Building.
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
