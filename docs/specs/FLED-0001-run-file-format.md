@@ -16,7 +16,10 @@ confirmed it at e3984fe, with eb47707's depth-set fix. INV-64 and
 § 4.4's digit limit (FLED-0022) reviewed by the three engines at
 f5e476b, and confirmed at 0c5b57d. § 4.10's `mem` measures with INV-65
 to INV-67 (FLED-0018) agreed by the three engines 2026-10-31 at
-3be4465, and confirmed at 0ebcf7d.
+3be4465, and confirmed at 0ebcf7d. FLED-0023's limits on `--warmup-s`
+and the smallest changes confirmed by the three engines at 8cef832.
+§ 4.8's `pacing` with INV-68 (FLED-0011) agreed by the three engines
+2026-11-04 at 8f3eae8, with the `wall change (pairs)` label.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -442,8 +445,8 @@ The `report` result, agreed with the three engines for FLED-0003:
   in `frame_times`' order: the median and 99th percentile change, and
   `pairs`, their count. A kind with no pair has no entry. There is no
   warm-up and no verdict (FLED-0011, agreed with the three engines
-  2026-11-04). The text gives it as a `wall change` row under `wall`
-  in the frame-times table, its frames column holding `pairs`.
+  2026-11-04). The text gives it as a `wall change (pairs)` row under
+  `wall` in the frame-times table, its frames column holding `pairs`.
 - **`bound_by`** is over frames with both spans: GPU-bound when
   `gpu_span` is greater than `cpu_span`, otherwise CPU-bound. With
   `pipelined` false, `cpu` and `gpu` are null and `applies` false.
@@ -1718,8 +1721,8 @@ breaks.
   0.000. With a 500 ms frame carrying `event/cut`, a hole, or a change
   from `view:1` to `view:2` among steady frames, the change stays
   0.000 and `pairs` falls by the pairs that break removes. A kind with
-  no pair has no entry, and the text's `wall change` row matches the
-  JSON.
+  no pair has no entry, and the text's `wall change (pairs)` row
+  matches the JSON.
   *Test:* `tests/test_pacing.py::test_pacing_figure`,
   `tests/test_pacing.py::test_pacing_pairs`.
   *Breaks when:* a pair spans a cut, a hole or a segment change, or the

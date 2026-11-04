@@ -58,10 +58,15 @@ def _report_body(result: dict) -> list[str]:
                        "-" if p["share"] is None else f"{p['share'] * 100:.1f}%", str(p["frames"]))
                   for p in passes]
         lines.append("")
+    pacing = {p["segment_kind"]: p for p in report["pacing"]}
     for (kind,), times in _groups(report["frame_times"], ("segment_kind",)):
         lines += [f"Frame times in {_kind_name(kind)} segments:", _row("measure", "median ms", "p99 ms", "", "frames")]
-        lines += [_row(t["name"], f"{t['median_ms']:.3f}", f"{t['p99_ms']:.3f}", "", str(t["frames"]))
-                  for t in times]
+        for t in times:
+            lines.append(_row(t["name"], f"{t['median_ms']:.3f}", f"{t['p99_ms']:.3f}", "", str(t["frames"])))
+            if t["name"] == "wall" and kind in pacing:  # § 4.8: the pacing figure sits under wall
+                change = pacing[kind]
+                lines.append(_row("wall change (pairs)", f"{change['median_ms']:.3f}",
+                                  f"{change['p99_ms']:.3f}", "", str(change["pairs"])))
         lines.append("")
     if report["worst_frames"]:
         lines += ["Worst frames, longest first:", *_frame_table(report["worst_frames"]), ""]

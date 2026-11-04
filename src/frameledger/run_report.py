@@ -1,5 +1,5 @@
-"""One run: cost ranking, bound-by share and worst frames (S2, S3, S13),
-and the floor check (S8).
+"""One run: cost ranking, bound-by share, worst frames and pacing (S2,
+S3, S13, S14), and the floor check (S8).
 
 Builds the `report` and `floor` commands' opening sentences, warnings and
 results, in the shape of docs/specs/FLED-0001-run-file-format.md § 4.7
@@ -36,6 +36,7 @@ def report(run: ledger.Run) -> dict:
     result = {
         "passes": costs.passes(),
         "frame_times": costs.frame_times(),
+        "pacing": _pacing(run),
         "bound_by": _bound_by(run),
         "worst_frames": _worst_frames(run),
         "missing_gpu_frames": costs.missing_gpu,
@@ -356,6 +357,30 @@ class Costs:
         entries.sort(key=lambda e: (kind_order(e["segment_kind"]),
                                     order.get(e["name"], len(order)), e["name"]))
         return entries
+
+
+def _pacing(run: ledger.Run) -> list[dict]:
+    """The frame-to-frame change in frame/wall per segment kind (S14)."""
+    changes: dict[str | None, list[int]] = defaultdict(list)
+    for number, rows in run.frames.items():
+        before = run.frames.get(number - 1)
+        if _is_pair(before, rows):
+            change = abs(rows[("frame", "wall")].thousandths - before[("frame", "wall")].thousandths)
+            changes[segment_kind(ledger.frame_segment(rows))].append(change)
+    entries = []
+    for kind in sorted(changes, key=kind_order):
+        median, p99 = stats.percentiles(changes[kind], 50, 99)
+        entries.append({"segment_kind": kind, "median_ms": _ms(median), "p99_ms": _ms(p99),
+                        "pairs": len(changes[kind])})
+    return entries
+
+
+def _is_pair(before: dict | None, rows: dict) -> bool:
+    """Whether a frame and the one numbered before it are a pacing pair:
+    both have a wall, share one segment, and neither carries event/cut.
+    A change across a hole, a segment change or a load is not judder."""
+    return (before is not None and ledger.frame_segment(before) == ledger.frame_segment(rows)
+            and all(("frame", "wall") in r and ("event", "cut") not in r for r in (before, rows)))
 
 
 def _bound_by(run: ledger.Run) -> dict:

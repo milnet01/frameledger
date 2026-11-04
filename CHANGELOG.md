@@ -14,6 +14,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Added
 
+- **`report` shows frame pacing** (FLED-0011)
+  A run can hold its frame rate and still judder. Per segment kind, `report` now gives the median and 99th-percentile change in frame time between neighbouring frames, never across a load, a missing frame or a segment change. The JSON's `pacing` list carries it; the text gives a `wall change (pairs)` row under `wall`.
+
 - **`compare` judges memory too** (FLED-0018)
   Each `mem` measure is judged in MB, with `--min-mb` (default 1.000). A measure that grew reads `larger` and fails the compare; one that shrank reads `smaller`. In the JSON, each measure gains `unit` and its values lose the `_ms` suffix: `old`, `new`, `old_centre`, `new_centre`, `change`, `spread`, `floor`.
 
