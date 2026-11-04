@@ -45,12 +45,13 @@ Four parts. The format spec is the only thing the other three share.
     run's passes on `run_report.py`'s figures (S12). It takes the
     compare-blocking fields from `compare.py`, which `run_report.py`
     may not import.
-  - `compare.py` — labelled sets of runs, and survey against survey
-    (S4, S15, S16).
+  - `compare.py` — labelled sets of runs (S4, S16).
   - `bisecting.py` — the bisect verdict, from `compare.py`'s judging of a
     measure (S17). Not `bisect.py`, which would shadow the standard
     library's module.
   - `survey.py` — many runs ranked (S9).
+  - `scenes.py` — survey against survey, `compare --by-scene`: each
+    scene one `compare.py` compare, then ranked and counted (S15).
   - `render.py` — turns a result into plain text or JSON. Plain
     sentences come first.
   - `cli.py` and `__main__.py` — commands, flags and exit codes.
@@ -85,10 +86,11 @@ tool, not by any one part.
   nothing in each other.** They never share code. So a writer
   built from the spec alone (S7) meets the same contract as ours.
 - **Inside the analyser, imports run one way:** `cli.py` →
-  `bisecting.py`, `budgeting.py` → `run_report.py`, `compare.py`,
+  `bisecting.py`, `budgeting.py`, `scenes.py` → `run_report.py`, `compare.py`,
   `survey.py` → `trust.py`, `stats.py`, `ledger.py`. `compare.py` and
   `survey.py` may import `run_report.py`; it imports neither. `bisecting.py` may import
-  `compare.py` and `run_report.py`, and so may `budgeting.py`.
+  `compare.py` and `run_report.py`, and so may `budgeting.py` and
+  `scenes.py`.
   `cli.py` imports `selftest.py`,
   which may import any file but `cli.py`. `render.py` is
   called only by `cli.py`.

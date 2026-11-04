@@ -1,5 +1,5 @@
 """Commands, flags and exit codes (docs/specs/FLED-0001-run-file-format.md
-§ 4.7, § 4.10 for `compare`, § 4.11 for `bisect` and § 4.12 for `budget`).
+§ 4.7, § 4.10 and § 4.14 for `compare`, § 4.11 for `bisect` and § 4.12 for `budget`).
 
 The only module that prints or decides an exit code. Every command
 builds one result dict in the shape of § 4.8, and render.py turns it
@@ -21,6 +21,7 @@ import compare
 import ledger
 import render
 import run_report
+import scenes
 import selftest
 import survey
 
@@ -80,6 +81,9 @@ def _parser() -> _Parser:
                              help=f"the old build's runs, at least {compare.FEWEST_RUNS}")
     compare_cmd.add_argument("--new", nargs="+", required=True, metavar="FILE",
                              help=f"the new build's runs, at least {compare.FEWEST_RUNS}")
+    compare_cmd.add_argument("--by-scene", action="store_true",
+                             help="judge each scene apart, by the header's scene, at least "
+                             f"{compare.FEWEST_RUNS} runs a side each")
     compare_cmd.add_argument("--override", action="append", type=_override, default=[],
                              metavar="FIELD=REASON", help="let one compare-blocking header field differ")
     compare_cmd.add_argument("--min-ms", type=_bounded, default=Decimal("0.050"), metavar="M",
@@ -410,6 +414,8 @@ def _floor(args: argparse.Namespace) -> dict:
 def _compare(args: argparse.Namespace) -> dict:
     """§ 4.10: exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 when a
     file cannot be read or breaks the format, or the compare is refused."""
+    if args.by_scene:
+        return _compare_scenes(args)
     for label, paths in (("--old", args.old), ("--new", args.new)):
         if len(paths) < compare.FEWEST_RUNS:
             raise ledger.LedgerError(f"{label} has {len(paths)} runs; each set needs at least "
@@ -422,6 +428,17 @@ def _compare(args: argparse.Namespace) -> dict:
         listed = [{"field": f, "reason": r} for f, r in overrides.items()]
         return _result("compare", "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {}, listed)
+    code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
+    return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
+                   built["result"], built["overrides"])
+
+
+def _compare_scenes(args: argparse.Namespace) -> dict:
+    """§ 4.14: exit 0 every scene passes, 1 a scene fails, 2 a scene is
+    inconclusive or unjudged or a file unread, 3 a bad flag or no scene
+    judged. The run counts are checked per scene, not here."""
+    built = scenes.by_scene(args.old, args.new, _overrides(args.override),
+                            compare.Floors(args.min_ms, args.min_mb, args.min_pct))
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])

@@ -102,6 +102,8 @@ def _compare_body(result: dict) -> list[str]:
     compared = result["result"]
     if not compared:  # an error: the opening sentences say why
         return []
+    if "scenes" in compared:
+        return _scenes_body(compared)
     lines = ["Runs:", *[_fit(f"  {r['name']:<8}  {r['path']}", WIDTH) for r in compared["runs"]], ""]
     if compared["refused"]:
         return lines[:-1]
@@ -243,6 +245,19 @@ def _survey_body(result: dict) -> list[str]:
                      f"{_fit(r['worst_segment'] or '-', 14):<14}  {figures[0]:>10}  {figures[1]:>10}  "
                      f"{'-' if r['frames_over_budget'] is None else r['frames_over_budget']:>6}  "
                      f"{r['verdict']}")
+    return lines
+
+
+def _scenes_body(compared: dict) -> list[str]:
+    """Every scene, failing first, within 100 columns (§ 4.14)."""
+    lines = ["Scenes, the largest slowdown first:",
+             f"  {'rank':>4}  {'scene':<20}  {'verdict':<12}  {'measure':<28}  {'change':>12}  segment"]
+    for s in compared["scenes"]:
+        m = s["measure"]
+        measure = "-" if m is None else _fit(_measure_name(m), 28)
+        change = "-" if m is None else f"{m['change']:+.3f} {m['unit']}"
+        lines.append(f"  {s['rank'] or '-':>4}  {_fit_left(s['scene'], 20):<20}  {s['verdict']:<12}  "
+                     f"{measure:<28}  {change:>12}  {_fit(s['segment'] or '-', 10)}")
     return lines
 
 

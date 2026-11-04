@@ -16,6 +16,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 - **`survey` ranks many runs and flags the ones `floor` would fail** (FLED-0012)
   `survey FILE… --fps N` (or `--budget-ms B`) judges each run with `floor`'s single-frame check, after `floor`'s 2 s warm-up, and flags a run with more frames over the budget than `--allow-frames`. A flagged run names its slowest frame and that frame's top pass. Runs rank by their worst segment kind's 99th-percentile frame time, naming the worst segment; a kind needs 100 frames to rank. A file that cannot be read is listed, not fatal. Exit 1 when a run is flagged, 2 when one could not be judged, 0 otherwise.
+- **`compare --by-scene` compares two builds map by map** (FLED-0013)
+  Files are grouped by their header's `scene`, and each scene's old runs are compared with its new as `compare` would compare them alone. A failing scene names the measure that got slower and the segment where it changed most; failing scenes rank by that change. A scene with fewer than three runs a side, or one that cannot be compared, is listed as unjudged and the rest go on. Exit 1 when a scene fails, 2 when one is inconclusive or unjudged, 3 when no scene could be judged.
 
 ## [0.2.0] - 2026-11-04
 

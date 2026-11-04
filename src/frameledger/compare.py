@@ -68,10 +68,11 @@ class Measure(NamedTuple):
 
 
 def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors) -> dict:
-    """{"verdict", "summary", "warnings", "overrides", "result"} for two sets
-    of runs that meet the format. cli.py checks the run counts and the
-    override fields; a Run with a breach raises LedgerError, as under
-    `report`.
+    """{"verdict", "reason", "summary", "warnings", "overrides", "result"}
+    for two sets of runs that meet the format. `reason` says, in a clause,
+    why the compare is refused or inconclusive, and is None otherwise.
+    cli.py checks the run counts and the override fields; a Run with a
+    breach raises LedgerError, as under `report`.
 
     The opening sentences follow § 4.10's order: the overrides; a refusal,
     which ends the compare; each incomplete run; one per kind of warning;
@@ -87,8 +88,9 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     run_list = [run_entry(r) for r in runs]
     if refused:
         summary += [refusal_sentence(refused), *run_report.warning_sentences(notices)]
-        return {"verdict": "error", "summary": summary, "warnings": run_report.warning_entries(notices),
-                "overrides": override_list, "result": {"runs": run_list, "refused": refused}}
+        return {"verdict": "error", "reason": refusal_reason(refused), "summary": summary,
+                "warnings": run_report.warning_entries(notices), "overrides": override_list,
+                "result": {"runs": run_list, "refused": refused}}
 
     incomplete = _incomplete_sentences(runs)
     notices += run_notices(runs) + _set_notices(runs)
@@ -97,7 +99,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
 
     measures, unmatched = _judge_all(runs, floors)
     short = _short_kinds(runs)
-    verdict, sentences = _verdict(incomplete, measures, short)
+    verdict, sentences, reason = _verdict(incomplete, measures, short)
     summary += sentences
     if short:  # straight after the verdict, which it explains (Vestige)
         kinds = ", ".join(run_report.kind_name(k) for k in short)
@@ -115,8 +117,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         "static_diff": _static_diff(runs),
         "refused": [],
     }
-    return {"verdict": verdict, "summary": summary, "warnings": run_report.warning_entries(notices),
-            "overrides": override_list, "result": result}
+    return {"verdict": verdict, "reason": reason, "summary": summary,
+            "warnings": run_report.warning_entries(notices), "overrides": override_list, "result": result}
 
 
 def run_entry(named: Named) -> dict:
@@ -184,6 +186,12 @@ def _by_value(value):
 
 
 def refusal_sentence(refused: list[dict]) -> str:
+    return f"The runs cannot be compared: {refusal_reason(refused)}."
+
+
+def refusal_reason(refused: list[dict]) -> str:
+    """Each refusing field with the runs' values, and the override that
+    would allow it."""
     parts = []
     for entry in refused:
         by_value: dict[str, list[str]] = {}
@@ -198,7 +206,7 @@ def refusal_sentence(refused: list[dict]) -> str:
                 f"{'[] (unknown)' if value == '[]' else value} in {', '.join(names)}"
                 for value, names in by_value.items())
         parts.append(f"{what} (--override {entry['field']}=REASON compares anyway)")
-    return f"The runs cannot be compared: {'; '.join(parts)}."
+    return "; ".join(parts)
 
 
 def unused_override_notices(unused: list[str]) -> list[ledger.Notice]:
@@ -253,11 +261,13 @@ def _started(utc: str) -> tuple[datetime, Fraction]:
     return datetime.strptime(whole, "%Y-%m-%dT%H:%M:%S"), Fraction(f"0.{fraction or 0}")
 
 
-def _values(run: ledger.Run) -> dict[Measure, int]:
+def run_values(run: ledger.Run, by_segment: bool = False) -> dict[Measure, int]:
     """One value per measure for one run, in thousandths: the medians and
     the wall's 99th percentile, as `report` gives them. A mem measure's
-    value is in MB, the others' in ms."""
-    costs = run_report.Costs(run)
+    value is in MB, the others' in ms. With by_segment, a Measure's kind
+    is the whole segment (`view:3`), and its value is over that segment's
+    frames alone."""
+    costs = run_report.Costs(run, by_segment)
     values = {}
     for (kind, name), times in costs.frame_values.items():
         statistics = [statistic for wanted, statistic in FRAME_MEASURES if wanted == name]
@@ -273,7 +283,7 @@ def _values(run: ledger.Run) -> dict[Measure, int]:
 
 def _judge_all(runs: list[Named], floors: Floors) -> tuple[list[dict], list[dict]]:
     """Every measure all runs share, judged; and those only some runs have."""
-    per_run = [_values(r.run) for r in runs]
+    per_run = [run_values(r.run) for r in runs]
     tick = largest_tick(runs)
     measures, unmatched = [], []
     for measure in set().union(*per_run):
@@ -384,40 +394,46 @@ def _short_kinds(runs: list[Named]) -> list[str | None]:
                   key=run_report.kind_order)
 
 
-def _verdict(incomplete: list[str], measures: list[dict], short: list) -> tuple[str, list[str]]:
-    """§ 4.10's verdict, first match wins, and the sentences saying it. ms
-    and MB never rank against each other, so slower passes and larger
-    memory each get a sentence."""
+def _verdict(incomplete: list[str], measures: list[dict], short: list) -> tuple[str, list[str], str | None]:
+    """§ 4.10's verdict, first match wins, the sentences saying it, and why
+    it is inconclusive, or None. ms and MB never rank against each other,
+    so slower passes and larger memory each get a sentence."""
     moved = {word: [m for m in measures if m["verdict"] == word]
              for word in ("slower", "larger", "faster", "smaller")}
     noisy_walls = [m for m in measures if (m["category"], m["name"], m["statistic"]) ==
                    ("frame", "wall", "median") and m["verdict"] == "noisy"
                    and m["segment_kind"] not in short]
     if incomplete:
-        return "inconclusive", ["The compare is inconclusive: a run is incomplete, so a change could "
-                                "be a missing frame."]
+        reason = "a run is incomplete, so a change could be a missing frame"
+        return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
     if moved["slower"] or moved["larger"]:
         sentences = []
         if moved["slower"]:
             sentences.append(_worse_sentence("The new runs are slower", "slower", moved["slower"]))
         if moved["larger"]:
             sentences.append(_worse_sentence("The new runs use more memory", "larger", moved["larger"]))
-        return "fail", sentences
+        return "fail", sentences, None
     if noisy_walls:
         wall = noisy_walls[0]
-        return "inconclusive", [f"The compare is inconclusive: {_label(wall)} moved "
-                                f"{wall['change']:+.3f} ms, within the runs' spread of "
-                                f"{wall['spread']:.3f} ms; re-run with more runs a set."]
+        reason = (f"{_label(wall)} moved {wall['change']:+.3f} ms, within the runs' spread of "
+                  f"{wall['spread']:.3f} ms; re-run with more runs a set")
+        return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
     sentence = "No measure got slower or larger between the old and new runs"
     for word in ("faster", "smaller"):
         if moved[word]:
             sentence += f"; {run_report.counted(len(moved[word]), 'measure')} got {word}"
-    return "pass", [sentence + "."]
+    return "pass", [sentence + "."], None
+
+
+def worst_of(measures: list[dict]) -> dict:
+    """The largest change among `measures`, all in one unit; ties by
+    percent. The verdict sentence names it."""
+    return max(measures, key=lambda m: (m["change"], m["change_pct"] or 0))
 
 
 def _worse_sentence(opening: str, word: str, measures: list[dict]) -> str:
     """Names the largest change among `measures`, all in one unit."""
-    worst = max(measures, key=lambda m: (m["change"], m["change_pct"] or 0))
+    worst = worst_of(measures)
     unit = worst["unit"]
     return (f"{opening}: {run_report.counted(len(measures), 'measure')} got {word}; the largest is "
             f"{_label(worst)}, up {worst['change']:.3f} {unit}{_pct(worst)}, beyond the runs' spread of "

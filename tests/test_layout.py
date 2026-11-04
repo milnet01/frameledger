@@ -19,6 +19,7 @@ ALLOWED = {
     "bisecting": {"compare", "run_report", "trust", "stats", "ledger"},
     "budgeting": {"compare", "run_report", "trust", "stats", "ledger"},
     "survey": {"run_report", "trust", "stats", "ledger"},
+    "scenes": {"compare", "run_report", "trust", "stats", "ledger"},
     "render": set(),
     "selftest": MODULES - {"cli", "selftest", "render"},
     "cli": MODULES - {"cli"},
