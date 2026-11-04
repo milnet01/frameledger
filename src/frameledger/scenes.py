@@ -47,6 +47,8 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     judged = [e for e in scenes if e["verdict"] != "unjudged"]
 
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
+    # Both forms are kept: text groups the warnings by scene (`_summary`),
+    # and JSON's "warnings" is one flat list.
     scene_notices = [[ledger.Notice(w["code"], f"{e['scene']}: {w['message']}") for w in e.pop("warnings")]
                      for e in scenes]
     unused_notices = compare.unused_override_notices([f for f in overrides if f in unused])
@@ -69,23 +71,23 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
 
 
 def _summary(override_list: list[dict], scenes: list[dict], unread: list[dict], failing: list[dict],
-             judged: int, measures: int, notice_groups: list[list[ledger.Notice]]) -> list[str]:
+             judged_count: int, measures: int, notice_groups: list[list[ledger.Notice]]) -> list[str]:
     """§ 4.14's text sentences, in its order. Each scene's warnings are
     grouped apart, so two scenes with the same warning both say so."""
     summary = compare.overrides_sentences(override_list)
-    if judged:
+    if judged_count:
         summary += [_fail_sentence(e) for e in failing]
         summary += [f"{e['scene']} is inconclusive: {e['reason']}." for e in scenes if e["verdict"] == "inconclusive"]
         summary += [f"{e['scene']} is unjudged: {e['reason']}." for e in scenes if e["verdict"] == "unjudged"]
         summary += [f"{u['path']} is unread: {u['reason']}." for u in unread]
     else:
-        # A refusal's reason holds semicolons, so each reason is bracketed (DOOM Ants).
+        # A refusal's reason holds semicolons, so each reason is bracketed.
         reasons = [f"{e['scene']} ({e['reason']})" for e in scenes] + [f"{u['path']} ({u['reason']})" for u in unread]
         summary.append(f"No scene could be judged: {', '.join(reasons)}.")
     for group in notice_groups:
         summary += run_report.warning_sentences(group)
-    if judged:
-        summary.append(f"Judged {run_report.counted(judged, 'scene')} and "
+    if judged_count:
+        summary.append(f"Judged {run_report.counted(judged_count, 'scene')} and "
                        f"{run_report.counted(measures, 'measure')}; with this many, a slower measure can be "
                        "chance (§ 4.10).")
     return summary
@@ -129,6 +131,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
     try:
         old_runs, new_runs = [ledger.read(p) for p in old], [ledger.read(p) for p in new]
         for run in old_runs + new_runs:
+            run_report.refuse_breaches(run)  # a file broken since may have no header to check
             if run.header["scene"] != name:
                 raise ledger.LedgerError(f"its scene is now {run.header['scene']!r}", run.path)
         built = compare.compare(old_runs, new_runs, overrides, floors)

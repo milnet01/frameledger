@@ -154,6 +154,14 @@ def test_unjudged_scenes(capsys, tmp_path, monkeypatch):
     assert (code, scene(out, "a")["verdict"], scene(out, "a")["compare"]) == (3, "unjudged", None)
     assert scene(out, "a")["reason"] == f"{moved} changed since it was first read: its scene is now 'z'"
 
+    # A file broken after the first read (here, emptied, so it has no header) leaves its scene unjudged too.
+    emptied = tmp_path / "emptied.csv"
+    emptied.write_text("")
+    monkeypatch.setattr(scenes, "_scene_of", lambda path: ("a", None) if path == str(emptied) else first_read(path))
+    code, out = by_scene(capsys, [*files.runs("a", [10.0] * 2), str(emptied)], files.runs("a", [10.0] * 3))
+    assert (code, scene(out, "a")["verdict"], scene(out, "a")["compare"]) == (3, "unjudged", None)
+    assert scene(out, "a")["reason"].startswith(f"{emptied} changed since it was first read: ")
+
 
 def test_nothing_judged(capsys, tmp_path):
     """INV-75: no scene judged is exit 3, opening "No scene could be
