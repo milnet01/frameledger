@@ -57,9 +57,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - A write to standard output that fails, such as a pipe closed early,
   exits 3, or 128 under `bisect`, never Python's 120 (FLED-0009,
   FLED-0019).
-- An app icon, `assets/frameledger-icon.svg`, shown in the README, and
-  the projects website's logo, `assets/frameledger-logo-stacked.svg`
-  (FLED-0017).
+- An app icon, `assets/frameledger-icon.svg`, shown in the README; the
+  projects website's logo, `assets/frameledger-logo-stacked.svg`; and a
+  one-line logo, `assets/frameledger-logo.svg` (FLED-0017).
 
 ### Fixed
 
@@ -69,8 +69,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **A run file with a very long number is a breach, not a crash** (FLED-0022)
   A `frame`, a `depth` or a value's whole part past 20 digits now breaks the format and is named by line. Past 4300 digits it used to end in a traceback.
 
-- **A huge `--warmup-s` or `--min-pct` is refused, not a crash** (FLED-0023)
-  `floor` and `budget` refuse a warm-up of 1000000000 s or more with a sentence, exit 3. `compare` refuses a `--min-pct` of 1000000000 or more the same way, and `bisect` stops (128). A value like `1e400` used to end in a traceback, which a gate reads as a fail.
+- **A huge `floor --warmup-s` is exit 3, not a crash** (FLED-0023)
+  A warm-up of 1000000000 s or more is refused with a sentence. A value like `1e400` used to end in a traceback, exit 1, which a gate reads as a fail.
 
 ## [0.1.0] - 2026-10-26
 

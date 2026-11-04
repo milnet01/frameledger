@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=23 -->
+<!-- ants-roadmap-id-high-water: FLED=24 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -460,6 +460,17 @@ another's.
   Kind: investigate.
   Source: design-2026-10-24.
   Blocked-by: FLED-0007.
+
+- 💭 [FLED-0024] **A long warm-up is shown rounded, in exponent form.**
+  album-builder, 2026-11-04: floor --warmup-s 999999999 on
+  tests/fixtures/passing-run.csv says "follows the 1e+09 s warm-up",
+  which is the refused limit. run_report.floor and budgeting format the
+  warm-up with :g, six significant digits, so any warm-up of 1000000 s
+  or more prints rounded. No real run's warm-up is that long; showing
+  the value as given would fix it.
+  **Layman:** A warm-up of millions of seconds is printed as a rounded number like 1e+09 instead of as typed.
+  Kind: fix.
+  Source: album-builder-fact-check-2026-11-04.
 
 ## Later — for anyone
 
