@@ -356,6 +356,12 @@ engine faster, and which pass it changed.
   (UTA-0437). The references' own depth mismatch would still stop. Spec
   § 4.11 and INV-46 change; needs the three engines' agreement, since
   Vestige and DOOM Ants asked for the one-depth rule.
+  2026-11-04: asked the three engines A (keep the stop) or B (a tested
+  run at another depth, or mixed tested depths, skips 125 naming both
+  depths; the references' mismatch still stops 128); recommended B. UT
+  Ants: B, and the skip message names the measure and says --depth pins
+  it, since a mid-range restructure skips every later commit. Vestige
+  and DOOM Ants not yet answered.
   **Layman:** Lets a bisect step over a commit that reorganised a drawing step, instead of halting the whole search.
   Kind: enhancement.
   Source: ut-ants-review-2026-10-26.
