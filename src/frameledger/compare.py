@@ -68,9 +68,10 @@ class Measure(NamedTuple):
 
 
 def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors) -> dict:
-    """{"verdict", "reason", "summary", "warnings", "overrides", "result"}
-    for two sets of runs that meet the format. `reason` says, in a clause,
-    why the compare is refused or inconclusive, and is None otherwise.
+    """{"verdict", "reason", "summary", "warnings", "overrides", "unused",
+    "result"} for two sets of runs that meet the format. `reason` says, in
+    a clause, why the compare is refused or inconclusive, and is None
+    otherwise. `unused` lists the overridden fields that differ in no run.
     cli.py checks the run counts and the override fields; a Run with a
     breach raises LedgerError, as under `report`.
 
@@ -90,7 +91,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         summary += [refusal_sentence(refused), *run_report.warning_sentences(notices)]
         return {"verdict": "error", "reason": refusal_reason(refused), "summary": summary,
                 "warnings": run_report.warning_entries(notices), "overrides": override_list,
-                "result": {"runs": run_list, "refused": refused}}
+                "unused": unused, "result": {"runs": run_list, "refused": refused}}
 
     incomplete = _incomplete_sentences(runs)
     notices += run_notices(runs) + _set_notices(runs)
@@ -118,7 +119,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         "refused": [],
     }
     return {"verdict": verdict, "reason": reason, "summary": summary,
-            "warnings": run_report.warning_entries(notices), "overrides": override_list, "result": result}
+            "warnings": run_report.warning_entries(notices), "overrides": override_list, "unused": unused,
+            "result": result}
 
 
 def run_entry(named: Named) -> dict:

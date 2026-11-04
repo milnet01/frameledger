@@ -6,8 +6,10 @@ within a segment, so a measure's per-run value is the value written.
 """
 
 import json
+from pathlib import Path
 
 import cli
+import scenes
 from test_compare import HEADER, alike
 
 FRAMES = 120  # per segment: above § 4.10's 100, so a noisy wall can make a scene inconclusive
@@ -92,6 +94,14 @@ def test_scene_is_one_compare(capsys, tmp_path):
     assert not any(w["message"].startswith("b: ") for w in out["warnings"])
     assert all(s["compare"]["refused"] == [] for s in out["result"]["scenes"])
 
+    # Two scenes with the same warning each get their own sentence (UT Ants).
+    b_old = [files.run("b", {"view:1": alike(10.0)}, minute=m) for m in (20, 21, 22)]
+    b_new = [files.run("b", {"view:1": alike(10.0)}, minute=m) for m in (30, 31, 32)]
+    code, out = by_scene(capsys, [*a_old, *b_old], [*a_new, *b_new])
+    warned = [s for s in out["summary"] if s.startswith("Warning:")]
+    assert any(s.startswith("Warning: a: every run of one set") for s in warned), warned
+    assert any(s.startswith("Warning: b: every run of one set") for s in warned), warned
+
 
 def unjudged_fixture(files: Files, a_new_opaque: float = 10.0) -> tuple[list, list]:
     """INV-74's sets: `a` clean at three a side; `b` with no new runs; `c`
@@ -104,7 +114,7 @@ def unjudged_fixture(files: Files, a_new_opaque: float = 10.0) -> tuple[list, li
     return old, new
 
 
-def test_unjudged_scenes(capsys, tmp_path):
+def test_unjudged_scenes(capsys, tmp_path, monkeypatch):
     """INV-74: an unjudged scene or unread file never hides the others, and
     never lets the command exit 0. An empty `scene` makes the file unread."""
     old, new = unjudged_fixture(Files(tmp_path))
@@ -114,7 +124,7 @@ def test_unjudged_scenes(capsys, tmp_path):
     verdicts = {s["scene"]: s["verdict"] for s in out["result"]["scenes"]}
     assert verdicts == {"a": "pass", "b": "unjudged", "c": "unjudged", "d": "unjudged"}
     assert "no new runs" in scene(out, "b")["reason"]
-    assert "old" in scene(out, "c")["reason"] and "2" in scene(out, "c")["reason"]
+    assert scene(out, "c")["reason"].startswith("the old side has 2 runs")
     assert "device" in scene(out, "d")["reason"]
     assert scene(out, "b")["compare"] is None and scene(out, "c")["compare"] is None
     assert scene(out, "d")["compare"]["refused"][0]["field"] == "device"
@@ -136,6 +146,14 @@ def test_unjudged_scenes(capsys, tmp_path):
     assert "scene" in out["result"]["unread"][0]["reason"]
     assert [s["scene"] for s in out["result"]["scenes"]] == ["a"]
 
+    # A file whose scene changed after the first read leaves its scene unjudged, never judged under the old name.
+    moved = files.run("z", {"view:1": alike(10.0)})
+    first_read = scenes._scene_of
+    monkeypatch.setattr(scenes, "_scene_of", lambda path: ("a", None) if path == moved else first_read(path))
+    code, out = by_scene(capsys, [*files.runs("a", [10.0] * 2), moved], files.runs("a", [10.0] * 3))
+    assert (code, scene(out, "a")["verdict"], scene(out, "a")["compare"]) == (3, "unjudged", None)
+    assert scene(out, "a")["reason"] == f"{moved} changed since it was first read: its scene is now 'z'"
+
 
 def test_nothing_judged(capsys, tmp_path):
     """INV-75: no scene judged is exit 3, opening "No scene could be
@@ -147,7 +165,8 @@ def test_nothing_judged(capsys, tmp_path):
     assert (code, out["verdict"]) == (3, "error")
     opening = out["summary"][0]
     assert opening.startswith("No scene could be judged:")
-    assert "no new runs" in opening and "device" in opening and "c" in opening
+    assert "b (no new runs)" in opening and "d (device differs" in opening
+    assert "c (the old side has 2 runs;" in opening
 
     code, out = by_scene(capsys, [files.write("") for _ in range(3)], [files.write("not a run\n") for _ in range(3)])
     assert (code, out["verdict"]) == (3, "error")
@@ -167,12 +186,13 @@ def three_segments(view_1: float, view_2: float, view_3: float) -> dict:
 def test_rank_and_segment(capsys, tmp_path):
     """INV-76: failing scenes rank by their slower measure's change; the
     segment named is the one whose centre changed most; a scene with only
-    a larger mem measure ranks after both."""
+    a larger mem measure ranks after both. `a` rises less than `b` but by a
+    larger percent, so ranking by percent would put it first."""
     files = Files(tmp_path)
-    old = [*files.runs("a", [2.0] * 3),
+    old = [*files.runs("a", [0.5] * 3),
            *[files.run("b", three_segments(2.0, 2.0, 2.0)) for _ in range(3)],
            *[files.run("c", {"view:1": {**alike(2.0), ("mem", "gpu_mb"): 500.0}}) for _ in range(3)]]
-    new = [*files.runs("a", [2.4] * 3),
+    new = [*files.runs("a", [0.9] * 3),
            *[files.run("b", three_segments(2.1, 3.7, 2.9)) for _ in range(3)],
            *[files.run("c", {"view:1": {**alike(2.0), ("mem", "gpu_mb"): 600.0}}) for _ in range(3)]]
     code, out = by_scene(capsys, old, new)
@@ -187,18 +207,42 @@ def test_rank_and_segment(capsys, tmp_path):
     assert out["summary"][0] == ("b is slower: the gpu/opaque median in view rose from 2.000 to 2.900 ms, "
                                  "most in view:2.")
 
+    # Two segments rising alike: the one first as text is named, wherever it lies in the file.
+    tie = tmp_path / "tie"
+    tie.mkdir()
+    files = Files(tie)
+
+    def tied(view_1_and_2: float, view_3: float) -> dict:
+        """view:2 written first, so the first found is not the first as text."""
+        return {"view:2": (alike(view_1_and_2), 50), "view:1": (alike(view_1_and_2), 50),
+                "view:3": (alike(view_3), 150)}
+
+    code, out = by_scene(capsys, [files.run("t", tied(2.0, 2.0)) for _ in range(3)],
+                         [files.run("t", tied(3.0, 2.9)) for _ in range(3)])
+    assert (code, scene(out, "t")["segment"]) == (1, "view:1")
+
 
 def test_judged_count(capsys, tmp_path):
     """INV-77: the scenes and measures judged are counted, unjudged ones
     left out, in the result and in the text."""
-    old, new = unjudged_fixture(Files(tmp_path))
+    files = Files(tmp_path)
+    old, new = unjudged_fixture(files)
+    # `e` is inconclusive under § 4.10, an old run lacking its close line, so it is judged; `f` has no old runs.
+    e_old = files.runs("e", [10.0] * 3)
+    unclosed = Path(e_old[0])
+    unclosed.write_text(unclosed.read_text().rsplit("# frameledger-close", 1)[0], encoding="utf-8")
+    old += e_old
+    new += [*files.runs("e", [10.0] * 3), *files.runs("f", [10.0] * 3)]
     code, out = by_scene(capsys, old, new)
-    measures = len(scene(out, "a")["compare"]["measures"])
-    assert out["result"]["judged"] == {"scenes": 1, "measures": measures}
+    assert scene(out, "e")["verdict"] == "inconclusive"
+    assert any(s.startswith("e is inconclusive: ") for s in out["summary"])
+    assert scene(out, "f")["reason"] == "no old runs"
+    measures = sum(len(scene(out, name)["compare"]["measures"]) for name in ("a", "e"))
+    assert out["result"]["judged"] == {"scenes": 2, "measures": measures}
 
     cli.main(["compare", "--by-scene", "--old", *old, "--new", *new])
     text = capsys.readouterr().out
-    assert f"Judged 1 scene and {measures} measures" in text
+    assert f"Judged 2 scenes and {measures} measures" in text
     table = text.split("Scenes, the largest slowdown first:\n")[1].splitlines()
-    assert len(table) == 5  # the column names, then a, b, c and d
+    assert len(table) == 7  # the column names, then a to f
     assert all(len(line) <= 100 for line in table)

@@ -47,25 +47,14 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     judged = [e for e in scenes if e["verdict"] != "unjudged"]
 
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
-    notices = [ledger.Notice(w["code"], f"{e['scene']}: {w['message']}") for e in scenes for w in e.pop("warnings")]
-    notices += compare.unused_override_notices([f for f in overrides if f in unused])
-    summary = compare.overrides_sentences(override_list)
-    if judged:
-        verdict = _verdict(scenes, unread)
-        summary += [_fail_sentence(e) for e in failing]
-        summary += [f"{e['scene']} is inconclusive: {e['reason']}." for e in scenes if e["verdict"] == "inconclusive"]
-        summary += [f"{e['scene']} is unjudged: {e['reason']}." for e in scenes if e["verdict"] == "unjudged"]
-        summary += [f"{u['path']} is unread: {u['reason']}." for u in unread]
-    else:
-        verdict = "error"
-        reasons = [f"{e['scene']}: {e['reason']}" for e in scenes] + [f"{u['path']}: {u['reason']}" for u in unread]
-        summary.append(f"No scene could be judged: {'; '.join(reasons)}.")
-    summary += run_report.warning_sentences(notices)
+    scene_notices = [[ledger.Notice(w["code"], f"{e['scene']}: {w['message']}") for w in e.pop("warnings")]
+                     for e in scenes]
+    unused_notices = compare.unused_override_notices([f for f in overrides if f in unused])
+    notices = [n for group in scene_notices for n in group] + unused_notices
     measures = sum(len(e["compare"]["measures"]) for e in judged)
-    if judged:
-        summary.append(f"Judged {run_report.counted(len(judged), 'scene')} and "
-                       f"{run_report.counted(measures, 'measure')}; with this many, a slower measure can be "
-                       "chance (§ 4.10).")
+    verdict = _verdict(scenes, unread) if judged else "error"
+    summary = _summary(override_list, scenes, unread, failing, len(judged), measures,
+                       [*scene_notices, unused_notices])
     result = {
         "scenes": scenes,
         "unread": unread,
@@ -79,6 +68,34 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
             "overrides": override_list, "result": result}
 
 
+def _summary(override_list: list[dict], scenes: list[dict], unread: list[dict], failing: list[dict],
+             judged: int, measures: int, notice_groups: list[list[ledger.Notice]]) -> list[str]:
+    """§ 4.14's text sentences, in its order. Each scene's warnings are
+    grouped apart, so two scenes with the same warning both say so."""
+    summary = compare.overrides_sentences(override_list)
+    if judged:
+        summary += [_fail_sentence(e) for e in failing]
+        summary += [f"{e['scene']} is inconclusive: {e['reason']}." for e in scenes if e["verdict"] == "inconclusive"]
+        summary += [f"{e['scene']} is unjudged: {e['reason']}." for e in scenes if e["verdict"] == "unjudged"]
+        summary += [f"{u['path']} is unread: {u['reason']}." for u in unread]
+    else:
+        # A refusal's reason holds semicolons, so each reason is bracketed (DOOM Ants).
+        reasons = [f"{e['scene']} ({e['reason']})" for e in scenes] + [f"{u['path']} ({u['reason']})" for u in unread]
+        summary.append(f"No scene could be judged: {', '.join(reasons)}.")
+    for group in notice_groups:
+        summary += run_report.warning_sentences(group)
+    if judged:
+        summary.append(f"Judged {run_report.counted(judged, 'scene')} and "
+                       f"{run_report.counted(measures, 'measure')}; with this many, a slower measure can be "
+                       "chance (§ 4.10).")
+    return summary
+
+
+def _read_failure(error: ledger.LedgerError) -> str:
+    """Why a file could not be read, without its path."""
+    return error.reason if error.line is None else f"{error.reason} (line {error.line})"
+
+
 def _scene_of(path: str) -> tuple[str | None, str | None]:
     """The file's scene, or why it is unread. The whole file is read and
     let go, so a breach anywhere in it is found before any scene is
@@ -87,7 +104,7 @@ def _scene_of(path: str) -> tuple[str | None, str | None]:
         run = ledger.read(path)
         run_report.refuse_breaches(run)
     except ledger.LedgerError as error:
-        return None, error.reason if error.line is None else f"{error.reason} (line {error.line})"
+        return None, _read_failure(error)
     if run.header["scene"] == "":
         return None, "the header's scene is empty, so the run belongs to no scene"
     return run.header["scene"], None
@@ -111,13 +128,14 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
 
     try:
         old_runs, new_runs = [ledger.read(p) for p in old], [ledger.read(p) for p in new]
+        for run in old_runs + new_runs:
+            if run.header["scene"] != name:
+                raise ledger.LedgerError(f"its scene is now {run.header['scene']!r}", run.path)
         built = compare.compare(old_runs, new_runs, overrides, floors)
     except ledger.LedgerError as error:  # the file changed since it was first read
-        entry["reason"] = str(error)
+        entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
         return entry, None
-    # Only the unused fields are wanted here, and they do not depend on the runs' names.
-    named = [compare.Named(r.path, "", r.path, r) for r in old_runs + new_runs]
-    unused = set(compare.refusals(named, overrides)[1])
+    unused = set(built["unused"])
     entry["compare"] = built["result"]
     entry["warnings"] = [w for w in built["warnings"] if w["code"] != "override_unused"]
     if built["verdict"] == "error":  # refused
@@ -176,6 +194,7 @@ def _fail_sentence(entry: dict) -> str:
     m = entry["measure"]
     opening = "is slower" if m["verdict"] == "slower" else "uses more memory"
     where = f", most in {entry['segment']}" if entry["segment"] else ""
-    return (f"{entry['scene']} {opening}: the {m['category']}/{m['name']} {m['statistic']} in "
-            f"{run_report.kind_name(m['segment_kind'])} rose from {m['old_centre']:.3f} to "
+    kind = f" in {m['segment_kind']}" if m["segment_kind"] else ""
+    return (f"{entry['scene']} {opening}: the {m['category']}/{m['name']} {m['statistic']}{kind} "
+            f"rose from {m['old_centre']:.3f} to "
             f"{m['new_centre']:.3f} {m['unit']}{where}.")

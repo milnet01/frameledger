@@ -1219,7 +1219,8 @@ otherwise. `rank` counts from 1 over failing scenes, or is null.
 `measure` is the verdict measure's entry from `compare`'s `measures`,
 or null. `segment` is the segment named, or null. `compare` is
 § 4.10's result for the scene, or null when the scene is unjudged for
-lacking runs; a refused scene's is § 4.10's refused result.
+lacking runs or for a file that changed after it was first read; a
+refused scene's is § 4.10's refused result.
 `judged.scenes` counts the scenes not unjudged; `judged.measures` sums
 the measures each of them judged. `scenes` lists failing scenes in
 rank order, then the others by scene name. `set` is `old` or `new`.
