@@ -395,7 +395,7 @@ engine faster, and which pass it changed.
   Kind: fix.
   Source: vestige-review-2026-10-29.
 
-- 🚧 [FLED-0023] **A huge --warmup-s crashes floor.**
+- ✅ [FLED-0023] **A huge --warmup-s crashes floor.**
   floor --warmup-s 1e400, or a 5000-digit whole number, ends in a
   traceback at run_report.floor's warmup_us / SECOND (OverflowError),
   exit 1, which a gate reads as "fail" (run 2026-10-31). _non_negative has
@@ -406,6 +406,11 @@ engine faster, and which pass it changed.
   the same way (OverflowError, exit 1). Both now refuse 1000000000 s or
   more, exit 3, in docs/specs/FLED-0001-run-file-format.md §§ 4.7 and
   4.12. With the engines for review.
+  Shipped 2026-11-04 at bd6f033, 8cef832 and 17d5d8c; the three engines
+  confirmed. Vestige's review found compare and bisect --min-pct crashed
+  the same way; both are bounded too. Tests: test_huge_warmup_is_exit_3
+  (test_floor.py, test_budget.py), test_huge_min_pct_is_exit_3
+  (test_compare.py), test_huge_min_pct_stops (test_bisect.py).
   **Layman:** An absurdly long warm-up time makes frameledger crash instead of saying the setting is wrong.
   Kind: fix.
   Source: fled-0022-probe-2026-10-31.

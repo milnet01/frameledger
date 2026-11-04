@@ -292,6 +292,7 @@ def test_huge_warmup_is_exit_3(capsys):
     code, out = run_floor(capsys, FIXTURES / "passing-run.csv", "--warmup-s", "999999999.999")
     assert (code, out["verdict"]) == (2, "inconclusive")
 
+
 def test_breach_is_exit_3(capsys):
     """§ 6: floor never skips a malformed row; it stops naming the line."""
     code, out = run_floor(capsys, FIXTURES / "zero-wall.csv")

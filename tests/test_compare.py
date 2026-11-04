@@ -167,6 +167,7 @@ def test_huge_min_pct_is_exit_3(capsys, tmp_path):
                            "--min-pct", "999999999.999")
     assert code == 0 and verdicts(result)[("gpu", "opaque", "median")] == "unchanged"
 
+
 def test_refusal_and_override(capsys, tmp_path):
     """INV-33: a compare-blocking field that differs refuses (exit 3);
     an override with a reason allows it and is named first (S5)."""

@@ -148,6 +148,7 @@ def test_huge_min_pct_stops(capsys, tmp_path):
         assert references(capsys, tmp_path, [10.0] * 3, [20.0] * 3, "--min-pct", huge,
                           tested=[10.0])[0] == 128, huge[:10]
 
+
 @pytest.mark.parametrize("bad, code", [
     ([10.2, 10.3, 10.4], 0),     # change 0.300, the floor; spread 0.200
     ([10.2, 10.299, 10.4], 128),  # change under the floor

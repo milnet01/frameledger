@@ -304,6 +304,7 @@ def test_huge_warmup_is_exit_3(capsys, tmp_path):
                        "--warmup-s", "999999999.999")
     assert (code, out["result"]["warmup_s"]) == (2, 999999999.999)
 
+
 def test_text_and_errors(capsys, tmp_path):
     """The text form gives the table; a missing budget file and a negative
     --warmup-s are exit 3."""
