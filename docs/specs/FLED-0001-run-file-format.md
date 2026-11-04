@@ -495,6 +495,7 @@ compare --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [-
 
 Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
 or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`.
+Each is 0 or more and below 1000000000, or exit 3 (FLED-0023).
 
 - **Runs are named by set and order**: `old-1`, `old-2`, … and
   `new-1`, …, in the order given. Warnings and sentences use these
@@ -785,7 +786,7 @@ pass, `gpu_remainder` and `frame/gpu_span` at least the largest
 (default 1.000, as Vestige's `perf_gate.py`) stands in for `--min-ms`,
 and `gpu_tick_ns` does not apply. `--min-mb` on a ms measure, or
 `--min-ms` on a `mem` one, is 128: a floor in the wrong unit would
-silently do nothing. On `mem` the percent usually decides: 3 percent of
+silently do nothing. So is any of the three outside § 4.10's range. On `mem` the percent usually decides: 3 percent of
 500 MB is 15 MB, so `--min-mb 1` matters only with a lower `--min-pct`.
 
 **Tested runs on both sides of the line.** With two or more tested

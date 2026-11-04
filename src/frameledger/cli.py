@@ -85,7 +85,7 @@ def _parser() -> _Parser:
                              help="the smallest change that counts, in ms (default 0.050)")
     compare_cmd.add_argument("--min-mb", type=_bounded, default=Decimal("1.000"), metavar="M",
                              help="the smallest change that counts for a mem measure, in MB (default 1.000)")
-    compare_cmd.add_argument("--min-pct", type=_non_negative, default=Decimal(3), metavar="P",
+    compare_cmd.add_argument("--min-pct", type=_bounded, default=Decimal(3), metavar="P",
                              help="the smallest change that counts, in percent of the old (default 3)")
     compare_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                              help="print the JSON result instead of text")
@@ -127,7 +127,7 @@ def _add_bisect(commands) -> None:
     bisect.add_argument("--min-mb", type=_bounded, metavar="M",
                         help="the references' smallest change for a mem measure, in MB "
                         f"(default {BISECT_FLOORS.min_mb})")
-    bisect.add_argument("--min-pct", type=_non_negative, metavar="P",
+    bisect.add_argument("--min-pct", type=_bounded, metavar="P",
                         help="the references' smallest change, in percent of the good runs "
                         f"(default {BISECT_FLOORS.min_pct})")
     bisect.add_argument("--skip-straddle", action="store_true",
@@ -138,7 +138,9 @@ def _add_bisect(commands) -> None:
                         help="print the JSON result instead of text")
 
 
-BUDGET_LIMIT = Decimal(1_000_000_000)  # ms; a file's values are below it (spec § 4.4)
+# In each flag's own unit: ms or MB for a value compared with the
+# file's, which are below it (spec § 4.4), and s for --warmup-s.
+BUDGET_LIMIT = Decimal(1_000_000_000)
 
 
 def _number(text: str) -> Decimal:
@@ -188,8 +190,8 @@ def _value(text: str) -> Decimal:
 
 
 def _bounded(text: str) -> Decimal:
-    """0 or more and below BUDGET_LIMIT: a smallest change, or a warm-up
-    in seconds, whose microseconds must fit a float (FLED-0023)."""
+    """0 or more and below BUDGET_LIMIT, so what is worked out from it
+    fits a float (FLED-0023)."""
     value = _non_negative(text)
     if value >= BUDGET_LIMIT:
         raise argparse.ArgumentTypeError(f"'{text}' must be below {BUDGET_LIMIT}")

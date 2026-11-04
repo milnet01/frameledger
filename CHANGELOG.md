@@ -66,8 +66,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **A run file with a very long number is a breach, not a crash** (FLED-0022)
   A `frame`, a `depth` or a value's whole part past 20 digits now breaks the format and is named by line. Past 4300 digits it used to end in a traceback.
 
-- **A huge `--warmup-s` is exit 3, not a crash** (FLED-0023)
-  `floor` and `budget` refuse a warm-up of 1000000000 s or more with a sentence. A value like `1e400` used to end in a traceback, exit 1, which a gate reads as a fail.
+- **A huge `--warmup-s` or `--min-pct` is refused, not a crash** (FLED-0023)
+  `floor` and `budget` refuse a warm-up of 1000000000 s or more with a sentence, exit 3. `compare` refuses a `--min-pct` of 1000000000 or more the same way, and `bisect` stops (128). A value like `1e400` used to end in a traceback, which a gate reads as a fail.
 
 ## [0.1.0] - 2026-10-26
 

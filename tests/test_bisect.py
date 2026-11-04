@@ -141,6 +141,13 @@ def test_reference_midpoint(capsys, tmp_path):
     assert references(capsys, tmp_path, [9.9, 10.0, 10.6], bad, tested=[11.001])[0] == 1
 
 
+def test_huge_min_pct_stops(capsys, tmp_path):
+    """FLED-0023, Vestige: a --min-pct of 1000000000 or more stops (128)
+    with a sentence, not a traceback."""
+    for huge in ("1e400", "9" * 5000, "1000000000"):
+        assert references(capsys, tmp_path, [10.0] * 3, [20.0] * 3, "--min-pct", huge,
+                          tested=[10.0])[0] == 128, huge[:10]
+
 @pytest.mark.parametrize("bad, code", [
     ([10.2, 10.3, 10.4], 0),     # change 0.300, the floor; spread 0.200
     ([10.2, 10.299, 10.4], 128),  # change under the floor

@@ -157,6 +157,16 @@ def test_floor(capsys, tmp_path):
     assert verdicts(result)[("frame", "gpu_span", "median")] == "unchanged"
 
 
+def test_huge_min_pct_is_exit_3(capsys, tmp_path):
+    """FLED-0023, Vestige: a --min-pct of 1000000000 or more is exit 3
+    with a sentence, not a traceback; just below it is judged."""
+    for huge in ("1e400", "9" * 5000, "1000000000"):
+        code, result = compare(capsys, tmp_path, old([10.0] * 3), new([10.04] * 3), "--min-pct", huge)
+        assert (code, result) == (3, None), huge[:10]
+    code, result = compare(capsys, tmp_path, old([10.0] * 3), new([10.04] * 3),
+                           "--min-pct", "999999999.999")
+    assert code == 0 and verdicts(result)[("gpu", "opaque", "median")] == "unchanged"
+
 def test_refusal_and_override(capsys, tmp_path):
     """INV-33: a compare-blocking field that differs refuses (exit 3);
     an override with a reason allows it and is named first (S5)."""
