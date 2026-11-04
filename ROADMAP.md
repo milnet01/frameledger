@@ -495,7 +495,7 @@ another's.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
 
-- 🚧 [FLED-0013] **Survey against survey.**
+- ✅ [FLED-0013] **Survey against survey.**
   Two builds' surveys, per run and per pass; flags each pass that got
   slower by more than its run-to-run spread. Claims S15. Overlaps the
   compare item in compare.py.
@@ -556,6 +556,8 @@ another's.
   crashed the scene re-check. Fixed in 6da8f79, with three readability
   nits, and sent back. Waiting-on: Vestige and UT Ants (re-review of
   6da8f79).
+  2026-11-04: Vestige, UT Ants and DOOM Ants all agreed 6da8f79.
+  Shipped.
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
