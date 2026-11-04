@@ -36,7 +36,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   three `--good` and three `--bad` reference runs, which must separate
   and not straddle their own midpoint. `--kind`, `--segment` or
   `--unsegmented` picks the frames; `mem` rows can be judged, with
-  `--min-mb`. A broken or incomplete tested run skips; any other
+  `--min-mb`. A broken or incomplete tested run skips, and so does one
+  without the measure or with it at another depth from the references
+  (FLED-0020); the result's `skip_reason` says which. Any other
   problem, `--help` and `--version` included, stops. `--dry-run VALUE`
   shows the verdict a value would get. Tested runs on both sides of the
   line warn, and skip with `--skip-straddle` (FLED-0009).

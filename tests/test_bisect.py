@@ -348,13 +348,16 @@ def test_depth(capsys, tmp_path):
     frames += [("view:1", {**rows(), ("gpu", "blur", 1): 5.0})] * 60
     tested = [run_text(frames)]
     blur = ["--measure", "gpu/blur", "--kind", "view"]
+    # FLED-0020: a tested run at two depths skips, naming them and --depth.
     code, result = bisect(capsys, tmp_path, tested, *blur, "--bad-above", "4.000")
-    assert code == 128
-    assert result["summary"] == ["gpu/blur is at more than one depth (tested-1 at 0 and 1); --depth picks one.",
-                                 "The bisect stops (exit 128)."]
+    assert (code, result["result"]["skip_reason"]) == (125, "depth")
+    assert "gpu/blur is at more than one depth (tested-1 at 0 and 1)" in result["summary"][0]
+    assert "--depth" in result["summary"][0]
     assert bisect(capsys, tmp_path, tested, *blur, "--depth", "1", "--bad-above", "4.000")[0] == 1
-    assert bisect(capsys, tmp_path, tested, *blur, "--depth", "0", "--bad-above", "4.000")[0] == 0
-    assert bisect(capsys, tmp_path, tested, *blur, "--depth", "2", "--bad-above", "4.000")[0] == 125
+    code, result = bisect(capsys, tmp_path, tested, *blur, "--depth", "0", "--bad-above", "4.000")
+    assert (code, result["result"]["skip_reason"]) == (0, None)
+    code, result = bisect(capsys, tmp_path, tested, *blur, "--depth", "2", "--bad-above", "4.000")
+    assert (code, result["result"]["skip_reason"]) == (125, "missing")
 
 
 # INV-47
@@ -526,9 +529,22 @@ def test_one_depth_across_runs(capsys, tmp_path):
     def at(depth, value):
         return run_text([("view:1", {**rows(), ("gpu", "blur", depth): value})] * 120)
     shallow, deep = [at(0, 2.0)] * 3, [at(0, 5.0)] * 3
-    assert references(capsys, tmp_path, shallow, deep, tested=[at(1, 5.0)], measure=blur)[0] == 128
+    # FLED-0020: a tested run at another depth from the references skips,
+    # naming both; references at two depths still stop.
+    code, result = references(capsys, tmp_path, shallow, deep, tested=[at(1, 5.0)], measure=blur)
+    assert (code, result["result"]["skip_reason"]) == (125, "depth")
+    assert "tested-1 at 1; the references at 0" in result["summary"][0]
+    code, result = references(capsys, tmp_path, shallow, deep, tested=[at(0, 5.0), at(1, 5.0)],
+                              measure=blur)
+    assert (code, result["result"]["skip_reason"]) == (125, "depth")
     assert references(capsys, tmp_path, shallow, [at(1, 5.0)] * 3, "--dry-run", "3", measure=blur)[0] == 128
     assert references(capsys, tmp_path, shallow, deep, tested=[at(0, 5.0)], measure=blur)[0] == 1
+    # Threshold mode has no references: one depth is judged, whichever it is (UT Ants).
+    assert bisect(capsys, tmp_path, [at(1, 5.0)], *blur, "--bad-above", "4.000")[0] == 1
+    # A missing measure is the earlier skip class, beside a run at another depth.
+    code, result = references(capsys, tmp_path, shallow, deep, tested=[run(5.0), at(1, 5.0)],
+                              measure=blur)
+    assert (code, result["result"]["skip_reason"]) == (125, "missing")
 
 
 # INV-53

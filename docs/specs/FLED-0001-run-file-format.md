@@ -1511,7 +1511,9 @@ breaks.
   and a tested run with it at depth 1 only skip with 125, naming both;
   good runs at depth 0 and bad runs at depth 1 stop with 128. A tested
   run without `gpu/blur`, beside one at another depth, gives
-  `skip_reason` `missing`.
+  `skip_reason` `missing`. With `--bad-above` and no references, a
+  tested run with `gpu/blur` at depth 1 only is judged at depth 1
+  (UT Ants).
   *Test:* `tests/test_bisect.py::test_depth`,
   `tests/test_bisect.py::test_one_depth_across_runs`.
   *Breaks when:* one depth is picked silently, in one run or between

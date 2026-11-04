@@ -89,11 +89,13 @@ class _Stop(Exception):
 
 
 class _Skip(Exception):
-    """This commit cannot be judged: one sentence per run that says why."""
+    """This commit cannot be judged: one sentence per run that says why,
+    and the result's skip_reason (§ 4.11), so a caller can count each kind."""
 
-    def __init__(self, sentences: list[str]):
+    def __init__(self, sentences: list[str], reason: str):
         super().__init__(" ".join(sentences))
         self.sentences = sentences
+        self.reason = reason
 
 
 def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[Loaded],
@@ -110,6 +112,7 @@ def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[L
     references = None
     line = None
     notices: list[ledger.Notice] = []
+    skip_reason = None
     try:
         if refs:
             references = _judge_references(wanted, refs, overrides, floors)
@@ -124,7 +127,7 @@ def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[L
             notices = _tested_notices(refs, tested_runs, overrides)
             straddle = _straddle(tested_runs, values, line, wanted.unit)
             if straddle and skip_straddle:
-                raise _Skip([f"The tested runs fall on both sides of the line: {straddle}."])
+                raise _Skip([f"The tested runs fall on both sides of the line: {straddle}."], "straddle")
             if straddle:
                 notices.append(ledger.Notice("tested_straddle", "the tested runs fall on both sides of "
                                              f"{_shown(line, wanted.unit)}: {straddle}"))
@@ -135,6 +138,7 @@ def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[L
         verdict, sentences, value, refused = "stop", [str(stop), STOP_SENTENCE], None, stop.refused
     except _Skip as skip:
         verdict, sentences, value, refused = "skip", [*skip.sentences, SKIP_SENTENCE], None, []
+        skip_reason = skip.reason
     else:
         verdict, refused = ("bad" if value > line else "good"), []
         sentences = [*run_report.warning_sentences(notices),
@@ -151,6 +155,7 @@ def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[L
             "good_centre": _number(references.good_centre), "bad_centre": _number(references.bad_centre),
             "spread": _number(references.spread), "floor": _number(references.floor)},
         "refused": refused,
+        "skip_reason": skip_reason,
     }
     return {"verdict": verdict, "summary": compare.overrides_sentences(override_list) + sentences,
             "warnings": run_report.warning_entries(notices), "overrides": override_list, "result": result}
@@ -178,7 +183,9 @@ def _judge_references(wanted: Wanted, refs: list[_Run], overrides: dict[str, str
     if refused:
         raise _Stop(compare.refusal_sentence(refused), refused)
     found = {r.name: _times_by_depth(wanted, r.run) for r in refs}
-    depth = _one_depth(wanted, found)
+    depth, mixed = _one_depth(wanted, found)
+    if mixed:
+        raise _Stop(f"{mixed}; --depth picks one.")
     values = {}
     for r in refs:
         value = _value(wanted, found[r.name], depth)
@@ -220,22 +227,25 @@ def _tested_values(wanted: Wanted, refs: list[_Run], tested_runs: list[_Run], ov
     unreadable = [f"{r.name} cannot be judged: {problem}." for r in tested_runs
                   if (problem := _unreadable(r))]
     if unreadable:
-        raise _Skip(unreadable)
+        raise _Skip(unreadable, "unreadable")
     refused, _ = compare.refusals(refs + tested_runs, overrides)
     if refused:
         raise _Stop(compare.refusal_sentence(refused), refused)
     incomplete = [f"{r.name} cannot be judged: {problem}." for r in tested_runs
                   if (problem := _incomplete(r))]
     if incomplete:
-        raise _Skip(incomplete)
+        raise _Skip(incomplete, "incomplete")
     found = {r.name: _times_by_depth(wanted, r.run) for r in tested_runs}
-    depth = _one_depth(wanted, found, ref_depth if refs else None)
-    values = {r.name: _value(wanted, found[r.name], depth) for r in tested_runs}
+    # A run without the measure is the more basic failure, so it is named before a depth.
     missing = [f"{r.name} has no {wanted.label}; {_frames_it_has(wanted, r.run)}." for r in tested_runs
-               if values[r.name] is None]
+               if not _has_measure(wanted, found[r.name])]
     if missing:
-        raise _Skip(missing)
-    return values
+        raise _Skip(missing, "missing")
+    # A commit that re-nests a pass must not end the search (FLED-0020).
+    depth, mixed = _one_depth(wanted, found, ref_depth if refs else None)
+    if mixed:
+        raise _Skip([f"{mixed}; --depth D judges such a commit at depth D."], "depth")
+    return {r.name: _value(wanted, found[r.name], depth) for r in tested_runs}
 
 
 def _unreadable(r: _Run) -> str | None:
@@ -272,22 +282,31 @@ def _times_by_depth(wanted: Wanted, run: ledger.Run) -> dict[int | None, list[in
             if (g, category, name) == (group, wanted.category, wanted.name) and times}
 
 
-def _one_depth(wanted: Wanted, found: dict[str, dict[int | None, list[int]]],
-               settled: int | None = None) -> int | None:
-    """The depth every run's value is taken at: --depth, or the one depth
-    every run that has the name has it at, and the references' when they
-    have settled one (Vestige, DOOM Ants)."""
+def _has_measure(wanted: Wanted, by_depth: dict[int | None, list[int]]) -> bool:
+    """Whether a run has the measure in the chosen frames: at --depth when
+    one is given, at any depth otherwise."""
     if wanted.depth is not None or wanted.category == "frame":
-        return wanted.depth
+        return _value(wanted, by_depth, wanted.depth) is not None
+    return bool(by_depth)
+
+
+def _one_depth(wanted: Wanted, found: dict[str, dict[int | None, list[int]]],
+               settled: int | None = None) -> tuple[int | None, str | None]:
+    """(depth, None): the depth every run's value is taken at, --depth or
+    the one depth every run that has the name has it at, and the
+    references' when they have settled one (Vestige, DOOM Ants). Or
+    (None, a sentence naming each run's depths) when there is more than
+    one; references stop on it, a tested commit skips (FLED-0020)."""
+    if wanted.depth is not None or wanted.category == "frame":
+        return wanted.depth, None
     depths = {name: sorted(by_depth) for name, by_depth in found.items() if by_depth}
     every = {d for ds in depths.values() for d in ds} | ({settled} if settled is not None else set())
     if len(every) > 1:
         listed = "; ".join(f"{name} at {' and '.join(map(str, ds))}" for name, ds in depths.items())
         if settled is not None:
             listed += f"; the references at {settled}"
-        raise _Stop(f"{wanted.category}/{wanted.name} is at more than one depth ({listed}); "
-                    "--depth picks one.")
-    return next(iter(every), None)
+        return None, f"{wanted.category}/{wanted.name} is at more than one depth ({listed})"
+    return next(iter(every), None), None
 
 
 def _value(wanted: Wanted, by_depth: dict[int | None, list[int]], depth: int | None) -> int | None:
