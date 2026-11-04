@@ -744,10 +744,15 @@ git bisect run sh -c 'make || exit 125; rm -f t1.csv t2.csv t3.csv; for i in 1 2
 - `--statistic` is `median`, the default, or `p99` for `frame/wall`
   only, as § 4.10 judges them. `p99` on another measure is 128.
 - `--depth D` picks the measure's depth; on a frame measure, which has
-  no depth to pick, it is 128 (Vestige, UT Ants). Without it, every
-  run must have the name at one and the same depth, or 128, naming each
-  run's depths: a name at two depths in one run, in different frames,
-  or at another depth in another run (Vestige, DOOM Ants).
+  no depth to pick, it is 128 (Vestige, UT Ants). Without it, the
+  references must have the name at one and the same depth, or 128,
+  naming each run's depths: a name at two depths in one run, in
+  different frames, or at another depth in another reference (Vestige,
+  DOOM Ants). A tested commit whose runs have it at another depth from
+  the references, at two depths, or at different depths from each
+  other, skips (125): one restructured commit must not end the search
+  (FLED-0020, UT Ants). A pass is never judged against itself at
+  another depth either way.
 - **A run's value** is § 4.10's: the measure's median, or `frame/wall`'s
   99th percentile, over the chosen frames that have it. A `mem`
   measure's value is the median of its rows in the chosen frames. That
@@ -821,11 +826,15 @@ an engine that prefers a visible skip to a silent wrong turn
 whatever its value: a tested file that is missing, cannot be read or
 breaks the format (UT Ants); a tested run with dropped rows or no close
 line (docs/design.md: "nor a compare that uses them"); a tested run
-without the measure in the chosen frames. An empty file, the commonest
+without the measure in the chosen frames; and tested runs at another
+depth, as above. An empty file, the commonest
 remains of a crashed benchmark, is one that breaks the format. Each
 such run has its own sentence naming it and why. For a missing
 measure it also names the segment kinds the run has, or with
 `--segment` its segments, so a wrong `--kind` shows on the first skip.
+For a depth it names the measure, each tested run's depths and the
+references', and says `--depth D` judges such commits, so a range
+crossing a re-nested pass shows the way through (DOOM Ants, UT Ants).
 
 **Dry run.** `--dry-run VALUE` judges `VALUE` as the tested value, in
 the measure's unit, with at most three decimal places, and reads no
@@ -862,7 +871,8 @@ between the good runs' 10.000 ms and the bad runs' 12.300 ms: bad
             "rows_dropped", "finished", "value"}],
   "value", "bad_above",
   "references": {"good_centre", "bad_centre", "spread", "floor"},
-  "refused": [{"field", "values": {}}]
+  "refused": [{"field", "values": {}}],
+  "skip_reason": "unreadable | incomplete | missing | depth | straddle"
 }
 ```
 
@@ -871,7 +881,11 @@ kind, or `--kind`'s, or null for `--unsegmented`. `set` is `tested`,
 `good` or `bad`. `unit` is `ms` or `MB`. `value` is the tested value, or
 the dry run's `VALUE`; null on `skip` and `stop`. A run's own `value` is
 null when it has none. `bad_above` is `X` or the midpoint. `references`
-is null in threshold mode.
+is null in threshold mode. `skip_reason` names the first skip class
+that applied, in the order listed under Skip (125), with `straddle`
+last; null unless the verdict is `skip`. git bisect runs one commit at a
+time, so a caller counting depth skips apart from missing measures
+counts this field (Vestige).
 
 ### 4.12 Pass budgets
 
@@ -1486,18 +1500,23 @@ breaks.
   *Breaks when:* a trust warning turns bad into skip, or a dirty tested
   run gives no warning.
 
-- **INV-46** — Without `--depth`, every run has the name at one depth.
-  A run with `gpu/blur` at depth 0 (2.000) in some frames and at depth
-  1 (5.000) in the others, since one frame cannot hold both: `--measure
-  gpu/blur` alone stops with 128, naming depths 0 and 1; with `--depth
-  1 --bad-above 4.000` it exits 1, and with `--depth 0` it exits 0; with
-  `--depth 2` it skips. References with `gpu/blur` at depth 0 and a
-  tested run with it at depth 1 only stop with 128, and so do good runs
-  at depth 0 and bad runs at depth 1.
+- **INV-46** — Without `--depth`, a measure is judged at one depth
+  only, and the references have it at one depth (amended by FLED-0020).
+  A tested run with `gpu/blur` at depth 0 (2.000) in some frames and at
+  depth 1 (5.000) in the others, since one frame cannot hold both:
+  `--measure gpu/blur --bad-above 4.000` alone skips with 125, naming
+  depths 0 and 1 and `--depth`, `skip_reason` `depth`; with `--depth 1`
+  it exits 1, and with `--depth 0` it exits 0; with `--depth 2` it
+  skips, `skip_reason` `missing`. References with `gpu/blur` at depth 0
+  and a tested run with it at depth 1 only skip with 125, naming both;
+  good runs at depth 0 and bad runs at depth 1 stop with 128. A tested
+  run without `gpu/blur`, beside one at another depth, gives
+  `skip_reason` `missing`.
   *Test:* `tests/test_bisect.py::test_depth`,
   `tests/test_bisect.py::test_one_depth_across_runs`.
   *Breaks when:* one depth is picked silently, in one run or between
-  runs, or `--depth` is ignored.
+  runs; a tested run's depth stops the bisect; references at two depths
+  are judged; or `--depth` is ignored.
 
 - **INV-47** — References that straddle their own midpoint stop the
   bisect (Vestige). Good runs at 10.000, 10.000 and 10.900, bad at
@@ -1764,6 +1783,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0022: INV-64.
 - FLED-0018: INV-65 to INV-67.
 - FLED-0011: INV-68.
+- FLED-0020: INV-46 as amended.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.

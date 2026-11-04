@@ -266,7 +266,7 @@ engine faster, and which pass it changed.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
 
-- 🚧 [FLED-0011] **Frame pacing figure.**
+- ✅ [FLED-0011] **Frame pacing figure.**
   A frame-to-frame variation figure beside the 1% low. Claims S14.
   2026-11-04: design asked of the three engines before amending
   docs/specs/FLED-0001-run-file-format.md: |wall(n) - wall(n-1)| over
@@ -277,6 +277,11 @@ engine faster, and which pass it changed.
   floor; no warm-up skip). Spec amendment in
   docs/specs/FLED-0001-run-file-format.md § 4.8 and INV-68, sent for
   review before building.
+  Shipped 2026-11-04 at 35b6f20 and the rename commit after it; the
+  three engines agreed the code. DOOM Ants ran report on a real traced
+  run (399 frames): wall change median 1.859 ms, p99 33.421 ms over 398
+  pairs, which matched the run. Vestige and UT Ants have no run files
+  yet (3D_E-0786, UTA-0437). Tests: tests/test_pacing.py.
   **Layman:** Shows judder even when the frame rate passes.
   Kind: implement.
   Source: design-2026-10-24.
@@ -346,7 +351,7 @@ engine faster, and which pass it changed.
   Kind: test.
   Source: user-request-2026-10-26.
 
-- 💭 [FLED-0020] **A tested run at another depth skips rather than stops.**
+- 🚧 [FLED-0020] **A tested run at another depth skips rather than stops.**
   UT Ants, 2026-10-26, FLED-0009 review of 32b87ac: without --depth, a
   tested run whose pass sits at another depth from the references, or
   tested runs at mixed depths, stop the bisect (128) in bisecting.py
@@ -368,6 +373,10 @@ engine faster, and which pass it changed.
   cannot count across a range; the proposal back is a distinct skip
   reason in the JSON, so a caller can count each kind. DOOM Ants not yet
   answered.
+  2026-11-04: DOOM Ants: B, the 125 sentence names both depths and says
+  --depth judges such commits. All three chose B. Spec amendment in
+  docs/specs/FLED-0001-run-file-format.md § 4.11 and INV-46, with
+  skip_reason in place of a cross-commit count, sent for review.
   **Layman:** Lets a bisect step over a commit that reorganised a drawing step, instead of halting the whole search.
   Kind: enhancement.
   Source: ut-ants-review-2026-10-26.
