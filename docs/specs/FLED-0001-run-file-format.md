@@ -511,8 +511,11 @@ FLED-0008 builds this (S4, S5's refusal half, S16). Reviewed by the
 three engines 2026-10-26; their changes are folded in.
 
 ```
-compare --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
+compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
 ```
+
+`--by-scene` judges each scene apart, § 4.14. Without it, this
+section holds.
 
 Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
 or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`.
@@ -608,6 +611,13 @@ the measure.
 
 An engine whose measures vary by more than about 1% between runs
 gives more runs a set, or a higher `--min-pct`.
+
+**Many scenes multiply that rate** (Vestige). Each row above is one
+compare of 25 measures. If scenes vary independently, the chance that
+at least one of N scenes fails is 1 − (1 − p)^N. At 3 runs a set and
+1% noise, that is 11% for 10 scenes and 52% for 60. No correction is
+made. So § 4.14 counts the scenes and measures it judged, and a reader
+weighs one `slower` among them.
 
 **The command's verdict**, first match wins:
 
@@ -1117,6 +1127,102 @@ is null otherwise. `rank` counts from 1, or is null. `median_ms` and
 budget. `runs` is in rank order, then the unranked in the order given.
 The path is in the result and the text, since a survey names its
 files; a run's own figures still name no line number.
+
+### 4.14 Comparing surveys
+
+FLED-0013 builds this (S15). The design was agreed with the three
+engines 2026-11-04.
+
+```
+compare --by-scene --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
+```
+
+The flags are § 4.10's, with its defaults and bounds.
+
+- **A scene is the header's `scene` field**, matched exactly as text.
+  `scene` is required (§ 4.2), so a file without it breaks the format.
+  A file that cannot be read, breaks the format, or has an empty
+  `scene` is listed as unread with its reason, and the rest go on.
+- **Each scene is judged as § 4.10 judges one compare**: its old runs
+  against its new, with the same names, refusals, measures, judging,
+  verdict and warnings, `not_interleaved` included. `scene` cannot
+  refuse, since it is the same in every run of a scene. Every other
+  compare-blocking field still refuses, and each `--override` applies
+  to every scene.
+- **A scene is unjudged, and the others go on** (all three engines),
+  when it has no old runs or no new runs, naming the side it lacks
+  ("e2m2: no new runs"; DOOM Ants), when a side has fewer than three
+  runs, or when it refuses. One broken map must not hide a slowdown on
+  another. The scenes need not be the same in both sets: a subset
+  judged before a release leaves the others unjudged (DOOM Ants).
+- **A scene's runs are read when it is judged, and let go after**, so
+  memory grows with the largest scene, not with the survey.
+- **A failing scene names its verdict measure**: § 4.10's measure
+  named in the verdict sentence, the slower one with the largest
+  change in ms, or else the larger `mem` one in MB. Within that
+  measure's segment kind, it also names the segment whose centre
+  changed most, new minus old, ties by segment compared as text (UT
+  Ants). A segment's value in a run is the measure taken over that
+  segment's frames alone. Its centre on each side is § 4.10's, over the
+  runs that have the segment, and a segment missing from every run of
+  one side is not named. This points at where to look. It judges
+  nothing.
+- **Failing scenes are ranked**: those with a slower measure first, by
+  its change in ms, largest first, then those with only a larger
+  `mem` measure, by its change in MB; ties by percent, then scene name.
+- **`override_unused`** is given once, when the field differs in no
+  scene.
+
+**The command's verdict**, first match wins:
+
+1. `error` (exit 3) for a bad flag, as § 4.10.
+2. `error` (exit 3) when no scene could be judged: every scene is
+   unjudged, or every file is unread. It is almost always a mistake in
+   the setup, such as a wrong folder or a GPU differing in every file
+   (UT Ants). The opening sentence says so plainly: "No scene could be
+   judged:", then each scene's reason and each unread file's (DOOM
+   Ants, Vestige).
+3. `fail` (exit 1) when any scene fails.
+4. `inconclusive` (exit 2) when any scene is inconclusive or unjudged,
+   or any file is unread.
+5. `pass` (exit 0) otherwise.
+
+So a scene that is inconclusive under § 4.10, for dropped rows, say,
+counts as judged.
+
+**Text** opens with the overrides sentence, as § 4.10; then one
+sentence per failing scene, in rank order: "e1m2 is slower: the
+gpu/opaque median in view rose from 3.100 to 3.512 ms, most in
+view:3." Then one per inconclusive scene with § 4.10's reason, one per
+unjudged scene with its reason, one per unread file with its path and
+reason, and each scene's warnings, opening with the scene's name.
+Then one sentence counting what was judged: "Judged 8 scenes and 412
+measures; with this many, a slower measure can be chance (§ 4.10)."
+Then a table of every scene: rank, scene, verdict, measure, change and
+segment, within 100 columns, cut as § 4.13 cuts a file name.
+
+**Result.**
+
+```json
+{
+  "scenes": [{"scene", "verdict", "reason", "rank",
+              "measure", "segment", "compare"}],
+  "unread": [{"path", "set", "reason"}],
+  "judged": {"scenes", "measures"},
+  "min_ms", "min_mb", "min_pct", "overrides"
+}
+```
+
+A scene's `verdict` is `fail`, `inconclusive`, `pass` or `unjudged`.
+`reason` says why a scene is inconclusive or unjudged, and is null
+otherwise. `rank` counts from 1 over failing scenes, or is null.
+`measure` is the verdict measure's entry from `compare`'s `measures`,
+or null. `segment` is the segment named, or null. `compare` is
+§ 4.10's result for the scene, or null when the scene is unjudged for
+lacking runs; a refused scene's is § 4.10's refused result.
+`judged.scenes` counts the scenes not unjudged; `judged.measures` sums
+the measures each of them judged. `scenes` lists failing scenes in
+rank order, then the others by scene name. `set` is `old` or `new`.
 
 ## 5. Invariants
 
@@ -1890,6 +1996,46 @@ breaks.
   *Test:* `tests/test_survey.py::test_flag_names_its_frame`.
   *Breaks when:* the flag points at the ranked kind instead of the
   frame, or the text omits that the window check was not run.
+- **INV-73** — Each scene is judged as one compare. With scenes `a`
+  and `b`, three runs a side each, given interleaved in one list, each
+  scene's `compare` equals `compare --old` and `--new` over that
+  scene's files alone, and `a`, its old runs all started before its
+  new, carries `not_interleaved`. Scene `b`'s runs differ in `scene`
+  from `a`'s and refuse nothing.
+  *Test:* `tests/test_compare_scenes.py::test_scene_is_one_compare`.
+  *Breaks when:* runs of two scenes are judged together, a scene's
+  judging differs from `compare`'s, or `scene` refuses.
+- **INV-74** — An unjudged scene never hides the others. With scene
+  `a` clean at three a side, `b` with no new runs, `c` with two old
+  runs, `d` whose new runs differ in `device`, and an empty file: `a`
+  passes; `b`'s reason names the missing new side, `c`'s the old
+  side's too few runs, `d`'s the `device` field; the file is unread;
+  the exit is 2. Make `a` slower and it is 1.
+  *Test:* `tests/test_compare_scenes.py::test_unjudged_scenes`.
+  *Breaks when:* one unjudged scene or unread file stops the
+  command, or a command with one exits 0.
+- **INV-75** — No scene judged is an error. With scenes `b`, `c` and
+  `d` of INV-74 alone, the exit is 3 and the first sentence after the
+  overrides opens "No scene could be judged:" and names each reason. A
+  set of only unread files is exit 3 too.
+  *Test:* `tests/test_compare_scenes.py::test_nothing_judged`.
+  *Breaks when:* a command that judged nothing exits 2 or 0.
+- **INV-76** — A failing scene names its measure and segment, and
+  failing scenes rank by change. Scene `a` whose `gpu/opaque` median
+  rose 0.400 ms, and `b` whose rose 0.900 ms, rank `b` 1 and `a` 2.
+  Within `b`'s `view` kind, `view:1` rose 0.100 ms and `view:2` 1.700
+  ms, so `segment` is `view:2`. A scene with only a larger `mem`
+  measure ranks after both.
+  *Test:* `tests/test_compare_scenes.py::test_rank_and_segment`.
+  *Breaks when:* scenes rank by another figure, a `mem`-only scene
+  ranks among the slower ones, or the segment is not the one that
+  changed most.
+- **INV-77** — The count judged is given. In INV-74's fixture,
+  `judged.scenes` is 1 and `judged.measures` equals the length of
+  `a`'s `compare.measures`; the text gives both in its count sentence.
+  *Test:* `tests/test_compare_scenes.py::test_judged_count`.
+  *Breaks when:* unjudged scenes are counted, or the count is missing
+  from the text.
 
 ## 6. Failure modes
 
@@ -1929,6 +2075,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0011: INV-68.
 - FLED-0020: INV-46 as amended.
 - FLED-0012: INV-69 to INV-72.
+- FLED-0013: INV-73 to INV-77.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1958,7 +2105,6 @@ it on each release they pin.
 
 ## 9. Out of scope
 
-- Survey comparison — FLED-0013, which amends this spec.
 - `survey`'s per-run `floor` window verdict, and its `ext.<engine>`
   per-effect table: not yet queued (the three engines, 2026-11-04).
 - Warnings on a single run's timing finer than `gpu_tick_ns`;
@@ -2041,6 +2187,11 @@ it on each release they pin.
 | INV-70 | `tests/test_survey.py::test_rank` |
 | INV-71 | `tests/test_survey.py::test_unjudged_files` |
 | INV-72 | `tests/test_survey.py::test_flag_names_its_frame` |
+| INV-73 | `tests/test_compare_scenes.py::test_scene_is_one_compare` |
+| INV-74 | `tests/test_compare_scenes.py::test_unjudged_scenes` |
+| INV-75 | `tests/test_compare_scenes.py::test_nothing_judged` |
+| INV-76 | `tests/test_compare_scenes.py::test_rank_and_segment` |
+| INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
