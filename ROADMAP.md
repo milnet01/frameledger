@@ -516,6 +516,14 @@ another's.
   `not_interleaved` per scene; the failing sentence names the segment
   (view:N) where the slower measure changed most. To reconcile with
   Vestige's answer, which is still awaited.
+  2026-11-04, Vestige: agrees 1 to 5, the flag, 3 runs a side. Adds:
+  `scene` matched exactly, a run without one unjudged; say plainly when
+  no scene could be judged; § 4.10 states that many scenes multiply the
+  false-fail rate, and the result counts scenes and measures judged.
+  Merged design sent back to all three, every addition taken. Proposed
+  for the one split: no scene judged gives exit 3 (UT Ants), opening
+  "No scene could be judged: ..." (DOOM Ants, Vestige). Objections
+  asked for; otherwise the spec amendment follows.
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
