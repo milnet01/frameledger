@@ -22,7 +22,9 @@ and the smallest changes confirmed by the three engines at 8cef832.
 2026-11-04 at 8f3eae8, with the `wall change (pairs)` label. § 4.11's
 depth skip and `skip_reason` with INV-46 amended (FLED-0020) agreed by
 the three engines 2026-11-04 at 139c66c, and their code review
-confirmed it at d2ff396.
+confirmed it at d2ff396. § 4.13 `survey` with INV-69 to INV-72
+(FLED-0012) agreed by the three engines 2026-11-04 at 991a9de, with
+their wording changes.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1074,18 +1076,23 @@ exit-3 bounds on each.
   the figures need, so a survey of about a million rows stays under a
   minute (S19).
 
-**Text** opens with one sentence per flagged run, in rank order, then
-one per inconclusive or unjudged run, then each run's warnings, then
+**Text** opens with one sentence per flagged run, in rank order, those
+with no rank after the ranked in the order given (UT Ants), then one
+per inconclusive or unjudged run, then each run's warnings, then
 the verdict:
 "maps/e1m2.csv is flagged: 3 frames after the 2 s warm-up are over the
 16.667 ms budget, the slowest frame 812 in view:3 at 41.200 ms (top
 pass gpu/opaque); floor's per-second check was not run." Then a table
 of every run: rank, file, worst segment, median, p99, frames over
 budget and verdict, within 100 columns. A file name too long for its
-column is cut from the left, keeping its end.
+column is cut from the left, keeping its end, and opens with `…` to
+show the cut (Vestige).
 
-**Result.** The verdict is `fail` when a run is flagged, `inconclusive`,
-`pass`, or `error` for a bad flag.
+**Result.** The verdict is `fail` when a run is flagged;
+`inconclusive` when none is but a run is unjudged or inconclusive;
+`pass` when every run is judged and none is flagged, which is not
+`floor`'s pass, since the window check is not run (UT Ants); or
+`error` for a bad flag. They are exits 1, 2, 0 and 3.
 
 ```json
 {
@@ -1853,9 +1860,10 @@ breaks.
   *Test:* `tests/test_survey.py::test_flag_is_floors`.
   *Breaks when:* the flag uses another frame set or statistic than
   `floor`'s frame check, so the two commands disagree on one file.
-- **INV-70** — Runs rank by their worst eligible kind's p99. Three runs
-  with `view` p99s of 20.000, 30.000 and 25.000 ms rank 2, 3, 1 in that
-  order; a `load` kind of 50 frames at 90.000 ms in the first is listed
+- **INV-70** — Runs rank by their worst eligible kind's p99. Of three
+  runs given with `view` p99s of 20.000, 30.000 and 25.000 ms, the
+  second ranks 1, the third 2 and the first 3, and `runs` lists them in
+  that order (Vestige); a `load` kind of 50 frames at 90.000 ms in the first is listed
   with `ranked` false and changes nothing. With `view:1` at 18.000 and
   `view:2` at 30.000 ms, `worst_segment` is `view:2`. A run with no kind
   of 100 frames has `rank` null and comes last.
