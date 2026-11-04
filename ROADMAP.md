@@ -386,13 +386,17 @@ engine faster, and which pass it changed.
   Kind: fix.
   Source: vestige-review-2026-10-29.
 
-- 📋 [FLED-0023] **A huge --warmup-s crashes floor.**
+- 🚧 [FLED-0023] **A huge --warmup-s crashes floor.**
   floor --warmup-s 1e400, or a 5000-digit whole number, ends in a
   traceback at run_report.floor's warmup_us / SECOND (OverflowError),
   exit 1, which a gate reads as "fail" (run 2026-10-31). _non_negative has
   no upper limit, unlike _value and _floor_ms, which stop at BUDGET_LIMIT.
   Exit 3 with a sentence is the fix. budget --warmup-s shares the parser;
   not yet tried with a valid budget file. Found beside FLED-0022.
+  2026-11-04: budget --warmup-s 1e400 with a valid budget file crashed
+  the same way (OverflowError, exit 1). Both now refuse 1000000000 s or
+  more, exit 3, in docs/specs/FLED-0001-run-file-format.md §§ 4.7 and
+  4.12. With the engines for review.
   **Layman:** An absurdly long warm-up time makes frameledger crash instead of saying the setting is wrong.
   Kind: fix.
   Source: fled-0022-probe-2026-10-31.

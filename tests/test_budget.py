@@ -289,6 +289,21 @@ def test_warmup(capsys, tmp_path):
     assert not any("fix the budget file" in s for s in out["summary"])
 
 
+def test_huge_warmup_is_exit_3(capsys, tmp_path):
+    """FLED-0023: a --warmup-s of 1000000000 s or more is exit 3 with a
+    sentence, not a traceback, with a valid budget file; just below it is
+    judged."""
+    run_path, budget_path = tmp_path / "run.csv", tmp_path / "budgets.csv"
+    run_path.write_text(run_text([frame(x=1.0)] * 101), encoding="utf-8")
+    budget_path.write_text(budget_text(GOOD), encoding="utf-8")
+    for huge in ("1e400", "9" * 5000, "1000000000"):
+        assert cli.main(["budget", str(run_path), "--budgets", str(budget_path),
+                         "--warmup-s", huge]) == 3, huge[:10]
+        assert "--warmup-s" in capsys.readouterr().err
+    code, out = budget(capsys, tmp_path, run_text([frame(x=1.0)] * 101), budget_text(GOOD),
+                       "--warmup-s", "999999999.999")
+    assert (code, out["result"]["warmup_s"]) == (2, 999999999.999)
+
 def test_text_and_errors(capsys, tmp_path):
     """The text form gives the table; a missing budget file and a negative
     --warmup-s are exit 3."""

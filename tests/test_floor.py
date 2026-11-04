@@ -282,6 +282,16 @@ def test_bad_options_are_exit_3(capsys):
     capsys.readouterr()
 
 
+def test_huge_warmup_is_exit_3(capsys):
+    """FLED-0023: a --warmup-s of 1000000000 s or more is exit 3 with a
+    sentence, not a traceback; just below it is judged."""
+    path = str(FIXTURES / "passing-run.csv")
+    for huge in ("1e400", "9" * 5000, "1000000000"):
+        assert cli.main(["floor", path, "--fps", "60", "--warmup-s", huge]) == 3, huge[:10]
+        assert "--warmup-s" in capsys.readouterr().err
+    code, out = run_floor(capsys, FIXTURES / "passing-run.csv", "--warmup-s", "999999999.999")
+    assert (code, out["verdict"]) == (2, "inconclusive")
+
 def test_breach_is_exit_3(capsys):
     """§ 6: floor never skips a malformed row; it stops naming the line."""
     code, out = run_floor(capsys, FIXTURES / "zero-wall.csv")

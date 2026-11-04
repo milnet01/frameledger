@@ -375,7 +375,8 @@ rounded up to three places (16.667 at 60, 6.945 at 144),
   summary says which applied.
 - **Exit 3** besides a file error: `--no-windows` with `--no-frames`;
   a `--budget-ms` outside 0.001 to 999999999.999 ms or with more than
-  three decimal places; and a `--fps` whose 1000/`--fps` ms is below
+  three decimal places; a `--warmup-s` of 1000000000 s or more
+  (FLED-0023); and a `--fps` whose 1000/`--fps` ms is below
   0.001, or is 1000000000 or more once rounded up to three places,
   unless `--budget-ms` is given and the window check is off.
 
@@ -925,7 +926,8 @@ cpu,cpu_remainder,*,,median,1.500
   placed after the warm-up truly ended after it. When no frame ends
   after the warm-up, one sentence says so in place of one per unmatched
   budget: the run is too short, not the file wrong (UT Ants). A
-  negative `S` is exit 3.
+  negative `S`, or one of 1000000000 or more, is exit 3, as under
+  § 4.7.
 - **An empty `depth`** needs the name at one depth in the frames
   judged, as § 4.11's `--depth`; at two it is exit 3, naming the pass
   and both depths (Vestige).

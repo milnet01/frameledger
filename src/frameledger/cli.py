@@ -63,7 +63,7 @@ def _parser() -> _Parser:
                                 "and did any single frame take too long?")
     floor.add_argument("file", metavar="FILE")
     floor.add_argument("--fps", type=_positive, required=True, metavar="N", help="the frame rate to hold")
-    floor.add_argument("--warmup-s", type=_non_negative, default=Decimal(2), metavar="S",
+    floor.add_argument("--warmup-s", type=_bounded, default=Decimal(2), metavar="S",
                        help="seconds at the start that are not judged (default 2)")
     floor.add_argument("--budget-ms", type=_milliseconds, metavar="B",
                        help="the longest a single frame may take (default 1000/N, rounded up to three places)")
@@ -81,9 +81,9 @@ def _parser() -> _Parser:
                              help=f"the new build's runs, at least {compare.FEWEST_RUNS}")
     compare_cmd.add_argument("--override", action="append", type=_override, default=[],
                              metavar="FIELD=REASON", help="let one compare-blocking header field differ")
-    compare_cmd.add_argument("--min-ms", type=_smallest_change, default=Decimal("0.050"), metavar="M",
+    compare_cmd.add_argument("--min-ms", type=_bounded, default=Decimal("0.050"), metavar="M",
                              help="the smallest change that counts, in ms (default 0.050)")
-    compare_cmd.add_argument("--min-mb", type=_smallest_change, default=Decimal("1.000"), metavar="M",
+    compare_cmd.add_argument("--min-mb", type=_bounded, default=Decimal("1.000"), metavar="M",
                              help="the smallest change that counts for a mem measure, in MB (default 1.000)")
     compare_cmd.add_argument("--min-pct", type=_non_negative, default=Decimal(3), metavar="P",
                              help="the smallest change that counts, in percent of the old (default 3)")
@@ -93,7 +93,7 @@ def _parser() -> _Parser:
     budget = commands.add_parser("budget", help="is any pass over its time budget?")
     budget.add_argument("file", metavar="FILE")
     budget.add_argument("--budgets", required=True, metavar="BUDGETS", help="the budget file")
-    budget.add_argument("--warmup-s", type=_non_negative, default=Decimal(0), metavar="S",
+    budget.add_argument("--warmup-s", type=_bounded, default=Decimal(0), metavar="S",
                         help="seconds at the start that are not judged, as floor's (default 0)")
     budget.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                         help="print the JSON result instead of text")
@@ -122,9 +122,9 @@ def _add_bisect(commands) -> None:
                         "runs of a known-bad commit")
     bisect.add_argument("--override", action="append", type=_override, default=[],
                         metavar="FIELD=REASON", help="let one compare-blocking header field differ")
-    bisect.add_argument("--min-ms", type=_smallest_change, metavar="M",
+    bisect.add_argument("--min-ms", type=_bounded, metavar="M",
                         help=f"the references' smallest change, in ms (default {BISECT_FLOORS.min_ms})")
-    bisect.add_argument("--min-mb", type=_smallest_change, metavar="M",
+    bisect.add_argument("--min-mb", type=_bounded, metavar="M",
                         help="the references' smallest change for a mem measure, in MB "
                         f"(default {BISECT_FLOORS.min_mb})")
     bisect.add_argument("--min-pct", type=_non_negative, metavar="P",
@@ -187,7 +187,9 @@ def _value(text: str) -> Decimal:
     return value
 
 
-def _smallest_change(text: str) -> Decimal:
+def _bounded(text: str) -> Decimal:
+    """0 or more and below BUDGET_LIMIT: a smallest change, or a warm-up
+    in seconds, whose microseconds must fit a float (FLED-0023)."""
     value = _non_negative(text)
     if value >= BUDGET_LIMIT:
         raise argparse.ArgumentTypeError(f"'{text}' must be below {BUDGET_LIMIT}")
@@ -386,11 +388,10 @@ def _floor(args: argparse.Namespace) -> dict:
         # --budget-ms has at most three places, so it is a whole number of microseconds.
         budget_us = (run_report.frame_time_us(args.fps) if args.budget_ms is None
                      else int(args.budget_ms * 1000))
-        warmup_us = int((args.warmup_s * 1_000_000).to_integral_value(ROUND_HALF_UP))
     except DecimalException as error:
-        raise ledger.LedgerError(f"--fps or --warmup-s is out of range ({type(error).__name__})") from None
+        raise ledger.LedgerError(f"--fps is out of range ({type(error).__name__})") from None
     try:
-        built = run_report.floor(ledger.read(args.file), args.fps, warmup_us,
+        built = run_report.floor(ledger.read(args.file), args.fps, _warmup_us(args.warmup_s),
                                  budget_us, windows=not args.no_windows,
                                  frames=not args.no_frames, allowed=args.allow_frames)
     except ledger.LedgerError as error:
@@ -425,16 +426,19 @@ def _budget(args: argparse.Namespace) -> dict:
     inconclusive, 3 when either file cannot be read or is wrong, or the run
     does not have the budget file's settings."""
     try:
-        warmup_us = int((args.warmup_s * 1_000_000).to_integral_value(ROUND_HALF_UP))
-    except DecimalException as error:
-        raise ledger.LedgerError(f"--warmup-s is out of range ({type(error).__name__})") from None
-    try:
-        built = budgeting.judge(ledger.read(args.file), budgeting.read(args.budgets), warmup_us)
+        built = budgeting.judge(ledger.read(args.file), budgeting.read(args.budgets),
+                                _warmup_us(args.warmup_s))
     except ledger.LedgerError as error:
         return _result("budget", "error", ERROR, [f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {})
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
     return _result("budget", built["verdict"], code, built["summary"], built["warnings"], built["result"])
+
+
+def _warmup_us(seconds: Decimal) -> int:
+    """--warmup-s in whole microseconds. _bounded keeps it below
+    BUDGET_LIMIT seconds, so the product cannot overflow."""
+    return int((seconds * 1_000_000).to_integral_value(ROUND_HALF_UP))
 
 
 def _overrides(pairs: list[tuple[str, str]]) -> dict[str, str]:
