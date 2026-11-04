@@ -457,6 +457,12 @@ another's.
   row. A survey of many such files needs a reader that keeps less.
   Refute: time `python3 -I src/frameledger check` on a generated
   million-row file.
+  2026-11-04: design asked of the three engines before amending
+  docs/specs/FLED-0001-run-file-format.md: survey FILE... (--fps N |
+  --budget-ms B); rank by the worst segment kind's frame/wall p99; flag
+  over floor's budget, naming the costliest depth-0 pass; unreadable
+  runs listed, not stopping; exit 1 flagged, 2 unjudged, 0, 3 bad flags;
+  ext rows left for later; a one-pass reader for S19.
   **Layman:** Ranks every map's run and flags the slow ones.
   Kind: implement.
   Source: design-2026-10-24.
