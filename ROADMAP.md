@@ -266,13 +266,17 @@ engine faster, and which pass it changed.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
 
-- 📋 [FLED-0011] **Frame pacing figure.**
+- 🚧 [FLED-0011] **Frame pacing figure.**
   A frame-to-frame variation figure beside the 1% low. Claims S14.
   2026-11-04: design asked of the three engines before amending
   docs/specs/FLED-0001-run-file-format.md: |wall(n) - wall(n-1)| over
   consecutive frames with a wall, not across a hole, segment change or
   cut; median, p99 and pairs per segment kind in report (JSON "pacing",
   text row "wall change"); a figure, no verdict; floor unchanged.
+  2026-11-04: all three engines agreed the design (a, b, c; not in
+  floor; no warm-up skip). Spec amendment in
+  docs/specs/FLED-0001-run-file-format.md § 4.8 and INV-68, sent for
+  review before building.
   **Layman:** Shows judder even when the frame rate passes.
   Kind: implement.
   Source: design-2026-10-24.

@@ -405,7 +405,8 @@ than 100 columns. No meaning is carried by colour.
 "frames_over_budget", "allowed", "rows_dropped", "finished"}`. For `report`:
 `{"passes": [{"category", "name", "segment_kind", "depth", "median_ms",
 "p99_ms", "share", "frames"}], "frame_times": [{"name", "segment_kind",
-"median_ms", "p99_ms", "frames"}], "bound_by": {"cpu", "gpu", "applies"},
+"median_ms", "p99_ms", "frames"}], "pacing": [{"segment_kind",
+"median_ms", "p99_ms", "pairs"}], "bound_by": {"cpu", "gpu", "applies"},
 "worst_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
 "missing_gpu_frames", "static"}`. For `check`: `{"files": [{"path",
 "breaches": [{"line", "rule", "message"}]}]}`. For `compare`: § 4.10.
@@ -431,6 +432,18 @@ The `report` result, agreed with the three engines for FLED-0003:
 - **`frame_times`** holds each `frame` row name per segment kind.
   `frame/gpu_span` figures leave out frames without one; those are
   counted in `missing_gpu_frames`.
+- **`pacing`** is the frame-to-frame change in `frame/wall` (S14),
+  so a run that holds its frame rate but judders shows it: frames
+  alternating 12 ms and 16 ms pass `floor` at 60, with a change of
+  4 ms. A pair is frame N and frame N−1, both with a `frame/wall`, in
+  the same segment, neither carrying `event/cut`; so no pair spans a
+  hole, a segment change or a load. Its change is the absolute
+  difference of the two walls. Per segment kind of the pair's segment,
+  in `frame_times`' order: the median and 99th percentile change, and
+  `pairs`, their count. A kind with no pair has no entry. There is no
+  warm-up and no verdict (FLED-0011, agreed with the three engines
+  2026-11-04). The text gives it as a `wall change` row under `wall`
+  in the frame-times table, its frames column holding `pairs`.
 - **`bound_by`** is over frames with both spans: GPU-bound when
   `gpu_span` is greater than `cpu_span`, otherwise CPU-bound. With
   `pipelined` false, `cpu` and `gpu` are null and `applies` false.
@@ -1699,6 +1712,18 @@ breaks.
   `tests/test_compare_mem.py::test_mem_unmatched_and_unjudged`.
   *Breaks when:* MB and ms are compared with each other, a `mem` figure
   is labelled ms, or an unjudged category is judged.
+- **INV-68** — `pacing` is the change between neighbouring frames'
+  walls, never across a break. Walls alternating 10.000 and 23.000 ms
+  give a median and p99 change of 13.000; a steady 16.667 ms run gives
+  0.000. With a 500 ms frame carrying `event/cut`, a hole, or a change
+  from `view:1` to `view:2` among steady frames, the change stays
+  0.000 and `pairs` falls by the pairs that break removes. A kind with
+  no pair has no entry, and the text's `wall change` row matches the
+  JSON.
+  *Test:* `tests/test_pacing.py::test_pacing_figure`,
+  `tests/test_pacing.py::test_pacing_pairs`.
+  *Breaks when:* a pair spans a cut, a hole or a segment change, or the
+  figure is a spread of the walls rather than of their changes.
 
 ## 6. Failure modes
 
@@ -1735,6 +1760,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0010: INV-54 to INV-63.
 - FLED-0022: INV-64.
 - FLED-0018: INV-65 to INV-67.
+- FLED-0011: INV-68.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1764,7 +1790,6 @@ it on each release they pin.
 
 ## 9. Out of scope
 
-- The pacing figure — FLED-0011, which amends this spec.
 - `survey` and survey comparison — FLED-0012 and FLED-0013, which amend
   this spec.
 - Warnings on a single run's timing finer than `gpu_tick_ns`;
@@ -1842,6 +1867,7 @@ it on each release they pin.
 | INV-65 | `tests/test_compare_mem.py::test_mem_judged`, `test_mem_each_depth_apart` |
 | INV-66 | `tests/test_compare_mem.py::test_mem_floor` |
 | INV-67 | `tests/test_compare_mem.py::test_mem_sentences`, `test_mem_unmatched_and_unjudged` |
+| INV-68 | `tests/test_pacing.py::test_pacing_figure`, `test_pacing_pairs` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
