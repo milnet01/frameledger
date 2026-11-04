@@ -495,10 +495,19 @@ another's.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
 
-- 📋 [FLED-0013] **Survey against survey.**
+- 🚧 [FLED-0013] **Survey against survey.**
   Two builds' surveys, per run and per pass; flags each pass that got
   slower by more than its run-to-run spread. Claims S15. Overlaps the
   compare item in compare.py.
+  2026-11-04: design asked of the three engines before amending
+  docs/specs/FLED-0001-run-file-format.md: `compare --by-scene --old
+  FILE... --new FILE...`, each scene judged as compare judges a pair of
+  sets; a scene under 3 runs a side, one-sided, refused or unreadable
+  listed as unjudged and the rest going on; exit 1 slower or larger, 2
+  inconclusive or unjudged, 0, 3 bad flags; scenes ranked by their
+  largest slower change in ms. Asked: flag or new command, 3 runs a side,
+  unjudged or exit 3, anything missing.
+  Waiting-on: Vestige, UT Ants and DOOM Ants (FLED-0013 design, 2026-11-04).
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
