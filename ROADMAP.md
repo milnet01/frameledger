@@ -362,6 +362,12 @@ engine faster, and which pass it changed.
   Ants: B, and the skip message names the measure and says --depth pins
   it, since a mid-range restructure skips every later commit. Vestige
   and DOOM Ants not yet answered.
+  2026-11-04, Vestige: B, if every depth skip says why ("gpu/blur at
+  depth 1, references at depth 0") and depth skips are counted apart
+  from missing-measure skips. bisect judges one commit per run, so it
+  cannot count across a range; the proposal back is a distinct skip
+  reason in the JSON, so a caller can count each kind. DOOM Ants not yet
+  answered.
   **Layman:** Lets a bisect step over a commit that reorganised a drawing step, instead of halting the whole search.
   Kind: enhancement.
   Source: ut-ants-review-2026-10-26.

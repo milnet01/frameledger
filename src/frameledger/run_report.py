@@ -364,7 +364,7 @@ def _pacing(run: ledger.Run) -> list[dict]:
     changes: dict[str | None, list[int]] = defaultdict(list)
     for number, rows in run.frames.items():
         before = run.frames.get(number - 1)
-        if _is_pair(before, rows):
+        if _is_pacing_pair(before, rows):
             change = abs(rows[("frame", "wall")].thousandths - before[("frame", "wall")].thousandths)
             changes[segment_kind(ledger.frame_segment(rows))].append(change)
     entries = []
@@ -375,7 +375,7 @@ def _pacing(run: ledger.Run) -> list[dict]:
     return entries
 
 
-def _is_pair(before: dict | None, rows: dict) -> bool:
+def _is_pacing_pair(before: dict | None, rows: dict) -> bool:
     """Whether a frame and the one numbered before it are a pacing pair:
     both have a wall, share one segment, and neither carries event/cut.
     A change across a hole, a segment change or a load is not judder."""
