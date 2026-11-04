@@ -551,6 +551,11 @@ another's.
   warning sentences, a weak rank test, an always-true assertion, the
   changed-between-reads reason, and the separator in "No scene could be
   judged:". Fixed in 1bf50e4, and sent back for re-review.
+  2026-11-04: re-review of 1bf50e4. DOOM Ants agreed. Vestige and
+  UT Ants asked for one fix: a file broken between the two reads
+  crashed the scene re-check. Fixed in 6da8f79, with three readability
+  nits, and sent back. Waiting-on: Vestige and UT Ants (re-review of
+  6da8f79).
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
