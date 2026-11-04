@@ -573,7 +573,13 @@ another's.
   harness, parked). Used for per-pass A/Bs of two features, but read
   with a private script, not compare (see FLED-0026). No bottleneck
   found and fixed from a report yet. UT Ants: UTA-0437 not started;
-  the c80d41d/d9009b1 pair not yet run. Vestige: no reply yet.
+  the c80d41d/d9009b1 pair not yet run.
+  Vestige 2026-11-05: 3D_E-0786 shipped 2026-10-31 (--frame-log,
+  header v0.1.0). check and report used on a real run; no bottleneck
+  found and fixed yet; GPU contention has blocked interleaved run
+  sets. Its writer leaves `inputs` empty, so compare would refuse its
+  runs; Vestige is filing that on its own roadmap. No frameledger
+  finding.
   **Layman:** The real test: each game finds something slow with this tool and fixes it.
   Kind: investigate.
   Source: design-2026-10-24.
