@@ -547,6 +547,10 @@ another's.
   code review, readability included, with five calls the spec left to
   the build.
   Waiting-on: Vestige, UT Ants and DOOM Ants (code review of 3d9ed37, 2026-11-04).
+  2026-11-04: all three engines asked for changes to 3d9ed37: per-scene
+  warning sentences, a weak rank test, an always-true assertion, the
+  changed-between-reads reason, and the separator in "No scene could be
+  judged:". Fixed in 1bf50e4, and sent back for re-review.
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
