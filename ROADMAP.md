@@ -542,6 +542,11 @@ another's.
   but a new module may read better; if one is added, update design.md's
   module list and git add it before the tests run. Segment-level values
   for the named segment are new: compare._values works per kind only.
+  2026-11-04: built at 3d9ed37, in a new module scenes.py; the five
+  tests seen red, then the gate green. Sent to the three engines for
+  code review, readability included, with five calls the spec left to
+  the build.
+  Waiting-on: Vestige, UT Ants and DOOM Ants (code review of 3d9ed37, 2026-11-04).
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
