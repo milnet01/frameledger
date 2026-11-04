@@ -463,6 +463,18 @@ another's.
   over floor's budget, naming the costliest depth-0 pass; unreadable
   runs listed, not stopping; exit 1 flagged, 2 unjudged, 0, 3 bad flags;
   ext rows left for later; a one-pass reader for S19.
+  2026-11-04, UT Ants and Vestige: agree, with changes. --warmup-s,
+  default 2, judging floor's frames (cut frames kept, as floor judges
+  them). Name the worst segment within the worst kind (UT Ants). A kind
+  under 100 frames is listed but not ranked or flagged (Vestige). The
+  flag sentence says p99 over the frame budget, not floor's verdict
+  (Vestige); a floor column is optional, proposed as a later item. No
+  --kind; ext rows later. DOOM Ants not yet answered.
+  2026-11-04, DOOM Ants: agree, and a flag must mean exactly that floor
+  would fail the run on frame time. Proposed back to all three: the flag
+  is floor's single-frame check with --allow-frames, saying the window
+  check is not run; the worst eligible kind's p99 ranks. Awaiting their
+  confirmation.
   **Layman:** Ranks every map's run and flags the slow ones.
   Kind: implement.
   Source: design-2026-10-24.
