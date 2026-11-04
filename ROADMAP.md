@@ -529,6 +529,9 @@ another's.
   with § 4.10's flag and many-scene rate, at ee0dd83, sent to the three
   engines for review.
   Waiting-on: Vestige, UT Ants and DOOM Ants (review of ee0dd83, 2026-11-04).
+  2026-11-04: Vestige and UT Ants agree ee0dd83 with no change,
+  including the three details settled in drafting.
+  Waiting-on: DOOM Ants (review of ee0dd83, 2026-11-04).
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
