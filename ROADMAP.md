@@ -479,6 +479,12 @@ another's.
   single-frame check; DOOM Ants proposed it. Spec amendment
   docs/specs/FLED-0001-run-file-format.md § 4.13 and INV-69 to INV-72
   sent for review.
+  2026-11-04: built at 3e7006b (survey.py, run_report.frame_check shared
+  with floor, tests/test_survey.py). UT Ants and DOOM Ants agreed the
+  code with no defect; DOOM Ants' 60+ real runs matched floor's counts.
+  Their notes folded in after. Waiting on Vestige's code review (asked
+  2026-11-04); on agreement, flip to shipped and add a confirm-impl-0012
+  loop-log row.
   **Layman:** Ranks every map's run and flags the slow ones.
   Kind: implement.
   Source: design-2026-10-24.

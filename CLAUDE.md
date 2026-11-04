@@ -39,6 +39,10 @@ is one C header. `docs/design.md` § The stack, and what it rules out.
   on the import path.
 - `python3 -I src/frameledger check FILE…` — run the analyser from the
   tree.
+- **A new file under `src/frameledger/` must be `git add`ed before the
+  tests pass.** `scripts/build_release.py` builds the `.pyz` from
+  `git ls-files`, and the headless and release tests run that `.pyz`,
+  so an untracked module fails them as `No module named …`.
 
 ### Roadmap IDs
 
