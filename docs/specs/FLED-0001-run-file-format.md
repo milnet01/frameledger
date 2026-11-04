@@ -19,7 +19,10 @@ to INV-67 (FLED-0018) agreed by the three engines 2026-10-31 at
 3be4465, and confirmed at 0ebcf7d. FLED-0023's limits on `--warmup-s`
 and the smallest changes confirmed by the three engines at 8cef832.
 § 4.8's `pacing` with INV-68 (FLED-0011) agreed by the three engines
-2026-11-04 at 8f3eae8, with the `wall change (pairs)` label.
+2026-11-04 at 8f3eae8, with the `wall change (pairs)` label. § 4.11's
+depth skip and `skip_reason` with INV-46 amended (FLED-0020) agreed by
+the three engines 2026-11-04 at 139c66c, and their code review
+confirmed it at d2ff396.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.

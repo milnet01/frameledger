@@ -351,7 +351,7 @@ engine faster, and which pass it changed.
   Kind: test.
   Source: user-request-2026-10-26.
 
-- 🚧 [FLED-0020] **A tested run at another depth skips rather than stops.**
+- ✅ [FLED-0020] **A tested run at another depth skips rather than stops.**
   UT Ants, 2026-10-26, FLED-0009 review of 32b87ac: without --depth, a
   tested run whose pass sits at another depth from the references, or
   tested runs at mixed depths, stop the bisect (128) in bisecting.py
@@ -377,6 +377,11 @@ engine faster, and which pass it changed.
   --depth judges such commits. All three chose B. Spec amendment in
   docs/specs/FLED-0001-run-file-format.md § 4.11 and INV-46, with
   skip_reason in place of a cross-commit count, sent for review.
+  Shipped 2026-11-04 at d2ff396 and the review fold-in after it; the
+  three engines agreed the amendment (139c66c) and the code. A tested
+  commit at another depth skips (125) with skip_reason depth and a
+  --depth hint; references at two depths still stop (128). Tests:
+  tests/test_bisect.py::test_depth, test_one_depth_across_runs.
   **Layman:** Lets a bisect step over a commit that reorganised a drawing step, instead of halting the whole search.
   Kind: enhancement.
   Source: ut-ants-review-2026-10-26.
