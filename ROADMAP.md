@@ -524,6 +524,11 @@ another's.
   for the one split: no scene judged gives exit 3 (UT Ants), opening
   "No scene could be judged: ..." (DOOM Ants, Vestige). Objections
   asked for; otherwise the spec amendment follows.
+  2026-11-04: no objection to the merged design. Spec amendment
+  docs/specs/FLED-0001-run-file-format.md § 4.14 and INV-73 to INV-77,
+  with § 4.10's flag and many-scene rate, at ee0dd83, sent to the three
+  engines for review.
+  Waiting-on: Vestige, UT Ants and DOOM Ants (review of ee0dd83, 2026-11-04).
   **Layman:** Catches a map that got slower between two builds.
   Kind: implement.
   Source: design-2026-10-24.
