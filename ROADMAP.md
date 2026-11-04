@@ -447,7 +447,7 @@ Many runs at once: one per map, ranked, and one build's survey against
 
 another's.
 
-- 📋 [FLED-0012] **Survey ranking.**
+- 🚧 [FLED-0012] **Survey ranking.**
   survey.py: many runs ranked by worst-segment median and p99, those
   over budget flagged with their costliest pass, per-effect ext rows
   as a ranked table. A survey of about a million rows in under a
@@ -475,6 +475,10 @@ another's.
   is floor's single-frame check with --allow-frames, saying the window
   check is not run; the worst eligible kind's p99 ranks. Awaiting their
   confirmation.
+  2026-11-04: UT Ants and Vestige confirmed the flag as floor's
+  single-frame check; DOOM Ants proposed it. Spec amendment
+  docs/specs/FLED-0001-run-file-format.md § 4.13 and INV-69 to INV-72
+  sent for review.
   **Layman:** Ranks every map's run and flags the slow ones.
   Kind: implement.
   Source: design-2026-10-24.

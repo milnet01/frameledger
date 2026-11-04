@@ -1016,6 +1016,98 @@ file's order, then § 4.8's kind order. `line` is the budget file's
 line. A `*` line gives one entry per kind the pass appears in, except
 a kind a named line replaces.
 
+### 4.13 Surveying many runs
+
+FLED-0012 builds this (S9, S19). The design was agreed with the three
+engines 2026-11-04.
+
+```
+survey FILE… (--fps N | --budget-ms B) [--warmup-s S] [--allow-frames K]
+```
+
+Exit 0 when every run is judged and none is flagged; 1 when a run is
+flagged; 2 when none is flagged but a run is unjudged or its frame
+check is inconclusive, so a crashed map never reads as clean (DOOM
+Ants, UT Ants, Vestige); 3 for a bad flag. Defaults and limits are
+`floor`'s, § 4.7: `--warmup-s 2`, `--allow-frames 0`, the budget
+`--budget-ms` or 1000/`--fps` rounded up to three places, and the same
+exit-3 bounds on each.
+
+- **Each run is judged on its own**, in the order given. A file that
+  cannot be read or breaks the format is listed as unjudged, with the
+  reason and its first breach's line, and the survey goes on: one
+  crashed benchmark must not hide the other maps.
+- **The frames judged are `floor`'s**: those ending at or after the
+  warm-up on § 4.7's timeline. A frame carrying `event/cut` is judged,
+  as under § 4.7. So survey and `floor` give one answer on one file
+  (Vestige, DOOM Ants).
+- **The flag is `floor`'s single-frame check**, § 4.7, exactly: a run
+  is flagged when more of its judged frames are over the budget than
+  `--allow-frames`. It is inconclusive, unless flagged, on § 4.7's
+  grounds: dropped rows, no close line, a hole, a frame other than the
+  last with no `frame/wall`, or no frame after the warm-up. **The
+  per-second window check is not run**, and the text says so, so a run
+  not flagged is never read as one that passes `floor` (Vestige).
+- **A flagged run names its slowest frame over the budget**: its
+  frame number, segment, `frame/wall`, and `top_pass` as § 4.8's
+  `worst_frames` gives it. That is S9's costliest pass. It points at
+  the frame that set the flag, whichever kind holds it (Vestige).
+- **The rank** is over segment kinds with at least 100 judged frames,
+  as § 4.10's fewest; a shorter kind would rank on one hitch, since its
+  nearest-rank 99th percentile is its slowest frame (Vestige). For each
+  kind, `frame/wall`'s median and 99th percentile over its judged
+  frames. A run's worst kind has the highest 99th percentile, ties by
+  median, then name; its worst segment is that kind's segment with the
+  highest 99th percentile, ties by median, then segment (UT Ants).
+  Runs rank by their worst kind's 99th percentile, slowest first, ties
+  by its median, then the order given. A run with no kind of 100
+  judged frames, or unjudged, has no rank and is listed after the
+  ranked runs, in the order given. Every kind is listed with its
+  figures, ranked or not.
+- **The rank and the flag answer different questions** (UT Ants). A
+  run can rank first and pass, its frames slow but under the budget,
+  or be flagged by one frame with a low 99th percentile, or by a kind
+  too short to rank.
+- **§ 4.9's warnings** are given per run, each message opening with
+  the run's path.
+- **Each file is read once, row by row**, keeping per frame only what
+  the figures need, so a survey of about a million rows stays under a
+  minute (S19).
+
+**Text** opens with one sentence per flagged run, in rank order, then
+one per inconclusive or unjudged run, then each run's warnings, then
+the verdict:
+"maps/e1m2.csv is flagged: 3 frames after the 2 s warm-up are over the
+16.667 ms budget, the slowest frame 812 in view:3 at 41.200 ms (top
+pass gpu/opaque); floor's per-second check was not run." Then a table
+of every run: rank, file, worst segment, median, p99, frames over
+budget and verdict, within 100 columns. A file name too long for its
+column is cut from the left, keeping its end.
+
+**Result.** The verdict is `fail` when a run is flagged, `inconclusive`,
+`pass`, or `error` for a bad flag.
+
+```json
+{
+  "runs": [{"path", "run_id", "verdict", "reason", "rank",
+            "worst_kind", "worst_segment", "median_ms", "p99_ms",
+            "frames_over_budget", "slowest_over",
+            "kinds": [{"segment_kind", "median_ms", "p99_ms", "frames", "ranked"}],
+            "warnings": [{"code", "message"}]}],
+  "budget_ms", "warmup_s", "allowed"
+}
+```
+
+A run's `verdict` is `flagged`, `clean`, `inconclusive` or
+`unjudged`. `reason` says why a run is inconclusive or unjudged, and
+is null otherwise. `rank` counts from 1, or is null. `median_ms` and
+`p99_ms` are the worst kind's; with no rank, they and `worst_kind` and
+`worst_segment` are null. `slowest_over` is `{"frame", "segment",
+"wall_ms", "top_pass"}`, or null when no judged frame is over the
+budget. `runs` is in rank order, then the unranked in the order given.
+The path is in the result and the text, since a survey names its
+files; a run's own figures still name no line number.
+
 ## 5. Invariants
 
 Each clause names its fixture under `tests/fixtures/` and the one rule that fixture
@@ -1751,6 +1843,42 @@ breaks.
   `tests/test_pacing.py::test_pacing_pairs`.
   *Breaks when:* a pair spans a cut, a hole or a segment change, or the
   figure is a spread of the walls rather than of their changes.
+- **INV-69** — A survey flag is `floor`'s single-frame check. For each
+  fixture in `tests/fixtures/` that `floor` reads, `survey FILE --fps 60`
+  flags the run exactly when `floor FILE --fps 60 --no-windows` fails,
+  with the same count over budget, and is inconclusive exactly when it
+  is. `one-hitch.csv` is flagged with 1 frame over, and not flagged with
+  `--allow-frames 1`. With `--warmup-s 0` a slow first frame flags a run
+  that the default warm-up leaves clean.
+  *Test:* `tests/test_survey.py::test_flag_is_floors`.
+  *Breaks when:* the flag uses another frame set or statistic than
+  `floor`'s frame check, so the two commands disagree on one file.
+- **INV-70** — Runs rank by their worst eligible kind's p99. Three runs
+  with `view` p99s of 20.000, 30.000 and 25.000 ms rank 2, 3, 1 in that
+  order; a `load` kind of 50 frames at 90.000 ms in the first is listed
+  with `ranked` false and changes nothing. With `view:1` at 18.000 and
+  `view:2` at 30.000 ms, `worst_segment` is `view:2`. A run with no kind
+  of 100 frames has `rank` null and comes last.
+  *Test:* `tests/test_survey.py::test_rank`.
+  *Breaks when:* a short kind sets a rank, the worst segment is not
+  named, or the order is not the 99th percentile's.
+- **INV-71** — A broken file never hides the others. With an empty
+  file, a file with a breach, and two clean runs, the two are judged and
+  ranked, the two broken ones are `unjudged` with their reasons, and the
+  exit is 2. Add a flagged run and it is 1. With every run clean it is
+  0.
+  *Test:* `tests/test_survey.py::test_unjudged_files`.
+  *Breaks when:* one broken file stops the survey, or a survey with an
+  unjudged run exits 0.
+- **INV-72** — A flag names the frame that set it. A run whose ranked
+  `view` frames are all under the budget and whose 40-frame `load` kind
+  holds one 80.000 ms frame is flagged, and `slowest_over` names that
+  frame, its `load` segment and its top pass; the text names it too and
+  says floor's per-second check was not run. The text table holds
+  every run within 100 columns.
+  *Test:* `tests/test_survey.py::test_flag_names_its_frame`.
+  *Breaks when:* the flag points at the ranked kind instead of the
+  frame, or the text omits that the window check was not run.
 
 ## 6. Failure modes
 
@@ -1789,6 +1917,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0018: INV-65 to INV-67.
 - FLED-0011: INV-68.
 - FLED-0020: INV-46 as amended.
+- FLED-0012: INV-69 to INV-72.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -1818,8 +1947,9 @@ it on each release they pin.
 
 ## 9. Out of scope
 
-- `survey` and survey comparison — FLED-0012 and FLED-0013, which amend
-  this spec.
+- Survey comparison — FLED-0013, which amends this spec.
+- `survey`'s per-run `floor` window verdict, and its `ext.<engine>`
+  per-effect table: not yet queued (the three engines, 2026-11-04).
 - Warnings on a single run's timing finer than `gpu_tick_ns`;
   `compare` only raises its floor to it (§ 4.10). Not yet queued.
 - Charts or HTML — deferred; not yet queued (discovery, *not yet*).
@@ -1896,6 +2026,11 @@ it on each release they pin.
 | INV-66 | `tests/test_compare_mem.py::test_mem_floor` |
 | INV-67 | `tests/test_compare_mem.py::test_mem_sentences`, `test_mem_unmatched_and_unjudged` |
 | INV-68 | `tests/test_pacing.py::test_pacing_figure`, `test_pacing_pairs` |
+| INV-69 | `tests/test_survey.py::test_flag_is_floors` |
+| INV-70 | `tests/test_survey.py::test_rank` |
+| INV-71 | `tests/test_survey.py::test_unjudged_files` |
+| INV-72 | `tests/test_survey.py::test_flag_names_its_frame` |
+| 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
