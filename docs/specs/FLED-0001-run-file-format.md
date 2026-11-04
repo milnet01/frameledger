@@ -1072,9 +1072,11 @@ exit-3 bounds on each.
   too short to rank.
 - **§ 4.9's warnings** are given per run, each message opening with
   the run's path.
-- **Each file is read once, row by row**, keeping per frame only what
-  the figures need, so a survey of about a million rows stays under a
-  minute (S19).
+- **Each file is read once, and let go before the next**, so memory
+  grows with the largest file, not with the survey. A million-row file
+  took 10.3 s and peaked at 636 MB (2026-11-04, at a load average of
+  11; refute by timing `survey` on a generated million-row file), inside
+  S19's minute.
 
 **Text** opens with one sentence per flagged run, in rank order, those
 with no rank after the ranked in the order given (UT Ants), then one

@@ -22,6 +22,7 @@ import ledger
 import render
 import run_report
 import selftest
+import survey
 
 VERSION = "0.2.0"
 
@@ -97,6 +98,19 @@ def _parser() -> _Parser:
                         help="seconds at the start that are not judged, as floor's (default 0)")
     budget.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                         help="print the JSON result instead of text")
+    survey_cmd = commands.add_parser("survey", help="rank many runs by their slowest frames, and flag "
+                                     "those floor's single-frame check fails")
+    survey_cmd.add_argument("files", nargs="+", metavar="FILE")
+    budget_of = survey_cmd.add_mutually_exclusive_group(required=True)
+    budget_of.add_argument("--fps", type=_positive, metavar="N", help="the budget is 1000/N, as floor's")
+    budget_of.add_argument("--budget-ms", type=_milliseconds, metavar="B",
+                           help="the longest a single frame may take")
+    survey_cmd.add_argument("--warmup-s", type=_bounded, default=Decimal(2), metavar="S",
+                            help="seconds at the start that are not judged, as floor's (default 2)")
+    survey_cmd.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
+                            help="frames over the budget a run may have before it is flagged (default 0)")
+    survey_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                            help="print the JSON result instead of text")
     return parser
 
 
@@ -257,8 +271,10 @@ def _dispatch(args: argparse.Namespace) -> dict:
         return _compare(args)
     if args.command == "budget":
         return _budget(args)
-    raise ledger.LedgerError("name a command (check, report, floor, compare, bisect, budget) or --selftest; "
-                             "--help lists them")
+    if args.command == "survey":
+        return _survey(args)
+    raise ledger.LedgerError("name a command (check, report, floor, compare, bisect, budget, survey) or "
+                             "--selftest; --help lists them")
 
 
 def _bisect_main(argv: list[str]) -> int:
@@ -375,23 +391,11 @@ def _floor(args: argparse.Namespace) -> dict:
     read or breaks the format."""
     if args.no_windows and args.no_frames:
         raise ledger.LedgerError("--no-windows and --no-frames together leave nothing to check")
-    try:  # an absurd exponent overflows decimal arithmetic, which is exit 3, not a traceback
-        # 1000/N is the window check's limit and the default budget, so it
-        # must be in range only when one of those is used.
-        if args.budget_ms is None or not args.no_windows:
-            raw_frame_ms = 1000 / args.fps
-            # Rounded up, anything above 0 ms would pass a lower bound, so
-            # the bound is on the exact value.
-            if not (raw_frame_ms >= Decimal("0.001")
-                    and run_report.frame_time_us(args.fps) < BUDGET_LIMIT * 1000):
-                raise ledger.LedgerError(f"--fps {args.fps} gives a frame time of {raw_frame_ms:.3e} ms, "
-                                         f"outside 0.001 to {BUDGET_LIMIT} ms; to judge frames alone, "
-                                         "pass --budget-ms and --no-windows")
-        # --budget-ms has at most three places, so it is a whole number of microseconds.
-        budget_us = (run_report.frame_time_us(args.fps) if args.budget_ms is None
-                     else int(args.budget_ms * 1000))
-    except DecimalException as error:
-        raise ledger.LedgerError(f"--fps is out of range ({type(error).__name__})") from None
+    # 1000/N is the window check's limit and the default budget, so it
+    # must be in range only when one of those is used.
+    frame_us = (_frame_time_us(args.fps, "; to judge frames alone, pass --budget-ms and --no-windows")
+                if args.budget_ms is None or not args.no_windows else None)
+    budget_us = frame_us if args.budget_ms is None else _budget_us(args.budget_ms)
     try:
         built = run_report.floor(ledger.read(args.file), args.fps, _warmup_us(args.warmup_s),
                                  budget_us, windows=not args.no_windows,
@@ -435,6 +439,38 @@ def _budget(args: argparse.Namespace) -> dict:
                        [{"code": "file_error", "message": str(error)}], {})
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
     return _result("budget", built["verdict"], code, built["summary"], built["warnings"], built["result"])
+
+
+def _survey(args: argparse.Namespace) -> dict:
+    """§ 4.13: exit 0 every run judged and none flagged, 1 a run flagged, 2
+    none flagged but a run unjudged or inconclusive, 3 a bad flag. A file
+    that cannot be read is one of the runs, not an error."""
+    budget_us = _frame_time_us(args.fps) if args.budget_ms is None else _budget_us(args.budget_ms)
+    built = survey.survey(args.files, budget_us, _warmup_us(args.warmup_s), args.allow_frames)
+    code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
+    return _result("survey", built["verdict"], code, built["summary"], built["warnings"], built["result"])
+
+
+def _frame_time_us(fps: Decimal, hint: str = "") -> int:
+    """1000/--fps ms in whole microseconds, rounded up, once it is in range:
+    0.001 ms to below BUDGET_LIMIT. An absurd exponent overflows decimal
+    arithmetic, which is exit 3, not a traceback."""
+    try:
+        raw_frame_ms = 1000 / fps
+        frame_us = run_report.frame_time_us(fps)
+    except DecimalException as error:
+        raise ledger.LedgerError(f"--fps is out of range ({type(error).__name__})") from None
+    # Rounded up, anything above 0 ms would pass a lower bound, so the
+    # bound is on the exact value.
+    if not (raw_frame_ms >= Decimal("0.001") and frame_us < BUDGET_LIMIT * 1000):
+        raise ledger.LedgerError(f"--fps {fps} gives a frame time of {raw_frame_ms:.3e} ms, "
+                                 f"outside 0.001 to {BUDGET_LIMIT} ms{hint}")
+    return frame_us
+
+
+def _budget_us(budget_ms: Decimal) -> int:
+    """--budget-ms has at most three places, so it is a whole number of microseconds."""
+    return int(budget_ms * 1000)
 
 
 def _warmup_us(seconds: Decimal) -> int:

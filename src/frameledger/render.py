@@ -231,6 +231,26 @@ def _kind_name(kind: str | None) -> str:
     return kind or "unsegmented"
 
 
+def _survey_body(result: dict) -> list[str]:
+    """Every run, ranked first, within 100 columns (§ 4.13)."""
+    runs = result["result"]["runs"]
+    lines = ["Runs, slowest first:",
+             f"  {'rank':>4}  {'file':<30}  {'worst segment':<14}  {'median ms':>10}  {'p99 ms':>10}  "
+             f"{'over':>6}  verdict"]
+    for r in runs:
+        figures = ("-", "-") if r["p99_ms"] is None else (f"{r['median_ms']:.3f}", f"{r['p99_ms']:.3f}")
+        lines.append(f"  {r['rank'] or '-':>4}  {_fit_left(r['path'], 30):<30}  "
+                     f"{_fit(r['worst_segment'] or '-', 14):<14}  {figures[0]:>10}  {figures[1]:>10}  "
+                     f"{'-' if r['frames_over_budget'] is None else r['frames_over_budget']:>6}  "
+                     f"{r['verdict']}")
+    return lines
+
+
+def _fit_left(text: str, width: int) -> str:
+    """Cut from the left, keeping the end, where a path names its map (§ 4.13)."""
+    return text if len(text) <= width else "…" + text[-(width - 1):]
+
+
 _BODIES = {"check": _check_body, "report": _report_body, "floor": _floor_body,
            "compare": _compare_body, "bisect": _bisect_body, "budget": _budget_body,
-           "selftest": _selftest_body}
+           "survey": _survey_body, "selftest": _selftest_body}

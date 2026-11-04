@@ -94,29 +94,19 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
     since its own wall row is real and missing rows only shorten the
     timeline, so a frame placed after the warm-up truly ended after it
     (the three engines' review)."""
-    refuse_breaches(run)
-    timed, cuts, stop, end = timeline(run)
-    judged = [t for t in timed if t[2] >= warmup_us]
+    check = frame_check(run, warmup_us, budget, allowed)  # refuses a file that breaks the format
+    timed, cuts, _stop, end = timeline(run)
+    judged, reasons = check.judged, check.reasons
     full, skipped = (_windows([t[2] for t in timed], [t[3] for t in timed], cuts, warmup_us, end)
                      if windows else ([], 0))
     limit = frame_time_us(fps) if windows else None
-    slow = [t for t in judged if t[3] > budget] if frames else []
+    slow = check.slow if frames else []
     dropped = run.close["rows_dropped"] if run.close else None
-
-    reasons = []
-    if dropped:
-        reasons.append(f"The writer dropped {counted(dropped, 'row')}, so frames may be missing "
-                       "from the timeline.")
-    if run.close is None:
-        reasons.append("The file has no close line, so the run did not finish.")
-    if stop:
-        reasons.append(f"{stop[0].upper()}{stop[1:]}, so the timeline stops there.")
     failed = [w for w in full if not _window_passes(w, limit)]
 
     window_state = (None if not windows else "inconclusive" if reasons or not full
                     else "fail" if failed else "pass")
-    frame_state = (None if not frames else "fail" if len(slow) > allowed
-                   else "inconclusive" if reasons or not judged else "pass")
+    frame_state = check.state if frames else None
     states = {window_state, frame_state}
     warmup = f"{warmup_us / SECOND:g} s warm-up"
     no_window = f"no full one-second window follows the {warmup}"
@@ -148,7 +138,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         verdict = "pass"
         opening = f"The run passes the {_num(fps)} FPS floor."
 
-    notices = run.notices + trust.warnings(run, len(judged), {t[0] for t in judged})
+    notices = judged_notices(run, judged)
     shown = [n for n in notices if n.code not in FLOOR_REASONS]
     summary = reasons + warning_sentences(shown) + [opening]
     if not windows:
@@ -186,8 +176,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
                      "mean_ms": round(_window_mean(w), 3) if w.frames else None,
                      "pass": _window_passes(w, limit)} for w in full],
         "windows_skipped": skipped,
-        "slow_frames": [{"frame": frame, "segment": ledger.frame_segment(rows), "wall_ms": _ms(wall),
-                         "top_pass": _top_pass(rows)} for frame, rows, _, wall in slow],
+        "slow_frames": [slow_frame(t) for t in slow],
         "frames_over_budget": len(slow),
         "allowed": allowed,
         "rows_dropped": dropped,
@@ -195,6 +184,49 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
     }
     return {"verdict": verdict, "summary": summary,
             "warnings": warning_entries(notices), "result": result}
+
+
+class FrameCheck(NamedTuple):
+    """§ 4.7's single-frame check on one run, which `floor` and `survey`
+    both give, so the two cannot disagree on one file (INV-69)."""
+    state: str  # "pass", "fail" or "inconclusive"
+    judged: list[tuple]  # timeline() entries ending at or after the warm-up
+    slow: list[tuple]  # the judged entries over the budget
+    reasons: list[str]  # why the run is incomplete, as sentences
+
+
+def frame_check(run: ledger.Run, warmup_us: int, budget: int, allowed: int) -> FrameCheck:
+    """More judged frames over `budget` microseconds than `allowed` fail
+    the run, whatever else is wrong with it: each such frame's own wall is
+    real. Otherwise dropped rows, no close line, a stop in the timeline or
+    no frame after the warm-up make it inconclusive."""
+    refuse_breaches(run)
+    timed, _cuts, stop, _end = timeline(run)
+    judged = [t for t in timed if t[2] >= warmup_us]
+    slow = [t for t in judged if t[3] > budget]
+    reasons = []
+    dropped = run.close["rows_dropped"] if run.close else None
+    if dropped:
+        reasons.append(f"The writer dropped {counted(dropped, 'row')}, so frames may be missing "
+                       "from the timeline.")
+    if run.close is None:
+        reasons.append("The file has no close line, so the run did not finish.")
+    if stop:
+        reasons.append(f"{stop[0].upper()}{stop[1:]}, so the timeline stops there.")
+    state = "fail" if len(slow) > allowed else "inconclusive" if reasons or not judged else "pass"
+    return FrameCheck(state, judged, slow, reasons)
+
+
+def judged_notices(run: ledger.Run, judged: list[tuple]) -> list[ledger.Notice]:
+    """The file's notices and § 4.9's warnings over the judged frames."""
+    return run.notices + trust.warnings(run, len(judged), {t[0] for t in judged})
+
+
+def slow_frame(entry: tuple) -> dict:
+    """One timeline() entry as § 4.8's worst_frames shape."""
+    frame, rows, _end, wall = entry
+    return {"frame": frame, "segment": ledger.frame_segment(rows), "wall_ms": _ms(wall),
+            "top_pass": _top_pass(rows)}
 
 
 def frame_time_us(fps: Decimal) -> int:

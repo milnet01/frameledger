@@ -12,6 +12,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Added
+
+- **`survey` ranks many runs and flags the ones `floor` would fail** (FLED-0012)
+  `survey FILE… --fps N` (or `--budget-ms B`) judges each run with `floor`'s single-frame check, after `floor`'s 2 s warm-up, and flags a run with more frames over the budget than `--allow-frames`. A flagged run names its slowest frame and that frame's top pass. Runs rank by their worst segment kind's 99th-percentile frame time, naming the worst segment; a kind needs 100 frames to rank. A file that cannot be read is listed, not fatal. Exit 1 when a run is flagged, 2 when one could not be judged, 0 otherwise.
+
 ## [0.2.0] - 2026-11-04
 
 **Theme:** Two builds compared.
