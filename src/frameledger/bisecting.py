@@ -183,9 +183,9 @@ def _judge_references(wanted: Wanted, refs: list[_Run], overrides: dict[str, str
     if refused:
         raise _Stop(compare.refusal_sentence(refused), refused)
     found = {r.name: _times_by_depth(wanted, r.run) for r in refs}
-    depth, mixed = _one_depth(wanted, found)
-    if mixed:
-        raise _Stop(f"{mixed}; --depth picks one.")
+    depth, mixed_sentence = _one_depth(wanted, found)
+    if mixed_sentence:
+        raise _Stop(f"{mixed_sentence}; --depth picks one.")
     values = {}
     for r in refs:
         value = _value(wanted, found[r.name], depth)
@@ -242,9 +242,9 @@ def _tested_values(wanted: Wanted, refs: list[_Run], tested_runs: list[_Run], ov
     if missing:
         raise _Skip(missing, "missing")
     # A commit that re-nests a pass must not end the search (FLED-0020).
-    depth, mixed = _one_depth(wanted, found, ref_depth if refs else None)
-    if mixed:
-        raise _Skip([f"{mixed}; --depth D judges such a commit at depth D."], "depth")
+    depth, mixed_sentence = _one_depth(wanted, found, ref_depth if refs else None)
+    if mixed_sentence:
+        raise _Skip([f"{mixed_sentence}; --depth D judges such a commit at depth D."], "depth")
     return {r.name: _value(wanted, found[r.name], depth) for r in tested_runs}
 
 
@@ -287,7 +287,7 @@ def _has_measure(wanted: Wanted, by_depth: dict[int | None, list[int]]) -> bool:
     one is given, at any depth otherwise."""
     if wanted.depth is not None or wanted.category == "frame":
         return _value(wanted, by_depth, wanted.depth) is not None
-    return bool(by_depth)
+    return any(by_depth.values())
 
 
 def _one_depth(wanted: Wanted, found: dict[str, dict[int | None, list[int]]],
