@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=25 -->
+<!-- ants-roadmap-id-high-water: FLED=26 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -568,6 +568,12 @@ another's.
   files, and each finds a bottleneck from a report and fixes it. UT
   Ants' c80d41d/d9009b1 pair is a ready known-slowdown case. At least
   one engine writes from the spec alone. Claims S1, and S7 in use.
+  Status 2026-11-05. DOOM Ants: writer is DOOM-0502 (shipped
+  2026-10-30, header pinned at v0.2.0); consumer is DOOM-0431 (bench
+  harness, parked). Used for per-pass A/Bs of two features, but read
+  with a private script, not compare (see FLED-0026). No bottleneck
+  found and fixed from a report yet. UT Ants: UTA-0437 not started;
+  the c80d41d/d9009b1 pair not yet run. Vestige: no reply yet.
   **Layman:** The real test: each game finds something slow with this tool and fixes it.
   Kind: investigate.
   Source: design-2026-10-24.
@@ -593,6 +599,20 @@ another's.
   **Layman:** When every file sits in one folder, the survey table would show each file's own name instead of the folder again and again.
   Kind: ux.
   Source: doom-ants-review-2026-11-04.
+
+- 📋 [FLED-0026] **The README shows what compare prints for an A/B of a few runs a side.**
+  DOOM Ants (FLED-0014 feedback) A/B-tested two features, 3 runs
+  a side, with a private script taking per-pass medians. They did
+  not try compare: nothing at the point of use said it does that.
+  It does: run on 3 vs 3, it prints each moved measure's old and
+  new median, the change, the spread and a verdict.
+  The README's Usage section shows the compare command but not its
+  output. Add one short example output under it, and say that
+  unchanged measures are counted, not listed, and that --json
+  carries them all.
+  **Layman:** Show an example of the comparison report, so engines use it instead of writing their own scripts.
+  Kind: doc.
+  Source: doom-ants-feedback-2026-11-05.
 
 ## Later — for anyone
 
