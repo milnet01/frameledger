@@ -619,6 +619,9 @@ another's.
   2026-11-09: text in 2888307, sent to the three engines for review.
   Also says the .pyz comes in the release zip (DOOM Ants' inbox
   finding).
+  2026-11-09: review fixes 849f316 (DOOM Ants), 6aa87a1 (Vestige),
+  06b61af (UT Ants), pushed. UT Ants agreed 06b61af; DOOM Ants agreed
+  849f316. Waiting on Vestige and DOOM Ants to agree 06b61af.
   **Layman:** Show an example of the comparison report, so engines use it instead of writing their own scripts.
   Kind: doc.
   Source: doom-ants-feedback-2026-11-05.
