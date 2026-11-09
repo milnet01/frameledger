@@ -64,10 +64,13 @@ jobs:
 
       # The writer's tests (tests/writer/test_compile.sh) build with GCC,
       # Clang and mingw-w64, and write a run under a comma-decimal locale.
+      # Only the 64-bit mingw-w64 compiler: the `mingw-w64` package adds
+      # the 32-bit one too, and that doubled download timed this job out
+      # on a slow mirror three times.
       - name: Install the writer's compilers and a German locale
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang mingw-w64 locales
+          sudo apt-get install -y --no-install-recommends clang g++-mingw-w64-x86-64-posix locales
           sudo locale-gen de_DE.UTF-8
 
       - name: Run the gate
