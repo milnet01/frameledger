@@ -69,10 +69,14 @@ The spec lists the flags and exit codes:
 
 ### An A/B with compare
 
-Each build needs at least three runs. For each measure, compare takes
-the middle of the runs' values, old against new, and judges the change
-against the spread between runs. Here the new build's opaque pass got
-slower:
+Each build needs at least three runs. Alternate them in one sitting:
+old, new, old, new. Three of one build then three of the other lets
+drift over time read as a change, and compare warns `not_interleaved`.
+
+For each measure, compare takes the middle of each build's run values,
+and judges the change against the spread. The spread is the larger of
+the two builds' ranges, highest run minus lowest. Here the new build's
+opaque pass got slower:
 
 ```text
 $ python3 -I frameledger.pyz compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
