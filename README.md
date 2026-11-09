@@ -103,8 +103,13 @@ kinds, and compare judges each kind apart.
 It judges frame times, `cpu` and `gpu` passes, and `mem`. It does not
 judge `event` or `ext.<engine>` rows.
 
-It exits 1 here, because a measure got slower. Unchanged measures are
-counted, not listed; `--json` lists every measure with its verdict.
+The first line names the measure with the largest change in ms. Here
+all four moved 0.890 ms, so the tie goes to the largest percentage.
+
+It exits 1 here, because a measure got slower. It exits 0 when nothing
+got slower or larger, 2 when the runs are too noisy to judge, and 3 on
+an error. Unchanged measures are counted, not listed; `--json` lists
+every measure with its verdict.
 
 ## Working on it
 
