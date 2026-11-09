@@ -606,7 +606,7 @@ another's.
   Kind: ux.
   Source: doom-ants-review-2026-11-04.
 
-- 📋 [FLED-0026] **The README shows what compare prints for an A/B of a few runs a side.**
+- 🚧 [FLED-0026] **The README shows what compare prints for an A/B of a few runs a side.**
   DOOM Ants (FLED-0014 feedback) A/B-tested two features, 3 runs
   a side, with a private script taking per-pass medians. They did
   not try compare: nothing at the point of use said it does that.
@@ -616,6 +616,9 @@ another's.
   output. Add one short example output under it, and say that
   unchanged measures are counted, not listed, and that --json
   carries them all.
+  2026-11-09: text in 2888307, sent to the three engines for review.
+  Also says the .pyz comes in the release zip (DOOM Ants' inbox
+  finding).
   **Layman:** Show an example of the comparison report, so engines use it instead of writing their own scripts.
   Kind: doc.
   Source: doom-ants-feedback-2026-11-05.
