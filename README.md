@@ -96,6 +96,13 @@ Measures that moved or are too noisy to judge, old and new as the runs' median:
 4 of 8 measures unchanged.
 ```
 
+`view` is the segment kind these runs wrote: the part before the colon
+in a row's `segment`, such as `view:3`. Your engine names its own
+kinds, and compare judges each kind apart.
+
+It judges frame times, `cpu` and `gpu` passes, and `mem`. It does not
+judge `event` or `ext.<engine>` rows.
+
 It exits 1 here, because a measure got slower. Unchanged measures are
 counted, not listed; `--json` lists every measure with its verdict.
 

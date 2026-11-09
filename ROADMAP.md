@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=26 -->
+<!-- ants-roadmap-id-high-water: FLED=27 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -622,6 +622,16 @@ another's.
   **Layman:** Show an example of the comparison report, so engines use it instead of writing their own scripts.
   Kind: doc.
   Source: doom-ants-feedback-2026-11-05.
+
+- 💭 [FLED-0027] **compare can judge an ext row's frame-to-frame jump at p99.**
+  DOOM Ants logs ext.doom/view_lag per frame (camera time minus
+  clock, in tics). It needs the p99 of its frame-to-frame change, not
+  its median, so it wrote a private script. compare judges no ext rows
+  (spec § 4.10). Considered until a second engine asks or DOOM Ants
+  says it blocks real work.
+  **Layman:** Let the comparison check how much an engine's own measurement jumps between frames, not only its typical value.
+  Kind: feature.
+  Source: doom-ants-feedback-2026-11-09.
 
 ## Later — for anyone
 
