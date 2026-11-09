@@ -47,6 +47,9 @@ python3 -m zipfile -e frameledger-v<version>.zip frameledger
 
 ## Usage
 
+`frameledger.pyz` comes in the release zip (see Install). An engine
+that vendors only the header must still fetch it.
+
 ```sh
 python3 -I frameledger.pyz check run.csv
 python3 -I frameledger.pyz report run.csv
@@ -63,6 +66,38 @@ The spec lists the flags and exit codes:
 [compare](docs/specs/FLED-0001-run-file-format.md#410-comparing-labelled-sets-of-runs),
 [bisect](docs/specs/FLED-0001-run-file-format.md#411-bisect-verdicts) and
 [budget](docs/specs/FLED-0001-run-file-format.md#412-pass-budgets).
+
+### An A/B with compare
+
+Each build needs at least three runs. For each measure, compare takes
+the middle of the runs' values, old against new, and judges the change
+against the spread between runs. Here the new build's opaque pass got
+slower:
+
+```text
+$ python3 -I frameledger.pyz compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
+The new runs are slower: 4 measures got slower; the largest is gpu/opaque median in view segments, up 0.890 ms (+22.1%), beyond the runs' spread of 0.090 ms.
+In view segments the median frame/wall went from 16.020 ms to 16.910 ms (slower).
+
+Runs:
+  old-1     a1.csv
+  old-2     a2.csv
+  old-3     a3.csv
+  new-1     b1.csv
+  new-2     b2.csv
+  new-3     b3.csv
+
+Measures that moved or are too noisy to judge, old and new as the runs' median:
+  measure                                       old ms      new ms      change      spread  verdict
+  view: frame/gpu_span                          12.020      12.910      +0.890       0.090  slower
+  view: frame/wall                              16.020      16.910      +0.890       0.090  slower
+  view: frame/wall p99                          16.020      16.910      +0.890       0.090  slower
+  view: gpu/opaque                               4.020       4.910      +0.890       0.090  slower
+4 of 8 measures unchanged.
+```
+
+It exits 1 here, because a measure got slower. Unchanged measures are
+counted, not listed; `--json` lists every measure with its verdict.
 
 ## Working on it
 
