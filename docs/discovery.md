@@ -125,18 +125,23 @@ analyser reads their runs.
   the old and new builds in turn (old, new, old, new), at least three
   runs a side, then compares the files they wrote as S4 does. It fills
   a placeholder in each command with that run's own file name, so no
-  run overwrites another (DOOM Ants, Vestige). It times nothing and writes no run
-  file; each engine still does both.
+  run overwrites another (DOOM Ants, Vestige). It times nothing and
+  writes no run file; each engine still does both.
 - **S22** — A run can record its peak CPU load and its peak GPU busy
-  share during the run, not only at its start and end. A compare that
-  uses a run taken under load names that run and is inconclusive (exit
-  2, worth re-running) rather than giving a verdict. It warns when the
-  two sides' CPU load, GPU busy share or GPU clock differ by more than
-  a limit the format spec sets.
+  share during the run, not only at its start and end. A run is taken
+  under load when either peak passes its limit. CPU load is a share of
+  the whole machine, so one limit fits any CPU count. The format spec
+  sets both limits, and a flag can change them (UT Ants). A compare
+  that uses a run taken under load names that run and is inconclusive
+  (exit 2, worth re-running) rather than giving a verdict. It warns
+  when the two sides' CPU load, GPU busy share or GPU clock differ by
+  more than a limit the format spec sets.
 - **S23** — One command judges several named variants against one
   base, such as the full frame against each effect switched off in
   turn. Each variant is judged against the base as S16 judges new
-  against old.
+  against old. The run helper (S21) runs them in turn, base and each
+  variant, several runs each, so machine drift is not read as an
+  effect's cost (UT Ants).
 - **S24** — A baseline file, which the engine keeps, names a set of
   reference runs. A compare or the run helper (S21) takes it in place
   of the old runs. Those runs keep their headers, so S5's refusals and
