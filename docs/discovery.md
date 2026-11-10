@@ -11,6 +11,10 @@ for its own engine.
 **Status:** agreed (2026-10-24) by Vestige, UT Ants and DOOM Ants, on
 the owner's delegation. The engines' answers it is built from:
 [2026-10-24 customer answers](reviews/2026-10-24-discovery-customer-answers.md).
+S21 to S27, S11's macOS and the picture report's line were added on
+2026-11-10 (FLED-0028), from the engines' answers that day, which
+`ROADMAP.md`'s 0.4.0 to 1.0.0 items record. Those additions await the
+three engines' agreement.
 
 ## The problem
 
@@ -88,8 +92,9 @@ analyser reads their runs.
 - **S10** — An engine using the optional C writer header shows the same
   frame times with the writer on as with it off, to within the run's
   own spread.
-- **S11** — The analyser runs on Linux and Windows, and a run file
-  written on Windows analyses the same as one written on Linux.
+- **S11** — The analyser runs on Linux, Windows and macOS, and a run
+  file written on any of them analyses the same as one written on
+  Linux.
 - **S12** — Given a budget per pass, a check names each pass over its
   budget and exits non-zero on any breach.
 - **S13** — In a run with more than one frame in flight, each GPU
@@ -116,6 +121,35 @@ analyser reads their runs.
   2026-10-26). Its output may go to a file, a pipe that closes early, or
   nowhere; a write that fails gives exit 3, or 128 under `bisect`, never
   a code that means a verdict (UT Ants, Vestige).
+- **S21** — Given the command that runs each build, one command runs
+  the old and new builds in turn (old, new, old, new), at least three
+  runs a side, then compares the files they wrote as S4 does. It times
+  nothing and writes no run file; each engine still does both.
+- **S22** — A run can record the machine's peak load and GPU clock
+  during the run, not only at its start and end. A compare that uses a
+  run taken under load names that run and is inconclusive rather than
+  giving a verdict. It warns when the two sides' load or GPU clock
+  differ.
+- **S23** — One command judges several named variants against one
+  base, such as the full frame against each effect switched off in
+  turn. Each variant is judged against the base as S16 judges new
+  against old.
+- **S24** — A baseline file, which the engine keeps, names a set of
+  reference runs. A compare or the run helper (S21) takes it in place
+  of the old runs. The analyser itself still keeps nothing between
+  runs.
+- **S25** — A PresentMon capture becomes a run that the report, the
+  floor check and the survey accept. Where a report needs passes, it
+  says the run has none rather than failing.
+- **S26** — An optional report page shows one run's frame times as a
+  graph, with the worst frames marked. It is one self-contained file,
+  drawn with the standard library alone, in large text, with no
+  meaning carried by colour alone. Its plain sentences come first.
+- **S27** — Three promises are written down: what may change in a
+  later format version, what never will, and how long older versions
+  keep analysing; a schema for every command's JSON result, which the
+  tests check each command's output against; and how a flag or field
+  is retired, and which Python versions and systems are supported.
 
 ## What it deliberately does not do
 
@@ -129,4 +163,5 @@ analyser reads their runs.
 - **never** — Replace a GPU or CPU profiler such as RenderDoc or Tracy.
   frameledger says which pass and which frames to look at; a profiler
   says why.
-- **not yet** — Charts or an HTML report. Plain text comes first.
+- **never** — Make charts the default. The picture report (S26) is
+  optional; plain text comes first.

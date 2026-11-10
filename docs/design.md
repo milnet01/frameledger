@@ -11,6 +11,10 @@ the Vestige, UT Ants and DOOM Ants sessions on 2026-10-24.
 owner's delegation. Built from
 [discovery](discovery.md) and the engines'
 [requirements](reviews/2026-10-24-discovery-customer-answers.md).
+The modules for S21 to S27 (`alternate.py`, `variants.py`,
+`baseline.py`, `presentmon.py`, `picture.py`) and the release changes
+were added on 2026-11-10 (FLED-0028). Those additions await the three
+engines' agreement.
 
 ## The parts
 
@@ -52,8 +56,18 @@ Four parts. The format spec is the only thing the other three share.
   - `survey.py` — many runs ranked (S9).
   - `scenes.py` — survey against survey, `compare --by-scene`: each
     scene one `compare.py` compare, then ranked and counted (S15).
-  - `render.py` — turns a result into plain text or JSON. Plain
-    sentences come first.
+  - `alternate.py` — the run helper (S21): starts each build's command
+    in turn, old then new, then hands the files they wrote to
+    `compare.py`. It times nothing.
+  - `variants.py` — named variants against one base (S23): each
+    variant one `compare.py` compare against the base, then ranked.
+  - `baseline.py` — reads a baseline file into the run paths it names
+    (S24).
+  - `presentmon.py` — turns a PresentMon capture into a `Run` (S25).
+  - `render.py` — turns a result into plain text, JSON or Markdown.
+    Plain sentences come first.
+  - `picture.py` — turns one run's result into the optional report
+    page, its graph drawn as SVG (S26).
   - `cli.py` and `__main__.py` — commands, flags and exit codes.
   - `selftest.py` — `--selftest`: the analyser's own checks on built-in
     sample files, no GPU, no network.
@@ -86,15 +100,18 @@ tool, not by any one part.
   nothing in each other.** They never share code. So a writer
   built from the spec alone (S7) meets the same contract as ours.
 - **Inside the analyser, imports run one way:** `cli.py` →
-  `bisecting.py`, `budgeting.py`, `scenes.py` → `run_report.py`, `compare.py`,
+  `bisecting.py`, `budgeting.py`, `scenes.py`, `alternate.py`,
+  `variants.py` → `run_report.py`, `compare.py`,
   `survey.py` → `trust.py`, `stats.py`, `ledger.py`. `compare.py` and
   `survey.py` may import `run_report.py`; it imports neither. `bisecting.py` may import
-  `compare.py` and `run_report.py`, and so may `budgeting.py` and
-  `scenes.py`.
+  `compare.py` and `run_report.py`, and so may `budgeting.py`,
+  `scenes.py`, `alternate.py` and `variants.py`.
   `cli.py` imports `selftest.py`,
-  which may import any file but `cli.py`. `render.py` is
-  called only by `cli.py`.
-- **`ledger.py` and `stats.py` import no other analyser file.**
+  which may import any file but `cli.py`. `render.py` and `picture.py`
+  are called only by `cli.py`.
+- **`ledger.py`, `stats.py` and `baseline.py` import no other analyser
+  file.** `presentmon.py` imports only `ledger.py`. Only `cli.py`
+  calls `baseline.py` and `presentmon.py`.
 - **Only `__main__.py` and the tests import `cli.py`.** The reports
   return results; they never print and never exit.
 - **Only the Python standard library** (N3), and only what Python 3.10
@@ -105,8 +122,8 @@ tool, not by any one part.
 ## What every part does the same way
 
 - **Results are data first.** Every report builds one result object.
-  `render.py` turns it into text or JSON, so the two can never
-  disagree.
+  `render.py` turns it into text, JSON or Markdown, and `picture.py`
+  into the report page, so no two forms can disagree.
 - **Plain sentences lead.** Every text report opens with sentences a
   non-programmer can act on. Then tables no wider than 100 columns. No
   meaning is carried by colour alone.
@@ -127,7 +144,9 @@ tool, not by any one part.
 - **Warnings are part of the result**, never only on standard error, so
   they reach the JSON and the plain sentences.
 - **No state.** The analyser reads files and writes standard output, or
-  a file named on the command line. It keeps nothing between runs.
+  a file named on the command line. It keeps nothing between runs. The
+  run helper (S21) also starts the commands it is given and waits for
+  each; a baseline (S24) is a file the engine keeps.
 - **Locale never matters**, in the analyser or the writer. Numbers are
   read and written with `.` as the decimal point, whatever the
   machine's language. The writer formats numbers itself, never with
@@ -155,7 +174,11 @@ tool, not by any one part.
   archives are not used for the pin; their hash is not promised to stay
   the same. `scripts/build_release.py` builds the archive reproducibly.
   `.github/workflows/release.yml` publishes it only when its builds on
-  Linux and Windows give the hash in the notes.
+  Linux and Windows give the hash in the notes. The archive will also
+  hold a launcher for Linux and Windows (FLED-0033) and the JSON
+  result schemas (S27). A PyPI package with a `frameledger` command
+  (FLED-0043), still standard library only, sits beside the archive
+  and does not replace it.
 - **Our tests: pytest**, a test-time tool only. The analyser and its
   `--selftest` need nothing installed.
 - **No CMake ships.** An engine fetches the archive itself.
