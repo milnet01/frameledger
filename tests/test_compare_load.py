@@ -49,6 +49,9 @@ UNDER_LOAD_CASES = {
     "load at the limit": (new_2(load={"start": 0.0, "end": 0.0, "peak": 0.25}), [], 1, []),
     "load under a raised limit": (new_2(load={"start": 0.0, "end": 0.0, "peak": 0.30}),
                                   ["--max-load", "0.5"], 1, []),
+    "limits at their tops": (new_2(load={"start": 0.0, "end": 0.0, "peak": 1.0},
+                                   gpu_busy_pct={"start": 0, "end": 0, "peak": 100}),
+                             ["--max-load", "1", "--max-gpu-busy", "100"], 1, []),
     "gpu above": (new_2(gpu_busy_pct={"start": 0, "end": 0, "peak": 21}), [], 2, ["gpu_busy_pct.peak"]),
     "start only": (new_2(load={"start": 0.9, "end": 0.9}), [], 1, []),
 }
@@ -70,12 +73,15 @@ def test_under_load_inconclusive(capsys, tmp_path, case):
         assert first.startswith("new-2 was taken under load: ") and want_under[0] in first
 
 
-def test_load_limit_bounds(capsys, tmp_path):
-    """INV-83: a limit below 0 is exit 3, refused for its value; an unknown
-    flag would exit 3 too, so the message is checked."""
-    assert cli.main(["compare", "--old", "a", "b", "c", "--new", "d", "e", "f", "--max-load", "-1"]) == 3
+@pytest.mark.parametrize("flag, value", [("--max-load", "-1"), ("--max-load", "1.01"),
+                                         ("--max-load", "25"), ("--max-gpu-busy", "100.5")])
+def test_load_limit_bounds(capsys, flag, value):
+    """INV-83: a limit outside its peak's range is exit 3, refused for its
+    value; an unknown flag would exit 3 too, so the message is checked.
+    Above the range no peak could pass it, as when 25 is meant as 25%."""
+    assert cli.main(["compare", "--old", "a", "b", "c", "--new", "d", "e", "f", flag, value]) == 3
     error = capsys.readouterr().err
-    assert "--max-load" in error and "unrecognized" not in error
+    assert flag in error and f"'{value}' must be" in error and "unrecognized" not in error
 
 
 DIFFER_CASES = {

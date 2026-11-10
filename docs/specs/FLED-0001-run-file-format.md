@@ -569,7 +569,9 @@ section holds.
 Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
 or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`,
 `--max-load 0.25`, `--max-gpu-busy 20`. Each is 0 or more and below
-1000000000, or exit 3 (FLED-0023).
+1000000000, or exit 3 (FLED-0023). `--max-load` is at most 1 and
+`--max-gpu-busy` at most 100, their peaks' tops, or exit 3: above
+the top no peak could pass, as when 25 is given for 25% (DOOM Ants).
 
 - **Runs are named by set and order**: `old-1`, `old-2`, … and
   `new-1`, …, in the order given. Warnings and sentences use these
@@ -713,7 +715,9 @@ weighs one `slower` among them.
 - `gpu_clock_differs` — the two sets' medians of `gpu_clock_mhz.end`
   differ by more than 5% of the old one. `end`, because a `start`
   is often the idle clock; the clock after the run's last frame shows
-  the boost or throttling it ran at.
+  the boost or throttling it ran at. An old median of 0, as from a driver
+  reporting 0 MHz, warns on any other new median: one side's clock
+  was not read, which is worth naming.
 
 Each of the last three needs its field in every run; a run without it
 gives none. Each message gives both medians and the limit. So two
@@ -2318,7 +2322,9 @@ breaks.
   `under_load` is `["load.peak"]`. `load.peak` 0.25: exit 1. 0.30
   with `--max-load 0.5`: exit 1. `gpu_busy_pct.peak` 21: exit 2,
   `under_load` `["gpu_busy_pct.peak"]`. `load.start` 0.9 and no peak:
-  exit 1. `--max-load -1` gives exit 3.
+  exit 1. Peaks of 1 and 100 with `--max-load 1 --max-gpu-busy 100`:
+  exit 1. `--max-load` -1, 1.01 or 25, or `--max-gpu-busy` 100.5,
+  gives exit 3.
   *Test:* `tests/test_compare_load.py::test_under_load_inconclusive`, and
   `tests/test_compare_load.py::test_load_limit_bounds` for the bound.
   *Breaks when:* a peak at or below its limit, or a `start`, makes the

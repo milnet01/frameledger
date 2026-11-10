@@ -122,10 +122,10 @@ def _add_compare_flags(command) -> None:
                          help="the smallest change that counts for a mem measure, in MB (default 1.000)")
     command.add_argument("--min-pct", type=_bounded, default=Decimal(3), metavar="P",
                          help="the smallest change that counts, in percent of the old (default 3)")
-    command.add_argument("--max-load", type=_bounded, default=compare.DEFAULT_LIMITS.max_load, metavar="L",
+    command.add_argument("--max-load", type=_share(1), default=compare.DEFAULT_LIMITS.max_load, metavar="L",
                          help="a run whose load.peak, the CPU share other programs used, is above this "
                          f"was taken under load (default {compare.DEFAULT_LIMITS.max_load})")
-    command.add_argument("--max-gpu-busy", type=_bounded, default=compare.DEFAULT_LIMITS.max_gpu_busy,
+    command.add_argument("--max-gpu-busy", type=_share(100), default=compare.DEFAULT_LIMITS.max_gpu_busy,
                          metavar="P", help="a run whose gpu_busy_pct.peak, the GPU percent other programs "
                          f"used, is above this was taken under load (default {compare.DEFAULT_LIMITS.max_gpu_busy})")
     command.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
@@ -243,6 +243,17 @@ def _bounded(text: str) -> Decimal:
     if value >= BUDGET_LIMIT:
         raise argparse.ArgumentTypeError(f"'{text}' must be below {BUDGET_LIMIT}")
     return value
+
+
+def _share(top: int):
+    """A load limit, from 0 to its peak's top: above it no peak could
+    pass, as when 25 is given for 25% (DOOM Ants)."""
+    def share(text: str) -> Decimal:
+        value = _non_negative(text)
+        if value > top:
+            raise argparse.ArgumentTypeError(f"'{text}' must be from 0 to {top}")
+        return value
+    return share
 
 
 def _override(text: str) -> tuple[str, str]:
