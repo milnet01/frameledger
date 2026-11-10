@@ -1355,7 +1355,10 @@ runs a set and 35% at three, both at 2% noise.
 **A run that fails stops the rest**, exit 3, verdict `error`, and
 nothing is compared. A run fails when its command exits with a code
 other than 0, is killed by a signal, or exits 0 and leaves no file at
-its path. Setup has already made sure no file was there before.
+its path. Setup has already made sure no file was there before. On
+Linux and macOS a run also fails when its command exits 0 but leaves a
+process it started still running, since that process would overlap
+the next run (UT Ants).
 Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
 `timeout`, a service manager) fails the running command the same way
 (DOOM Ants).
@@ -1369,7 +1372,12 @@ Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
 - **A failed command's processes are ended before its file is
   deleted.** Any left are sent SIGTERM, or the stop signal, and given
   10 seconds; then they are killed. A second stop signal kills them at
-  once. So nothing writes the file after it is deleted.
+  once. So nothing writes the file after it is deleted. A process that
+  still has not ended 10 seconds after being killed, as one stuck in a
+  GPU driver can, is not waited for: the reason ends "; process group
+  N did not end after SIGKILL" (UT Ants).
+- **A stop is only recorded when it arrives**, and each wait checks for
+  one, so a stop cannot land between two steps (DOOM Ants).
 - **Then its file, if it left one, is deleted**; a directory there is
   left alone. So the run files left in `DIR` are exactly the runs in
   `stopped.finished`, and a reader can compare them by hand. To run
@@ -1378,7 +1386,10 @@ Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
 The text then opens with § 4.10's overrides sentence, when
 `--override` is given; next a sentence naming the run and the reason,
 "new-2 failed: the command exited with code 4.", "new-2 failed: the
-command was killed by signal 11 (SIGSEGV).", "new-2 failed: alternate
+command was killed by signal 11 (SIGSEGV).", "new-2 failed: the
+command exited with code 139, as the shell reports a command killed by
+signal 11 (SIGSEGV).", "new-2 failed: the command left processes
+running.", "new-2 failed: alternate
 was stopped by SIGTERM while it ran." or "new-2 failed: the command
 wrote no file at /…/new-2.csv."; then its filled command, "Its command
 was: …".
@@ -2266,9 +2277,19 @@ breaks.
   3, `exit_code` null, the signal named in the reason,
   `stopped.finished` old-1, new-1, no `new-2.csv`, and the engine's
   process ended.
+  With the shell still running after the engine (`…; exit $?`), the
+  reason is "the command exited with code 137, as the shell reports a
+  command killed by signal 9 (SIGKILL)" and `exit_code` is 137. On
+  Linux, new-2's command exiting 0 with a child still sleeping: the
+  reason is "the command left processes running", and the child has
+  ended. A SIGTERM delivered while new-2's command is being started
+  still ends it.
   *Test:* `tests/test_alternate.py::test_failed_run_stops`,
-  `tests/test_alternate.py::test_killed_command_names_its_signal`, and
-  `tests/test_alternate.py::test_interrupted_run_stops`.
+  `tests/test_alternate.py::test_killed_command_names_its_signal`,
+  `tests/test_alternate.py::test_left_processes_fail_the_run`,
+  `tests/test_alternate.py::test_stop_while_starting`, and
+  `tests/test_alternate.py::test_interrupted_run_stops`. Nothing here
+  tests a process that survives SIGKILL.
   *Breaks when:* later runs start, the finished runs are compared,
   their files are removed, the failed run's file is kept, a stop
   signal is not a stop, or the engine behind the shell outlives it.
@@ -2478,7 +2499,7 @@ it on each release they pin.
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | INV-78 | `tests/test_alternate.py::test_alternates_and_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
-| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_interrupted_run_stops` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive` |

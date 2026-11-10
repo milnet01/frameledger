@@ -26,6 +26,7 @@ POSIX = os.name == "posix"
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 KILL = getattr(signal, "SIGKILL", signal.SIGTERM)  # Windows has no SIGKILL; _signal_group kills there
 GRACE_S = 10  # how long a stopped command has to end before it is killed
+POLL_S = 0.05  # how often a wait checks for a stop
 
 
 class Run(NamedTuple):
@@ -71,21 +72,24 @@ def check_setup(commands: dict[str, str], out: str, planned: list[Run]) -> None:
 
 def run_all(commands: dict[str, str], planned: list[Run]) -> dict | None:
     """Run each command in turn. None when every run finished; otherwise
-    § 4.15's `stopped`, after deleting the failed run's file.
+    § 4.15's `stopped`, after ending the failed command's processes and
+    deleting its file.
 
-    While the commands run, Ctrl-C and SIGTERM raise _Stop rather than
-    ending this process, so the running command can be stopped and its
-    file deleted first."""
-    previous = {signum: signal.signal(signum, _raise_stop) for signum in STOP_SIGNALS}
+    While the commands run, Ctrl-C and SIGTERM are only recorded, never
+    raised, so a stop cannot land between two steps; each wait checks
+    for one (POLL_S)."""
+    stops: list[int] = []
+    previous = {signum: signal.signal(signum, lambda signum, _frame: stops.append(signum))
+                for signum in STOP_SIGNALS}
     try:
         for index, run in enumerate(planned, 1):
             command = commands[run.side].replace(PLACEHOLDER, run.path)
-            try:
+            if stops:  # it came between two runs
+                exit_code, reason = None, _stopped_reason(stops[0])
+            else:
                 print(f"alternate: running {run.name} ({index} of {len(planned)})", file=sys.stderr,
                       flush=True)
-                exit_code, reason = _run_one(command, run.path)
-            except _Stop as stop:  # it came before the command started
-                exit_code, reason = None, _stopped_reason(stop.signum)
+                exit_code, reason = _run_one(command, run.path, stops)
             if reason:
                 if os.path.isfile(run.path):  # a directory there is not this run's to remove
                     os.remove(run.path)
@@ -97,17 +101,7 @@ def run_all(commands: dict[str, str], planned: list[Run]) -> dict | None:
             signal.signal(signum, handler)
 
 
-class _Stop(Exception):
-    def __init__(self, signum: int):
-        super().__init__(signum)
-        self.signum = signum
-
-
-def _raise_stop(signum, _frame):
-    raise _Stop(signum)
-
-
-def _run_one(command: str, path: str) -> tuple[int | None, str | None]:
+def _run_one(command: str, path: str, stops: list[int]) -> tuple[int | None, str | None]:
     """(exit code, why the run failed), the reason None when it did not.
     The engine's output goes to standard error, so --json output is never
     mixed with it. On POSIX the command gets its own process group, so a
@@ -115,36 +109,53 @@ def _run_one(command: str, path: str) -> tuple[int | None, str | None]:
     the terminal's Ctrl-C then reaches only this process, which passes it
     on."""
     process = subprocess.Popen(command, shell=True, stdout=sys.stderr.fileno(), start_new_session=POSIX)
-    try:
-        code = process.wait()
-    except _Stop as stop:
-        _end_group(process, stop.signum)
-        return None, _stopped_reason(stop.signum)
+    code = _wait(process, stops)
+    if code is None:
+        return None, _stopped_reason(stops[0]) + _end_group(process, stops[0], stops)
+    if code == 0 and POSIX and _group_alive(process):
+        # Left running, it would overlap the next run (UT Ants).
+        return None, "the command left processes running" + _end_group(process, signal.SIGTERM, stops)
     if code != 0:
-        _end_group(process, signal.SIGTERM)  # nothing it left behind may write the file later
-    if code < 0:
-        return None, f"the command was killed by signal {-code} ({_signal_name(-code)})"
-    if code != 0:
-        return code, f"the command exited with code {code}"
+        stuck = _end_group(process, signal.SIGTERM, stops)  # nothing left may write the file later
+        return (None if code < 0 else code), _exit_reason(code) + stuck
     if not os.path.exists(path):
         return None, f"the command wrote no file at {path}"
     return code, None
 
 
-def _end_group(process: subprocess.Popen, signum: int) -> None:
+def _wait(process: subprocess.Popen, stops: list[int]) -> int | None:
+    """The command's exit code, or None once a stop is recorded."""
+    while (code := process.poll()) is None:
+        if stops:
+            return None
+        time.sleep(POLL_S)
+    return code
+
+
+def _end_group(process: subprocess.Popen, signum: int, stops: list[int]) -> str:
     """Send `signum` to the command's processes, give them GRACE_S seconds
-    to end, then kill them; return once none is left. A second stop
-    signal kills them at once."""
+    to end, then kill them, and give that GRACE_S too. A further stop
+    kills them at once. Returns "" once none is left, or a clause naming
+    the group that would not die, as a process stuck in a GPU driver can
+    (UT Ants)."""
+    seen = len(stops)
     _signal_group(process, signum)
+    if not _waited(process, lambda: len(stops) > seen):
+        _signal_group(process, KILL)
+        if not _waited(process, lambda: False):
+            return f"; process group {process.pid} did not end after SIGKILL"
+    return ""
+
+
+def _waited(process: subprocess.Popen, give_up) -> bool:
+    """True once the command's processes have all ended; False after
+    GRACE_S seconds, or as soon as give_up() is true."""
     deadline = time.monotonic() + GRACE_S
-    try:
-        while _group_alive(process) and time.monotonic() < deadline:
-            time.sleep(0.05)
-    except _Stop:
-        pass
-    _signal_group(process, KILL)
     while _group_alive(process):
-        time.sleep(0.05)
+        if give_up() or time.monotonic() >= deadline:
+            return False
+        time.sleep(POLL_S)
+    return True
 
 
 def _signal_group(process: subprocess.Popen, signum: int) -> None:
@@ -168,6 +179,15 @@ def _group_alive(process: subprocess.Popen) -> bool:
     except ProcessLookupError:
         return False
     return True
+
+
+def _exit_reason(code: int) -> str:
+    if code < 0:
+        return f"the command was killed by signal {-code} ({_signal_name(-code)})"
+    reason = f"the command exited with code {code}"
+    if POSIX and 128 < code < 128 + signal.NSIG:  # how /bin/sh reports a killed command
+        reason += f", as the shell reports a command killed by signal {code - 128} ({_signal_name(code - 128)})"
+    return reason
 
 
 def _stopped_reason(signum: int) -> str:
