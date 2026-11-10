@@ -601,7 +601,7 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0029] **A run helper alternates old and new builds, then compares.**
+- 🚧 [FLED-0029] **A run helper alternates old and new builds, then compares.**
   Given the command that runs each build, it runs them in turn (old,
   new, old, new), at least three a side, and compares the files they
   wrote. It times nothing and writes no run file: the engine still
@@ -616,6 +616,9 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   placeholder's spelling is fixed in this item's spec amendment, which
   DOOM Ants and Vestige review. S23's variants use the same helper, base
   and each variant in turn (UT Ants).
+  2026-11-10: spec amendment drafted as docs/specs/FLED-0001-run-file-format.md
+  § 4.15 (`alternate`, placeholder `{run}`) with INV-78 to INV-81; sent
+  to the three engines for review before building.
   **Layman:** One command runs the old and new versions of a game in turn and says which is faster.
   Kind: feature.
   Source: engine-answers-2026-11-10.

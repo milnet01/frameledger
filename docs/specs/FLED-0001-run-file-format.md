@@ -124,6 +124,12 @@ settles.
   kind replaces `*` (UT Ants); *proposed here*, `--warmup-s` with default
   0, between Vestige's floor-style 2 and UT Ants' and DOOM Ants' none; `over_ms` (DOOM
   Ants, UT Ants).
+- For FLED-0029: `alternate` runs old and new in turn and compares as
+  § 4.10 (§ 4.15; all three engines); a placeholder gives each run its
+  own file (DOOM Ants, Vestige). *Proposed here:* the name
+  `alternate`; the placeholder `{run}`; five runs a side by default;
+  the platform shell; the engine's output on standard error; a failed
+  run stops the rest; no warm-up runs.
 
 ## 4. Design
 
@@ -1225,6 +1231,78 @@ refused scene's is § 4.10's refused result.
 the measures each of them judged. `scenes` lists failing scenes in
 rank order, then the others by scene name. `set` is `old` or `new`.
 
+### 4.15 Alternating runs
+
+FLED-0029 builds this (S21). The engine still times each frame and
+writes each run file; this command only starts the engine's command
+for each run, in turn, and then compares what they wrote.
+
+```
+alternate --old CMD --new CMD --out DIR [--runs N] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
+```
+
+The compare flags are § 4.10's, with its defaults and bounds.
+`--runs` is the number of runs a side: default 5, from 3 to 100, or
+exit 3. Five, because § 4.10's table gives 3% false changes at five
+runs a set and 35% at three, both at 2% noise.
+
+- **`{run}` is the placeholder.** Each `CMD` must hold it at least
+  once, or exit 3. Before each run, every `{run}` in that side's
+  command is replaced by the run's own file: `DIR/old-1.csv`,
+  `DIR/new-1.csv`, `DIR/old-2.csv`, …, as an absolute path. So no run
+  overwrites another (DOOM Ants, Vestige). The command writes its run
+  file there, for example `--frame-log={run}`.
+- **The order is old-1, new-1, old-2, new-2, …**, each command
+  finishing before the next starts. So drift over time falls on both
+  sides alike.
+- **Each command runs through the platform's shell**: `/bin/sh` on
+  Linux and macOS, `cmd.exe` on Windows, in the current directory. Its
+  standard output and standard error go to this command's standard
+  error, so `--json` output is never mixed with the engine's. Before
+  each run, one line on standard error names it: "alternate: running
+  new-2 (4 of 10)".
+- **`DIR` must exist, and its absolute path may hold only ASCII
+  letters, digits, and `.` `_` `-` `/` `\` `:`**, or exit 3. So the
+  filled path needs no quoting in either shell. A space is refused;
+  pick a folder without one.
+- **No run file is ever overwritten.** If any of the run files already
+  exists in `DIR`, exit 3 before any command starts, naming the file.
+- **Setup errors run nothing.** Every exit 3 above is found before the
+  first command starts.
+
+**A run that fails stops the rest**, exit 3, verdict `error`, and
+nothing is compared. A run fails when its command exits with a code
+other than 0, or exits 0 and leaves no file at its path. Interrupting
+`alternate`, with Ctrl-C, say, stops it the same way; the shell passes
+the interrupt to the running command too. The run files already
+written stay, so a reader can compare them by hand. The first
+sentence after the overrides names the run, its filled command and
+the reason: "new-2 failed: the command exited with code 4.", or
+"new-2 failed: the command wrote no file at /…/new-2.csv."
+
+**Once every run has finished**, the files are compared as
+`compare --old DIR/old-1.csv … --new DIR/new-1.csv …` compares them,
+§ 4.10: the same names, refusals, measures, judging, verdict, exit
+code, text and warnings. A file that breaks the format is § 4.10's
+exit 3.
+
+**Result.** § 4.10's result, with two keys added:
+
+```json
+{
+  "commands": {"old", "new"},
+  "out",
+  "stopped": {"run", "command", "reason", "exit_code", "finished": []}
+}
+```
+
+`commands` holds the two commands as given, placeholder and all.
+`out` is `DIR` as an absolute path. `stopped` is null when every run
+finished. When a run failed, `command` is its filled command;
+`exit_code` is its command's code, or null when it wrote no file or
+was interrupted; `finished` names the runs before it, in the order
+they ran. The result then holds only `commands`, `out` and `stopped`.
+
 ## 5. Invariants
 
 Each clause names its fixture under `tests/fixtures/` and the one rule that fixture
@@ -2037,6 +2115,41 @@ breaks.
   *Test:* `tests/test_compare_scenes.py::test_judged_count`.
   *Breaks when:* unjudged scenes are counted, or the count is missing
   from the text.
+- **INV-78** — Runs alternate, each into its own file, and are judged
+  as `compare`. Fixture `alternate/fake_engine.py SIDE {run}` copies
+  that side's run file to its last argument and appends `SIDE` to an
+  order log. With `--runs 3`, the log reads old, new, old, new, old,
+  new; `DIR` holds `old-1.csv` to `old-3.csv` and `new-1.csv` to
+  `new-3.csv`; and the result, without `commands`, `out` and
+  `stopped`, equals `compare --old` and `--new` over those files, with
+  the same exit.
+  *Test:* `tests/test_alternate.py::test_alternates_and_compares`.
+  *Breaks when:* all old runs go first, two runs share a file, or the
+  judging differs from `compare`'s. The order log alone isolates the
+  first; the file list alone, the second.
+- **INV-79** — A setup error runs nothing. Each alone gives exit 3 with
+  an empty order log: a command without `{run}`; `--runs 2`;
+  `--runs 101`; a `DIR` that does not exist; a `DIR` holding a space;
+  a `DIR` already holding `new-2.csv`, which is left byte for byte as
+  it was. Each case's fixture is otherwise INV-78's.
+  *Test:* `tests/test_alternate.py::test_setup_errors_run_nothing`.
+  *Breaks when:* any check runs after the first command, or an
+  existing run file is overwritten.
+- **INV-80** — A failing run stops the rest. INV-78's fixture, with
+  new-2's command exiting 4: exit 3, the first sentence names new-2
+  and code 4, the order log ends at new-2, `stopped.finished` is
+  old-1, new-1, old-2, and their files remain. With new-2's command
+  exiting 0 and writing nothing, the reason names the missing path and
+  `exit_code` is null.
+  *Test:* `tests/test_alternate.py::test_failed_run_stops`.
+  *Breaks when:* later runs start, the finished runs are compared, or
+  their files are removed.
+- **INV-81** — The engine's output never reaches standard output. With
+  INV-78's fixture also printing `engine says hi` on its standard
+  output, `alternate --json` prints one JSON object and nothing else on
+  standard output, and `engine says hi` appears on standard error.
+  *Test:* `tests/test_alternate.py::test_engine_output_to_stderr`.
+  *Breaks when:* the command inherits standard output.
 
 ## 6. Failure modes
 
@@ -2077,6 +2190,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0020: INV-46 as amended.
 - FLED-0012: INV-69 to INV-72.
 - FLED-0013: INV-73 to INV-77.
+- FLED-0029: INV-78 to INV-81.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -2111,6 +2225,9 @@ it on each release they pin.
 - Warnings on a single run's timing finer than `gpu_tick_ns`;
   `compare` only raises its floor to it (§ 4.10). Not yet queued.
 - Charts or HTML — deferred; not yet queued (discovery, *not yet*).
+- `alternate`'s discarded warm-up runs, a time limit per run, and
+  `--by-scene`: not yet queued. Variants (S23) and baselines (S24)
+  are their own items.
 
 ## 10. What checks this
 
@@ -2193,6 +2310,10 @@ it on each release they pin.
 | INV-75 | `tests/test_compare_scenes.py::test_nothing_judged` |
 | INV-76 | `tests/test_compare_scenes.py::test_rank_and_segment` |
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
+| INV-78 | `tests/test_alternate.py::test_alternates_and_compares` |
+| INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops` |
+| INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
