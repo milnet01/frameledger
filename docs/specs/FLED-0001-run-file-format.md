@@ -2319,7 +2319,8 @@ breaks.
   with `--max-load 0.5`: exit 1. `gpu_busy_pct.peak` 21: exit 2,
   `under_load` `["gpu_busy_pct.peak"]`. `load.start` 0.9 and no peak:
   exit 1. `--max-load -1` gives exit 3.
-  *Test:* `tests/test_compare_load.py::test_under_load_inconclusive`.
+  *Test:* `tests/test_compare_load.py::test_under_load_inconclusive`, and
+  `tests/test_compare_load.py::test_load_limit_bounds` for the bound.
   *Breaks when:* a peak at or below its limit, or a `start`, makes the
   run under load; the flag is ignored; or the slower-times verdict
   (exit 1) is given instead of inconclusive. The fixture fails without the load, so only this rule can
@@ -2504,7 +2505,7 @@ it on each release they pin.
 | INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
-| INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive` |
+| INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |
 | INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

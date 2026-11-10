@@ -19,7 +19,8 @@ import ledger
 import run_report
 
 
-def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors) -> dict:
+def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
+             limits: compare.LoadLimits = compare.DEFAULT_LIMITS) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for the
     files at `old` and `new`, each scene judged apart."""
     unread, paths = [], {"old": defaultdict(list), "new": defaultdict(list)}
@@ -33,7 +34,8 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
 
     scenes, unused = [], set(overrides)
     for name in sorted(set(paths["old"]) | set(paths["new"])):
-        entry, scene_unused = _judge(name, paths["old"][name], paths["new"][name], overrides, floors)
+        entry, scene_unused = _judge(name, paths["old"][name], paths["new"][name], overrides, floors,
+                                     limits)
         scenes.append(entry)
         if scene_unused is not None:  # the scene's runs were read
             unused &= scene_unused
@@ -113,7 +115,7 @@ def _scene_of(path: str) -> tuple[str | None, str | None]:
 
 
 def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
-           floors: compare.Floors) -> tuple[dict, set[str] | None]:
+           floors: compare.Floors, limits: compare.LoadLimits) -> tuple[dict, set[str] | None]:
     """One scene's entry, and the overridden fields that differed in none
     of its runs; None for those when its runs were not read."""
     entry = {"scene": name, "verdict": "unjudged", "reason": None, "rank": None, "measure": None,
@@ -134,7 +136,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
             run_report.refuse_breaches(run)  # a file broken since may have no header to check
             if run.header["scene"] != name:
                 raise ledger.LedgerError(f"its scene is now {run.header['scene']!r}", run.path)
-        built = compare.compare(old_runs, new_runs, overrides, floors)
+        built = compare.compare(old_runs, new_runs, overrides, floors, limits)
     except ledger.LedgerError as error:  # the file changed since it was first read
         entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
         return entry, None

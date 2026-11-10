@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=62 -->
+<!-- ants-roadmap-id-high-water: FLED=63 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -703,6 +703,19 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   **Layman:** Before timing, the helper can throw away a first run and clear caches, so a cold start is not mistaken for a slowdown.
   Kind: feature.
   Source: competitor-research-2026-11-10.
+
+- 📋 [FLED-0063] **alternate stops a Windows command's whole process tree.**
+  On Linux and macOS, alternate runs each command in its own process
+  group and passes Ctrl-C and SIGTERM on to all of it (FLED-0029,
+  spec § 4.15). On Windows it does not yet: the console's Ctrl-C reaches
+  the command, and SIGTERM kills only cmd.exe, so an engine behind a
+  wrapper can outlive it. Vestige's review suggested
+  CREATE_NEW_PROCESS_GROUP with CTRL_BREAK_EVENT, then taskkill /T /F.
+  Nothing here runs Windows, so it waits for a Windows engine to test
+  it: Vestige's 3D_E-0820, its Windows writer.
+  **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
+  Kind: feature.
+  Source: engine-review-2026-11-10.
 
 ## 0.5.0 — variants and baselines
 

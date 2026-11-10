@@ -77,6 +77,9 @@ other lets drift over time read as a change, and compare warns
 `not_interleaved`. `alternate` runs both builds' commands in that
 order, five runs a side by default, then compares what they wrote.
 Each command must hold `{run}` where its run file's path goes.
+A run whose header records other programs loading the CPU or GPU
+while it ran makes the compare inconclusive; `--max-load` and
+`--max-gpu-busy` set how much is allowed.
 Compare reads each run's start time from its file's `started_utc`
 header, so list each build's files together on the command line.
 

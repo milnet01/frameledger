@@ -389,6 +389,11 @@ def _is_span(value) -> bool:
     return isinstance(value, dict) and all(_is_number(value.get(k)) for k in ("start", "end"))
 
 
+def _is_peaked_span(value) -> bool:
+    """A span that may also carry a `peak` (§ 4.2, FLED-0030)."""
+    return _is_span(value) and ("peak" not in value or _is_number(value["peak"]))
+
+
 # Each header field: (required, test, what the test wants), per § 4.2.
 HEADER_FIELDS = {
     "schema": (True, _is_schema, "a whole number, 1 or more"),
@@ -417,8 +422,9 @@ HEADER_FIELDS = {
     "settled_frames": (False, _is_int, "a whole number"),
     "pinned": (False, _is_object, "an object"),
     "gpu_tick_ns": (False, _is_number, "a number"),
-    "load": (False, _is_span, '{"start": number, "end": number}'),
-    "gpu_busy_pct": (False, _is_span, '{"start": number, "end": number}'),
+    "load": (False, _is_peaked_span, '{"start": number, "end": number}, and an optional "peak": number'),
+    "gpu_busy_pct": (False, _is_peaked_span,
+                     '{"start": number, "end": number}, and an optional "peak": number'),
     "gpu_clock_mhz": (False, _is_span, '{"start": number, "end": number}'),
     "os": (False, _is_string, "a string"),
     "extra": (False, _is_object, "an object"),

@@ -122,6 +122,12 @@ def _add_compare_flags(command) -> None:
                          help="the smallest change that counts for a mem measure, in MB (default 1.000)")
     command.add_argument("--min-pct", type=_bounded, default=Decimal(3), metavar="P",
                          help="the smallest change that counts, in percent of the old (default 3)")
+    command.add_argument("--max-load", type=_bounded, default=compare.DEFAULT_LIMITS.max_load, metavar="L",
+                         help="a run whose load.peak, the CPU share other programs used, is above this "
+                         f"was taken under load (default {compare.DEFAULT_LIMITS.max_load})")
+    command.add_argument("--max-gpu-busy", type=_bounded, default=compare.DEFAULT_LIMITS.max_gpu_busy,
+                         metavar="P", help="a run whose gpu_busy_pct.peak, the GPU percent other programs "
+                         f"used, is above this was taken under load (default {compare.DEFAULT_LIMITS.max_gpu_busy})")
     command.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                          help="print the JSON result instead of text")
 
@@ -461,7 +467,7 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
                    args: argparse.Namespace) -> dict:
     try:
         built = compare.compare([ledger.read(p) for p in old], [ledger.read(p) for p in new],
-                                overrides, compare.Floors(args.min_ms, args.min_mb, args.min_pct))
+                                overrides, _floors(args), _limits(args))
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -469,6 +475,14 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result(command, built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
+
+
+def _floors(args: argparse.Namespace) -> compare.Floors:
+    return compare.Floors(args.min_ms, args.min_mb, args.min_pct)
+
+
+def _limits(args: argparse.Namespace) -> compare.LoadLimits:
+    return compare.LoadLimits(args.max_load, args.max_gpu_busy)
 
 
 def _listed(overrides: dict[str, str]) -> list[dict]:
@@ -502,8 +516,7 @@ def _compare_scenes(args: argparse.Namespace) -> dict:
     """§ 4.14: exit 0 every scene passes, 1 a scene fails, 2 a scene is
     inconclusive or unjudged or a file unread, 3 a bad flag or no scene
     judged. The run counts are checked per scene, not here."""
-    built = scenes.by_scene(args.old, args.new, _overrides(args.override),
-                            compare.Floors(args.min_ms, args.min_mb, args.min_pct))
+    built = scenes.by_scene(args.old, args.new, _overrides(args.override), _floors(args), _limits(args))
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])

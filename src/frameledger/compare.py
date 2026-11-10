@@ -12,6 +12,7 @@ warning.
 from __future__ import annotations
 
 import json
+import statistics
 from collections import Counter
 from datetime import datetime
 from decimal import Decimal
@@ -48,6 +49,31 @@ class Floors(NamedTuple):
         return self.min_mb if category == "mem" else self.min_ms
 
 
+class LoadLimits(NamedTuple):
+    """--max-load and --max-gpu-busy: above either, a run was taken under
+    load (§ 4.10, S22)."""
+    max_load: Decimal = Decimal("0.25")
+    max_gpu_busy: Decimal = Decimal(20)
+
+    def under_load(self, header: dict) -> list[tuple[str, object, Decimal]]:
+        """Each peak above its limit, above and not at: (name, value, limit)."""
+        found = []
+        for field, limit in (("load", self.max_load), ("gpu_busy_pct", self.max_gpu_busy)):
+            peak = header.get(field, {}).get("peak")
+            if peak is not None and Decimal(repr(peak)) > limit:
+                found.append((f"{field}.peak", peak, limit))
+        return found
+
+
+DEFAULT_LIMITS = LoadLimits()
+
+# § 4.10's difference warnings: (code, field, key, the largest difference
+# allowed, whether that is a share of the old median).
+DIFFERS = (("load_differs", "load", "start", Decimal("0.1"), False),
+           ("gpu_busy_differs", "gpu_busy_pct", "start", Decimal(10), False),
+           ("gpu_clock_differs", "gpu_clock_mhz", "end", Decimal("0.05"), True))
+
+
 def unit_of(category: str) -> str:
     return "MB" if category == "mem" else "ms"
 
@@ -67,7 +93,8 @@ class Measure(NamedTuple):
     statistic: str  # "median" or "p99"
 
 
-def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors) -> dict:
+def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors,
+            limits: LoadLimits = DEFAULT_LIMITS) -> dict:
     """{"verdict", "reason", "summary", "warnings", "overrides", "unused",
     "result"} for two sets of runs that meet the format. `reason` says, in
     a clause, why the compare is refused or inconclusive, and is None
@@ -86,7 +113,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     summary = overrides_sentences(override_list)
     refused, unused = refusals(runs, overrides)
     notices = unused_override_notices(unused)
-    run_list = [run_entry(r) for r in runs]
+    run_list = [run_entry(r, limits) for r in runs]
     if refused:
         summary += [refusal_sentence(refused), *run_report.warning_sentences(notices)]
         return {"verdict": "error", "reason": refusal_reason(refused), "summary": summary,
@@ -94,13 +121,14 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
                 "unused": unused, "result": {"runs": run_list, "refused": refused}}
 
     incomplete = _incomplete_sentences(runs)
+    loaded = _load_sentences(runs, limits)
     notices += run_notices(runs) + _set_notices(runs)
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
-    summary += incomplete + run_report.warning_sentences(shown)
+    summary += incomplete + loaded + run_report.warning_sentences(shown)
 
     measures, unmatched = _judge_all(runs, floors)
     short = _short_kinds(runs)
-    verdict, sentences, reason = _verdict(incomplete, measures, short)
+    verdict, sentences, reason = _verdict(incomplete, loaded, measures, short)
     summary += sentences
     if short:  # straight after the verdict, which it explains (Vestige)
         kinds = ", ".join(run_report.kind_name(k) for k in short)
@@ -113,6 +141,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         "min_ms": float(floors.min_ms),
         "min_mb": float(floors.min_mb),
         "min_pct": float(floors.min_pct),
+        "max_load": float(limits.max_load),
+        "max_gpu_busy": float(limits.max_gpu_busy),
         "measures": measures,
         "unmatched": unmatched,
         "static_diff": _static_diff(runs),
@@ -123,11 +153,12 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
             "result": result}
 
 
-def run_entry(named: Named) -> dict:
+def run_entry(named: Named, limits: LoadLimits = DEFAULT_LIMITS) -> dict:
     header, close = named.run.header, named.run.close
     return {"name": named.name, "set": named.set, "path": named.path, "run_id": header["run_id"],
             "commit": header["commit"], "dirty": header["dirty"], "started_utc": header["started_utc"],
-            "rows_dropped": close["rows_dropped"] if close else None, "finished": close is not None}
+            "rows_dropped": close["rows_dropped"] if close else None, "finished": close is not None,
+            "under_load": [peak for peak, _, _ in limits.under_load(header)]}
 
 
 def overrides_sentences(overrides: list[dict]) -> list[str]:
@@ -232,6 +263,18 @@ def _incomplete_sentences(runs: list[Named]) -> list[str]:
     return sentences
 
 
+def _load_sentences(runs: list[Named], limits: LoadLimits) -> list[str]:
+    """A run taken under load cannot pass or fail a compare (S22): other
+    programs shared the machine while it ran."""
+    sentences = []
+    for r in runs:
+        peaks = limits.under_load(r.run.header)
+        if peaks:
+            listed = "; ".join(f"{name} {value}, above {limit}" for name, value, limit in peaks)
+            sentences.append(f"{r.name} was taken under load: {listed}.")
+    return sentences
+
+
 def run_notices(runs: list[Named]) -> list[ledger.Notice]:
     """Each run's own notices and § 4.9 warnings, opening with its name."""
     found = []
@@ -253,6 +296,25 @@ def _set_notices(runs: list[Named]) -> list[ledger.Notice]:
         if len(builds) > 1:
             found.append(ledger.Notice("mixed_build", f"the {label} runs differ in commit or dirty, so "
                                        "they may not be one build"))
+    return found + _differ_notices(runs)
+
+
+def _differ_notices(runs: list[Named]) -> list[ledger.Notice]:
+    """§ 4.10: the two sets' medians of a load or clock field differ by more
+    than its limit. Each needs the field in every run."""
+    found = []
+    for code, field, key, limit, relative in DIFFERS:
+        values = [r.run.header.get(field, {}).get(key) for r in runs]
+        if any(v is None for v in values):
+            continue
+        old, new = (statistics.median(Decimal(repr(v)) for r, v in zip(runs, values, strict=True)
+                                      if r.set == label)
+                    for label in ("old", "new"))
+        allowed = limit * old if relative else limit
+        if abs(new - old) > allowed:
+            shown = f"{(limit * 100).normalize()}% of the old" if relative else str(limit)
+            found.append(ledger.Notice(code, f"the old runs' median {field}.{key} is {old} and the new "
+                                       f"runs' is {new}, which differ by more than {shown}"))
     return found
 
 
@@ -396,7 +458,8 @@ def _short_kinds(runs: list[Named]) -> list[str | None]:
                   key=run_report.kind_order)
 
 
-def _verdict(incomplete: list[str], measures: list[dict], short: list) -> tuple[str, list[str], str | None]:
+def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict],
+             short: list) -> tuple[str, list[str], str | None]:
     """§ 4.10's verdict, first match wins, the sentences saying it, and why
     it is inconclusive, or None. ms and MB never rank against each other,
     so slower passes and larger memory each get a sentence."""
@@ -405,8 +468,9 @@ def _verdict(incomplete: list[str], measures: list[dict], short: list) -> tuple[
     noisy_walls = [m for m in measures if (m["category"], m["name"], m["statistic"]) ==
                    ("frame", "wall", "median") and m["verdict"] == "noisy"
                    and m["segment_kind"] not in short]
-    if incomplete:
-        reason = "a run is incomplete, so a change could be a missing frame"
+    if incomplete or loaded:
+        reason = ("a run is incomplete, so a change could be a missing frame" if incomplete else
+                  "a run was taken under load, so its times cannot be trusted; re-run on a quieter machine")
         return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
     if moved["slower"] or moved["larger"]:
         sentences = []
