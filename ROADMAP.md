@@ -601,7 +601,7 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0029] **A run helper alternates old and new builds, then compares.**
+- ✅ [FLED-0029] **A run helper alternates old and new builds, then compares.**
   Given the command that runs each build, it runs them in turn (old,
   new, old, new), at least three a side, and compares the files they
   wrote. It times nothing and writes no run file: the engine still
@@ -623,6 +623,8 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   order, --warmup default 0, failed run's file deleted). Built in
   51e1cd3 (src/frameledger/alternate.py, tests/test_alternate.py); gate
   green. Code sent to the three engines for review.
+  Shipped 2026-11-11 at 5318296: all three engines agreed the code after
+  three review rounds.
   **Layman:** One command runs the old and new versions of a game in turn and says which is faster.
   Kind: feature.
   Source: engine-answers-2026-11-10.
