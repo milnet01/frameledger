@@ -72,8 +72,10 @@ The spec lists the flags and exit codes:
 Each build needs at least three runs. Alternate them in one sitting:
 old, new, old, new. Three of one build then three of the other lets
 drift over time read as a change, and compare warns `not_interleaved`.
+Compare reads each run's start time from its file's `started_utc`
+header, so list each build's files together on the command line.
 
-For each measure, compare takes the middle of each build's run values,
+For each measure, compare takes each build's median across its runs,
 and judges the change against the spread. The spread is the larger of
 the two builds' ranges, highest run minus lowest. Here the new build's
 opaque pass got slower:
