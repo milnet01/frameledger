@@ -126,10 +126,14 @@ settles.
   Ants, UT Ants).
 - For FLED-0029: `alternate` runs old and new in turn and compares as
   § 4.10 (§ 4.15; all three engines); a placeholder gives each run its
-  own file (DOOM Ants, Vestige). *Proposed here:* the name
-  `alternate`; the placeholder `{run}`; five runs a side by default;
-  the platform shell; the engine's output on standard error; a failed
-  run stops the rest; no warm-up runs.
+  own file (DOOM Ants, Vestige). Reviewed by the three engines
+  2026-11-10, agreeing: the name `alternate`; the placeholder `{run}`;
+  five runs a side by default; the platform shell; the engine's output
+  on standard error; a failed run stops the rest. From the review:
+  pairs alternate which side goes first, so steady drift cancels (UT
+  Ants, Vestige); `--warmup` discards untimed runs, default 0 (UT Ants
+  and Vestige for, DOOM Ants not needing them); a failed run's file is
+  deleted (DOOM Ants).
 - For FLED-0030: a run may record peak CPU and GPU load; a compare
   using a run taken under load names it and is inconclusive, exit 2;
   the limits are set here and a flag changes them; two sides whose
@@ -552,7 +556,8 @@ or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`,
   names, never the path.
 - **Each set needs at least three runs**, or exit 3 (DOOM Ants). One
   run has no spread, and two give too many false changes (below).
-  Interleave them: old-1, new-1, old-2, new-2, ….
+  Interleave them as § 4.15 does: old-1, new-1, new-2, old-2, …, so a
+  steady drift cancels.
 - **A file that cannot be read, or breaks the format**, gives exit 3,
   as under `report`.
 
@@ -1283,7 +1288,7 @@ writes each run file; this command only starts the engine's command
 for each run, in turn, and then compares what they wrote.
 
 ```
-alternate --old CMD --new CMD --out DIR [--runs N] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
+alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
 ```
 
 The compare flags are § 4.10's, with its defaults and bounds.
@@ -1294,36 +1299,51 @@ runs a set and 35% at three, both at 2% noise.
 - **`{run}` is the placeholder.** Each `CMD` must hold it at least
   once, or exit 3. Before each run, every `{run}` in that side's
   command is replaced by the run's own file: `DIR/old-1.csv`,
-  `DIR/new-1.csv`, `DIR/old-2.csv`, …, as an absolute path. So no run
+  `DIR/new-1.csv`, `DIR/new-2.csv`, …, as an absolute path. So no run
   overwrites another (DOOM Ants, Vestige). The command writes its run
   file there, for example `--frame-log={run}`.
-- **The order is old-1, new-1, old-2, new-2, …**, each command
-  finishing before the next starts. So drift over time falls on both
-  sides alike.
+- **Runs go in pairs, each pair one run a side**: old first in odd
+  pairs, new first in even ones. So the order is old-1, new-1, new-2,
+  old-2, old-3, new-3, …, each command finishing before the next
+  starts. A steady drift over time then cancels over every two pairs;
+  in plain alternation each new run would come one step after its old
+  partner, and the drift would read as a change (UT Ants, Vestige).
+- **`--warmup W` runs W untimed runs a side first**, default 0, from 0
+  to 10, or exit 3. They alternate, old first: `old-warmup-1`,
+  `new-warmup-1`, …, each into its own file. They fail as any run does
+  and are never compared. One a side takes a cold cache's cost off
+  the first compared runs (UT Ants, Vestige).
 - **Each command runs through the platform's shell**: `/bin/sh` on
   Linux and macOS, `cmd.exe` on Windows, in the current directory. Its
   standard output and standard error go to this command's standard
   error, so `--json` output is never mixed with the engine's. Before
-  each run, one line on standard error names it: "alternate: running
-  new-2 (4 of 10)".
+  each run, one line on standard error names it, counting warm-ups:
+  "alternate: running new-2 (3 of 10)".
 - **`DIR` must exist, and its absolute path may hold only ASCII
   letters, digits, and `.` `_` `-` `/` `\` `:`**, or exit 3. So the
   filled path needs no quoting in either shell. A space is refused;
-  pick a folder without one.
-- **No run file is ever overwritten.** If any of the run files already
-  exists in `DIR`, exit 3 before any command starts, naming the file.
+  pick a folder without one. This limits `DIR` only; the rest of a
+  command may hold anything its shell accepts (UT Ants).
+- **No run file is ever overwritten.** If any of the run files,
+  warm-ups included, already exists in `DIR`, exit 3 before any
+  command starts, naming the file.
 - **Setup errors run nothing.** Every exit 3 above is found before the
   first command starts.
 
 **A run that fails stops the rest**, exit 3, verdict `error`, and
 nothing is compared. A run fails when its command exits with a code
-other than 0, or exits 0 and leaves no file at its path. Interrupting
-`alternate`, with Ctrl-C, say, stops it the same way; the shell passes
-the interrupt to the running command too. The run files already
-written stay, so a reader can compare them by hand. The first
-sentence after the overrides names the run, its filled command and
-the reason: "new-2 failed: the command exited with code 4.", or
-"new-2 failed: the command wrote no file at /…/new-2.csv."
+other than 0, or exits 0 and leaves no file at its path. Setup has
+already made sure no file was there before. Interrupting `alternate`,
+with Ctrl-C, say, stops it the same way; the shell passes the
+interrupt to the running command too. Once that command has ended,
+its file, if it left one, is deleted. So the run files left in `DIR`
+are exactly the runs in `stopped.finished`, and a reader can compare
+them by hand. To run again, give a new `DIR`, or remove its run files.
+
+The text then opens with § 4.10's overrides sentence, when
+`--override` is given, and next a sentence naming the run, its filled
+command and the reason: "new-2 failed: the command exited with code
+4.", or "new-2 failed: the command wrote no file at /…/new-2.csv."
 
 **Once every run has finished**, the files are compared as
 `compare --old DIR/old-1.csv … --new DIR/new-1.csv …` compares them,
@@ -1331,22 +1351,30 @@ the reason: "new-2 failed: the command exited with code 4.", or
 code, text and warnings. A file that breaks the format is § 4.10's
 exit 3.
 
-**Result.** § 4.10's result, with two keys added:
+**Result.** § 4.10's result, with three keys added. For a run of
+`--runs 3` stopped at new-2:
 
 ```json
 {
-  "commands": {"old", "new"},
-  "out",
-  "stopped": {"run", "command", "reason", "exit_code", "finished": []}
+  "commands": {"old": "./old/engine --frame-log={run}",
+               "new": "./new/engine --frame-log={run}"},
+  "out": "/home/me/ab",
+  "warmup": 0,
+  "stopped": {"run": "new-2",
+              "command": "./new/engine --frame-log=/home/me/ab/new-2.csv",
+              "reason": "the command exited with code 4",
+              "exit_code": 4,
+              "finished": ["old-1", "new-1"]}
 }
 ```
 
 `commands` holds the two commands as given, placeholder and all.
-`out` is `DIR` as an absolute path. `stopped` is null when every run
-finished. When a run failed, `command` is its filled command;
-`exit_code` is its command's code, or null when it wrote no file or
-was interrupted; `finished` names the runs before it, in the order
-they ran. The result then holds only `commands`, `out` and `stopped`.
+`out` is `DIR` as an absolute path. `warmup` is `--warmup`. `stopped`
+is null when every run finished. When a run failed, `command` is its
+filled command; `exit_code` is its command's code, or null when it
+wrote no file or was interrupted; `finished` names the runs before it,
+warm-ups included, in the order they ran. The result then holds only
+`commands`, `out`, `warmup` and `stopped`.
 
 ## 5. Invariants
 
@@ -2163,32 +2191,42 @@ breaks.
 - **INV-78** — Runs alternate, each into its own file, and are judged
   as `compare`. Fixture `alternate/fake_engine.py SIDE {run}` copies
   that side's run file to its last argument and appends `SIDE` to an
-  order log. With `--runs 3`, the log reads old, new, old, new, old,
+  order log. With `--runs 3`, the log reads old, new, new, old, old,
   new; `DIR` holds `old-1.csv` to `old-3.csv` and `new-1.csv` to
-  `new-3.csv`; and the result, without `commands`, `out` and
-  `stopped`, equals `compare --old` and `--new` over those files, with
-  the same exit.
+  `new-3.csv`; and the result, without `commands`, `out`, `warmup`
+  and `stopped`, equals `compare --old` and `--new` over those files,
+  with the same exit. With `--warmup 1` too, the log opens old, new
+  before the same six, `DIR` also holds `old-warmup-1.csv` and
+  `new-warmup-1.csv`, and the result still equals the compare of the
+  six.
   *Test:* `tests/test_alternate.py::test_alternates_and_compares`.
-  *Breaks when:* all old runs go first, two runs share a file, or the
+  *Breaks when:* all old runs go first, the order is plain
+  alternation, two runs share a file, a warm-up is compared, or the
   judging differs from `compare`'s. The order log alone isolates the
-  first; the file list alone, the second.
+  first two; the file list alone, the third.
 - **INV-79** — A setup error runs nothing. Each alone gives exit 3 with
   an empty order log: a command without `{run}`; `--runs 2`;
-  `--runs 101`; a `DIR` that does not exist; a `DIR` holding a space;
-  a `DIR` already holding `new-2.csv`, which is left byte for byte as
-  it was. Each case's fixture is otherwise INV-78's.
+  `--runs 101`; `--warmup 11`; a `DIR` that does not exist; a `DIR`
+  holding a space; a `DIR` already holding `new-2.csv`, which is left
+  byte for byte as it was; with `--warmup 1`, a `DIR` already holding
+  `new-warmup-1.csv`. Each case's fixture is otherwise INV-78's.
   *Test:* `tests/test_alternate.py::test_setup_errors_run_nothing`.
   *Breaks when:* any check runs after the first command, or an
   existing run file is overwritten.
-- **INV-80** — A failing run stops the rest. INV-78's fixture, with
-  new-2's command exiting 4: exit 3, the first sentence names new-2
-  and code 4, the order log ends at new-2, `stopped.finished` is
-  old-1, new-1, old-2, and their files remain. With new-2's command
-  exiting 0 and writing nothing, the reason names the missing path and
-  `exit_code` is null.
+- **INV-80** — A failing run stops the rest, and only finished runs'
+  files remain. INV-78's fixture, with new-2's command writing its
+  file and then exiting 4: exit 3, the first sentence names new-2 and
+  code 4, the order log ends at new-2, `stopped.finished` is old-1,
+  new-1, their files remain, and `new-2.csv` is gone. With new-2's
+  command exiting 0 and writing nothing, the reason names the missing
+  path and `exit_code` is null. On Linux, with new-2's command waiting
+  and the test sending SIGINT to `alternate`'s process group once the
+  log shows new-2: exit 3, `exit_code` null, `stopped.finished` old-1,
+  new-1, and no `new-2.csv`.
   *Test:* `tests/test_alternate.py::test_failed_run_stops`.
-  *Breaks when:* later runs start, the finished runs are compared, or
-  their files are removed.
+  *Breaks when:* later runs start, the finished runs are compared,
+  their files are removed, the failed run's file is kept, or an
+  interrupt is not a stop.
 - **INV-81** — The engine's output never reaches standard output. With
   INV-78's fixture also printing `engine says hi` on its standard
   output, `alternate --json` prints one JSON object and nothing else on
@@ -2303,7 +2341,8 @@ it on each release they pin.
 - Warnings on a single run's timing finer than `gpu_tick_ns`;
   `compare` only raises its floor to it (§ 4.10). Not yet queued.
 - Charts or HTML — deferred; not yet queued (discovery, *not yet*).
-- `alternate`'s discarded warm-up runs, a time limit per run, and
+- `alternate`'s prepare command (none of the three engines needs
+  one), a time limit per run (UT Ants: low priority), and
   `--by-scene`: not yet queued. Variants (S23) and baselines (S24)
   are their own items.
 - A `peak` in `report`'s or `floor`'s warnings: not yet queued. Only

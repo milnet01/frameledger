@@ -678,7 +678,7 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Kind: ux.
   Source: engine-answers-2026-11-10.
 
-- 💭 [FLED-0052] **The run helper can discard warm-up runs and run a prepare command.**
+- 🚫 [FLED-0052] **The run helper can discard warm-up runs and run a prepare command.**
   `alternate --warmup-runs N` runs and discards N runs a side first;
   `--prepare CMD` runs before each run, e.g. to clear a shader cache.
   The first run after a build pays for cold disk and shader caches,
@@ -687,6 +687,11 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   https://github.com/sharkdp/hyperfine
   Asked of the engines as question 6 of FLED-0029's review; folds into
   FLED-0029 if they want it, otherwise moves after 1.0.
+  2026-11-10, engines: warm-up yes (UT Ants, Vestige), no (DOOM Ants);
+  prepare command no from all three. Warm-up folded into FLED-0029 as
+  `--warmup`, default 0.
+  Dropped as its own item: its warm-up half is in FLED-0029; its prepare
+  half no engine needs.
   **Layman:** Before timing, the helper can throw away a first run and clear caches, so a cold start is not mistaken for a slowdown.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -751,7 +756,7 @@ to compare against, and the small fixes they filed.
   Kind: ux.
   Source: doom-ants-review-2026-11-04.
 
-- 💭 [FLED-0053] **compare names an outlier run and warns on a noisy run.**
+- 📋 [FLED-0053] **compare names an outlier run and warns on a noisy run.**
   compare's spread is the full range, so one bad run makes a measure
   `noisy`. Flag the run outside quartile fences, and warn when one run's
   own frame-to-frame scatter is high. A warning only; verdicts do not
@@ -760,6 +765,7 @@ to compare against, and the small fixes they filed.
   https://bheisler.github.io/criterion.rs/book/analysis.html
   https://pyperf.readthedocs.io/en/latest/cli.html
   Needs the engines' agreement and a spec amendment.
+  2026-11-10, engines: yes (DOOM Ants, Vestige), later (UT Ants).
   **Layman:** When one test run went oddly, frameledger says which one, so only that run needs redoing.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -770,11 +776,12 @@ to compare against, and the small fixes they filed.
   Chromium's bisect returned "need more data" and grew its sample:
   https://codereview.chromium.org/1702013004
   Needs FLED-0029, the engines' agreement and a spec amendment.
+  2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
   **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 💭 [FLED-0055] **The header records machine state, and compare warns when it differs.**
+- 📋 [FLED-0055] **The header records machine state, and compare warns when it differs.**
   Optional header fields: CPU governor, turbo on or off, on battery or
   mains, CPU clock, CPU and GPU temperature or throttling. compare warns
   when the two sides differ, as FLED-0030 does for load. A governor or
@@ -782,6 +789,9 @@ to compare against, and the small fixes they filed.
   https://pyperf.readthedocs.io/en/latest/system.html
   Same shape as FLED-0016. Needs the engines' agreement and a spec
   amendment.
+  2026-11-10, engines: yes from all three. DOOM Ants asks for the load
+  average; Vestige for governor and temperature; UT Ants for a warning
+  when sides differ (FLED-0030 adds load and clock ones).
   **Layman:** Each run notes things like CPU power mode and temperature, and frameledger warns when the two builds were tested under different conditions.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -794,6 +804,7 @@ to compare against, and the small fixes they filed.
   shader compiles hide below p99. Seen in MangoHud's summary:
   https://github.com/flightlessmango/MangoHud
   Needs the engines' agreement and a spec amendment.
+  2026-11-10, engines: later from all three.
   **Layman:** Shows how bad the rarest stutters are, not only the usual slow frames.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -805,6 +816,7 @@ to compare against, and the small fixes they filed.
   player's time. Seen in CapFrameX's metrics:
   https://www.capframex.com/blog/post/Explanation%20of%20different%20performance%20metrics
   Sits beside floor and budget. Needs the engines' agreement.
+  2026-11-10, engines: later from all three.
   **Layman:** Measures how much of the playing time felt slow, which counts long stutters fairly.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -814,6 +826,8 @@ to compare against, and the small fixes they filed.
   per segment kind. One number for judder that pacing (S14) and the
   worst-10 list do not give. A common practice; no authoritative
   source for the multiplier was found, so k is the engines' call.
+  2026-11-10, engines: yes (Vestige, for 3D_E-0795's frame-time gate),
+  later (DOOM Ants, UT Ants).
   **Layman:** Counts sudden stutters: frames much slower than the frames around them.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -848,23 +862,25 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: package.
   Source: engine-answers-2026-11-10.
 
-- 💭 [FLED-0059] **The PresentMon import keeps display and busy-time columns.**
+- 🚫 [FLED-0059] **The PresentMon import keeps display and busy-time columns.**
   Widens FLED-0036: bring over displayed time, frames never shown,
   the CPU-busy and GPU-busy split, and animation error, which PresentMon
   writes:
   https://github.com/GameTechDev/PresentMon/blob/main/README-ConsoleApplication.md
   What reached the screen is what judders; busy times give bound-by
   (S2) without passes.
+  2026-11-10, engines: no from all three (Linux; none uses PresentMon).
   **Layman:** When reading another tool's capture, keep what was actually shown on screen, not only when frames were sent.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 💭 [FLED-0060] **Import a MangoHud frame-time log.**
+- 🚫 [FLED-0060] **Import a MangoHud frame-time log.**
   MangoHud logs frame times to CSV:
   https://github.com/flightlessmango/MangoHud
   The exact columns are unverified; read a real log before specifying.
   Beside FLED-0036. Needs a discovery sign of success and the engines'
   agreement.
+  2026-11-10, engines: no from all three.
   **Layman:** Lets frameledger read logs from a popular Linux performance overlay, so games without frameledger's writer can use it.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -891,6 +907,7 @@ the source of truth; all three engines set that condition, 2026-11-10.
   MangoHud and Tracy's comparison mode do this. S26 covers one run
   only, so the engines must agree to widen S26 first; otherwise after
   1.0. Builds on FLED-0039.
+  2026-11-10, engines: later from all three.
   **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -1061,6 +1078,7 @@ After frameledger does what Vestige, UT Ants and DOOM Ants need (the owner, 2026
   Shown only, never deciding: at three runs a side, the smallest
   two-sided Mann-Whitney p is 0.1. The spread-and-floor rule (§ 4.10)
   stays the verdict.
+  2026-11-10, engines: later from all three, after 1.0 as planned.
   **Layman:** Adds a figure for how strongly the new build differs, alongside the existing verdict.
   Kind: feature.
   Source: competitor-research-2026-11-10.
