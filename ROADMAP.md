@@ -606,7 +606,7 @@ another's.
   Kind: ux.
   Source: doom-ants-review-2026-11-04.
 
-- 🚧 [FLED-0026] **The README shows what compare prints for an A/B of a few runs a side.**
+- ✅ [FLED-0026] **The README shows what compare prints for an A/B of a few runs a side.**
   DOOM Ants (FLED-0014 feedback) A/B-tested two features, 3 runs
   a side, with a private script taking per-pass medians. They did
   not try compare: nothing at the point of use said it does that.
@@ -622,6 +622,9 @@ another's.
   2026-11-09: review fixes 849f316 (DOOM Ants), 6aa87a1 (Vestige),
   06b61af (UT Ants), pushed. UT Ants agreed 06b61af; DOOM Ants agreed
   849f316. Waiting on Vestige and DOOM Ants to agree 06b61af.
+  Shipped 2026-11-10. Agreed by UT Ants (final text), Vestige and DOOM
+  Ants (06b61af, 2026-11-09). 0fc13c1 adds DOOM Ants' requested clause
+  on run order (started_utc) and Vestige's "median" wording.
   **Layman:** Show an example of the comparison report, so engines use it instead of writing their own scripts.
   Kind: doc.
   Source: doom-ants-feedback-2026-11-05.
