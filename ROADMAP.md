@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=27 -->
+<!-- ants-roadmap-id-high-water: FLED=51 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -287,15 +287,6 @@ engine faster, and which pass it changed.
   Source: design-2026-10-24.
   Blocked-by: FLED-0003.
 
-- 💭 [FLED-0016] **Warn on a sanitizer build.**
-  An optional header field `sanitizers` (an array of strings, such as
-  "address") and a `sanitizer_build` trust warning when it is not empty.
-  debug_build (FLED-0005) misses a Release build with ASan, which Vestige
-  never counts as a reading. Asked by Vestige in its FLED-0005 review.
-  **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
-  Kind: enhancement.
-  Source: vestige-review-2026-10-26.
-
 - ✅ [FLED-0017] **An app icon and a site logo.**
   The owner, relayed by the ants-projects-hub-website session
   (message 849): a square app icon kept in this repository, and a
@@ -563,49 +554,6 @@ another's.
   Source: design-2026-10-24.
   Blocked-by: FLED-0008, FLED-0012.
 
-- 📋 [FLED-0014] **Each engine finds and fixes a bottleneck with it.**
-  Vestige (3D_E-0786), UT Ants (UTA-0437) and DOOM Ants each write run
-  files, and each finds a bottleneck from a report and fixes it. UT
-  Ants' c80d41d/d9009b1 pair is a ready known-slowdown case. At least
-  one engine writes from the spec alone. Claims S1, and S7 in use.
-  Status 2026-11-05. DOOM Ants: writer is DOOM-0502 (shipped
-  2026-10-30, header pinned at v0.2.0); consumer is DOOM-0431 (bench
-  harness, parked). Used for per-pass A/Bs of two features, but read
-  with a private script, not compare (see FLED-0026). No bottleneck
-  found and fixed from a report yet. UT Ants: UTA-0437 not started;
-  the c80d41d/d9009b1 pair not yet run.
-  Vestige 2026-11-05: 3D_E-0786 shipped 2026-10-31 (--frame-log,
-  header v0.1.0). check and report used on a real run; no bottleneck
-  found and fixed yet; GPU contention has blocked interleaved run
-  sets. Its writer leaves `inputs` empty, so compare would refuse its
-  runs; Vestige is filing that on its own roadmap. No frameledger
-  finding.
-  **Layman:** The real test: each game finds something slow with this tool and fixes it.
-  Kind: investigate.
-  Source: design-2026-10-24.
-  Blocked-by: FLED-0007.
-
-- 💭 [FLED-0024] **A long warm-up is shown rounded, in exponent form.**
-  album-builder, 2026-11-04: floor --warmup-s 999999999 on
-  tests/fixtures/passing-run.csv says "follows the 1e+09 s warm-up",
-  which is the refused limit. run_report.floor and budgeting format the
-  warm-up with :g, six significant digits, so any warm-up of 1000000 s
-  or more prints rounded. No real run's warm-up is that long; showing
-  the value as given would fix it.
-  **Layman:** A warm-up of millions of seconds is printed as a rounded number like 1e+09 instead of as typed.
-  Kind: fix.
-  Source: album-builder-fact-check-2026-11-04.
-
-- 💭 [FLED-0025] **Survey's table drops the paths' shared directory.**
-  DOOM Ants, reviewing 3e7006b on 60+ real runs: with every file under
-  one long directory, the left-cut file column spends its width on the
-  shared prefix ("…OM_Ants/scratch/fled/g-12.csv"). Name the common
-  directory once above the table and show each path after it. Not
-  needed for 0.3.0.
-  **Layman:** When every file sits in one folder, the survey table would show each file's own name instead of the folder again and again.
-  Kind: ux.
-  Source: doom-ants-review-2026-11-04.
-
 - ✅ [FLED-0026] **The README shows what compare prints for an A/B of a few runs a side.**
   DOOM Ants (FLED-0014 feedback) A/B-tested two features, 3 runs
   a side, with a private script taking per-pass medians. They did
@@ -629,26 +577,341 @@ another's.
   Kind: doc.
   Source: doom-ants-feedback-2026-11-05.
 
+## 0.4.0 — A/B runs you can trust
+
+All three engines' first ask (2026-11-10): run old and new builds in
+
+turn, know when the machine was busy, and paste the result. Inputs:
+
+the engines' answers to the 0.4–1.0 draft, 2026-11-10.
+
+- 📋 [FLED-0028] **Discovery and design cover the 0.4–1.0 scope.**
+  Add signs of success for the run helper, load evidence, variants,
+  baselines, imports, the picture report and the stability promises;
+  move charts from "not yet" to optional; place each new module in
+  design.md's import order. Agreed by the three engines, as discovery
+  and design were. Every later item here claims one of the new signs.
+  **Layman:** Write down what the new features are for and how we will know they work, before building them.
+  Kind: doc.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0029] **A run helper alternates old and new builds, then compares.**
+  Given the command that runs each build, it runs them in turn (old,
+  new, old, new), at least three a side, and compares the files they
+  wrote. It times nothing and writes no run file: the engine still
+  does both. Asked first by all three engines: DOOM Ants writes the
+  order by hand in each A/B script; UT Ants saw one binary's median
+  move from 32.6 to 24.9 ms between back-to-back runs (UTA-0435);
+  Vestige would retire perf_gate.py with it and a baseline.
+  Needs a spec amendment to FLED-0001, reviewed by the engines.
+  **Layman:** One command runs the old and new versions of a game in turn and says which is faster.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+  Blocked-by: FLED-0028.
+
+- 📋 [FLED-0030] **compare acts on a busy machine.**
+  The header already has optional load, gpu_busy_pct and
+  gpu_clock_mhz, read at start and end only (spec § 4.2), and a
+  warning never changes a verdict (§ 4.9). Vestige's A/Bs failed
+  when other programs loaded the GPU mid-run, which a start sample
+  misses. Add an optional peak taken during the run; compare names
+  each run taken under load and gives inconclusive rather than a
+  verdict; it warns when the two sides' load or GPU clock differ.
+  Asked by Vestige (3D_E-0704, 0658, 0795) and UT Ants (UTA-0435).
+  Needs a spec amendment, reviewed by the engines.
+  **Layman:** The comparison notices when something else was using the computer during a test and says the result cannot be trusted.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+  Blocked-by: FLED-0028.
+
+- 📋 [FLED-0031] **compare can name its measures and show one row per run.**
+  A --measure filter keeps only the named passes, and a per-run
+  table gives each run's median of each kept measure on one row.
+  DOOM Ants' private ledp.py does exactly this; DOOM says compare
+  would replace it with both. compare already judges each pass by its
+  own spread (S16).
+  **Layman:** Lets you ask about just the parts of a frame you care about, with one line per test run.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0032] **Every command can print Markdown.**
+  A --markdown output, made from the same result as text and JSON,
+  ready to paste into a commit body, a roadmap note or a pull
+  request. Asked by DOOM Ants and Vestige, who copy numbers by hand.
+  **Layman:** Results come out ready to paste into notes and messages.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0033] **frameledger runs by name.**
+  The release ships a small launcher for Linux and Windows, and the
+  README says how to put it on PATH, so `frameledger report run.csv`
+  works. DOOM Ants keeps a private script partly because the command
+  is not on PATH.
+  **Layman:** You can type frameledger as a command instead of a long path.
+  Kind: ux.
+  Source: engine-answers-2026-11-10.
+
+## 0.5.0 — variants and baselines
+
+The engines' second asks: more than two builds at once, a saved set
+
+to compare against, and the small fixes they filed.
+
+- 📋 [FLED-0034] **compare judges named variants against one base.**
+  More than two sets at once: the full frame against each effect
+  switched off, each variant judged against the base as compare
+  judges new against old. UT Ants' UTA-0436, the cost of each effect
+  per map. compare --by-scene groups by scene, not variant, so it
+  does not cover this.
+  **Layman:** Compare many versions at once, such as the game with each effect turned off in turn.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0035] **A saved baseline to compare against.**
+  A file naming a set of runs taken as the reference, which compare
+  and the run helper take in place of --old. The analyser keeps no
+  state: the engine keeps the file. Vestige needs it, with the run
+  helper, to retire perf_gate.py.
+  **Layman:** Keep a known-good set of test runs and check every new version against it.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0016] **Warn on a sanitizer build.**
+  An optional header field `sanitizers` (an array of strings, such as
+  "address") and a `sanitizer_build` trust warning when it is not empty.
+  debug_build (FLED-0005) misses a Release build with ASan, which Vestige
+  never counts as a reading. Asked by Vestige in its FLED-0005 review.
+  2026-11-10: planned for 0.5.0. Vestige still wants it; DOOM Ants says
+  it can wait.
+  **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
+  Kind: enhancement.
+  Source: vestige-review-2026-10-26.
+
+- 📋 [FLED-0024] **A long warm-up is shown rounded, in exponent form.**
+  album-builder, 2026-11-04: floor --warmup-s 999999999 on
+  tests/fixtures/passing-run.csv says "follows the 1e+09 s warm-up",
+  which is the refused limit. run_report.floor and budgeting format the
+  warm-up with :g, six significant digits, so any warm-up of 1000000 s
+  or more prints rounded. No real run's warm-up is that long; showing
+  the value as given would fix it.
+  2026-11-10: planned for 0.5.0, a small fix kept out of 0.4.0's A/B
+  work.
+  **Layman:** A warm-up of millions of seconds is printed as a rounded number like 1e+09 instead of as typed.
+  Kind: fix.
+  Source: album-builder-fact-check-2026-11-04.
+
+- 📋 [FLED-0025] **Survey's table drops the paths' shared directory.**
+  DOOM Ants, reviewing 3e7006b on 60+ real runs: with every file under
+  one long directory, the left-cut file column spends its width on the
+  shared prefix ("…OM_Ants/scratch/fled/g-12.csv"). Name the common
+  directory once above the table and show each path after it. Not
+  needed for 0.3.0.
+  2026-11-10: planned for 0.5.0. DOOM Ants, who asked, says it can wait.
+  **Layman:** When every file sits in one folder, the survey table would show each file's own name instead of the folder again and again.
+  Kind: ux.
+  Source: doom-ants-review-2026-11-04.
+
+## 0.6.0 — other people's data
+
+The first steps beyond the three engines: an engine with no writer
+
+can still use the analyser, and a stranger's writer can prove itself.
+
+- 📋 [FLED-0036] **Import a PresentMon capture.**
+  Turn a PresentMon CSV into a run that report, floor and survey
+  accept, so an engine with no writer gets frame times and pacing.
+  It has no passes, so pass reports say so. None of the three
+  engines need it; it serves engines beyond them.
+  **Layman:** Use frameledger with a free, widely used frame-timing tool, without changing your game.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0037] **A kit proves a stranger's writer.**
+  Sample engine output and the files it must produce, and a strict
+  check that also flags what is legal but unwise, so someone writing
+  the format from the spec alone can show their writer is right (S7).
+  **Layman:** A set of tests anyone can run to prove their game writes the file correctly.
+  Kind: test.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0038] **Runs and is tested on macOS.**
+  The analyser and the writer header are built and tested on macOS in
+  CI, alongside Linux and Windows (S11).
+  **Layman:** Works on Apple computers too.
+  Kind: package.
+  Source: engine-answers-2026-11-10.
+
+## 0.7.0 — seen, not only read
+
+An optional picture of a run. The text report stays the default and
+
+the source of truth; all three engines set that condition, 2026-11-10.
+
+- 📋 [FLED-0039] **An optional picture report.**
+  report --html writes one self-contained page with a frame-time
+  graph and the worst frames marked, drawn as SVG with the standard
+  library alone. Large text; no meaning carried by colour alone; the
+  plain sentences come first, as in text. Text stays the default.
+  Agreed by all three engines on those conditions.
+  **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+## 0.8.0 — stable promises (beta)
+
+What a stranger can rely on not to change under them: the file
+
+format, the JSON output and the commands.
+
+- 📋 [FLED-0040] **The run-file format is promised stable.**
+  Format spec 1.0: what may change in a later schema version and
+  what never will, and how long older versions keep analysing (S6).
+  **Layman:** A promise that files written today will still be read by future versions.
+  Kind: doc.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0041] **A published schema for every --json result.**
+  A JSON Schema per command, shipped in the release and checked by
+  the tests against every command's output, so scripts can rely on it.
+  **Layman:** Programs that read frameledger's results get a fixed description of them.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0042] **A support and deprecation policy.**
+  How a flag or field is retired (warned for a release first), which
+  Python versions and systems are supported, and for how long.
+  **Layman:** Says how long features and systems are supported and how changes are announced.
+  Kind: doc.
+  Source: engine-answers-2026-11-10.
+
+## 0.9.0 — ready for strangers (release candidate)
+
+Someone who has never seen the three engines can install
+
+frameledger, wire it into their engine and get help.
+
+- 📋 [FLED-0043] **Install with pip or pipx.**
+  A frameledger package on PyPI with a `frameledger` command,
+  still standard library only. The release zip stays for engines that
+  pin a hash.
+  **Layman:** Install it with one standard command.
+  Kind: package.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0044] **A user guide and a quick start.**
+  From nothing to a first report: write the file (by hand, with the
+  header, or by import), run each command, read its answer. Worked
+  examples for C and C++. Checked by running every step
+  (verify-instructions).
+  **Layman:** A guide that takes a newcomer from nothing to their first report.
+  Kind: doc.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0045] **Contributing and support files.**
+  CONTRIBUTING, issue and pull request templates, a code of conduct,
+  and where to ask for help.
+  **Layman:** Tells outsiders how to report problems and help out.
+  Kind: doc.
+  Source: engine-answers-2026-11-10.
+
+## 1.0.0 — fully working
+
+Every sign in docs/discovery.md met, measured and reviewed.
+
+- 📋 [FLED-0046] **A million-row survey finishes in under a minute.**
+  Measure S19 on the owner's machine and keep a benchmark in the
+  gate so it stays true.
+  **Layman:** Checking a very large batch of test runs takes less than a minute.
+  Kind: perf.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0047] **The reader is fuzzed with broken files.**
+  Random and mangled run files, generated with the standard library,
+  never crash the reader: each gives a format breach or LedgerError.
+  **Layman:** Feed the tool thousands of broken files to make sure none of them crash it.
+  Kind: test.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0048] **Full code, test, security and README reviews before 1.0.**
+  review-code, review-tests, review-readability and review-readme
+  over the whole project, with every finding closed or recorded.
+  **Layman:** A full independent check of the whole tool before calling it finished.
+  Kind: audit-fix.
+  Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0014] **Each engine finds and fixes a bottleneck with it.**
+  Vestige (3D_E-0786), UT Ants (UTA-0437) and DOOM Ants each write run
+  files, and each finds a bottleneck from a report and fixes it. UT
+  Ants' c80d41d/d9009b1 pair is a ready known-slowdown case. At least
+  one engine writes from the spec alone. Claims S1, and S7 in use.
+  Status 2026-11-05. DOOM Ants: writer is DOOM-0502 (shipped
+  2026-10-30, header pinned at v0.2.0); consumer is DOOM-0431 (bench
+  harness, parked). Used for per-pass A/Bs of two features, but read
+  with a private script, not compare (see FLED-0026). No bottleneck
+  found and fixed from a report yet. UT Ants: UTA-0437 not started;
+  the c80d41d/d9009b1 pair not yet run.
+  Vestige 2026-11-05: 3D_E-0786 shipped 2026-10-31 (--frame-log,
+  header v0.1.0). check and report used on a real run; no bottleneck
+  found and fixed yet; GPU contention has blocked interleaved run
+  sets. Its writer leaves `inputs` empty, so compare would refuse its
+  runs; Vestige is filing that on its own roadmap. No frameledger
+  finding.
+  2026-11-10: moved from 0.3.0 to 1.0.0. It waits on the engines' use,
+  not on code, so it gates 1.0 rather than 0.3.0. Engines' status:
+  nothing in frameledger blocks any of them. Vestige is blocked by
+  other GPU users (FLED-0030); UT Ants' writer UTA-0437 sits in its
+  own 1.0.0; DOOM Ants uses it with a private script (FLED-0031).
+  **Layman:** The real test: each game finds something slow with this tool and fixes it.
+  Kind: investigate.
+  Source: design-2026-10-24.
+  Blocked-by: FLED-0007.
+
+- 📋 [FLED-0015] **A version anyone can use.**
+  Offer frameledger to engines other than the three it serves. Not
+  started before the three engines' requirements are met. What "anyone
+  can use" needs (install, documentation, a stable format promise,
+  support) is to be decided then.
+  2026-11-10: planned for 1.0. The engines' answers and the owner's request
+  split it into the 0.6.0 to 0.9.0 items; it is met when they ship
+  and a stranger's engine is analysed (S7).
+  **Layman:** A version of frameledger that any game developer can pick up and use, not only our three engines.
+  Kind: feature.
+  Source: user-request-2026-10-24.
+  Blocked-by: FLED-0014, FLED-0036, FLED-0037, FLED-0038, FLED-0040, FLED-0041, FLED-0042, FLED-0043, FLED-0044, FLED-0045.
+
+## After 1.0 — plugins and more
+
+After frameledger does what Vestige, UT Ants and DOOM Ants need (the owner, 2026-10-24: build it for our own requirements first).
+
+- 💭 [FLED-0049] **Plugins for importers and report sections.**
+  Let an engine add its own importer or report section without
+  changing frameledger. Decided after 1.0, from what users ask for.
+  **Layman:** Others can add their own features without changing frameledger itself.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 💭 [FLED-0050] **Writers for more languages.**
+  Rust, C# and others, each built from the spec and proved with the
+  writer kit. Decided after 1.0, from who asks.
+  **Layman:** Ready-made writers for games built in other programming languages.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 💭 [FLED-0051] **Trends across many commits.**
+  Show how a measure moved across a range of commits, from runs the
+  engine keeps. The analyser stays stateless.
+  **Layman:** See how a game's speed changed over many versions.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
 - 💭 [FLED-0027] **compare can judge an ext row's frame-to-frame jump at p99.**
   DOOM Ants logs ext.doom/view_lag per frame (camera time minus
   clock, in tics). It needs the p99 of its frame-to-frame change, not
   its median, so it wrote a private script. compare judges no ext rows
   (spec § 4.10). Considered until a second engine asks or DOOM Ants
   says it blocks real work.
+  2026-11-10: moved after 1.0. DOOM Ants says it does not block it; UT
+  Ants writes no ext rows; still considered.
   **Layman:** Let the comparison check how much an engine's own measurement jumps between frames, not only its typical value.
   Kind: feature.
   Source: doom-ants-feedback-2026-11-09.
-
-## Later — for anyone
-
-After frameledger does what Vestige, UT Ants and DOOM Ants need (the owner, 2026-10-24: build it for our own requirements first).
-
-- 💭 [FLED-0015] **A version anyone can use.**
-  Offer frameledger to engines other than the three it serves. Not
-  started before the three engines' requirements are met. What "anyone
-  can use" needs (install, documentation, a stable format promise,
-  support) is to be decided then.
-  **Layman:** A version of frameledger that any game developer can pick up and use, not only our three engines.
-  Kind: feature.
-  Source: user-request-2026-10-24.
-  Blocked-by: FLED-0014.
