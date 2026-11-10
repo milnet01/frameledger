@@ -469,6 +469,9 @@ def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict],
                    ("frame", "wall", "median") and m["verdict"] == "noisy"
                    and m["segment_kind"] not in short]
     if incomplete or loaded:
+        # One reason only; the sentences before this name every run of
+        # both kinds. Incomplete comes first because a missing frame
+        # explains a change more directly than load does (UT Ants).
         reason = ("a run is incomplete, so a change could be a missing frame" if incomplete else
                   "a run was taken under load, so its times cannot be trusted; re-run on a quieter machine")
         return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
