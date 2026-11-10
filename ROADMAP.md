@@ -624,7 +624,7 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Source: engine-answers-2026-11-10.
   Blocked-by: FLED-0028.
 
-- 📋 [FLED-0030] **compare acts on a busy machine.**
+- 🚧 [FLED-0030] **compare acts on a busy machine.**
   The header already has optional load, gpu_busy_pct and
   gpu_clock_mhz, read at start and end only (spec § 4.2), and a
   warning never changes a verdict (§ 4.9). Vestige's A/Bs failed
@@ -640,6 +640,12 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   exits 2. DOOM Ants needs the flag: its machine is shared with other
   sessions, so defaults could mark many runs inconclusive. UT Ants and
   Vestige review the numbers in this item's spec amendment.
+  2026-11-10: spec amendment drafted in
+  docs/specs/FLED-0001-run-file-format.md (§ 4.2 `peak`, § 4.10 under
+  load and the three differ warnings) with INV-82 to INV-84; sent to the
+  three engines for review before building. A peak counts other programs
+  only: a game keeps the GPU busy, so a peak counting the run would mark
+  every run.
   **Layman:** The comparison notices when something else was using the computer during a test and says the result cannot be trusted.
   Kind: feature.
   Source: engine-answers-2026-11-10.

@@ -130,6 +130,14 @@ settles.
   `alternate`; the placeholder `{run}`; five runs a side by default;
   the platform shell; the engine's output on standard error; a failed
   run stops the rest; no warm-up runs.
+- For FLED-0030: a run may record peak CPU and GPU load; a compare
+  using a run taken under load names it and is inconclusive, exit 2;
+  the limits are set here and a flag changes them; two sides whose
+  load or GPU clock differ are warned of (S22; Vestige, UT Ants, DOOM
+  Ants). *Proposed here:* a peak counts other programs only, not the
+  run's own work; `--max-load 0.25` and `--max-gpu-busy 20`; a `start`
+  never makes a run under load; the difference limits 0.1, 10 points
+  and 5%; the clock compared at `end`; `report` and `floor` unchanged.
 
 ## 4. Design
 
@@ -184,8 +192,9 @@ before its first recorded frame), `settled_frames` (integer: the
 fewest untimed frames the run drew before any segment's first recorded
 frame), `pinned` (object: clocks the run froze),
 `gpu_tick_ns` (number), `load` (`{"start": n, "end": n}`, CPU load
-as a share of the machine: 0 idle, 1 every logical CPU busy),
-`gpu_busy_pct` (`{"start": n, "end": n}`), `gpu_clock_mhz`
+as a share of the machine: 0 idle, 1 every logical CPU busy; `peak`
+optional), `gpu_busy_pct` (`{"start": n, "end": n}`, `peak`
+optional), `gpu_clock_mhz`
 (`{"start": n, "end": n}`), `os` (string), `extra` (object, the
 engine's own).
 
@@ -197,6 +206,16 @@ sample jumps. On Linux, `load` is the one-minute load average divided
 by the logical CPU count. It lags, so it is a coarse signal; it counts
 tasks waiting on disk; and it can exceed 1, which is legal. On Windows
 it is the CPU-busy share at that moment.
+
+A `peak` is the highest share **other programs** used during the run,
+from its first frame to its last (S22). The run's own work is left
+out: a game keeps the GPU near 100% busy, so a peak that counted it
+would mark every run. `load.peak` is the CPU-busy share of every
+program but the run, over a sample of about one second, so it is never
+above 1. `gpu_busy_pct.peak` is the GPU-busy percent of every program
+but the run, over the same sample. How to sample is the writer's
+choice. A writer that cannot leave its own work out gives no `peak`:
+absent means unknown, and § 4.10 then judges the run as before.
 
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
 `ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`,
@@ -517,15 +536,16 @@ FLED-0008 builds this (S4, S5's refusal half, S16). Reviewed by the
 three engines 2026-10-26; their changes are folded in.
 
 ```
-compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
+compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
 ```
 
 `--by-scene` judges each scene apart, § 4.14. Without it, this
 section holds.
 
 Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
-or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`.
-Each is 0 or more and below 1000000000, or exit 3 (FLED-0023).
+or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`,
+`--max-load 0.25`, `--max-gpu-busy 20`. Each is 0 or more and below
+1000000000, or exit 3 (FLED-0023).
 
 - **Runs are named by set and order**: `old-1`, `old-2`, … and
   `new-1`, …, in the order given. Warnings and sentences use these
@@ -553,6 +573,14 @@ the overrides sentence, when there is one.
   else the compare says.
 - **An override for a field that does not differ** gives the warning
   `override_unused`, and is still named.
+
+**Taken under load** (S22). A run is taken under load when its
+`load.peak` is above `--max-load`, or its `gpu_busy_pct.peak` is above
+`--max-gpu-busy`. Other programs then shared the machine during the
+run, so its times cannot be trusted. The defaults: a quarter of the
+CPU, and § 4.9's `gpu_load` limit for the GPU. A shared machine may
+need higher limits (DOOM Ants). A `start` never makes a run under load;
+it stays § 4.9's warning.
 
 **Measures.** Each run gives one value per measure and segment kind
 (§ 4.8's segment kind):
@@ -628,8 +656,10 @@ weighs one `slower` among them.
 **The command's verdict**, first match wins:
 
 1. `inconclusive` (exit 2) when any run has dropped rows or no close
-   line, whatever the measures say (design: "nor a compare that uses
-   them"). The first sentences name each such run and its drop count.
+   line, or was taken under load, whatever the measures say (design:
+   "nor a compare that uses them"). The first sentences name each such
+   run with its drop count, or with each peak above its limit:
+   "new-2 was taken under load: load.peak 0.41, above 0.25."
 2. `fail` (exit 1) when any measure is `slower` or `larger`.
 3. `inconclusive` (exit 2) when the `frame/wall` median is `noisy` in
    any segment kind with at least 100 frames with a `frame/wall` in
@@ -649,6 +679,19 @@ weighs one `slower` among them.
   before every run of the other, so drift over time reads as a change.
 - `mixed_build` — a set's runs differ in `commit` or `dirty`.
 - `override_unused`, above.
+- `load_differs` — the two sets' medians of `load.start` differ by more
+  than 0.1.
+- `gpu_busy_differs` — the two sets' medians of `gpu_busy_pct.start`
+  differ by more than 10.
+- `gpu_clock_differs` — the two sets' medians of `gpu_clock_mhz.end`
+  differ by more than 5% of the old one. `end`, because a `start`
+  is often the idle clock; the clock after the run's last frame shows
+  the boost or throttling it ran at.
+
+Each of the last three needs its field in every run; a run without it
+gives none. Each message gives both medians and the limit. So two
+sides measured on differently loaded or clocked machines are named,
+even when no run was under load.
 
 **Static-line diff** (UT Ants). The static line is flattened to dotted
 keys (`pipelines.opaque.vs_invocations`); an array is one value. Each
@@ -657,8 +700,8 @@ run's value, exactly as written; absent is null. The text prints the
 first 20 and counts the rest.
 
 **Opening sentences**, in order: one sentence naming every override
-and its reason; a refusal; each run's dropped rows or missing close
-line; one per kind of warning; the verdict sentence, naming the slower
+and its reason; a refusal; each run's dropped rows, missing close
+line or load; one per kind of warning; the verdict sentence, naming the slower
 measure with the largest change in milliseconds, ties by percent (or
 why it is inconclusive); the `larger` `mem` measure with the largest
 change in MB, ties by percent, which is the verdict sentence when no
@@ -674,8 +717,8 @@ static diff.
 ```json
 {
   "runs": [{"name", "set", "path", "run_id", "commit", "dirty", "started_utc",
-            "rows_dropped", "finished"}],
-  "min_ms", "min_mb", "min_pct",
+            "rows_dropped", "finished", "under_load"}],
+  "min_ms", "min_mb", "min_pct", "max_load", "max_gpu_busy",
   "measures": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                 "old": [], "new": [], "old_centre", "new_centre",
                 "change", "change_pct", "spread", "floor", "verdict"}],
@@ -686,6 +729,8 @@ static diff.
 }
 ```
 
+`under_load` lists each peak above its limit, `load.peak` and then
+`gpu_busy_pct.peak`, and is empty for a run not under load.
 `statistic` is `median` or `p99`; `unit` is `ms` or `MB`, as under
 § 4.11; `old` and `new` list the runs' values in run order; `change_pct` is the change over the old centre,
 in percent to two places, or null when the old centre is 0; `values`
@@ -1140,7 +1185,7 @@ FLED-0013 builds this (S15). The design was agreed with the three
 engines 2026-11-04.
 
 ```
-compare --by-scene --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
+compare --by-scene --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
 ```
 
 The flags are § 4.10's, with its defaults and bounds.
@@ -1238,7 +1283,7 @@ writes each run file; this command only starts the engine's command
 for each run, in turn, and then compares what they wrote.
 
 ```
-alternate --old CMD --new CMD --out DIR [--runs N] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P]
+alternate --old CMD --new CMD --out DIR [--runs N] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
 ```
 
 The compare flags are § 4.10's, with its defaults and bounds.
@@ -2150,6 +2195,38 @@ breaks.
   standard output, and `engine says hi` appears on standard error.
   *Test:* `tests/test_alternate.py::test_engine_output_to_stderr`.
   *Breaks when:* the command inherits standard output.
+- **INV-82** — A `peak` is a number. A header whose `load` is
+  `{"start": 0.1, "end": 0.2, "peak": 0.3}` passes `check`; with
+  `"peak": "high"` it is a breach naming `load`, and likewise for
+  `gpu_busy_pct`.
+  *Test:* `tests/test_compare_load.py::test_peak_is_a_number`.
+  *Breaks when:* a peak that is not a number passes, or a numeric one
+  is refused. Only the `peak` key differs between the two headers.
+- **INV-83** — A run taken under load makes a compare inconclusive.
+  Fixture: three old and three new runs, the new `frame/wall` median
+  2 ms slower in every run, so the compare alone fails, exit 1. Each
+  case changes only new-2's header. `load.peak` 0.30: exit 2, the
+  first sentence names new-2 and `load.peak`, and new-2's
+  `under_load` is `["load.peak"]`. `load.peak` 0.25: exit 1. 0.30
+  with `--max-load 0.5`: exit 1. `gpu_busy_pct.peak` 21: exit 2,
+  `under_load` `["gpu_busy_pct.peak"]`. `load.start` 0.9 and no peak:
+  exit 1. `--max-load -1` gives exit 3.
+  *Test:* `tests/test_compare_load.py::test_under_load_inconclusive`.
+  *Breaks when:* a peak at or below its limit, or a `start`, makes the
+  run under load; the flag is ignored; or a slower measure wins over
+  the load. The fixture fails without the load, so only this rule can
+  turn exit 1 into 2.
+- **INV-84** — Sides measured under different load or GPU clock are
+  warned of, and the verdict is unchanged. Fixture: three old and
+  three new runs with equal times, exit 0, no peaks. Old `load.start`
+  0.05 in each: new 0.20 gives `load_differs`, new 0.15 gives none.
+  Old `gpu_busy_pct.start` 2: new 13 gives `gpu_busy_differs`, 12
+  none. Old `gpu_clock_mhz.end` 2000: new 1880 gives
+  `gpu_clock_differs`, 1900 none; with new-1 lacking `gpu_clock_mhz`,
+  none. Every case exits 0.
+  *Test:* `tests/test_compare_load.py::test_side_differs_warnings`.
+  *Breaks when:* a limit is crossed at or below it, a run lacking the
+  field still warns, or a warning changes the exit.
 
 ## 6. Failure modes
 
@@ -2191,6 +2268,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0012: INV-69 to INV-72.
 - FLED-0013: INV-73 to INV-77.
 - FLED-0029: INV-78 to INV-81.
+- FLED-0030: INV-82 to INV-84.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -2228,6 +2306,8 @@ it on each release they pin.
 - `alternate`'s discarded warm-up runs, a time limit per run, and
   `--by-scene`: not yet queued. Variants (S23) and baselines (S24)
   are their own items.
+- A `peak` in `report`'s or `floor`'s warnings: not yet queued. Only
+  a compare acts on it (FLED-0030).
 
 ## 10. What checks this
 
@@ -2314,6 +2394,9 @@ it on each release they pin.
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
 | INV-80 | `tests/test_alternate.py::test_failed_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
+| INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
+| INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive` |
+| INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
