@@ -5,12 +5,15 @@ copies SOURCE, a run file, to RUN. FAKE_ENGINE=NAME=MODE changes what the
 run named NAME (new-2, say) does instead:
   exit4   writes its file, then exits 4;
   nofile  writes nothing and exits 0;
-  wait    sleeps until it is interrupted.
+  wait    writes its file and its process id (to LOG.pid), then sleeps
+          until it is stopped;
+  killself  kills itself with SIGKILL.
 FAKE_ENGINE_SAY=1 makes every run print "engine says hi" on standard output.
 """
 
 import os
 import shutil
+import signal
 import sys
 import time
 
@@ -22,8 +25,12 @@ if os.environ.get("FAKE_ENGINE_SAY"):
     print("engine says hi", flush=True)
 target, _, mode = os.environ.get("FAKE_ENGINE", "").partition("=")
 mode = mode if target == name else ""
-if mode == "wait":
-    time.sleep(60)
+if mode == "killself":
+    os.kill(os.getpid(), signal.SIGKILL)
 if mode != "nofile":
     shutil.copyfile(source, run)
+if mode == "wait":
+    with open(log + ".pid", "w", encoding="utf-8") as pid:
+        pid.write(str(os.getpid()))
+    time.sleep(60)
 sys.exit(4 if mode == "exit4" else 0)

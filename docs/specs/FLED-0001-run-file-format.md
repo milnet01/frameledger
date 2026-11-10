@@ -1354,19 +1354,34 @@ runs a set and 35% at three, both at 2% noise.
 
 **A run that fails stops the rest**, exit 3, verdict `error`, and
 nothing is compared. A run fails when its command exits with a code
-other than 0, or exits 0 and leaves no file at its path. Setup has
-already made sure no file was there before. Interrupting `alternate`,
-with Ctrl-C, say, stops it the same way; the shell passes the
-interrupt to the running command too. Once that command has ended,
-its file, if it left one, is deleted. So the run files left in `DIR`
-are exactly the runs in `stopped.finished`, and a reader can compare
-them by hand. To run again, give a new `DIR`, or remove its run files.
+other than 0, is killed by a signal, or exits 0 and leaves no file at
+its path. Setup has already made sure no file was there before.
+Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
+`timeout`, a service manager) fails the running command the same way
+(DOOM Ants).
+
+- **On Linux and macOS each command runs in its own process group**, so
+  a stop reaches every process it started, the engine behind a wrapper
+  script or a `cd … &&` included. `alternate` passes the stop signal
+  on to that group, since the terminal's Ctrl-C reaches only
+  `alternate`'s own. On Windows the console's Ctrl-C reaches the
+  command itself, and a SIGTERM kills it.
+- **A failed command's processes are ended before its file is
+  deleted.** Any left are sent SIGTERM, or the stop signal, and given
+  10 seconds; then they are killed. A second stop signal kills them at
+  once. So nothing writes the file after it is deleted.
+- **Then its file, if it left one, is deleted**; a directory there is
+  left alone. So the run files left in `DIR` are exactly the runs in
+  `stopped.finished`, and a reader can compare them by hand. To run
+  again, give a new `DIR`, or remove its run files.
 
 The text then opens with § 4.10's overrides sentence, when
 `--override` is given; next a sentence naming the run and the reason,
-"new-2 failed: the command exited with code 4.", or "new-2 failed: the
-command wrote no file at /…/new-2.csv."; then its filled command, "Its
-command was: …".
+"new-2 failed: the command exited with code 4.", "new-2 failed: the
+command was killed by signal 11 (SIGSEGV).", "new-2 failed: alternate
+was stopped by SIGTERM while it ran." or "new-2 failed: the command
+wrote no file at /…/new-2.csv."; then its filled command, "Its command
+was: …".
 
 **Once every run has finished**, the files are compared as
 `compare --old DIR/old-1.csv … --new DIR/new-1.csv …` compares them,
@@ -1395,7 +1410,7 @@ exit 3.
 `out` is `DIR` as an absolute path. `warmup` is `--warmup`. `stopped`
 is null when every run finished. When a run failed, `command` is its
 filled command; `exit_code` is its command's code, or null when it
-wrote no file or was interrupted; `finished` names the runs before it,
+wrote no file, was killed by a signal or was stopped; `finished` names the runs before it,
 warm-ups included, in the order they ran. The result then holds only
 `commands`, `out`, `warmup` and `stopped`.
 
@@ -2242,15 +2257,23 @@ breaks.
   code 4, the order log ends at new-2, `stopped.finished` is old-1,
   new-1, their files remain, and `new-2.csv` is gone. With new-2's
   command exiting 0 and writing nothing, the reason names the missing
-  path and `exit_code` is null. On Linux, with new-2's command waiting
-  and the test sending SIGINT to `alternate`'s process group once the
-  log shows new-2: exit 3, `exit_code` null, `stopped.finished` old-1,
-  new-1, and no `new-2.csv`.
-  *Test:* `tests/test_alternate.py::test_failed_run_stops`, and
-  `tests/test_alternate.py::test_interrupted_run_stops` for SIGINT.
+  path and `exit_code` is null. With `exec` before the command and
+  new-2's engine killing itself with SIGKILL, the reason is "the
+  command was killed by signal 9 (SIGKILL)" and `exit_code` is null.
+  On Linux, with new-2's command `cd . && …` writing its file and
+  then waiting: SIGINT to `alternate`'s whole process group, SIGINT to
+  `alternate` alone, and SIGTERM to `alternate` alone each give exit
+  3, `exit_code` null, the signal named in the reason,
+  `stopped.finished` old-1, new-1, no `new-2.csv`, and the engine's
+  process ended.
+  *Test:* `tests/test_alternate.py::test_failed_run_stops`,
+  `tests/test_alternate.py::test_killed_command_names_its_signal`, and
+  `tests/test_alternate.py::test_interrupted_run_stops`.
   *Breaks when:* later runs start, the finished runs are compared,
-  their files are removed, the failed run's file is kept, or an
-  interrupt is not a stop.
+  their files are removed, the failed run's file is kept, a stop
+  signal is not a stop, or the engine behind the shell outlives it.
+  The compound command keeps the shell between `alternate` and the
+  engine, so only a stop reaching the whole group ends the engine.
 - **INV-81** — The engine's output never reaches standard output. With
   INV-78's fixture also printing `engine says hi` on its standard
   output, `alternate --json` prints one JSON object and nothing else on
@@ -2455,7 +2478,7 @@ it on each release they pin.
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | INV-78 | `tests/test_alternate.py::test_alternates_and_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
-| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_interrupted_run_stops` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_interrupted_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive` |

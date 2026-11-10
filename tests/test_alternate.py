@@ -37,12 +37,14 @@ class Bench:
             self.sources[side] = tmp_path / f"{side}-source.csv"
             self.sources[side].write_text(run_text(alike(opaque)), encoding="utf-8")
 
-    def command(self, side: str) -> str:
+    def command(self, side: str, prefix: str = "") -> str:
+        """The fake engine's command line; `prefix` goes before it, such as
+        "cd . && " to make it a compound command the shell does not replace."""
         words = [sys.executable, "-I", str(FAKE), side, str(self.sources[side]), str(self.log)]
-        return " ".join(shlex.quote(word) for word in words) + " {run}"
+        return prefix + " ".join(shlex.quote(word) for word in words) + " {run}"
 
-    def args(self, *flags: str) -> list[str]:
-        return ["alternate", "--old", self.command("old"), "--new", self.command("new"),
+    def args(self, *flags: str, prefix: str = "") -> list[str]:
+        return ["alternate", "--old", self.command("old", prefix), "--new", self.command("new", prefix),
                 "--out", str(self.out), "--runs", "3", *flags]
 
     def order(self) -> list[str]:
@@ -147,25 +149,58 @@ def test_failed_run_stops(tmp_path, mode):
     assert str(bench.out / "new-2.csv") in stopped["command"]
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="SIGINT to a process group is POSIX")
-def test_interrupted_run_stops(tmp_path):
-    """INV-80: an interrupt during new-2 stops it as a failure would."""
+def test_killed_command_names_its_signal(tmp_path):
+    """INV-80: a command killed by a signal is named by the signal, not by a
+    negative exit code. `exec` makes the shell become the engine."""
+    bench = Bench(tmp_path)
+    done = analyser(bench.args("--json", prefix="exec "), env={"FAKE_ENGINE": "new-2=killself"})
+    assert done.returncode == 3
+    out = json.loads(done.stdout)
+    assert out["result"]["stopped"]["exit_code"] is None
+    assert out["summary"][0] == "new-2 failed: the command was killed by signal 9 (SIGKILL)."
+
+
+def engine_ended(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    return False
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups and SIGTERM are POSIX")
+@pytest.mark.parametrize("target, stop", [("group", signal.SIGINT), ("analyser", signal.SIGINT),
+                                          ("analyser", signal.SIGTERM)])
+def test_interrupted_run_stops(tmp_path, target, stop):
+    """INV-80: a stop during new-2 ends it as a failure would, whether the
+    signal went to the terminal's whole group (Ctrl-C) or to the analyser
+    alone (kill, timeout, a service manager). The command is compound, so
+    the shell stays between the analyser and the engine; the engine must
+    still end, and its file, written before the stop, be deleted."""
     bench = Bench(tmp_path)
     process = subprocess.Popen([sys.executable, "-I", str(ROOT / "src" / "frameledger"),
-                                *bench.args("--json")], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               stdin=subprocess.DEVNULL, text=True, start_new_session=True,
+                                *bench.args("--json", prefix="cd . && ")],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                               text=True, start_new_session=True,
                                env={**os.environ, "FAKE_ENGINE": "new-2=wait"})
+    pid_file = Path(str(bench.log) + ".pid")
     deadline = time.monotonic() + 30
-    while len(bench.order()) < 3 and time.monotonic() < deadline:
+    while not pid_file.exists() and time.monotonic() < deadline:
         time.sleep(0.05)
-    time.sleep(0.3)  # let new-2's engine reach its sleep
-    os.killpg(process.pid, signal.SIGINT)
+    time.sleep(0.2)  # the pid file is written; let the engine reach its sleep
+    engine = int(pid_file.read_text(encoding="utf-8"))
+    if target == "group":
+        os.killpg(process.pid, stop)
+    else:
+        process.send_signal(stop)
     stdout, _ = process.communicate(timeout=30)
     assert process.returncode == 3
     stopped = json.loads(stdout)["result"]["stopped"]
     assert stopped["run"] == "new-2" and stopped["exit_code"] is None
+    assert signal.Signals(stop).name in stopped["reason"]
     assert stopped["finished"] == ["old-1", "new-1"]
     assert bench.files() == ["new-1.csv", "old-1.csv"]
+    assert engine_ended(engine)
 
 
 def test_engine_output_to_stderr(tmp_path):

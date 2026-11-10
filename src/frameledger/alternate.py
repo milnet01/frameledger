@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import os
 import re
+import signal
 import subprocess
 import sys
+import time
 from typing import NamedTuple
 
 import ledger
@@ -20,6 +22,10 @@ FEWEST_RUNS, MOST_RUNS = 3, 100
 MOST_WARMUPS = 10
 # The filled path needs no quoting in /bin/sh or cmd.exe.
 SAFE_DIR = re.compile(r"[A-Za-z0-9._\-/\\:]+")
+POSIX = os.name == "posix"
+STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
+KILL = getattr(signal, "SIGKILL", signal.SIGTERM)  # Windows has no SIGKILL; _signal_group kills there
+GRACE_S = 10  # how long a stopped command has to end before it is killed
 
 
 class Run(NamedTuple):
@@ -65,40 +71,114 @@ def check_setup(commands: dict[str, str], out: str, planned: list[Run]) -> None:
 
 def run_all(commands: dict[str, str], planned: list[Run]) -> dict | None:
     """Run each command in turn. None when every run finished; otherwise
-    § 4.15's `stopped`, after deleting the failed run's file."""
-    for index, run in enumerate(planned, 1):
-        command = commands[run.side].replace(PLACEHOLDER, run.path)
-        print(f"alternate: running {run.name} ({index} of {len(planned)})", file=sys.stderr, flush=True)
-        exit_code, reason = _run_one(command, run.path)
-        if reason:
-            if os.path.lexists(run.path):
-                os.remove(run.path)
-            return {"run": run.name, "command": command, "reason": reason, "exit_code": exit_code,
-                    "finished": [done.name for done in planned[:index - 1]]}
-    return None
+    § 4.15's `stopped`, after deleting the failed run's file.
+
+    While the commands run, Ctrl-C and SIGTERM raise _Stop rather than
+    ending this process, so the running command can be stopped and its
+    file deleted first."""
+    previous = {signum: signal.signal(signum, _raise_stop) for signum in STOP_SIGNALS}
+    try:
+        for index, run in enumerate(planned, 1):
+            command = commands[run.side].replace(PLACEHOLDER, run.path)
+            try:
+                print(f"alternate: running {run.name} ({index} of {len(planned)})", file=sys.stderr,
+                      flush=True)
+                exit_code, reason = _run_one(command, run.path)
+            except _Stop as stop:  # it came before the command started
+                exit_code, reason = None, _stopped_reason(stop.signum)
+            if reason:
+                if os.path.isfile(run.path):  # a directory there is not this run's to remove
+                    os.remove(run.path)
+                return {"run": run.name, "command": command, "reason": reason, "exit_code": exit_code,
+                        "finished": [done.name for done in planned[:index - 1]]}
+        return None
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
+class _Stop(Exception):
+    def __init__(self, signum: int):
+        super().__init__(signum)
+        self.signum = signum
+
+
+def _raise_stop(signum, _frame):
+    raise _Stop(signum)
 
 
 def _run_one(command: str, path: str) -> tuple[int | None, str | None]:
     """(exit code, why the run failed), the reason None when it did not.
     The engine's output goes to standard error, so --json output is never
-    mixed with it."""
-    process = subprocess.Popen(command, shell=True, stdout=sys.stderr.fileno())
+    mixed with it. On POSIX the command gets its own process group, so a
+    stop reaches every process it started, a wrapper's engine included;
+    the terminal's Ctrl-C then reaches only this process, which passes it
+    on."""
+    process = subprocess.Popen(command, shell=True, stdout=sys.stderr.fileno(), start_new_session=POSIX)
     try:
         code = process.wait()
-    except KeyboardInterrupt:
-        # The terminal sent the interrupt to the command too; wait for it to
-        # end before its file is deleted. A second interrupt kills it.
-        try:
-            process.wait()
-        except KeyboardInterrupt:
-            process.kill()
-            process.wait()
-        return None, "alternate was interrupted while it ran"
+    except _Stop as stop:
+        _end_group(process, stop.signum)
+        return None, _stopped_reason(stop.signum)
+    if code != 0:
+        _end_group(process, signal.SIGTERM)  # nothing it left behind may write the file later
+    if code < 0:
+        return None, f"the command was killed by signal {-code} ({_signal_name(-code)})"
     if code != 0:
         return code, f"the command exited with code {code}"
     if not os.path.exists(path):
         return None, f"the command wrote no file at {path}"
     return code, None
+
+
+def _end_group(process: subprocess.Popen, signum: int) -> None:
+    """Send `signum` to the command's processes, give them GRACE_S seconds
+    to end, then kill them; return once none is left. A second stop
+    signal kills them at once."""
+    _signal_group(process, signum)
+    deadline = time.monotonic() + GRACE_S
+    try:
+        while _group_alive(process) and time.monotonic() < deadline:
+            time.sleep(0.05)
+    except _Stop:
+        pass
+    _signal_group(process, KILL)
+    while _group_alive(process):
+        time.sleep(0.05)
+
+
+def _signal_group(process: subprocess.Popen, signum: int) -> None:
+    if not POSIX:  # Windows: the console's Ctrl-C reached the command itself
+        if signum != signal.SIGINT and process.poll() is None:
+            process.kill()
+        return
+    try:
+        os.killpg(process.pid, signum)
+    except ProcessLookupError:
+        pass
+
+
+def _group_alive(process: subprocess.Popen) -> bool:
+    if process.poll() is None:  # poll also reaps the shell once it has ended
+        return True
+    if not POSIX:
+        return False
+    try:
+        os.killpg(process.pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def _stopped_reason(signum: int) -> str:
+    return f"alternate was stopped by {_signal_name(signum)} while it ran"
+
+
+def _signal_name(signum: int) -> str:
+    try:
+        return signal.Signals(signum).name
+    except ValueError:
+        return f"signal {signum}"
 
 
 def stopped_sentences(stopped: dict) -> list[str]:
