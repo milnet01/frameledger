@@ -13,8 +13,8 @@ owner's delegation. Built from
 [requirements](reviews/2026-10-24-discovery-customer-answers.md).
 The modules for S21 to S27 (`alternate.py`, `variants.py`,
 `baseline.py`, `presentmon.py`, `picture.py`) and the release changes
-were added on 2026-11-10 (FLED-0028). Those additions await the three
-engines' agreement.
+were added on 2026-11-10 (FLED-0028), and the three engines agreed
+them that day.
 
 ## The parts
 

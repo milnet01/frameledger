@@ -585,7 +585,7 @@ turn, know when the machine was busy, and paste the result. Inputs:
 
 the engines' answers to the 0.4–1.0 draft, 2026-11-10.
 
-- 🚧 [FLED-0028] **Discovery and design cover the 0.4–1.0 scope.**
+- ✅ [FLED-0028] **Discovery and design cover the 0.4–1.0 scope.**
   Add signs of success for the run helper, load evidence, variants,
   baselines, imports, the picture report and the stability promises;
   move charts from "not yet" to optional; place each new module in
@@ -594,6 +594,9 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   2026-11-10: discovery S21–S27, S11's macOS and the picture-report
   line, and design's new modules, drafted and sent to the three engines
   for agreement.
+  2026-11-10: agreed by DOOM Ants, UT Ants and Vestige at 64f0687, with
+  Vestige's optional S22 wording added after. Release note (docs only):
+  no CHANGELOG entry.
   **Layman:** Write down what the new features are for and how we will know they work, before building them.
   Kind: doc.
   Source: engine-answers-2026-11-10.

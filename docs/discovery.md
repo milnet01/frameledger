@@ -13,8 +13,8 @@ the owner's delegation. The engines' answers it is built from:
 [2026-10-24 customer answers](reviews/2026-10-24-discovery-customer-answers.md).
 S21 to S27, S11's macOS and the picture report's line were added on
 2026-11-10 (FLED-0028), from the engines' answers that day, which
-`ROADMAP.md`'s 0.4.0 to 1.0.0 items record. Those additions await the
-three engines' agreement.
+`ROADMAP.md`'s 0.4.0 to 1.0.0 items record. The three engines agreed
+those additions on 2026-11-10.
 
 ## The problem
 
@@ -130,7 +130,8 @@ analyser reads their runs.
 - **S22** — A run can record its peak CPU load and its peak GPU busy
   share during the run, not only at its start and end. A run is taken
   under load when either peak passes its limit. CPU load is a share of
-  the whole machine, so one limit fits any CPU count. The format spec
+  the whole machine, such as the load average divided by the CPU
+  count, so one limit fits any CPU count (Vestige). The format spec
   sets both limits, and a flag can change them (UT Ants). A compare
   that uses a run taken under load names that run and is inconclusive
   (exit 2, worth re-running) rather than giving a verdict. It warns
