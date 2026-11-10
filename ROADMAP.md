@@ -607,6 +607,12 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   move from 32.6 to 24.9 ms between back-to-back runs (UTA-0435);
   Vestige would retire perf_gate.py with it and a baseline.
   Needs a spec amendment to FLED-0001, reviewed by the engines.
+  2026-11-10, FLED-0028 reviews: the helper fills a placeholder in each
+  command with that run's own file name, so runs never overwrite each
+  other (DOOM Ants' c-<tag>/l.csv, Vestige's --frame-log=PATH). The
+  placeholder's spelling is fixed in this item's spec amendment, which
+  DOOM Ants and Vestige review. S23's variants use the same helper, base
+  and each variant in turn (UT Ants).
   **Layman:** One command runs the old and new versions of a game in turn and says which is faster.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -622,6 +628,12 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   verdict; it warns when the two sides' load or GPU clock differ.
   Asked by Vestige (3D_E-0704, 0658, 0795) and UT Ants (UTA-0435).
   Needs a spec amendment, reviewed by the engines.
+  2026-11-10, FLED-0028 reviews: a run is under load when either peak
+  (CPU load as a share of the machine, GPU busy share) passes its limit;
+  the spec sets both limits and a flag changes them; a loaded compare
+  exits 2. DOOM Ants needs the flag: its machine is shared with other
+  sessions, so defaults could mark many runs inconclusive. UT Ants and
+  Vestige review the numbers in this item's spec amendment.
   **Layman:** The comparison notices when something else was using the computer during a test and says the result cannot be trusted.
   Kind: feature.
   Source: engine-answers-2026-11-10.
