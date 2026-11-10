@@ -123,13 +123,15 @@ analyser reads their runs.
   a code that means a verdict (UT Ants, Vestige).
 - **S21** — Given the command that runs each build, one command runs
   the old and new builds in turn (old, new, old, new), at least three
-  runs a side, then compares the files they wrote as S4 does. It times
-  nothing and writes no run file; each engine still does both.
-- **S22** — A run can record the machine's peak load and GPU clock
-  during the run, not only at its start and end. A compare that uses a
-  run taken under load names that run and is inconclusive rather than
-  giving a verdict. It warns when the two sides' load or GPU clock
-  differ.
+  runs a side, then compares the files they wrote as S4 does. Each run
+  is given its own file name, such as its side and number, so no run
+  overwrites another (DOOM Ants). It times nothing and writes no run
+  file; each engine still does both.
+- **S22** — A run can record its peak CPU load and its peak GPU busy
+  share during the run, not only at its start and end. A compare that
+  uses a run taken under load names that run and is inconclusive
+  rather than giving a verdict. It warns when the two sides' CPU load,
+  GPU busy share or GPU clock differ.
 - **S23** — One command judges several named variants against one
   base, such as the full frame against each effect switched off in
   turn. Each variant is judged against the base as S16 judges new
