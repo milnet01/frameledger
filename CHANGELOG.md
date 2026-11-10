@@ -12,6 +12,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Added
+
+- **`alternate` runs the old and new builds in turn, then compares them** (FLED-0029)
+  `alternate --old CMD --new CMD --out DIR` runs each build's command five times by default (`--runs N`, 3 to 100), filling `{run}` in each command with that run's own file, `DIR/old-1.csv` and so on. Runs go in pairs, old-1, new-1, new-2, old-2, …, so a machine that drifts over the batch does not read as a change. `--warmup W` runs untimed runs first. A run that fails or is interrupted stops the rest, exit 3, and its file is deleted. Otherwise the files are compared exactly as `compare` would.
+
 ## [0.3.0] - 2026-11-10
 
 **Theme:** Many runs surveyed.

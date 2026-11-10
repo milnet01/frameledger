@@ -1,5 +1,6 @@
 """Commands, flags and exit codes (docs/specs/FLED-0001-run-file-format.md
-§ 4.7, § 4.10 and § 4.14 for `compare`, § 4.11 for `bisect` and § 4.12 for `budget`).
+§ 4.7, § 4.10 and § 4.14 for `compare`, § 4.11 for `bisect`, § 4.12 for `budget`
+and § 4.15 for `alternate`).
 
 The only module that prints or decides an exit code. Every command
 builds one result dict in the shape of § 4.8, and render.py turns it
@@ -15,6 +16,7 @@ import traceback
 from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
+import alternate
 import bisecting
 import budgeting
 import compare
@@ -84,17 +86,9 @@ def _parser() -> _Parser:
     compare_cmd.add_argument("--by-scene", action="store_true",
                              help="judge each scene apart, by the header's scene, at least "
                              f"{compare.FEWEST_RUNS} runs a side each")
-    compare_cmd.add_argument("--override", action="append", type=_override, default=[],
-                             metavar="FIELD=REASON", help="let one compare-blocking header field differ")
-    compare_cmd.add_argument("--min-ms", type=_bounded, default=Decimal("0.050"), metavar="M",
-                             help="the smallest change that counts, in ms (default 0.050)")
-    compare_cmd.add_argument("--min-mb", type=_bounded, default=Decimal("1.000"), metavar="M",
-                             help="the smallest change that counts for a mem measure, in MB (default 1.000)")
-    compare_cmd.add_argument("--min-pct", type=_bounded, default=Decimal(3), metavar="P",
-                             help="the smallest change that counts, in percent of the old (default 3)")
-    compare_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                             help="print the JSON result instead of text")
+    _add_compare_flags(compare_cmd)
     _add_bisect(commands)
+    _add_alternate(commands)
     budget = commands.add_parser("budget", help="is any pass over its time budget?")
     budget.add_argument("file", metavar="FILE")
     budget.add_argument("--budgets", required=True, metavar="BUDGETS", help="the budget file")
@@ -116,6 +110,35 @@ def _parser() -> _Parser:
     survey_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                             help="print the JSON result instead of text")
     return parser
+
+
+def _add_compare_flags(command) -> None:
+    """§ 4.10's judging flags, which `alternate` passes on to its compare."""
+    command.add_argument("--override", action="append", type=_override, default=[],
+                         metavar="FIELD=REASON", help="let one compare-blocking header field differ")
+    command.add_argument("--min-ms", type=_bounded, default=Decimal("0.050"), metavar="M",
+                         help="the smallest change that counts, in ms (default 0.050)")
+    command.add_argument("--min-mb", type=_bounded, default=Decimal("1.000"), metavar="M",
+                         help="the smallest change that counts for a mem measure, in MB (default 1.000)")
+    command.add_argument("--min-pct", type=_bounded, default=Decimal(3), metavar="P",
+                         help="the smallest change that counts, in percent of the old (default 3)")
+    command.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
+                         help="print the JSON result instead of text")
+
+
+def _add_alternate(commands) -> None:
+    command = commands.add_parser("alternate", help="run the old and new builds in turn, each into "
+                                    "its own run file, then compare them")
+    command.add_argument("--old", required=True, metavar="CMD",
+                           help=f"the old build's command; {alternate.PLACEHOLDER} is its run file's path")
+    command.add_argument("--new", required=True, metavar="CMD",
+                           help=f"the new build's command; {alternate.PLACEHOLDER} is its run file's path")
+    command.add_argument("--out", required=True, metavar="DIR", help="an existing folder for the run files")
+    command.add_argument("--runs", type=_in_range(alternate.FEWEST_RUNS, alternate.MOST_RUNS),
+                           default=5, metavar="N", help="runs a side (default 5)")
+    command.add_argument("--warmup", type=_in_range(0, alternate.MOST_WARMUPS), default=0,
+                           metavar="W", help="untimed runs a side first, never compared (default 0)")
+    _add_compare_flags(command)
 
 
 def _add_bisect(commands) -> None:
@@ -234,6 +257,15 @@ def _whole(text: str) -> int:
     return int(text)
 
 
+def _in_range(lowest: int, highest: int):
+    def whole_in_range(text: str) -> int:
+        value = _whole(text)
+        if not lowest <= value <= highest:
+            raise argparse.ArgumentTypeError(f"'{text}' must be from {lowest} to {highest}")
+        return value
+    return whole_in_range
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else list(argv)
     if _command(argv) == "bisect":
@@ -277,8 +309,10 @@ def _dispatch(args: argparse.Namespace) -> dict:
         return _budget(args)
     if args.command == "survey":
         return _survey(args)
-    raise ledger.LedgerError("name a command (check, report, floor, compare, bisect, budget, survey) or "
-                             "--selftest; --help lists them")
+    if args.command == "alternate":
+        return _alternate(args)
+    raise ledger.LedgerError("name a command (check, report, floor, compare, alternate, bisect, budget, "
+                             "survey) or --selftest; --help lists them")
 
 
 def _bisect_main(argv: list[str]) -> int:
@@ -420,17 +454,48 @@ def _compare(args: argparse.Namespace) -> dict:
         if len(paths) < compare.FEWEST_RUNS:
             raise ledger.LedgerError(f"{label} has {len(paths)} runs; each set needs at least "
                                      f"{compare.FEWEST_RUNS}, since two give too many false changes")
-    overrides = _overrides(args.override)
+    return _compare_paths("compare", args.old, args.new, _overrides(args.override), args)
+
+
+def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict[str, str],
+                   args: argparse.Namespace) -> dict:
     try:
-        built = compare.compare([ledger.read(p) for p in args.old], [ledger.read(p) for p in args.new],
+        built = compare.compare([ledger.read(p) for p in old], [ledger.read(p) for p in new],
                                 overrides, compare.Floors(args.min_ms, args.min_mb, args.min_pct))
     except ledger.LedgerError as error:  # S5: the overrides are named even here
-        listed = [{"field": f, "reason": r} for f, r in overrides.items()]
-        return _result("compare", "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
+        listed = _listed(overrides)
+        return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {}, listed)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
-    return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
+    return _result(command, built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
+
+
+def _listed(overrides: dict[str, str]) -> list[dict]:
+    return [{"field": f, "reason": r} for f, r in overrides.items()]
+
+
+def _alternate(args: argparse.Namespace) -> dict:
+    """§ 4.15: every setup error is exit 3 before any command starts; a run
+    that fails stops the rest, exit 3; otherwise § 4.10's compare."""
+    commands = {"old": args.old, "new": args.new}
+    out = os.path.abspath(args.out)
+    overrides = _overrides(args.override)
+    planned = alternate.plan(out, args.runs, args.warmup)
+    alternate.check_setup(commands, out, planned)
+    added = {"commands": commands, "out": out, "warmup": args.warmup}
+    stopped = alternate.run_all(commands, planned)
+    if stopped:
+        listed = _listed(overrides)
+        return _result("alternate", "error", ERROR,
+                       [*compare.overrides_sentences(listed), *alternate.stopped_sentences(stopped)],
+                       [], {**added, "stopped": stopped}, listed)
+    # Compared in run-number order, old-1, old-2, ..., as compare names them.
+    timed = sorted((run for run in planned if run.timed), key=lambda run: run.number)
+    old, new = ([run.path for run in timed if run.side == side] for side in ("old", "new"))
+    built = _compare_paths("alternate", old, new, overrides, args)
+    built["result"] = {**built["result"], **added, "stopped": None}
+    return built
 
 
 def _compare_scenes(args: argparse.Namespace) -> dict:

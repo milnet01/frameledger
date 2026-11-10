@@ -55,6 +55,7 @@ python3 -I frameledger.pyz check run.csv
 python3 -I frameledger.pyz report run.csv
 python3 -I frameledger.pyz floor run.csv --fps 60
 python3 -I frameledger.pyz compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
+python3 -I frameledger.pyz alternate --old './old/engine --frame-log={run}' --new './new/engine --frame-log={run}' --out ab
 python3 -I frameledger.pyz bisect --tested run.csv --measure gpu/opaque --kind view --bad-above 12
 python3 -I frameledger.pyz budget run.csv --budgets budgets.csv
 python3 -I frameledger.pyz --selftest
@@ -64,14 +65,18 @@ On Windows, use `py -I` or `python -I`. Every command takes `--json`.
 The spec lists the flags and exit codes:
 [check, report and floor](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands),
 [compare](docs/specs/FLED-0001-run-file-format.md#410-comparing-labelled-sets-of-runs),
+[alternate](docs/specs/FLED-0001-run-file-format.md#415-alternating-runs),
 [bisect](docs/specs/FLED-0001-run-file-format.md#411-bisect-verdicts) and
 [budget](docs/specs/FLED-0001-run-file-format.md#412-pass-budgets).
 
 ### An A/B with compare
 
 Each build needs at least three runs. Alternate them in one sitting:
-old, new, old, new. Three of one build then three of the other lets
-drift over time read as a change, and compare warns `not_interleaved`.
+old, new, new, old, old, new. Three of one build then three of the
+other lets drift over time read as a change, and compare warns
+`not_interleaved`. `alternate` runs both builds' commands in that
+order, five runs a side by default, then compares what they wrote.
+Each command must hold `{run}` where its run file's path goes.
 Compare reads each run's start time from its file's `started_utc`
 header, so list each build's files together on the command line.
 

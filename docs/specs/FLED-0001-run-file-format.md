@@ -142,6 +142,12 @@ settles.
   run's own work; `--max-load 0.25` and `--max-gpu-busy 20`; a `start`
   never makes a run under load; the difference limits 0.1, 10 points
   and 5%; the clock compared at `end`; `report` and `floor` unchanged.
+  Reviewed by the three engines 2026-11-10, agreeing to each; from the
+  review: the run's own work may include processes the writer counts
+  with it, and a peak is clamped (DOOM Ants); a writer seeing only
+  some programs gives their peak (UT Ants); the `end` clock is read
+  before the GPU is released (Vestige). `--max-gpu-busy` stays 20:
+  UT Ants guessed 10 for itself, unmeasured, and may pass it.
 
 ## 4. Design
 
@@ -214,12 +220,26 @@ it is the CPU-busy share at that moment.
 A `peak` is the highest share **other programs** used during the run,
 from its first frame to its last (S22). The run's own work is left
 out: a game keeps the GPU near 100% busy, so a peak that counted it
-would mark every run. `load.peak` is the CPU-busy share of every
-program but the run, over a sample of about one second, so it is never
-above 1. `gpu_busy_pct.peak` is the GPU-busy percent of every program
-but the run, over the same sample. How to sample is the writer's
-choice. A writer that cannot leave its own work out gives no `peak`:
-absent means unknown, and § 4.10 then judges the run as before.
+would mark every run. Samples are about one second long, taken from
+the first frame to the last, and the peak is the highest of them.
+`load.peak` is the CPU-busy share of every program but the run's, a
+share from 0 to 1. `gpu_busy_pct.peak` is the GPU-busy percent of
+every program but the run's, from 0 to 100. A sample that works out
+below 0 or above the top is clamped to it: a whole-device reading
+over a short window, less the run's own share averaged over the
+sample, can do either (DOOM Ants).
+
+- **The run's own work** is the writer's process, and any process the
+  writer chooses to count with it, such as the compositor a headless
+  run starts (DOOM Ants).
+- **A writer that can see only some programs** gives the peak of those
+  it can see (UT Ants): per-program GPU time may be readable for the
+  writer's own user only.
+- **A writer that cannot leave its own work out gives no `peak`**:
+  absent means unknown, and § 4.10 then judges the run as before.
+- **How to sample is the writer's choice.** A `gpu_clock_mhz.end` is
+  read after the last frame and before the run releases the GPU,
+  since a GPU drops to its idle clock within moments (Vestige).
 
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
 `ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`,
@@ -581,11 +601,13 @@ the overrides sentence, when there is one.
 
 **Taken under load** (S22). A run is taken under load when its
 `load.peak` is above `--max-load`, or its `gpu_busy_pct.peak` is above
-`--max-gpu-busy`. Other programs then shared the machine during the
-run, so its times cannot be trusted. The defaults: a quarter of the
+`--max-gpu-busy`: above, not at. Other programs then shared the
+machine during the run, so its times cannot be trusted. `--max-load`
+is a share from 0 to 1, as `load.peak` is; `--max-gpu-busy` is a
+percent, as `gpu_busy_pct.peak` is. The defaults: a quarter of the
 CPU, and § 4.9's `gpu_load` limit for the GPU. A shared machine may
-need higher limits (DOOM Ants). A `start` never makes a run under load;
-it stays § 4.9's warning.
+need higher limits: DOOM Ants passes `--max-load 0.6`. A `start` never
+makes a run under load; it stays § 4.9's warning.
 
 **Measures.** Each run gives one value per measure and segment kind
 (§ 4.8's segment kind):
@@ -1341,9 +1363,10 @@ are exactly the runs in `stopped.finished`, and a reader can compare
 them by hand. To run again, give a new `DIR`, or remove its run files.
 
 The text then opens with § 4.10's overrides sentence, when
-`--override` is given, and next a sentence naming the run, its filled
-command and the reason: "new-2 failed: the command exited with code
-4.", or "new-2 failed: the command wrote no file at /…/new-2.csv."
+`--override` is given; next a sentence naming the run and the reason,
+"new-2 failed: the command exited with code 4.", or "new-2 failed: the
+command wrote no file at /…/new-2.csv."; then its filled command, "Its
+command was: …".
 
 **Once every run has finished**, the files are compared as
 `compare --old DIR/old-1.csv … --new DIR/new-1.csv …` compares them,
@@ -2189,9 +2212,9 @@ breaks.
   *Breaks when:* unjudged scenes are counted, or the count is missing
   from the text.
 - **INV-78** — Runs alternate, each into its own file, and are judged
-  as `compare`. Fixture `alternate/fake_engine.py SIDE {run}` copies
-  that side's run file to its last argument and appends `SIDE` to an
-  order log. With `--runs 3`, the log reads old, new, new, old, old,
+  as `compare`. Fixture `alternate/fake_engine.py SIDE SOURCE LOG {run}`
+  copies the run file `SOURCE` to its last argument and appends `SIDE`
+  to the order log `LOG`. With `--runs 3`, the log reads old, new, new, old, old,
   new; `DIR` holds `old-1.csv` to `old-3.csv` and `new-1.csv` to
   `new-3.csv`; and the result, without `commands`, `out`, `warmup`
   and `stopped`, equals `compare --old` and `--new` over those files,
@@ -2223,7 +2246,8 @@ breaks.
   and the test sending SIGINT to `alternate`'s process group once the
   log shows new-2: exit 3, `exit_code` null, `stopped.finished` old-1,
   new-1, and no `new-2.csv`.
-  *Test:* `tests/test_alternate.py::test_failed_run_stops`.
+  *Test:* `tests/test_alternate.py::test_failed_run_stops`, and
+  `tests/test_alternate.py::test_interrupted_run_stops` for SIGINT.
   *Breaks when:* later runs start, the finished runs are compared,
   their files are removed, the failed run's file is kept, or an
   interrupt is not a stop.
@@ -2251,8 +2275,8 @@ breaks.
   exit 1. `--max-load -1` gives exit 3.
   *Test:* `tests/test_compare_load.py::test_under_load_inconclusive`.
   *Breaks when:* a peak at or below its limit, or a `start`, makes the
-  run under load; the flag is ignored; or a slower measure wins over
-  the load. The fixture fails without the load, so only this rule can
+  run under load; the flag is ignored; or the slower-times verdict
+  (exit 1) is given instead of inconclusive. The fixture fails without the load, so only this rule can
   turn exit 1 into 2.
 - **INV-84** — Sides measured under different load or GPU clock are
   warned of, and the verdict is unchanged. Fixture: three old and
@@ -2431,7 +2455,7 @@ it on each release they pin.
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | INV-78 | `tests/test_alternate.py::test_alternates_and_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
-| INV-80 | `tests/test_alternate.py::test_failed_run_stops` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_interrupted_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive` |

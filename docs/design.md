@@ -57,8 +57,8 @@ Four parts. The format spec is the only thing the other three share.
   - `scenes.py` — survey against survey, `compare --by-scene`: each
     scene one `compare.py` compare, then ranked and counted (S15).
   - `alternate.py` — the run helper (S21): starts each build's command
-    in turn, old then new, then hands the files they wrote to
-    `compare.py`. It times nothing.
+    in turn, in pairs that alternate which side goes first; `cli.py`
+    then compares the files they wrote. It times nothing.
   - `variants.py` — named variants against one base (S23): each
     variant one `compare.py` compare against the base, then ranked.
   - `baseline.py` — reads a baseline file into the run paths it names
