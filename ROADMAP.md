@@ -619,6 +619,10 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   2026-11-10: spec amendment drafted as docs/specs/FLED-0001-run-file-format.md
   § 4.15 (`alternate`, placeholder `{run}`) with INV-78 to INV-81; sent
   to the three engines for review before building.
+  2026-11-10: spec confirmed by all three engines at 2168982 (paired
+  order, --warmup default 0, failed run's file deleted). Built in
+  51e1cd3 (src/frameledger/alternate.py, tests/test_alternate.py); gate
+  green. Code sent to the three engines for review.
   **Layman:** One command runs the old and new versions of a game in turn and says which is faster.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -646,6 +650,10 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   three engines for review before building. A peak counts other programs
   only: a game keeps the GPU busy, so a peak counting the run would mark
   every run.
+  2026-11-10: the three engines' reviews folded in at 51e1cd3 (own work
+  may include helper processes; samples clamped; partial visibility; end
+  clock before GPU release); defaults kept at 0.25 and 20. Sent back for
+  confirmation before building.
   **Layman:** The comparison notices when something else was using the computer during a test and says the result cannot be trusted.
   Kind: feature.
   Source: engine-answers-2026-11-10.
