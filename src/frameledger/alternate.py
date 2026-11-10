@@ -27,6 +27,7 @@ STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 KILL = getattr(signal, "SIGKILL", signal.SIGTERM)  # Windows has no SIGKILL; _signal_group kills there
 GRACE_S = 10  # how long a stopped command has to end before it is killed
 POLL_S = 0.05  # how often a wait checks for a stop
+SETTLE_S = 2  # how long a finished command's leftover processes have to end
 
 
 class Run(NamedTuple):
@@ -112,8 +113,11 @@ def _run_one(command: str, path: str, stops: list[int]) -> tuple[int | None, str
     code = _wait(process, stops)
     if code is None:
         return None, _stopped_reason(stops[0]) + _end_group(process, stops[0], stops)
-    if code == 0 and POSIX and _group_alive(process):
-        # Left running, it would overlap the next run (UT Ants).
+    if code == 0 and POSIX and not _waited(process, lambda: bool(stops), SETTLE_S):
+        # Left running, it would overlap the next run (UT Ants). SETTLE_S
+        # lets a headless display finish tearing down first (DOOM Ants).
+        if stops:
+            return None, _stopped_reason(stops[0]) + _end_group(process, stops[0], stops)
         return None, "the command left processes running" + _end_group(process, signal.SIGTERM, stops)
     if code != 0:
         stuck = _end_group(process, signal.SIGTERM, stops)  # nothing left may write the file later
@@ -147,10 +151,10 @@ def _end_group(process: subprocess.Popen, signum: int, stops: list[int]) -> str:
     return ""
 
 
-def _waited(process: subprocess.Popen, give_up) -> bool:
+def _waited(process: subprocess.Popen, give_up, seconds: float = GRACE_S) -> bool:
     """True once the command's processes have all ended; False after
-    GRACE_S seconds, or as soon as give_up() is true."""
-    deadline = time.monotonic() + GRACE_S
+    `seconds`, or as soon as give_up() is true."""
+    deadline = time.monotonic() + seconds
     while _group_alive(process):
         if give_up() or time.monotonic() >= deadline:
             return False

@@ -169,11 +169,22 @@ def test_killed_command_names_its_signal(tmp_path, shell_stays, reason):
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
-def test_left_processes_fail_the_run(tmp_path):
-    """INV-80: a command that exits 0 but leaves a process running fails,
-    and the process is ended, so it cannot overlap the next run."""
+def test_brief_leftover_is_waited_for(tmp_path):
+    """INV-80: a process that ends within SETTLE_S of its command, as a
+    headless display tearing down does, fails nothing (DOOM Ants)."""
     bench = Bench(tmp_path)
-    done = analyser(bench.args("--json"), env={"FAKE_ENGINE": "new-2=background"})
+    done = analyser(bench.args("--json"), env={"FAKE_ENGINE": "new-2=background:0.3"})
+    assert json.loads(done.stdout)["result"]["stopped"] is None
+    assert done.returncode == 1  # all six ran and were compared; the new build is slower
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_left_processes_fail_the_run(tmp_path):
+    """INV-80: a command that exits 0 but leaves a process running past
+    SETTLE_S fails, and the process is ended, so it cannot overlap the
+    next run."""
+    bench = Bench(tmp_path)
+    done = analyser(bench.args("--json"), env={"FAKE_ENGINE": "new-2=background:30"})
     assert done.returncode == 3
     out = json.loads(done.stdout)
     assert out["summary"][0] == "new-2 failed: the command left processes running."

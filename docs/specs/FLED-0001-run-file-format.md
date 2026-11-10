@@ -1356,9 +1356,10 @@ runs a set and 35% at three, both at 2% noise.
 nothing is compared. A run fails when its command exits with a code
 other than 0, is killed by a signal, or exits 0 and leaves no file at
 its path. Setup has already made sure no file was there before. On
-Linux and macOS a run also fails when its command exits 0 but leaves a
-process it started still running, since that process would overlap
-the next run (UT Ants).
+Linux and macOS a run also fails when its command exits 0 but a
+process it started is still running 2 seconds later, since that
+process would overlap the next run (UT Ants). The 2 seconds let a
+headless display finish tearing down (DOOM Ants).
 Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
 `timeout`, a service manager) fails the running command the same way
 (DOOM Ants).
@@ -2280,13 +2281,14 @@ breaks.
   With the shell still running after the engine (`…; exit $?`), the
   reason is "the command exited with code 137, as the shell reports a
   command killed by signal 9 (SIGKILL)" and `exit_code` is 137. On
-  Linux, new-2's command exiting 0 with a child still sleeping: the
-  reason is "the command left processes running", and the child has
-  ended. A SIGTERM delivered while new-2's command is being started
+  Linux, new-2's command exiting 0 with a child sleeping 30 seconds:
+  the reason is "the command left processes running", and the child
+  has ended; with a child sleeping 0.3 seconds, every run finishes. A SIGTERM delivered while new-2's command is being started
   still ends it.
   *Test:* `tests/test_alternate.py::test_failed_run_stops`,
   `tests/test_alternate.py::test_killed_command_names_its_signal`,
   `tests/test_alternate.py::test_left_processes_fail_the_run`,
+  `tests/test_alternate.py::test_brief_leftover_is_waited_for`,
   `tests/test_alternate.py::test_stop_while_starting`, and
   `tests/test_alternate.py::test_interrupted_run_stops`. Nothing here
   tests a process that survives SIGKILL.
@@ -2499,7 +2501,7 @@ it on each release they pin.
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | INV-78 | `tests/test_alternate.py::test_alternates_and_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
-| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive` |

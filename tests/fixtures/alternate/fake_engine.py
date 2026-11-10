@@ -8,8 +8,9 @@ run named NAME (new-2, say) does instead:
   wait    writes its file and its process id (to LOG.pid), then sleeps
           until it is stopped;
   killself  kills itself with SIGKILL;
-  background  writes its file, starts a child that sleeps and writes the
-          child's process id to LOG.pid, then exits 0, leaving it running.
+  background:S  writes its file, starts a child that sleeps S seconds
+          and writes the child's process id to LOG.pid, then exits 0,
+          leaving it running.
 FAKE_ENGINE_SAY=1 makes every run print "engine says hi" on standard output.
 """
 
@@ -32,8 +33,9 @@ if mode == "killself":
     os.kill(os.getpid(), signal.SIGKILL)
 if mode != "nofile":
     shutil.copyfile(source, run)
+mode, _, seconds = mode.partition(":")
 if mode == "background":
-    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    child = subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({float(seconds)})"])
     with open(log + ".pid", "w", encoding="utf-8") as pid:
         pid.write(str(child.pid))
 if mode == "wait":
