@@ -123,23 +123,26 @@ analyser reads their runs.
   a code that means a verdict (UT Ants, Vestige).
 - **S21** — Given the command that runs each build, one command runs
   the old and new builds in turn (old, new, old, new), at least three
-  runs a side, then compares the files they wrote as S4 does. Each run
-  is given its own file name, such as its side and number, so no run
-  overwrites another (DOOM Ants). It times nothing and writes no run
+  runs a side, then compares the files they wrote as S4 does. It fills
+  a placeholder in each command with that run's own file name, so no
+  run overwrites another (DOOM Ants, Vestige). It times nothing and writes no run
   file; each engine still does both.
 - **S22** — A run can record its peak CPU load and its peak GPU busy
   share during the run, not only at its start and end. A compare that
-  uses a run taken under load names that run and is inconclusive
-  rather than giving a verdict. It warns when the two sides' CPU load,
-  GPU busy share or GPU clock differ.
+  uses a run taken under load names that run and is inconclusive (exit
+  2, worth re-running) rather than giving a verdict. It warns when the
+  two sides' CPU load, GPU busy share or GPU clock differ by more than
+  a limit the format spec sets.
 - **S23** — One command judges several named variants against one
   base, such as the full frame against each effect switched off in
   turn. Each variant is judged against the base as S16 judges new
   against old.
 - **S24** — A baseline file, which the engine keeps, names a set of
   reference runs. A compare or the run helper (S21) takes it in place
-  of the old runs. The analyser itself still keeps nothing between
-  runs.
+  of the old runs. Those runs keep their headers, so S5's refusals and
+  warnings apply to them: a baseline taken on one GPU or graphics API
+  is refused against runs from another (Vestige). The analyser itself
+  still keeps nothing between runs.
 - **S25** — A PresentMon capture becomes a run that the report, the
   floor check and the survey accept. Where a report needs passes, it
   says the run has none rather than failing.
