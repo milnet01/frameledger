@@ -1602,11 +1602,18 @@ read when it is judged and let go after.
   refusal sentence does.
 - **`--measure`** keeps the same measures in every variant. A named
   measure is exit 3 only when no run has it. A variant none of whose
-  runs has any named measure is unjudged, "none of its runs has a
-  named measure", and step 4 below passes over it, as § 4.14.
+  own runs has any named measure is unjudged, "none of its runs has a
+  named measure", and step 4 below passes over it, as § 4.14. This
+  holds even when the base runs have the measure (Vestige).
+- **An effect's own pass is gone when the effect is off.** So
+  `--measure gpu/bloom` leaves `no_bloom` unjudged, with no cost. To
+  rank effects switched off, name a measure every side keeps, such as
+  `frame/wall` or `frame/gpu_span`, or give no `--measure` (Vestige).
 
 **The rank measure** is the first `--measure` name, or `frame/wall`
-without one, its median, at the smallest depth the base runs have it.
+without one, its median. A pass may appear at more than one depth
+(§ 4.4: 0 is a top-level pass, 1 a pass inside one); the rank measure
+takes the smallest depth at which the base runs have it (UT Ants).
 Its segment kind is the one with the most frames carrying it over the
 base runs together; ties by kind compared as text, frames with no
 segment counting as the kind `""`. A variant's **rank entry** is that
@@ -1642,9 +1649,14 @@ per unjudged variant with its reason, and each variant's warnings,
 opening with its name. A base run's § 4.9 warnings are given once,
 opening with the run's name, not once per variant. Then one sentence
 naming the rank measure: "Ranked by the frame/wall median in view;
-base 16.400 ms." Then one counting what was judged, as § 4.14: "Judged
-4 variants and 96 measures; with this many, a slower measure can be
-chance (§ 4.10)." Then a table of every variant: rank, variant,
+base 16.400 ms." When no base run has it, the sentence is "Nothing is
+ranked: no base run has gpu/x.", and every rank cell is `–`
+(Vestige). Then one counting what was judged, as § 4.14: "Judged 4
+variants and 96 measures; with this many, a slower measure can be
+chance, and a base that ran unusually fast or slow moves every variant
+together." Every variant shares the base runs, so their verdicts are
+not independent: re-run the base before believing several slower
+variants at once (Vestige). Then a table of every variant: rank, variant,
 verdict, the rank measure's centre, its change in ms or MB and in
 percent, and its own verdict (`faster`, `noisy`, …), within 100
 columns. Each variant's `compare` holds its full measures; the text
@@ -2737,12 +2749,17 @@ breaks.
   `rank_measure` is `frame/wall` median in `view`; `a` ranks 1, `b` 2,
   `c` 3, and `variants` lists them so. With `--measure gpu/x`, where
   `c`'s `gpu/x` falls most, `c` ranks 1. A variant `d` refused on
-  `device` has `rank` null and comes last.
+  `device` has `rank` null and comes last. Under `--measure gpu/x`, a
+  variant `e` whose runs lack `gpu/x`, which every base run has, is
+  unjudged with "none of its runs has a named measure", has `rank`
+  null, and leaves the exit as it is without `e` (Vestige).
   *Test:* `tests/test_compare_variants.py::test_rank`.
   *Breaks when:* variants rank by another kind, by verdict, by size of
-  change rather than its sign, or ignore `--measure`. The `load` kind
-  isolates the kind choice; `c`, both slowest and failing, isolates
-  the sign.
+  change rather than its sign, or ignore `--measure`; or a variant
+  lacking a named measure the base has is judged inconclusive or
+  counted in step 4. The `load` kind isolates the kind choice; `c`,
+  both slowest and failing, isolates the sign; `e` isolates "its own
+  runs".
 - **INV-93** — The count judged is given, and base warnings once. In
   INV-91's fixture with a base run carrying a § 4.9 warning,
   `judged.variants` is 1 and `judged.measures` equals the length of
