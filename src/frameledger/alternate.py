@@ -25,7 +25,9 @@ SAFE_DIR = re.compile(r"[A-Za-z0-9._\-/\\:]+")
 POSIX = os.name == "posix"
 # Windows' Ctrl-Break arrives as SIGBREAK, which stops a run as Ctrl-C does.
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM) + ((signal.SIGBREAK,) if hasattr(signal, "SIGBREAK") else ())
-KILL = getattr(signal, "SIGKILL", signal.SIGTERM)  # Windows has no SIGKILL; _signal_windows_tree kills there
+# Windows has no SIGKILL, and KILL must differ from every stop signal there
+# too (UT Ants), so it is None and _signal_windows_tree kills.
+KILL = getattr(signal, "SIGKILL", None)
 GRACE_S = 10  # how long a stopped command has to end before it is killed
 POLL_S = 0.05  # how often a wait checks for a stop
 SETTLE_S = 2  # how long a finished command's leftover processes have to end
@@ -164,7 +166,7 @@ def _waited(process: subprocess.Popen, give_up, seconds: float = GRACE_S) -> boo
     return True
 
 
-def _signal_group(process: subprocess.Popen, signum: int) -> None:
+def _signal_group(process: subprocess.Popen, signum: int | None) -> None:
     if not POSIX:
         _signal_windows_tree(process, signum)
         return
@@ -174,19 +176,24 @@ def _signal_group(process: subprocess.Popen, signum: int) -> None:
         pass
 
 
-def _signal_windows_tree(process: subprocess.Popen, signum: int) -> None:
+def _signal_windows_tree(process: subprocess.Popen, signum: int | None) -> None:
     """Windows has no signals to send a group (Vestige's review). A stop
     becomes CTRL_BREAK_EVENT, which reaches every process in the command's
     console process group; a kill becomes taskkill /T /F, which ends
     cmd.exe and every process it started that is still running. Both need
-    cmd.exe alive: a process whose parent has exited is in no tree."""
+    cmd.exe alive: a process whose parent has exited is in no tree. If
+    cmd.exe exits between poll() and taskkill, its id could in principle
+    be reused; the gap is too short to guard (UT Ants)."""
     if process.poll() is not None:
         return
-    if signum == KILL:
+    if signum is KILL:
         subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    else:
+        return
+    try:
         process.send_signal(signal.CTRL_BREAK_EVENT)
+    except OSError:
+        pass  # no console (a service, a scheduled task): the kill after GRACE_S ends it (UT Ants)
 
 
 def _group_alive(process: subprocess.Popen) -> bool:

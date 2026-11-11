@@ -1504,7 +1504,10 @@ Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
   `taskkill /T /F`, which ends `cmd.exe` and every process it started
   (Vestige). Both reach a process only while `cmd.exe` still runs, so
   on Windows a process left behind by a command that has exited is
-  neither checked for nor ended.
+  neither checked for nor ended. A windowed engine never receives a
+  Ctrl-Break, and none can be sent when `alternate` has no console (a
+  service, a scheduled task); then a stop waits out the 10 seconds
+  below and kills (UT Ants).
 - **A failed command's processes are ended before its file is
   deleted.** Any left are sent SIGTERM, or the stop signal, and given
   10 seconds; then they are killed. A second stop signal kills them at
@@ -2796,11 +2799,18 @@ breaks.
   old-1, new-1, only their files remain, and the engine has ended. It
   holds for an engine that ends on Ctrl-Break, and for one that ignores
   it, which only `taskkill /T /F` ends.
+  On any system, the Windows branch called directly with a stand-in
+  `cmd.exe` sends Ctrl-Break for a SIGINT or SIGTERM stop and taskkill
+  only for the kill; with no console, a stop sends nothing and raises
+  nothing. With SIGKILL absent, as on Windows, the kill is none of the
+  stop signals (UT Ants).
   *Test:* `tests/test_alternate.py::test_windows_stop_ends_the_tree`,
-  run on Windows only.
+  run on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`,
+  `tests/test_alternate.py::test_windows_kill_is_no_stop_signal`.
   *Breaks when:* the command shares the analyser's group, the stop is
   not passed on, or the kill ends `cmd.exe` alone: the engine outlives
   `alternate`. The engine that ignores Ctrl-Break isolates the kill.
+  Or a SIGTERM stop kills at once, or a stop with no console crashes.
 
 ## 6. Failure modes
 
@@ -2987,7 +2997,7 @@ it on each release they pin.
 | INV-92 | `tests/test_compare_variants.py::test_rank` |
 | INV-93 | `tests/test_compare_variants.py::test_judged_count` |
 | INV-94 | `tests/test_compare_variants.py::test_alternate_variants` |
-| INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only |
+| INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`, `tests/test_alternate.py::test_windows_kill_is_no_stop_signal` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |

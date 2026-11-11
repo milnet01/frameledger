@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=65 -->
+<!-- ants-roadmap-id-high-water: FLED=66 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -920,6 +920,18 @@ to compare against, and the small fixes they filed.
   **Layman:** Write down why each roadmap milestone gets its own 0.x number, and what would make frameledger 1.0.
   Kind: doc.
   Source: cut-release-0.4.0-2026-11-11.
+
+- 💭 [FLED-0066] **On Windows, alternate ends processes a command left detached.**
+  FLED-0063's taskkill /T finds only processes whose parent still
+  runs, so cmd's `start`, or a launcher that spawns and exits, leaves
+  processes behind (§ 4.15 says so). UT Ants' review of 299499a: a
+  Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE catches every
+  descendant that does not break away, and would also let Windows check
+  for leftovers after a command exits, as Linux does. Not needed by any
+  engine yet; considered until one is.
+  **Layman:** On Windows, stopping a test run also stops programs the game's script started and walked away from.
+  Kind: feature.
+  Source: engine-review-2026-11-11.
 
 ## 0.6.0 — other people's data
 

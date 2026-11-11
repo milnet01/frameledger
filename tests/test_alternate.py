@@ -300,6 +300,62 @@ def test_windows_stop_ends_the_tree(tmp_path, mode):
     assert windows_process_ended(engine)
 
 
+class FakeWindowsCommand:
+    """A running cmd.exe as _signal_windows_tree sees it, recording what
+    it was sent; `console=False` raises as GenerateConsoleCtrlEvent does
+    without a console."""
+
+    pid = 4242
+
+    def __init__(self, console: bool = True):
+        self.console, self.sent = console, []
+
+    def poll(self):
+        return None
+
+    def send_signal(self, signum):
+        if not self.console:
+            raise OSError("The handle is invalid")
+        self.sent.append(signum)
+
+
+@pytest.mark.parametrize("stop", [signal.SIGINT, signal.SIGTERM])
+@pytest.mark.parametrize("console", [True, False])
+def test_windows_stop_is_never_a_kill(monkeypatch, stop, console):
+    """INV-95 (UT Ants): every stop, SIGTERM included, is passed on as
+    Ctrl-Break and waits out the grace; only the kill runs taskkill. With
+    no console, Ctrl-Break cannot be sent and the stop goes on to the
+    kill instead of crashing. Runs anywhere: it calls the Windows branch
+    directly, with taskkill recorded rather than run."""
+    import alternate
+
+    monkeypatch.setattr(alternate.signal, "CTRL_BREAK_EVENT", "ctrl-break", raising=False)
+    killed = []
+    monkeypatch.setattr(alternate.subprocess, "run", lambda args, **_: killed.append(args))
+    command = FakeWindowsCommand(console)
+    alternate._signal_windows_tree(command, stop)
+    assert killed == [] and command.sent == (["ctrl-break"] if console else [])
+    alternate._signal_windows_tree(command, alternate.KILL)
+    assert killed == [["taskkill", "/PID", "4242", "/T", "/F"]]
+
+
+def test_windows_kill_is_no_stop_signal(monkeypatch):
+    """INV-95 (UT Ants): on a system without SIGKILL, as Windows is, the
+    kill still differs from every stop signal, so a SIGTERM stop is never
+    taken for the kill."""
+    import importlib
+
+    import alternate
+
+    monkeypatch.delattr(signal, "SIGKILL")
+    try:
+        windows_like = importlib.reload(alternate)
+        assert windows_like.KILL not in windows_like.STOP_SIGNALS
+    finally:
+        monkeypatch.undo()
+        importlib.reload(alternate)
+
+
 def test_engine_output_to_stderr(tmp_path):
     """INV-81: the engine's output never reaches standard output."""
     bench = Bench(tmp_path)
