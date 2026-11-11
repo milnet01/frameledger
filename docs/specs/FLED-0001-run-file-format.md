@@ -559,7 +559,7 @@ code are the text's.
 - **Depth.** A nested pass or measure is indented by two no-break
   spaces (U+00A0) per level, which Markdown keeps.
 - **Escapes.** In sentences and cells, a backslash goes before each
-  `\`, `` ` ``, `*`, `~`, `&`, `<`, `[`, `]` and `|`, and before each
+  `\`, `` ` ``, `*`, `~`, `&`, `<`, `[`, `]`, `|` and `$`, and before each
   `_` not between two letters or digits. So a path, a segment id or a
   static value cannot format the output or split a cell, and a pass
   name such as `shadow_map` is unchanged. A Windows path's backslashes
@@ -571,9 +571,13 @@ code are the text's.
   then `.` or `)`, then a space or the line's end, gets one before
   that `.` or `)`. Otherwise it would render as a heading, a quotation
   or a list. `100.0% of frames` and `-c.csv` are neither, so they are
-  left as they are. A cell never opens a line.
-- **GitHub's own links** — `@name`, `#123`, a commit hash — are not
-  escaped. A value holding one may link it in a pull request.
+  left as they are. Leading spaces become no-break spaces, so they
+  cannot make a list or a code block either. A cell never opens a
+  line.
+- **GitHub's own links and emoji** — `@name`, `#123`, a commit hash,
+  `:smile:` — are not escaped. A value holding one may link it in a
+  pull request, or show an emoji. Escaping `:` would mark every path
+  and segment.
 
 ### 4.9 Trust warnings
 
@@ -2534,18 +2538,20 @@ breaks.
   padded or a number column not right-aligned; a table is cut or split
   at 100 columns; or a row limit is lost.
 - **INV-88** — Engine text cannot break the Markdown. Fixture: a run
-  whose static line holds ``"note": "a|b *c* _d_ <e> [f]g &amp; ~~i~~ `k` \\j"``,
+  whose static line holds ``"note": "a|b *c* _d_ <e> [f]g &amp; ~~i~~ `k` $x$ \\j"``,
   a fact `"lines": "a\nb\r\nc"`, a pass `shadow_map`, and a pass at
   depth 1. In `report --markdown`, the `lines` row's cells are `lines`
   and `a b c`, and the `note` row is exactly
-  ``| note | a\|b \*c\* \_d\_ \<e> \[f\]g \&amp; \~\~i\~\~ \`k\` \\j |``
+  ``| note | a\|b \*c\* \_d\_ \<e> \[f\]g \&amp; \~\~i\~\~ \`k\` \$x\$ \\j |``
   padded to its column; `shadow_map` is unchanged; and the nested
   pass's cell opens with two U+00A0. A `check` of breaching files
   named `# a.csv`, `> b.csv`, `- c.csv`, `+ d.csv`, `1. e.csv` and
   `1) f.csv`, run from their folder, opens sentences `- \# a.csv`,
   `- \> b.csv`, `- \- c.csv`, `- \+ d.csv`, `- 1\. e.csv` and
   `- 1\) f.csv`; one named `100.0.csv` is unescaped, and one named
-  `a` and `b.csv` with a line break between opens `- a b.csv`.
+  `a` and `b.csv` with a line break between opens `- a b.csv`. One
+  named ` - c.csv` opens `-`, a space, a no-break space, `- c.csv`;
+  one named `    x.csv`, four no-break spaces before `x.csv`.
   `--markdown --json` is exit 3, and under `bisect` exit 128, its
   stop.
   *Test:* `tests/test_markdown.py::test_engine_text_is_escaped`,

@@ -124,8 +124,20 @@ def test_markdown_matches_text(capsys, tmp_path, case):
         under = text_rows(text, plain, result["summary"])
         assert len(under) in (len(rows), len(rows) + 1), (title, under)  # a columns table has a header line
         for row, line in zip(rows, under[len(under) - len(rows):], strict=True):
-            first = unescape(row[0]).replace(NBSP, " ").strip()
-            assert first[:20] in line, (row, line)
+            assert_row_in_line(row, line)
+
+
+def assert_row_in_line(row: list[str], line: str) -> None:
+    """Every Markdown cell, unescaped, is in the text's line, in order. A
+    cell the text cut short keeps one end there, beside a "..." or "…"."""
+    at = 0
+    for cell in row:
+        plain = unescape(cell).replace(NBSP, " ").strip()
+        found = line.find(plain, at)
+        if found < 0:
+            assert ("..." in line or "…" in line) and (plain[:8] in line or plain[-8:] in line), (cell, line)
+            continue
+        at = found + len(plain)
 
 
 @pytest.mark.parametrize("case", CASES)
@@ -183,8 +195,8 @@ def test_row_limits_stay(capsys, tmp_path):
     assert markdown.endswith("\n\n1 more static facts: see --json.\n")
 
 
-NOTE = r"a|b *c* _d_ <e> [f]g &amp; ~~i~~ `k` \j"
-ESCAPED = r"a\|b \*c\* \_d\_ \<e> \[f\]g \&amp; \~\~i\~\~ \`k\` \\j"
+NOTE = r"a|b *c* _d_ <e> [f]g &amp; ~~i~~ `k` $x$ \j"
+ESCAPED = r"a\|b \*c\* \_d\_ \<e> \[f\]g \&amp; \~\~i\~\~ \`k\` \$x\$ \\j"
 
 
 def test_engine_text_is_escaped(capsys, tmp_path):
@@ -211,6 +223,7 @@ def test_engine_text_is_escaped(capsys, tmp_path):
     ("# a.csv", r"- \# a.csv"), ("> b.csv", r"- \> b.csv"), ("- c.csv", r"- \- c.csv"),
     ("+ d.csv", r"- \+ d.csv"), ("1. e.csv", r"- 1\. e.csv"), ("1) f.csv", r"- 1\) f.csv"),
     ("100.0.csv", "- 100.0.csv"), ("a\nb.csv", "- a b.csv"),
+    (" - c.csv", f"- {NBSP}- c.csv"), ("    x.csv", f"- {NBSP * 4}x.csv"),
 ])
 def test_line_starts_are_escaped(capsys, tmp_path, monkeypatch, name, opening):
     """INV-88: a sentence opening with a path cannot become a heading, a

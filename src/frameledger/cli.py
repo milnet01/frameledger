@@ -119,7 +119,11 @@ def _renderer(args: argparse.Namespace) -> Callable[[dict], str]:
     """How the result is printed. Asking for two forms is a bad argument."""
     if args.json and args.markdown:
         raise ledger.LedgerError("give --json or --markdown, not both")
-    return render.to_json if args.json else render.to_markdown if args.markdown else render.to_text
+    if args.json:
+        return render.to_json
+    if args.markdown:
+        return render.to_markdown
+    return render.to_text
 
 
 def _add_compare_flags(command) -> None:

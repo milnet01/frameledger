@@ -40,7 +40,7 @@ class Table:
     # The text's own layout of the rows, for a table it prints as a list
     # rather than in columns. None lays the text out in columns, header first.
     # Markdown ignores it: every table is a pipe table there.
-    text: Callable[[Table], list[str]] | None = None
+    text_layout: Callable[[Table], list[str]] | None = None
 
 
 Block = str | Table  # a str is one line of prose; "" is a blank line in the text
@@ -77,7 +77,7 @@ def _text_lines(blocks: list[Block]) -> list[str]:
             continue
         if block.title is not None:
             lines.append(block.title)
-        lines += block.text(block) if block.text else _column_lines(block)
+        lines += block.text_layout(block) if block.text_layout else _column_lines(block)
     return lines
 
 
@@ -91,12 +91,14 @@ def _column_lines(table: Table) -> list[str]:
 # Markdown (§ 4.8). A backslash before each of these, so engine text such as
 # a path or a static value cannot format the output or split a cell. An
 # underscore inside a word cannot format, so shadow_map stays as it is.
-_SPECIAL = re.compile(r"[\\`*~&<\[\]|]|(?<![^\W_])_|_(?![^\W_])")
+_ALNUM = r"[^\W_]"  # a letter or a digit, not an underscore
+_SPECIAL = re.compile(rf"[\\`*~&<\[\]|$]|(?<!{_ALNUM})_|_(?!{_ALNUM})")
 # What would make a line a heading, a quotation or a list. All but > need a
 # space or the line's end after them, so "100.0% of frames" and "-c.csv"
 # are left as they are.
-_LIST_OR_HEADING = re.compile(r"^(?:(>|#{1,6}(?=\s|$)|[+-](?=\s|$))|(\d+)([.)])(?=\s|$))")
-NBSP = " "
+_LIST_OR_HEADING = re.compile(r"^(?:(?P<mark>>|#{1,6}(?=\s|$)|[+-](?=\s|$))"
+                              r"|(?P<number>\d+)(?P<dot>[.)])(?=\s|$))")
+NBSP = "\u00a0"
 
 
 # A line break, or any other control character, in a path or a static value
@@ -110,8 +112,18 @@ def _escape(text: str) -> str:
 
 def _line_start(text: str) -> str:
     """Escape what would turn a line opening with it into a heading, a
-    quotation or a list: a sentence can open with a path or a run name."""
-    return _LIST_OR_HEADING.sub(lambda m: "\\" + m[1] if m[1] else m[2] + "\\" + m[3], text, count=1)
+    quotation, a list or code: a sentence can open with a path or a run
+    name. Leading spaces become no-break spaces, which Markdown does not
+    read as an indent, so nothing after them can open a list (DOOM Ants)."""
+    indent = len(text) - len(text.lstrip(" "))
+    if indent:
+        return NBSP * indent + text[indent:]
+
+    def escaped(m: re.Match) -> str:
+        if m["mark"]:
+            return "\\" + m["mark"]
+        return m["number"] + "\\" + m["dot"]
+    return _LIST_OR_HEADING.sub(escaped, text, count=1)
 
 
 def _markdown_block(block: Block) -> str:
@@ -140,7 +152,9 @@ def _pipe_table(table: Table) -> list[str]:
 
 def _cell(text: str) -> str:
     """Markdown joins a run of spaces into one, and would lose a nested
-    pass's indent, so each two spaces become two no-break spaces."""
+    pass's indent, so each two spaces become two no-break spaces. That
+    is every pair, not only a leading one: a measure name's indent sits
+    after its kind, mid-cell, and a value's double space is kept too."""
     return _escape(text).replace("  ", NBSP * 2)
 
 
@@ -155,19 +169,19 @@ def _check_body(result: dict) -> list[Block]:
             blocks.append(Table(f"Breaches in {entry['path']}:",
                                 [Column("line", right=True), Column("breach"), Column("rule")],
                                 [[str(b["line"]), b["message"], b["rule"]] for b in entry["breaches"]],
-                                text=lambda t: [f"  line {line}: {message} ({rule})"
+                                text_layout=lambda t: [f"  line {line}: {message} ({rule})"
                                                 for line, message, rule in t.rows]))
     if result["warnings"]:
         blocks.append(Table("Warnings:", [Column("warning"), Column("code")],
                             [[w["message"], w["code"]] for w in result["warnings"]],
-                            text=lambda t: [f"  {message} ({code})" for message, code in t.rows]))
+                            text_layout=lambda t: [f"  {message} ({code})" for message, code in t.rows]))
     return blocks
 
 
 def _selftest_body(result: dict) -> list[Block]:
     return [Table(None, [Column("result"), Column("check")],
                   [["ok" if c["pass"] else "FAIL", c["name"]] for c in result["result"]["checks"]],
-                  text=lambda t: [f"  {outcome:<4}  {name}" for outcome, name in t.rows])]
+                  text_layout=lambda t: [f"  {outcome:<4}  {name}" for outcome, name in t.rows])]
 
 
 def _report_body(result: dict) -> list[Block]:
@@ -231,7 +245,7 @@ def _compare_body(result: dict) -> list[Block]:
         return _scenes_body(compared)
     blocks: list[Block] = [Table("Runs:", [Column("run"), Column("path")],
                                  [[r["name"], r["path"]] for r in compared["runs"]],
-                                 text=lambda t: [_fit(f"  {name:<8}  {path}", WIDTH) for name, path in t.rows])]
+                                 text_layout=lambda t: [_fit(f"  {name:<8}  {path}", WIDTH) for name, path in t.rows])]
     if compared["refused"]:
         return blocks
     blocks.append("")
@@ -253,13 +267,13 @@ def _compare_body(result: dict) -> list[Block]:
     if compared["unmatched"]:
         blocks += [Table("Not in every run, so not judged:", [Column("measure"), Column("only in")],
                          [[_measure_name(m), ", ".join(m["present_in"])] for m in compared["unmatched"]],
-                         text=lambda t: [_fit(f"  {name}: only in {runs}", WIDTH) for name, runs in t.rows]), ""]
+                         text_layout=lambda t: [_fit(f"  {name}: only in {runs}", WIDTH) for name, runs in t.rows]), ""]
     diff = compared["static_diff"]
     if diff:
         blocks.append(Table("Static facts that differ between runs:", [Column("fact"), Column("values")],
                             [[d["key"], ", ".join(f"{name} {_fact(value)}" for name, value in d["values"].items())]
                              for d in diff[:STATIC_LINES]],
-                            text=lambda t: [_fit(f"  {key}: {values}", WIDTH) for key, values in t.rows]))
+                            text_layout=lambda t: [_fit(f"  {key}: {values}", WIDTH) for key, values in t.rows]))
         if len(diff) > STATIC_LINES:
             blocks.append(f"  {len(diff) - STATIC_LINES} more: see --json.")
     return _trimmed(blocks)
@@ -273,7 +287,8 @@ def _bisect_body(result: dict) -> list[Block]:
     return [Table(f"Runs, with their {unit}:", [Column("run"), Column(unit, right=True), Column("path")],
                   [[r["name"], "-" if r["value"] is None else format(r["value"], ".3f"), r["path"]]
                    for r in bisected["runs"]],
-                  text=lambda t: [_fit(f"  {name:<8}  {value:>14}  {path}", WIDTH) for name, value, path in t.rows])]
+                  text_layout=lambda t: [_fit(f"  {name:<8}  {value:>14}  {path}", WIDTH)
+                                         for name, value, path in t.rows])]
 
 
 def _budget_body(result: dict) -> list[Block]:
@@ -306,7 +321,7 @@ def _per_run_table(compared: dict) -> Table:
             row.append(f"{value:.3f}")
     return Table("Each run's value of each named measure (ms; mem in MB):",
                  [Column("run"), *(Column(header, right=True) for header in _per_run_headers(measures))],
-                 rows, text=_per_run_text)
+                 rows, text_layout=_per_run_text)
 
 
 def _per_run_text(table: Table) -> list[str]:
@@ -391,7 +406,7 @@ def _static_blocks(static: dict) -> list[Block]:
         shown = facts[:STATIC_LINES]
     blocks: list[Block] = [Table("Static facts, as the engine wrote them:", [Column("fact"), Column("value")],
                                  [[key, value] for key, value in shown],
-                                 text=lambda t: [_fit(f"  {key}: {value}", WIDTH) for key, value in t.rows])]
+                                 text_layout=lambda t: [_fit(f"  {key}: {value}", WIDTH) for key, value in t.rows])]
     if len(facts) > len(shown):
         blocks.append(f"  {len(facts) - len(shown)} more static facts: see --json.")
     return blocks
