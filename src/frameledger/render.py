@@ -39,6 +39,7 @@ class Table:
     rows: list[list[str]]
     # The text's own layout of the rows, for a table it prints as a list
     # rather than in columns. None lays the text out in columns, header first.
+    # Markdown ignores it: every table is a pipe table there.
     text: Callable[[Table], list[str]] | None = None
 
 
@@ -98,8 +99,13 @@ _LIST_OR_HEADING = re.compile(r"^(?:(>|#{1,6}(?=\s|$)|[+-](?=\s|$))|(\d+)([.)])(
 NBSP = " "
 
 
+# A line break, or any other control character, in a path or a static value
+# would end a table row or a sentence's list item early (Vestige).
+_CONTROL = re.compile(r"\r\n|[\x00-\x1f\x7f]")
+
+
 def _escape(text: str) -> str:
-    return _SPECIAL.sub(lambda m: "\\" + m[0], text)
+    return _SPECIAL.sub(lambda m: "\\" + m[0], _CONTROL.sub(" ", text))
 
 
 def _line_start(text: str) -> str:

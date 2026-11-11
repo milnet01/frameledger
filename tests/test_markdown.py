@@ -188,16 +188,19 @@ ESCAPED = r"a\|b \*c\* \_d\_ \<e> \[f\]g \&amp; \~\~i\~\~ \`k\` \\j"
 
 
 def test_engine_text_is_escaped(capsys, tmp_path):
-    """INV-88: a static value cannot split its cell or format; a pass name
-    keeps its inner underscore; a nested pass keeps its indent."""
+    """INV-88: a static value cannot split its cell or format, nor a line
+    break end its row; a pass name keeps its inner underscore; a nested
+    pass keeps its indent."""
     lines = (FIXTURES / "nested.csv").read_text(encoding="utf-8").splitlines()
-    lines.insert(1, "# frameledger-static " + json.dumps({"note": NOTE}))
+    lines.insert(1, "# frameledger-static " + json.dumps({"note": NOTE, "lines": "a\nb\r\nc"}))
     lines.insert(-1, "r1,view:1,0,gpu,shadow_map,0,1.000")
     path = tmp_path / "escaped.csv"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     assert cli.main(["report", str(path), "--markdown"]) == 0
     markdown = capsys.readouterr().out
-    assert f"| note | {ESCAPED} |" in markdown.split("\n")
+    assert f"| note  | {ESCAPED} |" in markdown.split("\n")
+    [row] = [line for line in markdown.split("\n") if line.startswith("| lines ")]
+    assert cells(row) == ["lines", "a b c"] and row.endswith(" |")
     assert unescape(ESCAPED) == NOTE
     assert "shadow_map" in markdown and r"shadow\_map" not in markdown
     nested = [line for line in markdown.split("\n") if "cascade0" in line]
@@ -207,11 +210,12 @@ def test_engine_text_is_escaped(capsys, tmp_path):
 @pytest.mark.parametrize(("name", "opening"), [
     ("# a.csv", r"- \# a.csv"), ("> b.csv", r"- \> b.csv"), ("- c.csv", r"- \- c.csv"),
     ("+ d.csv", r"- \+ d.csv"), ("1. e.csv", r"- 1\. e.csv"), ("1) f.csv", r"- 1\) f.csv"),
-    ("100.0.csv", "- 100.0.csv"),
+    ("100.0.csv", "- 100.0.csv"), ("a\nb.csv", "- a b.csv"),
 ])
 def test_line_starts_are_escaped(capsys, tmp_path, monkeypatch, name, opening):
     """INV-88: a sentence opening with a path cannot become a heading, a
-    quotation or a list; one that would not is left as it is."""
+    quotation or a list, nor a line break in it end its item; one that
+    would not is left as it is."""
     monkeypatch.chdir(tmp_path)
     Path(name).write_text("not a run\n", encoding="utf-8")
     assert cli.main(["check", name, "--markdown"]) == 1

@@ -563,7 +563,8 @@ code are the text's.
   `_` not between two letters or digits. So a path, a segment id or a
   static value cannot format the output or split a cell, and a pass
   name such as `shadow_map` is unchanged. A Windows path's backslashes
-  are doubled unrendered.
+  are doubled unrendered. A line break or other control character
+  becomes a space, so it cannot end a row or a sentence's item.
 - **Line starts.** A sentence can open with a path, a run name or an
   error. So a sentence opening `>`, or one to six `#`, a `-` or a `+`
   then a space or the line's end, gets a backslash before it. One opening with digits
@@ -2534,22 +2535,25 @@ breaks.
   at 100 columns; or a row limit is lost.
 - **INV-88** — Engine text cannot break the Markdown. Fixture: a run
   whose static line holds ``"note": "a|b *c* _d_ <e> [f]g &amp; ~~i~~ `k` \\j"``,
-  a pass `shadow_map`, and a pass at depth 1. In `report --markdown`,
-  that fact's row is exactly
+  a fact `"lines": "a\nb\r\nc"`, a pass `shadow_map`, and a pass at
+  depth 1. In `report --markdown`, the `lines` row's cells are `lines`
+  and `a b c`, and the `note` row is exactly
   ``| note | a\|b \*c\* \_d\_ \<e> \[f\]g \&amp; \~\~i\~\~ \`k\` \\j |``
   padded to its column; `shadow_map` is unchanged; and the nested
   pass's cell opens with two U+00A0. A `check` of breaching files
   named `# a.csv`, `> b.csv`, `- c.csv`, `+ d.csv`, `1. e.csv` and
   `1) f.csv`, run from their folder, opens sentences `- \# a.csv`,
   `- \> b.csv`, `- \- c.csv`, `- \+ d.csv`, `- 1\. e.csv` and
-  `- 1\) f.csv`; one named `100.0.csv` is unescaped.
+  `- 1\) f.csv`; one named `100.0.csv` is unescaped, and one named
+  `a` and `b.csv` with a line break between opens `- a b.csv`.
   `--markdown --json` is exit 3, and under `bisect` exit 128, its
   stop.
   *Test:* `tests/test_markdown.py::test_engine_text_is_escaped`,
   `tests/test_markdown.py::test_line_starts_are_escaped`,
   `tests/test_markdown.py::test_markdown_and_json_refused`.
   *Breaks when:* an escape is missing, so a cell splits, a value
-  formats or a sentence becomes a heading, quotation or list; the
+  formats, a line break ends a row or item, or a sentence becomes a
+  heading, quotation or list; the
   depth indent is stripped; or both flags are accepted.
 
 ## 6. Failure modes
