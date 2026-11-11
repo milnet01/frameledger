@@ -2345,7 +2345,8 @@ breaks.
 - **INV-80** — A failing run stops the rest, and only finished runs'
   files remain. INV-78's fixture, with new-2's command writing its
   file and then exiting 4: exit 3, the first sentence names new-2 and
-  code 4, the order log ends at new-2, `stopped.finished` is old-1,
+  code 4, and without `--json` the text is that sentence and the
+  command's alone; the order log ends at new-2, `stopped.finished` is old-1,
   new-1, their files remain, and `new-2.csv` is gone. With new-2's
   command exiting 0 and writing nothing, the reason names the missing
   path and `exit_code` is null. With `exec` before the command and
@@ -2365,6 +2366,7 @@ breaks.
   has ended; with a child sleeping 0.3 seconds, every run finishes. A SIGTERM delivered while new-2's command is being started
   still ends it.
   *Test:* `tests/test_alternate.py::test_failed_run_stops`,
+  `tests/test_alternate.py::test_stopped_text_is_its_sentences`,
   `tests/test_alternate.py::test_killed_command_names_its_signal`,
   `tests/test_alternate.py::test_left_processes_fail_the_run`,
   `tests/test_alternate.py::test_brief_leftover_is_waited_for`,
@@ -2372,7 +2374,8 @@ breaks.
   `tests/test_alternate.py::test_interrupted_run_stops`. Nothing here
   tests a process that survives SIGKILL.
   *Breaks when:* later runs start, the finished runs are compared,
-  their files are removed, the failed run's file is kept, a stop
+  their files are removed, the failed run's file is kept, its text
+  gains compare's body, a stop
   signal is not a stop, or the engine behind the shell outlives it.
   The compound command keeps the shell between `alternate` and the
   engine, so only a stop reaching the whole group ends the engine.
@@ -2632,7 +2635,7 @@ it on each release they pin.
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | INV-78 | `tests/test_alternate.py::test_alternates_and_compares`, `tests/test_alternate.py::test_text_is_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
-| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_stopped_text_is_its_sentences`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |

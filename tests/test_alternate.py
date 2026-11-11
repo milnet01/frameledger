@@ -160,6 +160,18 @@ def test_failed_run_stops(tmp_path, mode):
     assert str(bench.out / "new-2.csv") in stopped["command"]
 
 
+def test_stopped_text_is_its_sentences(tmp_path):
+    """INV-80: a stopped run's text is its two sentences and nothing of
+    compare's, since no run was compared (DOOM Ants)."""
+    bench = Bench(tmp_path)
+    done = analyser(bench.args(), env={"FAKE_ENGINE": "new-2=exit4"})
+    assert done.returncode == 3
+    lines = done.stdout.splitlines()
+    assert lines[0] == "new-2 failed: the command exited with code 4."
+    assert lines[1].startswith("Its command was: ")
+    assert len(lines) == 2
+
+
 @pytest.mark.parametrize("shell_stays, reason", [
     (False, "the command was killed by signal 9 (SIGKILL)"),
     (True, "the command exited with code 137, as the shell reports a command killed by signal 9 (SIGKILL)"),
