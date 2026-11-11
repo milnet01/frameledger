@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=66 -->
+<!-- ants-roadmap-id-high-water: FLED=67 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -930,6 +930,17 @@ to compare against, and the small fixes they filed.
   for leftovers after a command exits, as Linux does. Not needed by any
   engine yet; considered until one is.
   **Layman:** On Windows, stopping a test run also stops programs the game's script started and walked away from.
+  Kind: feature.
+  Source: engine-review-2026-11-11.
+
+- 📋 [FLED-0067] **The writer header says which release it came from.**
+  include/frameledger.h has no version macro, so a vendored copy is
+  pinned only by the engine's own notes: DOOM Ants' copy at v0.2.0,
+  Vestige's under external/frameledger/. DOOM Ants' review of FLED-0065:
+  an FLED_VERSION macro would let a copied header say its version.
+  Needs a § 4.6 amendment, reviewed by the engines, and a release step
+  that keeps the macro equal to the release's version.
+  **Layman:** A copied writer file says which frameledger version it is, so an engine knows what it has.
   Kind: feature.
   Source: engine-review-2026-11-11.
 

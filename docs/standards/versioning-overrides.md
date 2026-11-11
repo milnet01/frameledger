@@ -39,7 +39,8 @@ scripts and writers are built to.
 
 - **The run file**: its header, static line, rows and close line,
   `docs/specs/FLED-0001-run-file-format.md` § 4.1 to § 4.5. A file
-  that one release reads must still be read by the next. The reverse
+  that one release reads must still be read by the next, with the same
+  values (DOOM Ants). The reverse
   is not promised: a file with a newer `schema` than the analyser's is
   exit 3, naming both versions (INV-2), so update the analyser before
   or with the header (Vestige).
@@ -50,10 +51,22 @@ scripts and writers are built to.
   uses, since an engine building with warnings as errors breaks on a
   new warning as surely as on a renamed function (Vestige).
 - **The commands**: each command's flags, defaults and exit codes, and
-  its JSON result's keys and meanings, § 4.7 to § 4.16.
+  its JSON result's keys and meanings, § 4.7 to § 4.16. Standard
+  output holds only the result, the engine's output going to standard
+  error under `alternate` (INV-81). `alternate` names its run files
+  `old-1.csv`, `base-1.csv`, `<name>-1.csv` and so on, and scripts
+  read them (DOOM Ants).
+- **Verdicts.** A deliberate change to the statistics or verdict
+  rules, giving a different verdict on the same files, is breaking. A
+  fix that makes a verdict match the spec is a fix (DOOM Ants).
 - **How it is run**: `python3 -I src/frameledger`, the
   `frameledger.pyz` bundle, the `frameledger` and `frameledger.cmd`
-  launchers (§ 4.7), and the Python 3.10 floor.
+  launchers (§ 4.7), the Python 3.10 floor, and the systems it runs
+  on: Linux, Windows and macOS (discovery S11). Dropping one is
+  breaking (DOOM Ants).
+
+**The promises hold between releases.** A checkout of `main` between
+releases carries none (DOOM Ants).
 
 **Adding is not breaking**: a new key in a JSON result, a new value
 in an open set such as a warning code, a new flag or command, or a new
