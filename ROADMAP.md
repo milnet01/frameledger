@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=64 -->
+<!-- ants-roadmap-id-high-water: FLED=65 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -573,6 +573,8 @@ another's.
   Shipped 2026-11-10. Agreed by UT Ants (final text), Vestige and DOOM
   Ants (06b61af, 2026-11-09). 0fc13c1 adds DOOM Ants' requested clause
   on run order (started_utc) and Vestige's "median" wording.
+  Release note (2026-11-11): no CHANGELOG entry. A README-only change;
+  its last commit, 0fc13c1, is in v0.3.0.
   **Layman:** Show an example of the comparison report, so engines use it instead of writing their own scripts.
   Kind: doc.
   Source: doom-ants-feedback-2026-11-05.
@@ -731,19 +733,6 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 📋 [FLED-0063] **alternate stops a Windows command's whole process tree.**
-  On Linux and macOS, alternate runs each command in its own process
-  group and passes Ctrl-C and SIGTERM on to all of it (FLED-0029,
-  spec § 4.15). On Windows it does not yet: the console's Ctrl-C reaches
-  the command, and SIGTERM kills only cmd.exe, so an engine behind a
-  wrapper can outlive it. Vestige's review suggested
-  CREATE_NEW_PROCESS_GROUP with CTRL_BREAK_EVENT, then taskkill /T /F.
-  Nothing here runs Windows, so it waits for a Windows engine to test
-  it: Vestige's 3D_E-0820, its Windows writer.
-  **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
-  Kind: feature.
-  Source: engine-review-2026-11-10.
-
 - ✅ [FLED-0064] **alternate prints compare's tables.**
   § 4.15 says alternate gives § 4.10's text, but render.py's
   _BODIES has no alternate entry, so alternate prints only the
@@ -889,6 +878,34 @@ to compare against, and the small fixes they filed.
   **Layman:** Counts sudden stutters: frames much slower than the frames around them.
   Kind: feature.
   Source: competitor-research-2026-11-10.
+
+- 📋 [FLED-0063] **alternate stops a Windows command's whole process tree.**
+  On Linux and macOS, alternate runs each command in its own process
+  group and passes Ctrl-C and SIGTERM on to all of it (FLED-0029,
+  spec § 4.15). On Windows it does not yet: the console's Ctrl-C reaches
+  the command, and SIGTERM kills only cmd.exe, so an engine behind a
+  wrapper can outlive it. Vestige's review suggested
+  CREATE_NEW_PROCESS_GROUP with CTRL_BREAK_EVENT, then taskkill /T /F.
+  Nothing here runs Windows, so it waits for a Windows engine to test
+  it: Vestige's 3D_E-0820, its Windows writer.
+  Moved from 0.4.0 to 0.5.0 on 2026-11-11: Vestige, UT Ants and DOOM
+  Ants all chose to cut 0.4.0 without it. Leads for a Windows test: UT
+  Ants' MSVC build machine, and the user's own Windows box (Vestige is
+  asking the user). Using either is the user's call.
+  **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
+  Kind: feature.
+  Source: engine-review-2026-11-10.
+
+- 📋 [FLED-0065] **Record how frameledger numbers its 0.x releases.**
+  versioning.md § 4 says that inside 0.x only a breaking change bumps
+  the MINOR; new features bump the PATCH. frameledger instead cuts one
+  MINOR per roadmap milestone (0.3.0 and 0.4.0 carried only Added
+  entries). § 4 also asks for a one-line exit condition for 1.0. Write
+  both in docs/standards/versioning-overrides.md, with the reason, and
+  send it to the three engine sessions for review.
+  **Layman:** Write down why each roadmap milestone gets its own 0.x number, and what would make frameledger 1.0.
+  Kind: doc.
+  Source: cut-release-0.4.0-2026-11-11.
 
 ## 0.6.0 — other people's data
 

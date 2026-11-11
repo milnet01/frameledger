@@ -12,7 +12,18 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-11
+
+**Theme:** A/B runs you can trust.
+
 ### Added
+
+- The release archive, `frameledger-v0.4.0.zip`: `frameledger.pyz`, its
+  launchers `frameledger` and `frameledger.cmd`, `include/frameledger.h`
+  and `LICENSE`. SHA256
+  `fad27de1049d288d700a0c6b9d6028f0938b3a154a5de4ef946385d3ae3deb0c`.
+  `python3 -I scripts/build_release.py OUTDIR v0.4.0`, run on the tag,
+  rebuilds it; the release workflow does so under Python 3.10.22.
 
 - **`alternate` runs the old and new builds in turn, then compares them** (FLED-0029)
   `alternate --old CMD --new CMD --out DIR` runs each build's command five times by default (`--runs N`, 3 to 100), filling `{run}` in each command with that run's own file, `DIR/old-1.csv` and so on. Runs go in pairs, old-1, new-1, new-2, old-2, …, so a machine that drifts over the batch does not read as a change. `--warmup W` runs untimed runs first. A run that fails or is interrupted stops the rest, exit 3, and its file is deleted. Otherwise the files are compared exactly as `compare` would, and the text shows `compare`'s tables (FLED-0064).
