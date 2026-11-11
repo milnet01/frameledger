@@ -153,7 +153,12 @@ settles.
   private script is no longer needed (DOOM Ants). *Proposed here:*
   `bisect`'s `CATEGORY/NAME` form; every depth, kind and statistic of
   a name kept; a name no run has is exit 3; the table in text only,
-  and not under `--by-scene`.
+  and not under `--by-scene`. Reviewed by the three engines
+  2026-11-11, agreeing to each; from the review: a compare whose kept
+  measures are all unmatched is inconclusive, and names match case
+  included (UT Ants); a further table repeats the run column, and a
+  scene whose kept measures are all unmatched is inconclusive
+  (Vestige).
 
 ## 4. Design
 
@@ -655,9 +660,9 @@ measure above is judged.
   name never passes by judging nothing. One that only some runs have
   goes into `unmatched`, as above.
 - Only kept measures are judged, ranked, counted and listed in
-  `unmatched`. So the verdict's step 3 applies to a noisy `frame/wall`
-  only when `frame/wall` is kept, and to every kept measure being
-  unmatched. Refusals, warnings, dropped rows, load and the static diff
+  `unmatched`. So step 3 makes the compare inconclusive for a noisy
+  `frame/wall` only when `frame/wall` is kept, and whenever every kept
+  measure is unmatched (Vestige). Refusals, warnings, dropped rows, load and the static diff
   are unchanged.
 
 **Judging a measure.** Arithmetic is exact, in fractions; JSON gives
@@ -783,8 +788,9 @@ per kept measure that was judged. Each cell is the run's value, as in
 `old` and `new`, to three places. A column is headed
 `category/name`, then ` p99` for a 99th percentile, the segment kind
 when the runs have more than one, and the depth when the name has more
-than one. Columns that do not fit in 100 characters go into a further table. The
-JSON adds nothing for it: `old` and `new` hold the same values.
+than one. Columns that do not fit in 100 characters go into a further
+table, which repeats the run column. A header too wide for one table
+is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `old` and `new` hold the same values.
 
 **Result:**
 
@@ -1300,7 +1306,9 @@ The flags are § 4.10's, with its defaults and bounds.
 - **`override_unused`** is given once, when the field differs in no
   scene.
 - **`--measure`** keeps the same measures in every scene. A named
-  measure is exit 3 only when no judged scene's runs have it. The text
+  measure is exit 3 only when no judged scene's runs have it. A scene
+  whose kept measures are all unmatched is inconclusive, as § 4.10's
+  step 3 makes a compare (Vestige). The text
   gives no per-run table; each scene's `compare` holds the values.
 
 **The command's verdict**, first match wins:
@@ -2399,7 +2407,8 @@ breaks.
   the overrides names it. `--measure gpu/a`: exit 1. `--measure
   frame/wall`: exit 2. `--measure cpu/c`: exit 2, `cpu/c` in
   `unmatched` and named in the summary. `--measure gpu/b --measure
-  cpu/c`: exit 0. `--measure gpu/z`, `gpu/B`, `event/x`,
+  cpu/c`: exit 0, since a partly unmatched list still judges `gpu/b`.
+  `--measure gpu/z`, `gpu/B`, `event/x`,
   `frame/fence_wait`, `gpu/`, or `gpu/b` twice: exit 3, naming it.
   *Test:* `tests/test_compare_measure.py::test_measure_keeps_named`.
   *Breaks when:* an unnamed measure is judged or decides the verdict,
@@ -2407,12 +2416,16 @@ breaks.
   no run has gives a verdict, or a compare judging nothing passes.
 - **INV-86** — The per-run table gives each run's value. With INV-85's
   fixture and `--measure gpu/b --measure frame/wall`, the text has one
-  row per run in run order, as § 4.10, each cell equal to the JSON's `old` or
-  `new` value to three places, and no line over 100 columns. Without
-  `--measure`, and under `--by-scene`, it has no such table.
+  row per run in run order, as § 4.10, each cell equal to the JSON's
+  `old` or `new` value to three places. With twelve more passes named,
+  one of them 120 characters long, the columns spill into further
+  tables, each opening with the run column, and no line is over 100
+  characters. Without `--measure`, and under `--by-scene`, it has no
+  such table.
   *Test:* `tests/test_compare_measure.py::test_per_run_table`.
   *Breaks when:* a run or a judged kept measure is missing, a cell
-  differs from the JSON, or a line is wider than 100.
+  differs from the JSON, a further table lacks the run column, or a
+  line is wider than 100.
 
 ## 6. Failure modes
 
