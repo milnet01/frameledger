@@ -645,7 +645,9 @@ measure above is judged.
   `frame/cpu_span`, `frame/gpu_span`, a `cpu` or `gpu` pass, or a
   `mem` name. Any other category, any other `frame` name (such as
   `frame/fence_wait`), an empty name, or a measure given twice, is
-  exit 3.
+  exit 3, naming it.
+- A name matches exactly, case included: `gpu/TAAU` does not keep
+  `gpu/taau` (UT Ants).
 - It keeps the name at every depth and in every segment kind, with
   each statistic judged: `frame/wall` keeps its median and its 99th
   percentile.
@@ -653,8 +655,9 @@ measure above is judged.
   name never passes by judging nothing. One that only some runs have
   goes into `unmatched`, as above.
 - Only kept measures are judged, ranked, counted and listed in
-  `unmatched`. So the verdict's step 3 applies only when `frame/wall`
-  is kept. Refusals, warnings, dropped rows, load and the static diff
+  `unmatched`. So the verdict's step 3 applies to a noisy `frame/wall`
+  only when `frame/wall` is kept, and to every kept measure being
+  unmatched. Refusals, warnings, dropped rows, load and the static diff
   are unchanged.
 
 **Judging a measure.** Arithmetic is exact, in fractions; JSON gives
@@ -723,7 +726,9 @@ weighs one `slower` among them.
    every run (§ 4.9's `too_few_frames` bound): re-run with more runs a
    set. A shorter kind, such as a loading stretch, is noisy almost
    every time; the summary names the kinds this step skipped
-   (Vestige).
+   (Vestige). It is also inconclusive when `--measure` kept nothing
+   that was judged, every kept measure being in `unmatched`; the
+   summary names them (UT Ants).
 4. `pass` (exit 0) otherwise. A `faster` or `smaller` measure is
    reported, and does not change the verdict. A `noisy` `mem` measure
    is reported too, and only `frame/wall` makes step 3 inconclusive.
@@ -2392,16 +2397,17 @@ breaks.
   gpu/b`: exit 0, every entry of `measures` is `gpu/b`, `unmatched`
   is empty, `named_measures` is `["gpu/b"]`, and the sentence after
   the overrides names it. `--measure gpu/a`: exit 1. `--measure
-  frame/wall`: exit 2. `--measure cpu/c`: exit 0, `cpu/c` in
-  `unmatched`. `--measure gpu/z`, `event/x`, `frame/fence_wait`,
-  `gpu/`, or `gpu/b` twice: exit 3.
+  frame/wall`: exit 2. `--measure cpu/c`: exit 2, `cpu/c` in
+  `unmatched` and named in the summary. `--measure gpu/b --measure
+  cpu/c`: exit 0. `--measure gpu/z`, `gpu/B`, `event/x`,
+  `frame/fence_wait`, `gpu/`, or `gpu/b` twice: exit 3, naming it.
   *Test:* `tests/test_compare_measure.py::test_measure_keeps_named`.
   *Breaks when:* an unnamed measure is judged or decides the verdict,
-  `frame/wall` makes the compare inconclusive when not named, or a
-  name no run has gives a verdict.
+  `frame/wall` makes the compare inconclusive when not named, a name
+  no run has gives a verdict, or a compare judging nothing passes.
 - **INV-86** — The per-run table gives each run's value. With INV-85's
   fixture and `--measure gpu/b --measure frame/wall`, the text has one
-  row per run in name order, each cell equal to the JSON's `old` or
+  row per run in run order, as § 4.10, each cell equal to the JSON's `old` or
   `new` value to three places, and no line over 100 columns. Without
   `--measure`, and under `--by-scene`, it has no such table.
   *Test:* `tests/test_compare_measure.py::test_per_run_table`.
