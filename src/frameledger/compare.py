@@ -136,7 +136,9 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     short = _short_kinds(runs)
     verdict, sentences, reason = _verdict(incomplete, loaded, measures, short, bool(named_measures), unmatched)
     summary += sentences
-    if short:  # straight after the verdict, which it explains (Vestige)
+    if short and (not named_measures or "frame/wall" in named_measures):
+        # Straight after the verdict, which it explains (Vestige); without
+        # frame/wall judged, step 3 skips nothing, so nothing to explain.
         kinds = ", ".join(run_report.kind_name(k) for k in short)
         summary.append(f"Some run has fewer than {trust.FEWEST_FRAMES} frames with a frame/wall in "
                        f"{kinds} segments, so a noisy frame time there cannot make the compare "
@@ -474,7 +476,7 @@ def _short_kinds(runs: list[Named]) -> list[str | None]:
 
 
 def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], short: list,
-             named: bool = False, unmatched: list[dict] = ()) -> tuple[str, list[str], str | None]:
+             named: bool = False, unmatched: list[dict] | None = None) -> tuple[str, list[str], str | None]:
     """§ 4.10's verdict, first match wins, the sentences saying it, and why
     it is inconclusive, or None. ms and MB never rank against each other,
     so slower passes and larger memory each get a sentence. `named` says
@@ -505,7 +507,7 @@ def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], sho
         return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
     if named and not measures:  # step 3's second half (UT Ants): never pass by judging nothing
         # Each name once, though unmatched lists it per kind, depth and statistic.
-        missing = joined(dict.fromkeys(f"{m['category']}/{m['name']}" for m in unmatched))
+        missing = joined(dict.fromkeys(f"{m['category']}/{m['name']}" for m in unmatched or []))
         # No missing name means no run has any: a plain compare refuses
         # that first, so only a --by-scene scene, which scenes.py leaves
         # out, reaches the second reason.
@@ -540,11 +542,14 @@ def _wall_sentences(measures: list[dict]) -> list[str]:
             for m in measures if (m["category"], m["name"], m["statistic"]) == ("frame", "wall", "median")]
 
 
-def absent_sentence(absent: list[str]) -> str:
-    """§ 4.10: a named measure no run has refuses the compare."""
+def absent_sentence(absent: list[str], all_read: bool = True) -> str:
+    """§ 4.10: a named measure no run has refuses the compare. Under
+    --by-scene a scene's runs may go unread, and then the sentence claims
+    only the runs read (DOOM Ants)."""
     pronoun = "it" if len(absent) == 1 else "they"
-    return (f"No run has {joined(absent, 'or')}, so {pronoun} cannot be judged; a name matches exactly, "
-            "case included.")
+    runs = "run" if all_read else "run read"
+    return (f"No {runs} has {joined(absent, 'or')}, so {pronoun} cannot be judged; a name matches "
+            "exactly, case included.")
 
 
 def joined(names, word: str = "and") -> str:

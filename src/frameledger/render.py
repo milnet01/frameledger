@@ -101,7 +101,7 @@ def _floor_body(result: dict) -> list[str]:
 
 def _compare_body(result: dict) -> list[str]:
     compared = result["result"]
-    if not {"scenes", "measures", "refused"} & compared.keys():  # an error before judging: the sentences say why
+    if not _reached_judging(compared):  # the opening sentences say why
         return []
     if "scenes" in compared:
         return _scenes_body(compared)
@@ -166,6 +166,13 @@ def _budget_body(result: dict) -> list[str]:
 
 def _measure_row(name: str, old: str, new: str, change: str, spread: str, verdict: str) -> str:
     return f"  {_fit(name, 40):<40}  {old:>10}  {new:>10}  {change:>10}  {spread:>10}  {verdict}"
+
+
+def _reached_judging(compared: dict) -> bool:
+    """Whether a compare's result got as far as the runs' header check:
+    a file error and a named measure no run has stop before it, and have
+    nothing to show past their sentences."""
+    return bool({"scenes", "measures", "refused"} & compared.keys())
 
 
 def _per_run_tables(compared: dict) -> list[str]:

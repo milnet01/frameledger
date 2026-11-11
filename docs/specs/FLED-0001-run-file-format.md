@@ -775,7 +775,8 @@ line or load; one per kind of warning; the verdict sentence, naming the slower
 measure with the largest change in milliseconds, ties by percent (or
 why it is inconclusive); the `larger` `mem` measure with the largest
 change in MB, ties by percent, which is the verdict sentence when no
-measure is `slower`; the segment kinds step 3 skipped; the `frame/wall`
+measure is `slower`; the segment kinds step 3 skipped, when
+`frame/wall` is judged (DOOM Ants); the `frame/wall`
 median per segment kind, old centre against new. A refusal ends the
 compare after its warning sentences; a file that cannot be read still
 opens with the overrides. Then a table of every ms measure not `unchanged`, one of
@@ -1327,7 +1328,9 @@ The flags are § 4.10's, with its defaults and bounds.
    Ants, Vestige). It is also `error`, checked first, when a named
    measure is in no scene's runs. Then the text is only the overrides
    sentence and § 4.10's sentence naming it, and the result is only
-   `named_measures`, as for a plain compare (UT Ants).
+   `named_measures`, every name given, as for a plain compare (UT Ants,
+   DOOM Ants). When some file or some scene's runs went unread, the
+   sentence says "No run read has" (DOOM Ants).
 3. `fail` (exit 1) when any scene fails.
 4. `inconclusive` (exit 2) when any scene is inconclusive or unjudged,
    or any file is unread. A scene unjudged for having none of the
@@ -2426,7 +2429,11 @@ breaks.
   for `gpu/z`, the JSON still gives `runs` and `named_measures`. In
   text, `--measure gpu/z --measure gpu/y`, plain or under
   `--by-scene`, prints only "No run has gpu/z or gpu/y, so they cannot
-  be judged; a name matches exactly, case included."
+  be judged; a name matches exactly, case included." Under
+  `--by-scene`, `named_measures` lists every name given, and with a
+  scene of two old runs, never read, the sentence opens "No run read
+  has". With a 10-frame kind, `--measure gpu/b` gives no sentence on
+  kinds too short for step 3.
   Under `--by-scene`, with scene atrium's runs holding `gpu/w` and
   hall's not, `--measure gpu/w`: exit 0 when atrium's `gpu/w` is
   unchanged, exit 1 when 2 ms slower; hall is unjudged, and one scene
@@ -2434,8 +2441,10 @@ breaks.
   *Test:* `tests/test_compare_measure.py::test_measure_keeps_named`,
   `tests/test_compare_measure.py::test_measure_refused`,
   `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`,
-  `tests/test_compare_measure.py::test_absent_text` and
-  `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named`.
+  `tests/test_compare_measure.py::test_absent_text`,
+  `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named`,
+  `tests/test_compare_measure.py::test_by_scene_absent_json_and_unread` and
+  `tests/test_compare_measure.py::test_short_kind_sentence_needs_frame_wall`.
   *Breaks when:* an unnamed measure is judged or decides the verdict,
   `frame/wall` makes the compare inconclusive when not named, a name
   no run has gives a verdict, a compare judging nothing passes, or a
@@ -2625,7 +2634,7 @@ it on each release they pin.
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |
 | INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
-| INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named`, `tests/test_compare_measure.py::test_measure_refused`, `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`, `tests/test_compare_measure.py::test_absent_text`, `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named` |
+| INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named`, `tests/test_compare_measure.py::test_measure_refused`, `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`, `tests/test_compare_measure.py::test_absent_text`, `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named`, `tests/test_compare_measure.py::test_by_scene_absent_json_and_unread`, `tests/test_compare_measure.py::test_short_kind_sentence_needs_frame_wall` |
 | INV-86 | `tests/test_compare_measure.py::test_per_run_table` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

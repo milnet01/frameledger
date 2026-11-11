@@ -227,3 +227,32 @@ def test_absent_text(capsys, tmp_path, scenes):
     out = capsys.readouterr().out
     assert out == ("No run has gpu/z or gpu/y, so they cannot be judged; a name matches exactly, "
                    "case included.\n")
+
+
+def test_by_scene_absent_json_and_unread(capsys, tmp_path):
+    """INV-85: under --by-scene, a refusal's named_measures is every name
+    given, as a plain compare's (DOOM Ants); and when some scene's runs
+    were not read, the sentence claims only the runs read."""
+    old_h, new_h = scene_runs("hall", None, None)
+    code, result = compare(capsys, tmp_path, old_h, new_h, "--by-scene", "--measure", "gpu/b",
+                           "--measure", "gpu/zz")
+    assert code == 3 and result["result"]["named_measures"] == ["gpu/b", "gpu/zz"]
+    assert result["summary"][0].startswith("No run has gpu/zz,")
+
+    old_c, new_c = scene_runs("cellar", 4.0, 4.0)  # two old runs: unjudged, never read
+    code, result = compare(capsys, tmp_path, old_h + old_c[:2], new_h + new_c, "--by-scene",
+                           "--measure", "gpu/w")
+    assert code == 3 and result["summary"][0].startswith("No run read has gpu/w,")
+
+
+def test_short_kind_sentence_needs_frame_wall(capsys, tmp_path):
+    """§ 4.10: the sentence on kinds too short for step 3 is said only
+    when frame/wall is judged, since step 3 skips nothing otherwise
+    (DOOM Ants)."""
+    texts = {side: [run_text(rows(16.0, 5.0), run_id=f"{side}{i}", spots=10,
+                             started_utc=f"2026-11-11T15:{2 * i + (side == 'new'):02d}:00Z") for i in range(3)]
+             for side in ("old", "new")}
+    said = " ".join(compare(capsys, tmp_path, texts["old"], texts["new"])[1]["summary"])
+    assert "fewer than" in said
+    said = " ".join(compare(capsys, tmp_path, texts["old"], texts["new"], "--measure", "gpu/b")[1]["summary"])
+    assert "fewer than" not in said

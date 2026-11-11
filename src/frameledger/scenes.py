@@ -39,6 +39,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
                 unread.append({"path": path, "set": label, "reason": reason})
 
     scenes, unused, absent, lacking = [], set(overrides), set(named_measures), set()
+    all_read = not unread  # whether every run's names were seen, for the absent sentence
     for name in sorted(set(paths["old"]) | set(paths["new"])):
         entry, scene_unused, scene_absent = _judge(name, paths["old"][name], paths["new"][name], overrides,
                                                    floors, limits, named_measures)
@@ -47,6 +48,8 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
             unused &= scene_unused
         if scene_absent is not None:  # judged, or read and left out for lacking every name
             absent &= scene_absent
+        else:
+            all_read = False
         if entry["reason"] == LACKS_NAMED:
             lacking.add(name)
     if not any(e["compare"] for e in scenes):
@@ -69,8 +72,9 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     absent = [n for n in named_measures if n in absent] if judged or lacking else []
     if absent:  # § 4.14 step 2: refused as a plain compare is, with nothing judged shown
         return {"verdict": "error", "summary": [*compare.overrides_sentences(override_list),
-                                                compare.absent_sentence(absent)],
-                "warnings": [], "overrides": override_list, "result": {"named_measures": absent}}
+                                                compare.absent_sentence(absent, all_read)],
+                "warnings": [], "overrides": override_list,
+                "result": {"named_measures": list(named_measures)}}
     verdict = _verdict(scenes, unread, lacking) if judged else "error"
     summary = _summary(override_list, scenes, unread, failing, len(judged), measures,
                        [*scene_notices, unused_notices])
@@ -131,7 +135,7 @@ def _scene_of(path: str) -> tuple[str | None, str | None]:
 
 def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
            limits: compare.LoadLimits,
-           named_measures: tuple[str, ...]) -> tuple[dict, set[str] | None, set[str]]:
+           named_measures: tuple[str, ...]) -> tuple[dict, set[str] | None, set[str] | None]:
     """One scene's entry; the overridden fields that differed in none of
     its runs, None when its runs were not read; and the names in
     `named_measures` none of its runs has: every name for a scene left
