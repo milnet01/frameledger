@@ -31,6 +31,8 @@ check its SHA256 against the one in that release's notes. It holds:
 
 - `frameledger.pyz` — the analyser. It needs Python 3.10 or newer and
   nothing else.
+- `frameledger` and `frameledger.cmd` — launchers that run it by name,
+  on Linux and on Windows.
 - `include/frameledger.h` — the optional writer, one header for C and
   C++.
 - `LICENSE`.
@@ -45,23 +47,57 @@ use Python itself:
 python3 -m zipfile -e frameledger-v<version>.zip frameledger
 ```
 
-## Usage
+### Run it by name
 
-`frameledger.pyz` comes in the release zip (see Install). An engine
-that vendors only the header must still fetch it.
+Put the launcher on your PATH, and `frameledger report run.csv` works
+from any folder.
+
+On Linux, make the launcher runnable, then link it into a folder on
+your PATH. Python's unpacker does not keep the runnable mark, so the
+first line is needed after it:
 
 ```sh
-python3 -I frameledger.pyz check run.csv
-python3 -I frameledger.pyz report run.csv
-python3 -I frameledger.pyz floor run.csv --fps 60
-python3 -I frameledger.pyz compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
-python3 -I frameledger.pyz alternate --old './old/engine --frame-log={run}' --new './new/engine --frame-log={run}' --out ab
-python3 -I frameledger.pyz bisect --tested run.csv --measure gpu/opaque --kind view --bad-above 12
-python3 -I frameledger.pyz budget run.csv --budgets budgets.csv
-python3 -I frameledger.pyz --selftest
+chmod +x frameledger/frameledger
+ln -s "$PWD/frameledger/frameledger" ~/.local/bin/frameledger
 ```
 
-On Windows, use `py -I` or `python -I`. Every command takes `--json`,
+If `echo $PATH` does not list `~/.local/bin`, link into a folder it
+does list.
+
+On Windows, add the unpacked folder to your account's PATH from
+PowerShell, then open a new terminal:
+
+```powershell
+$dir = "C:\tools\frameledger"   # the folder you unpacked into
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
+```
+
+The Windows launcher uses the `py` launcher when it is installed, and
+`python` otherwise.
+
+`frameledger --version` checks it worked. A script can also call the
+launcher by its path, such as `tools/frameledger/frameledger`, with
+nothing on PATH.
+
+## Usage
+
+The analyser and its launchers come in the release zip (see Install).
+An engine that vendors only the header must still fetch them.
+
+```sh
+frameledger check run.csv
+frameledger report run.csv
+frameledger floor run.csv --fps 60
+frameledger compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
+frameledger alternate --old './old/engine --frame-log={run}' --new './new/engine --frame-log={run}' --out ab
+frameledger bisect --tested run.csv --measure gpu/opaque --kind view --bad-above 12
+frameledger budget run.csv --budgets budgets.csv
+frameledger --selftest
+```
+
+Without the launcher, `python3 -I frameledger.pyz` runs the same
+commands; on Windows, `py -I frameledger.pyz` or `python -I
+frameledger.pyz`. Every command takes `--json`,
 and `--markdown` for results to paste into a pull request or a note.
 The spec lists the flags and exit codes:
 [check, report and floor](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands),
@@ -92,7 +128,7 @@ the two builds' ranges, highest run minus lowest. Here the new build's
 opaque pass got slower:
 
 ```text
-$ python3 -I frameledger.pyz compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
+$ frameledger compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
 The new runs are slower: 4 measures got slower; the largest is gpu/opaque median in view segments, up 0.890 ms (+22.1%), beyond the runs' spread of 0.090 ms.
 In view segments the median frame/wall went from 16.020 ms to 16.910 ms (slower).
 

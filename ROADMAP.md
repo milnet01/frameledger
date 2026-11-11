@@ -698,11 +698,14 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0033] **frameledger runs by name.**
+- 🚧 [FLED-0033] **frameledger runs by name.**
   The release ships a small launcher for Linux and Windows, and the
   README says how to put it on PATH, so `frameledger report run.csv`
   works. DOOM Ants keeps a private script partly because the command
   is not on PATH.
+  Built 2026-11-11: launcher/frameledger and launcher/frameledger.cmd
+  ship in the release zip; README § Run it by name. Out to the three
+  engines for review.
   **Layman:** You can type frameledger as a command instead of a long path.
   Kind: ux.
   Source: engine-answers-2026-11-10.

@@ -392,7 +392,9 @@ size_t fled_json_escape (char *dst, size_t cap, const char *src);
 ### 4.7 The 0.1.0 commands
 
 Run as `python3 -I frameledger.pyz <command> …`; on Windows `python -I`
-or `py -I`. Every command takes `--json`, printing the JSON result
+or `py -I`. The release's launcher, `frameledger` on Linux and
+`frameledger.cmd` on Windows, runs the same as `frameledger <command> …`
+and exits with the analyser's code. Every command takes `--json`, printing the JSON result
 instead of text, and `--markdown`, printing the text as Markdown
 (§ 4.8). Given both, it is a bad argument.
 

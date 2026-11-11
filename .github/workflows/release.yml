@@ -75,6 +75,30 @@ jobs:
           fi
           py python -I dist/frameledger.pyz --selftest
 
+      # The Windows launcher, run as a user runs it: by name, from PATH, with
+      # the runner's own Python. It must report the tag's version and pass on
+      # a failing exit code.
+      - name: Run the Windows launcher by name
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # A failing exit is checked below, not stopped on.
+          $PSNativeCommandUseErrorActionPreference = $false
+          Expand-Archive "dist/frameledger-$env:TAG.zip" dist/unpacked
+          $env:Path = "$PWD\dist\unpacked;$env:Path"
+          $version = $env:TAG.TrimStart('v').Split('-')[0]
+          $reported = frameledger --version
+          if ($LASTEXITCODE -ne 0 -or $reported -ne "frameledger $version") {
+            Write-Error "release: the launcher reported '$reported', exit $LASTEXITCODE"
+            exit 1
+          }
+          frameledger check no-such-run.csv
+          if ($LASTEXITCODE -eq 0) {
+            Write-Error "release: the launcher passed on a failing exit as 0"
+            exit 1
+          }
+          exit 0
+
   publish:
     needs: check
     runs-on: ubuntu-latest

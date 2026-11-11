@@ -1,4 +1,5 @@
-"""Build the release archive: frameledger.pyz, the writer header and the licence.
+"""Build the release archive: frameledger.pyz, its launchers, the writer header
+and the licence.
 
     python3 -I scripts/build_release.py OUTDIR TAG
 
@@ -10,11 +11,13 @@ same bytes under two file names.
 
 The build is reproducible: anyone rebuilding a tagged commit gets the hash
 in its release notes. Every entry is stored, not compressed, so no zlib
-version can change a byte. Every entry has the same date and mode, whatever
-the checkout's. Entries are in sorted order. Only modules git tracks go
-in. CRLF line endings become LF, so a Windows checkout builds the same
-archive. The modules and header are read from the working tree, so build
-from a clean checkout of the tag, as release.yml does.
+version can change a byte. Every entry has the same date, whatever the
+checkout's, and one of two modes: the Linux launcher's runs, the rest do
+not. Entries are in sorted order. Only modules git tracks go in. CRLF line
+endings become LF, so a Windows checkout builds the same archive; then the
+Windows launcher alone gets CRLF, which cmd needs. The modules, launchers
+and header are read from the working tree, so build from a clean checkout
+of the tag, as release.yml does.
 
 Standard library only. Exit 0 on success; 1 when a module sits in a
 subdirectory of src/frameledger; 2 on a usage error.
@@ -36,12 +39,18 @@ ANALYSER = ROOT / "src" / "frameledger"
 # one commit identical; zipapp stamps the build time, so it is not used.
 ENTRY_DATE = (1980, 1, 1, 0, 0, 0)
 ENTRY_MODE = 0o100644  # a regular file: read-write for its owner, read for all
+RUNNABLE_MODE = 0o100755  # the same, and anyone may run it
+RUNNABLE = {"frameledger"}  # the Linux launcher (launcher/frameledger)
 SHEBANG = b"#!/usr/bin/env python3\n"
 
 
 def source_bytes(path: Path) -> bytes:
     """The file as git stores it here: LF line endings."""
     return path.read_bytes().replace(b"\r\n", b"\n")
+
+
+def crlf(text: bytes) -> bytes:
+    return text.replace(b"\n", b"\r\n")
 
 
 def zip_bytes(entries: dict[str, bytes], prefix: bytes = b"") -> bytes:
@@ -54,7 +63,7 @@ def zip_bytes(entries: dict[str, bytes], prefix: bytes = b"") -> bytes:
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:
         for name in sorted(entries):
             info = zipfile.ZipInfo(name, ENTRY_DATE)
-            info.external_attr = ENTRY_MODE << 16
+            info.external_attr = (RUNNABLE_MODE if name in RUNNABLE else ENTRY_MODE) << 16
             # Python writes 0 (MS-DOS) on Windows and 3 (Unix) elsewhere.
             # One value, so the platform that builds does not show.
             info.create_system = 3
@@ -87,6 +96,8 @@ def build_pyz() -> bytes:
 def build_archive(pyz: bytes) -> bytes:
     return zip_bytes({
         "frameledger.pyz": pyz,
+        "frameledger": source_bytes(ROOT / "launcher" / "frameledger"),
+        "frameledger.cmd": crlf(source_bytes(ROOT / "launcher" / "frameledger.cmd")),
         "include/frameledger.h": source_bytes(ROOT / "include" / "frameledger.h"),
         "LICENSE": source_bytes(ROOT / "LICENSE"),
     })

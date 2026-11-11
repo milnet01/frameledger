@@ -168,15 +168,15 @@ tool, not by any one part.
   Rules out: designated initialisers, variable-length arrays,
   `restrict`, and anything else one of the two languages rejects.
 - **Release: a git tag plus one archive attached to the release, with
-  its SHA256 in the notes.** The archive holds `frameledger.pyz`,
-  `include/frameledger.h` and `LICENSE`, so one pinned hash covers both
-  parts. Engines pin the archive and its hash (S6). GitHub's own tag
+  its SHA256 in the notes.** The archive holds `frameledger.pyz`, its
+  launchers for Linux and Windows, `include/frameledger.h` and
+  `LICENSE`, so one pinned hash covers both parts. Engines pin the archive and its hash (S6). GitHub's own tag
   archives are not used for the pin; their hash is not promised to stay
   the same. `scripts/build_release.py` builds the archive reproducibly.
   `.github/workflows/release.yml` publishes it only when its builds on
-  Linux and Windows give the hash in the notes. The archive will also
-  hold a launcher for Linux and Windows (FLED-0033) and the JSON
-  result schemas (S27). A PyPI package with a `frameledger` command
+  Linux and Windows give the hash in the notes, and its Windows
+  launcher runs by name. The archive will also hold the JSON result
+  schemas (S27). A PyPI package with a `frameledger` command
   (FLED-0043), still standard library only, sits beside the archive
   and does not replace it.
 - **Our tests: pytest**, a test-time tool only. The analyser and its

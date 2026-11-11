@@ -1,6 +1,7 @@
 """The release archive (scripts/build_release.py; docs/design.md § The stack,
 and what it rules out): what it holds, that it rebuilds to the same bytes,
-and that its frameledger.pyz runs; and the release notes' hash check."""
+that its frameledger.pyz runs, and that its launcher runs it by name; and the
+release notes' hash check."""
 
 import hashlib
 import importlib.util
@@ -59,7 +60,8 @@ def test_archive_holds_the_analyser_header_and_licence(tmp_path):
     assert archive.name == "frameledger-v9.9.9.zip"
     assert sha == hashlib.sha256(archive.read_bytes()).hexdigest()
     with zipfile.ZipFile(archive) as zf:
-        assert zf.namelist() == ["LICENSE", "frameledger.pyz", "include/frameledger.h"]
+        assert zf.namelist() == ["LICENSE", "frameledger", "frameledger.cmd", "frameledger.pyz",
+                                 "include/frameledger.h"]
         assert zf.read("include/frameledger.h") == (ROOT / "include" / "frameledger.h").read_bytes()
 
 
@@ -79,6 +81,45 @@ def test_the_pyz_runs_its_selftest(tmp_path):
     assert done.returncode == 0, done.stdout + done.stderr
     with zipfile.ZipFile(pyz) as zf:
         assert sorted(zf.namelist()) == sorted(p.name for p in (ROOT / "src" / "frameledger").glob("*.py"))
+
+
+def test_only_the_linux_launcher_runs_and_the_windows_one_has_crlf(tmp_path):
+    archive, _ = build(tmp_path, "v9.9.9")
+    with zipfile.ZipFile(archive) as zf:
+        modes = {info.filename: info.external_attr >> 16 for info in zf.infolist()}
+        cmd = zf.read("frameledger.cmd")
+    assert modes.pop("frameledger") == 0o100755
+    assert set(modes.values()) == {0o100644}
+    assert cmd.count(b"\r\n") == cmd.count(b"\n") > 0
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the POSIX launcher")
+def test_the_launcher_runs_by_name_through_a_symlink(tmp_path):
+    """On PATH as a symlink, as the README puts it, it finds the .pyz beside
+    the real file, passes each argument whole and returns the analyser's exit."""
+    archive, _ = build(tmp_path / "dist", "v9.9.9")
+    unpacked = tmp_path / "frameledger"
+    with zipfile.ZipFile(archive) as zf:
+        zf.extractall(unpacked)
+    (unpacked / "frameledger").chmod(0o755)  # extractall drops the mode, as python -m zipfile -e does
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "frameledger").symlink_to(Path("..") / "frameledger" / "frameledger")
+    (bin_dir / "python3").symlink_to(sys.executable)  # this Python, not the machine's
+    env = {"PATH": f"{bin_dir}:/usr/bin:/bin"}
+
+    def run(*args):
+        return subprocess.run(["frameledger", *args], capture_output=True, text=True, env=env, cwd=tmp_path)
+
+    version = run("--version")
+    assert version.returncode == 0, version.stderr
+    assert version.stdout.startswith("frameledger ")
+    direct = subprocess.run([sys.executable, "-I", str(unpacked / "frameledger.pyz"), "check", "no such run.csv"],
+                            capture_output=True, text=True, cwd=tmp_path)
+    launched = run("check", "no such run.csv")
+    assert direct.returncode != 0
+    assert (launched.returncode, launched.stdout, launched.stderr) == (direct.returncode, direct.stdout,
+                                                                       direct.stderr)
 
 
 def test_notes_are_the_section_dated_or_not():

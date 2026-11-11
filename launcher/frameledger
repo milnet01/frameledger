@@ -1,0 +1,19 @@
+#!/bin/sh
+# Runs frameledger.pyz from the folder this file is in, so `frameledger
+# report run.csv` works once this file, or a symlink to it, is on PATH.
+#
+# A symlink is followed to the real file first, so the .pyz is found
+# beside the launcher, not beside the link. exec hands the process over
+# to Python: signals reach the analyser and its exit code is the
+# launcher's. Without python3 on PATH, the shell exits 127.
+
+self=$0
+while [ -L "$self" ]; do
+    target=$(readlink "$self")
+    case $target in
+        /*) self=$target ;;
+        *) self=$(dirname "$self")/$target ;;
+    esac
+done
+
+exec python3 -I "$(dirname "$self")/frameledger.pyz" "$@"
