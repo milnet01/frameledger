@@ -246,8 +246,9 @@ def _bounded(text: str) -> Decimal:
 
 
 def _share(top: int):
-    """A load limit, from 0 to its peak's top: above it no peak could
-    pass, as when 25 is given for 25% (DOOM Ants)."""
+    """A load limit, from 0 to its peak's top: no peak exceeds its top,
+    so a limit above it never fires, as when 25 is given for 25% (DOOM
+    Ants). A limit at its top turns the check off."""
     def share(text: str) -> Decimal:
         value = _non_negative(text)
         if value > top:

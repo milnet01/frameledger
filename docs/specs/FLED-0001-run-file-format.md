@@ -570,8 +570,10 @@ Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
 or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`,
 `--max-load 0.25`, `--max-gpu-busy 20`. Each is 0 or more and below
 1000000000, or exit 3 (FLED-0023). `--max-load` is at most 1 and
-`--max-gpu-busy` at most 100, their peaks' tops, or exit 3: above
-the top no peak could pass, as when 25 is given for 25% (DOOM Ants).
+`--max-gpu-busy` at most 100, their peaks' tops, or exit 3: no peak
+exceeds its top, so a limit above it never fires, as when 25 is
+given for 25% (DOOM Ants). A limit at its top turns the check off
+(Vestige).
 
 - **Runs are named by set and order**: `old-1`, `old-2`, … and
   `new-1`, …, in the order given. Warnings and sentences use these

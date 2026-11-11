@@ -78,7 +78,8 @@ def test_under_load_inconclusive(capsys, tmp_path, case):
 def test_load_limit_bounds(capsys, flag, value):
     """INV-83: a limit outside its peak's range is exit 3, refused for its
     value; an unknown flag would exit 3 too, so the message is checked.
-    Above the range no peak could pass it, as when 25 is meant as 25%."""
+    No peak exceeds its range, so a limit above it never fires, as when
+    25 is meant as 25%."""
     assert cli.main(["compare", "--old", "a", "b", "c", "--new", "d", "e", "f", flag, value]) == 3
     error = capsys.readouterr().err
     assert flag in error and f"'{value}' must be" in error and "unrecognized" not in error
