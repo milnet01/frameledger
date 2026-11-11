@@ -819,7 +819,8 @@ in percent to two places, or null when the old centre is 0; `values`
 maps run names to values. Measures are ranked by segment kind, then
 `frame` measures in § 4.8's `frame_times` order, then `cpu`, then
 `gpu`, then `mem`, each by old centre, largest first. A refused compare gives only
-`runs` and `refused`.
+`runs` and `refused`; one refused for a named measure no run has gives
+only `runs` and `named_measures` (Vestige).
 
 ### 4.11 Bisect verdicts
 
@@ -1308,8 +1309,12 @@ The flags are § 4.10's, with its defaults and bounds.
 - **`--measure`** keeps the same measures in every scene. A named
   measure is exit 3 only when no judged scene's runs have it. A scene
   whose kept measures are all unmatched is inconclusive, as § 4.10's
-  step 3 makes a compare (Vestige). The text
-  gives no per-run table; each scene's `compare` holds the values.
+  step 3 makes a compare (Vestige). A scene none of whose runs has
+  any named measure is unjudged, "none of its runs has a named
+  measure", and the command's step 4 passes over it: naming
+  `gpu/water` must not make every scene without water inconclusive
+  (Vestige). The text gives no per-run table; each scene's `compare`
+  holds the values.
 
 **The command's verdict**, first match wins:
 
@@ -1322,7 +1327,8 @@ The flags are § 4.10's, with its defaults and bounds.
    Ants, Vestige).
 3. `fail` (exit 1) when any scene fails.
 4. `inconclusive` (exit 2) when any scene is inconclusive or unjudged,
-   or any file is unread.
+   or any file is unread. A scene unjudged for having none of the
+   named measures does not count here.
 5. `pass` (exit 0) otherwise.
 
 So a scene that is inconclusive under § 4.10, for dropped rows, say,
@@ -1358,7 +1364,8 @@ otherwise. `rank` counts from 1 over failing scenes, or is null.
 or null. `segment` is the segment named, or null. `compare` is
 § 4.10's result for the scene, or null when the scene is unjudged for
 lacking runs or for a file that changed after it was first read; a
-refused scene's is § 4.10's refused result.
+refused scene's is § 4.10's refused result, and a scene with none of
+the named measures has its full result.
 `judged.scenes` counts the scenes not unjudged; `judged.measures` sums
 the measures each of them judged. `scenes` lists failing scenes in
 rank order, then the others by scene name. `set` is `old` or `new`.
@@ -1374,6 +1381,9 @@ alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIEL
 ```
 
 The compare flags are § 4.10's, with its defaults and bounds.
+A `--measure` name is checked for its form before any command starts,
+but whether a run has it only after every run has finished: names come
+from the runs (Vestige). The run files stay, for `compare` to re-read.
 `--runs` is the number of runs a side: default 5, from 3 to 100, or
 exit 3. Five, because § 4.10's table gives 3% false changes at five
 runs a set and 35% at three, both at 2% noise.
@@ -2409,11 +2419,20 @@ breaks.
   `unmatched` and named in the summary. `--measure gpu/b --measure
   cpu/c`: exit 0, since a partly unmatched list still judges `gpu/b`.
   `--measure gpu/z`, `gpu/B`, `event/x`,
-  `frame/fence_wait`, `gpu/`, or `gpu/b` twice: exit 3, naming it.
-  *Test:* `tests/test_compare_measure.py::test_measure_keeps_named`.
+  `frame/fence_wait`, `gpu/`, or `gpu/b` twice: exit 3, naming it;
+  for `gpu/z`, the JSON still gives `runs` and `named_measures`.
+  Under `--by-scene`, with scene atrium's runs holding `gpu/w` and
+  hall's not, `--measure gpu/w`: exit 0 when atrium's `gpu/w` is
+  unchanged, exit 1 when 2 ms slower; hall is unjudged, and one scene
+  is judged.
+  *Test:* `tests/test_compare_measure.py::test_measure_keeps_named`,
+  `tests/test_compare_measure.py::test_measure_refused`,
+  `tests/test_compare_measure.py::test_absent_refusal_keeps_runs` and
+  `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named`.
   *Breaks when:* an unnamed measure is judged or decides the verdict,
   `frame/wall` makes the compare inconclusive when not named, a name
-  no run has gives a verdict, or a compare judging nothing passes.
+  no run has gives a verdict, a compare judging nothing passes, or a
+  scene with none of the names makes `--by-scene` inconclusive.
 - **INV-86** — The per-run table gives each run's value. With INV-85's
   fixture and `--measure gpu/b --measure frame/wall`, the text has one
   row per run in run order, as § 4.10, each cell equal to the JSON's
@@ -2599,7 +2618,7 @@ it on each release they pin.
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |
 | INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
-| INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named` |
+| INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named`, `tests/test_compare_measure.py::test_measure_refused`, `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`, `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named` |
 | INV-86 | `tests/test_compare_measure.py::test_per_run_table` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

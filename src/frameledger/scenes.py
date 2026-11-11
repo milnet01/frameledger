@@ -18,6 +18,9 @@ import compare
 import ledger
 import run_report
 
+# Why a scene with none of --measure's names is unjudged (§ 4.14).
+LACKS_NAMED = "none of its runs has a named measure"
+
 
 def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
              limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
@@ -35,7 +38,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
             else:
                 unread.append({"path": path, "set": label, "reason": reason})
 
-    scenes, unused, absent = [], set(overrides), set(named_measures)
+    scenes, unused, absent, lacking = [], set(overrides), set(named_measures), set()
     for name in sorted(set(paths["old"]) | set(paths["new"])):
         entry, scene_unused, scene_absent = _judge(name, paths["old"][name], paths["new"][name], overrides,
                                                    floors, limits, named_measures)
@@ -44,6 +47,8 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
             unused &= scene_unused
         if entry["verdict"] != "unjudged":
             absent &= scene_absent
+        elif entry["reason"] == LACKS_NAMED:
+            lacking.add(name)
     if not any(e["compare"] for e in scenes):
         unused = set()  # no scene was read, so no field was seen not to differ
 
@@ -62,7 +67,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     notices = [n for group in scene_notices for n in group] + unused_notices
     measures = sum(len(e["compare"]["measures"]) for e in judged)
     absent = [n for n in named_measures if n in absent] if judged else []
-    verdict = _verdict(scenes, unread) if judged and not absent else "error"
+    verdict = _verdict(scenes, unread, lacking) if judged and not absent else "error"
     summary = _summary(override_list, scenes, unread, failing, len(judged), measures,
                        [*scene_notices, unused_notices])
     if absent:  # straight after the overrides, which always open (S5)
@@ -152,6 +157,9 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
         entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
         return entry, None, set(named_measures)
     unused, absent = set(built["unused"]), set(built["absent"])
+    if named_measures and absent == set(named_measures):  # judges nothing here, by the caller's choice
+        entry["compare"], entry["reason"] = built["result"], LACKS_NAMED
+        return entry, unused, absent
     entry["compare"] = built["result"]
     entry["warnings"] = [w for w in built["warnings"] if w["code"] != "override_unused"]
     if built["verdict"] == "error":  # refused
@@ -196,9 +204,11 @@ def _rank_key(entry: dict) -> tuple:
     return m["verdict"] != "slower", -m["change"], -(m["change_pct"] or 0), entry["scene"]
 
 
-def _verdict(scenes: list[dict], unread: list[dict]) -> str:
-    """§ 4.14's steps 3 to 5, once a scene was judged."""
-    verdicts = {e["verdict"] for e in scenes}
+def _verdict(scenes: list[dict], unread: list[dict], lacking: set[str]) -> str:
+    """§ 4.14's steps 3 to 5, once a scene was judged. A scene in
+    `lacking` has none of the named measures, so --measure chose to leave
+    it out: it is unjudged, and does not make the command inconclusive."""
+    verdicts = {e["verdict"] for e in scenes if e["scene"] not in lacking}
     if "fail" in verdicts:
         return "fail"
     if verdicts & {"inconclusive", "unjudged"} or unread:

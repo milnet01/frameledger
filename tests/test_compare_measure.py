@@ -175,3 +175,36 @@ def test_per_run_table(capsys, tmp_path):
     headers = " ".join(t[0] for t in tables)
     assert "..." in headers and LONG_KIND[:10] in headers
     assert max(len(line) for t in tables for line in t) <= 100  # § 4.8 bounds tables, not sentences
+
+
+def scene_runs(scene: str, water: float | None, new_water: float | None) -> tuple[list, list]:
+    """Three old and three new runs of one scene; gpu/w only where given."""
+    texts = {}
+    for side, w, offset in (("old", water, 0), ("new", new_water, 1)):
+        found = {("frame", "wall"): 16.0, ("frame", "cpu_span"): 8.0, ("frame", "gpu_span"): 12.0,
+                 ("gpu", "b"): 3.0, **({("gpu", "w"): w} if w is not None else {})}
+        texts[side] = [run_text(found, run_id=f"{scene}{side}{i}", scene=scene,
+                                started_utc=f"2026-11-11T14:{offset + 2 * i:02d}:00Z") for i in range(3)]
+    return texts["old"], texts["new"]
+
+
+@pytest.mark.parametrize("new_water, want", [(4.0, 0), (6.0, 1)])
+def test_by_scene_leaves_out_scenes_without_named(capsys, tmp_path, new_water, want):
+    """INV-85: under --by-scene, a scene with none of the named measures is
+    unjudged and does not make the command inconclusive (Vestige); the
+    scene that has gpu/w decides. Without the rule the command is exit 2
+    when gpu/w passes."""
+    old_a, new_a = scene_runs("atrium", 4.0, new_water)
+    old_h, new_h = scene_runs("hall", None, None)
+    code, result = compare(capsys, tmp_path, old_a + old_h, new_a + new_h, "--by-scene", "--measure", "gpu/w")
+    assert code == want
+    hall = next(s for s in result["result"]["scenes"] if s["scene"] == "hall")
+    assert hall["verdict"] == "unjudged" and "named measure" in hall["reason"]
+    assert result["result"]["judged"]["scenes"] == 1
+
+
+def test_absent_refusal_keeps_runs(capsys, tmp_path):
+    """INV-85: a name no run has still gives the runs and the names in JSON."""
+    code, result = compare(capsys, tmp_path, *fixture(), "--measure", "gpu/z")
+    assert code == 3
+    assert result["result"]["named_measures"] == ["gpu/z"] and len(result["result"]["runs"]) == 6

@@ -493,7 +493,7 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
         listed = _listed(overrides)
         return _result(command, "error", ERROR,
                        [*compare.overrides_sentences(listed), compare.absent_sentence(built["absent"])],
-                       [], {}, listed)
+                       [], {"runs": built["result"]["runs"], "named_measures": list(named)}, listed)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result(command, built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
