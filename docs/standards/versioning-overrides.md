@@ -39,15 +39,27 @@ scripts and writers are built to.
 
 - **The run file**: its header, static line, rows and close line,
   `docs/specs/FLED-0001-run-file-format.md` § 4.1 to § 4.5. A file
-  that one release reads must still be read by the next.
+  that one release reads must still be read by the next. The reverse
+  is not promised: a file with a newer `schema` than the analyser's is
+  exit 3, naming both versions (INV-2), so update the analyser before
+  or with the header (Vestige).
 - **The budget file**, § 4.12.
 - **The writer's interface**: the functions, types and limits
-  `include/frameledger.h` declares, § 4.6.
+  `include/frameledger.h` declares, § 4.6. It compiles without a
+  warning as C and as C++17 under the flags `tests/writer/test_compile.sh`
+  uses, since an engine building with warnings as errors breaks on a
+  new warning as surely as on a renamed function (Vestige).
 - **The commands**: each command's flags, defaults and exit codes, and
   its JSON result's keys and meanings, § 4.7 to § 4.16.
 - **How it is run**: `python3 -I src/frameledger`, the
   `frameledger.pyz` bundle, the `frameledger` and `frameledger.cmd`
   launchers (§ 4.7), and the Python 3.10 floor.
+
+**Adding is not breaking**: a new key in a JSON result, a new value
+in an open set such as a warning code, a new flag or command, or a new
+optional header field. A script must ignore keys and values it does
+not know (UT Ants, Vestige). Removing, renaming or changing the meaning of
+any of them is breaking.
 
 ## Not surfaces
 
