@@ -749,12 +749,15 @@ The engines' second asks: more than two builds at once, a saved set
 
 to compare against, and the small fixes they filed.
 
-- 📋 [FLED-0034] **compare judges named variants against one base.**
+- 🚧 [FLED-0034] **compare judges named variants against one base.**
   More than two sets at once: the full frame against each effect
   switched off, each variant judged against the base as compare
   judges new against old. UT Ants' UTA-0436, the cost of each effect
   per map. compare --by-scene groups by scene, not variant, so it
   does not cover this.
+  2026-11-11: spec amendment drafted as docs/specs/FLED-0001-run-file-format.md
+  § 4.16 (compare --base/--variant, alternate --base/--variant) with
+  INV-89 to INV-94; sent to the three engines for review before building.
   **Layman:** Compare many versions at once, such as the game with each effect turned off in turn.
   Kind: feature.
   Source: engine-answers-2026-11-10.

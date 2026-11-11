@@ -624,8 +624,9 @@ three engines 2026-10-26; their changes are folded in.
 compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
 ```
 
-`--by-scene` judges each scene apart, § 4.14. Without it, this
-section holds.
+`--by-scene` judges each scene apart, § 4.14. `--base` and
+`--variant` judge named variants against one base, § 4.16. Without
+them, this section holds.
 
 Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
 or refused. Defaults: `--min-ms 0.050`, `--min-mb 1.000`, `--min-pct 3`,
@@ -1437,6 +1438,7 @@ alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIEL
 ```
 
 The compare flags are § 4.10's, with its defaults and bounds.
+`--base` and `--variant` run named variants, § 4.16.
 A `--measure` name is checked for its form before any command starts,
 but whether a run has it only after every run has finished: names come
 from the runs (Vestige). The run files stay, for `compare` to re-read.
@@ -1551,6 +1553,142 @@ filled command; `exit_code` is its command's code, or null when it
 wrote no file, was killed by a signal or was stopped; `finished` names the runs before it,
 warm-ups included, in the order they ran. The result then holds only
 `commands`, `out`, `warmup` and `stopped`.
+
+### 4.16 Variants against one base
+
+FLED-0034 builds this (S23). One base, such as the full frame, and
+named variants, such as the frame with each effect switched off in
+turn. Each variant is judged against the base as § 4.10 judges new
+against old (UT Ants' UTA-0436, each effect's cost).
+
+```
+compare --base FILE… --variant NAME FILE… [--variant NAME FILE…]… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
+alternate --base CMD --variant NAME CMD [--variant NAME CMD]… --out DIR [--runs N] [--warmup W] [the same compare flags]
+```
+
+The compare flags are § 4.10's, with its defaults and bounds.
+
+**Setup.** Each of these is exit 3, verdict `error`, before any file is
+read or any command starts:
+
+- `--base` with `--old`, `--new` or `--by-scene`; `--base` without
+  `--variant`; `--variant` without `--base`.
+- A variant name that is not lowercase ASCII letters, digits and `_`,
+  starting with a letter, at most 32 characters; the names `base`,
+  `old` and `new`; a name given twice. So a name is safe in a file
+  name on every platform, and `a-1.csv` cannot be both variant `a`'s
+  first run and another variant's file.
+- Under `compare`, fewer than three files for the base or any
+  variant, as § 4.10.
+- Under `alternate`, every § 4.15 setup error, for every command.
+
+**Runs are named by side and order**: `base-1`, `base-2`, … and
+`<name>-1`, …, in the order given. Within each variant's compare the
+base is § 4.10's old set and the variant its new set, under these
+names.
+
+**Each variant is judged as § 4.10 judges one compare**: the base runs
+against that variant's runs, with the same refusals, measures,
+judging, verdict and warnings. Each `--override` applies to every
+variant. `override_unused` is given once, when the field differs in no
+variant. The base runs are read once and kept; each variant's runs are
+read when it is judged and let go after.
+
+- **A file that cannot be read, or breaks the format**, is exit 3, as
+  § 4.10: the files were named one by one, so a bad one is a mistake
+  in the command.
+- **A variant that refuses is unjudged, and the others go on**, as a
+  scene does under § 4.14. Its reason names each field, as § 4.10's
+  refusal sentence does.
+- **`--measure`** keeps the same measures in every variant. A named
+  measure is exit 3 only when no run has it. A variant none of whose
+  runs has any named measure is unjudged, "none of its runs has a
+  named measure", and step 4 below passes over it, as § 4.14.
+
+**The rank measure** is the first `--measure` name, or `frame/wall`
+without one, its median, at the smallest depth the base runs have it.
+Its segment kind is the one with the most frames carrying it over the
+base runs together; ties by kind compared as text, frames with no
+segment counting as the kind `""`. A variant's **rank entry** is that
+measure's entry in its compare's `measures`, or none when the variant
+is unjudged or the measure is in its `unmatched`.
+
+**Variants are ranked** by their rank entry's change, lowest first, so
+the variant that saved the most time ranks 1: with each effect
+switched off in turn, the costliest effect comes first. Ties by name.
+A variant with no rank entry is not ranked. The rank orders; it judges
+nothing. A change that is `noisy` or `unchanged` still ranks, and the
+table shows its verdict beside it.
+
+**The command's verdict**, first match wins:
+
+1. `error` (exit 3) for a setup error or a file as above.
+2. `error` (exit 3) when no variant could be judged, every one
+   unjudged. The opening sentence says "No variant could be judged:",
+   then each variant's reason. It is also `error`, checked first, when
+   a named measure is in no run, worded as § 4.14's step 2.
+3. `fail` (exit 1) when any variant fails.
+4. `inconclusive` (exit 2) when any variant is inconclusive or
+   unjudged. A variant unjudged for having none of the named measures
+   does not count here.
+5. `pass` (exit 0) otherwise.
+
+**Text** opens with the overrides sentence and, with `--measure`, the
+kept measures, as § 4.10. Then one sentence per failing variant, by
+name, § 4.10's verdict sentence opening with the variant's name:
+"no_bloom is slower: the gpu/opaque median in view rose from 3.100 to
+3.512 ms." Then one per inconclusive variant with § 4.10's reason, one
+per unjudged variant with its reason, and each variant's warnings,
+opening with its name. A base run's § 4.9 warnings are given once,
+opening with the run's name, not once per variant. Then one sentence
+naming the rank measure: "Ranked by the frame/wall median in view;
+base 16.400 ms." Then one counting what was judged, as § 4.14: "Judged
+4 variants and 96 measures; with this many, a slower measure can be
+chance (§ 4.10)." Then a table of every variant: rank, variant,
+verdict, the rank measure's centre, its change in ms or MB and in
+percent, and its own verdict (`faster`, `noisy`, …), within 100
+columns. Each variant's `compare` holds its full measures; the text
+gives no per-measure table.
+
+**Result.**
+
+```json
+{
+  "variants": [{"name", "verdict", "reason", "rank", "measure", "compare"}],
+  "rank_measure": {"segment_kind", "category", "name", "depth", "statistic"},
+  "judged": {"variants", "measures"},
+  "min_ms", "min_mb", "min_pct", "max_load", "max_gpu_busy",
+  "named_measures", "overrides"
+}
+```
+
+A variant's `verdict` is `fail`, `inconclusive`, `pass` or `unjudged`.
+`reason` says why it is inconclusive or unjudged, and is null
+otherwise. `rank` counts from 1, or is null. `measure` is its rank
+entry, or null. `compare` is § 4.10's result for the variant; a
+refused variant's is § 4.10's refused result. `rank_measure` is null
+when no base run has the rank measure. `judged.variants` counts the
+variants not unjudged; `judged.measures` sums the measures each of
+them judged. `variants` lists ranked variants in rank order, then the
+others by name.
+
+**`alternate` with variants** runs the base's command and each
+variant's as § 4.15 runs old and new: the same placeholder, shell,
+failures, stops and files, with files named `DIR/base-1.csv`,
+`DIR/<name>-1.csv`, `DIR/base-warmup-1.csv`, ….
+
+- **Runs go in rounds, each round one run a side.** Odd rounds run
+  the base, then each variant in the order given; even rounds run the
+  reverse. So with variants `a` and `b` the order is base-1, a-1, b-1,
+  b-2, a-2, base-2, base-3, …. A steady drift then cancels over every
+  two rounds, for every side; with one variant this is § 4.15's order
+  (UT Ants: so drift is not read as an effect's cost).
+- **Warm-ups** run W rounds first, each the base and then each variant
+  in order.
+- **Once every run has finished**, the files are compared as
+  `compare --base … --variant NAME …` compares them, above. The result
+  is that compare's, with § 4.15's `out`, `warmup` and `stopped`, and
+  `commands` mapping `base` and each variant's name to its command.
 
 ## 5. Invariants
 
@@ -2563,6 +2701,69 @@ breaks.
   formats, a line break ends a row or item, or a sentence becomes a
   heading, quotation or list; the
   depth indent is stripped; or both flags are accepted.
+- **INV-89** — Each variant is judged as one compare. With three base
+  runs and variants `a` and `b` of three runs each, `b` slower in
+  `gpu/x`, each variant's `compare` equals `compare --old` over the base
+  files and `--new` over that variant's, but for run names: `base-1` in
+  place of `old-1`, `a-1` in place of `new-1`. `a` passes, `b` fails,
+  and the exit is 1.
+  *Test:* `tests/test_compare_variants.py::test_variant_is_one_compare`.
+  *Breaks when:* two variants' runs are judged together, a variant's
+  judging differs from `compare`'s, or the runs keep `old` and `new`
+  names. Only `b`'s runs carry the slower `gpu/x`, so judging them
+  with `a`'s moves `a`'s verdict.
+- **INV-90** — A setup error reads nothing. Each alone gives exit 3,
+  with INV-89's files otherwise: `--base` with `--old`; `--base` with
+  `--by-scene`; `--base` without `--variant`; `--variant` without
+  `--base`; the names `base`, `New`, `a-b`, `9a`, and one of 33
+  letters; `a` given twice; a variant of two files; a base of two
+  files.
+  *Test:* `tests/test_compare_variants.py::test_setup_errors`.
+  *Breaks when:* any of these reaches judging, or a name that is
+  unsafe in a file name is accepted.
+- **INV-91** — An unjudged variant never hides the others. With `a`
+  clean and `b`'s runs differing from the base in `device`: `a`
+  passes, `b` is unjudged and its reason names `device`, and the exit
+  is 2. Make `a` slower and it is 1. With `b` alone, the exit is 3 and
+  the first sentence after the overrides opens "No variant could be
+  judged:" and names `device`.
+  *Test:* `tests/test_compare_variants.py::test_refused_variant`.
+  *Breaks when:* one refused variant stops the command, a command with
+  one exits 0, or a command that judged nothing exits 2.
+- **INV-92** — Variants rank by the rank measure's change, lowest
+  first. Base runs with 300 `view` frames and 20 `load` frames;
+  variant `a`'s `frame/wall` median in `view` falls 1.200 ms, `b`'s
+  0.300 ms, and `c`'s rises 0.500 ms, while in `load` `b`'s falls most.
+  `rank_measure` is `frame/wall` median in `view`; `a` ranks 1, `b` 2,
+  `c` 3, and `variants` lists them so. With `--measure gpu/x`, where
+  `c`'s `gpu/x` falls most, `c` ranks 1. A variant `d` refused on
+  `device` has `rank` null and comes last.
+  *Test:* `tests/test_compare_variants.py::test_rank`.
+  *Breaks when:* variants rank by another kind, by verdict, by size of
+  change rather than its sign, or ignore `--measure`. The `load` kind
+  isolates the kind choice; `c`, both slowest and failing, isolates
+  the sign.
+- **INV-93** — The count judged is given, and base warnings once. In
+  INV-91's fixture with a base run carrying a § 4.9 warning,
+  `judged.variants` is 1 and `judged.measures` equals the length of
+  `a`'s `compare.measures`; the text gives both in its count sentence,
+  and the base run's warning appears once.
+  *Test:* `tests/test_compare_variants.py::test_judged_count`.
+  *Breaks when:* unjudged variants are counted, the count is missing
+  from the text, or a base warning repeats per variant.
+- **INV-94** — `alternate` runs every side in reversing rounds, and
+  judges as `compare`. INV-78's fixture with `--base` and variants `a`
+  and `b`, `--runs 3`: the log reads base, a, b, b, a, base, base, a,
+  b; `DIR` holds `base-1.csv` to `base-3.csv`, `a-1.csv` to `a-3.csv`
+  and `b-1.csv` to `b-3.csv`; and the result, without `commands`,
+  `out`, `warmup` and `stopped`, equals `compare --base` and
+  `--variant` over those files, with the same exit. With `--warmup 1`
+  the log opens base, a, b. With `--old` and `--base` both, or a
+  variant command without `{run}`, the exit is 3 and the log is empty.
+  *Test:* `tests/test_compare_variants.py::test_alternate_variants`.
+  *Breaks when:* the rounds do not reverse, a side's runs share a
+  file, the judging differs from `compare`'s, or a setup error runs a
+  command. The order log alone isolates the first.
 
 ## 6. Failure modes
 
@@ -2607,6 +2808,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0030: INV-82 to INV-84.
 - FLED-0031: INV-85 and INV-86.
 - FLED-0032: INV-87 and INV-88.
+- FLED-0034: INV-89 to INV-94.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -2643,8 +2845,9 @@ it on each release they pin.
 - Charts or HTML — deferred; not yet queued (discovery, *not yet*).
 - `alternate`'s prepare command (none of the three engines needs
   one), a time limit per run (UT Ants: low priority), and
-  `--by-scene`: not yet queued. Variants (S23) and baselines (S24)
-  are their own items.
+  `--by-scene`: not yet queued. Baselines (S24) are their own item.
+- Variants with `--by-scene`, each variant judged per scene: not yet
+  queued (§ 4.16 refuses the pair).
 - A `peak` in `report`'s or `floor`'s warnings: not yet queued. Only
   a compare acts on it (FLED-0030).
 
@@ -2740,6 +2943,12 @@ it on each release they pin.
 | INV-86 | `tests/test_compare_measure.py::test_per_run_table` |
 | INV-87 | `tests/test_markdown.py::test_markdown_matches_text`, `tests/test_markdown.py::test_tables_line_up`, `tests/test_markdown.py::test_no_width_limit`, `tests/test_markdown.py::test_row_limits_stay` |
 | INV-88 | `tests/test_markdown.py::test_engine_text_is_escaped`, `tests/test_markdown.py::test_line_starts_are_escaped`, `tests/test_markdown.py::test_markdown_and_json_refused` |
+| INV-89 | `tests/test_compare_variants.py::test_variant_is_one_compare` |
+| INV-90 | `tests/test_compare_variants.py::test_setup_errors` |
+| INV-91 | `tests/test_compare_variants.py::test_refused_variant` |
+| INV-92 | `tests/test_compare_variants.py::test_rank` |
+| INV-93 | `tests/test_compare_variants.py::test_judged_count` |
+| INV-94 | `tests/test_compare_variants.py::test_alternate_variants` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
