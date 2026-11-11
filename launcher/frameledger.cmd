@@ -27,5 +27,5 @@ exit /b %errorlevel%
 rem Neither: the launcher was copied away from the analyser. 9009 is
 rem cmd's own code for a command it cannot find.
 :missing
-1>&2 echo frameledger: no frameledger.pyz beside %~dp0
+1>&2 echo frameledger: no frameledger.pyz beside %~dp0; keep the launcher beside it
 exit /b 9009
