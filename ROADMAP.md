@@ -630,7 +630,7 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Source: engine-answers-2026-11-10.
   Blocked-by: FLED-0028.
 
-- 🚧 [FLED-0030] **compare acts on a busy machine.**
+- ✅ [FLED-0030] **compare acts on a busy machine.**
   The header already has optional load, gpu_busy_pct and
   gpu_clock_mhz, read at start and end only (spec § 4.2), and a
   warning never changes a verdict (§ 4.9). Vestige's A/Bs failed
@@ -656,6 +656,8 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   may include helper processes; samples clamped; partial visibility; end
   clock before GPU release); defaults kept at 0.25 and 20. Sent back for
   confirmation before building.
+  Shipped 2026-11-11: code 32eea63, review fold 320f093 and 27fddc2;
+  Vestige, UT Ants and DOOM Ants agreed.
   **Layman:** The comparison notices when something else was using the computer during a test and says the result cannot be trusted.
   Kind: feature.
   Source: engine-answers-2026-11-10.
