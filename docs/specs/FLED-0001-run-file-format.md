@@ -537,9 +537,11 @@ a commit body, a roadmap note or a pull request. It is GitHub-flavoured
 Markdown that also reads as a table unrendered. The verdict and exit
 code are the text's.
 
-- **Sentences.** The opening sentences come first, one to a line, as
-  one paragraph. A result whose text is its sentences alone, an error
-  among them, is those sentences.
+- **Sentences.** The opening sentences come first, as a list, one
+  sentence an item opening `- `. So each stays on its own line,
+  rendered or not; a paragraph's lines would join when rendered. A
+  result whose text is its sentences alone, an error among them, is
+  that list.
 - **Tables.** Each text table is a pipe table, under its title line,
   with a blank line before and after. Its header row is the text's;
   number columns align right. Cells are padded with spaces so the
@@ -552,14 +554,21 @@ code are the text's.
   `report`'s static facts `fact | value`.
 - **No width limit.** Nothing is cut short, and the per-run table of
   § 4.10 is one table. The row limits stay: 10 frames over budget, 20
-  static facts, then the text's "N more: see --json." line.
+  static facts, then the text's line saying how many more the JSON
+  holds.
 - **Depth.** A nested pass or measure is indented by two no-break
   spaces (U+00A0) per level, which Markdown keeps.
 - **Escapes.** In sentences and cells, a backslash goes before each
   `\`, `` ` ``, `*`, `~`, `&`, `<`, `[`, `]` and `|`, and before each
   `_` not between two letters or digits. So a path, a segment id or a
   static value cannot format the output or split a cell, and a pass
-  name such as `shadow_map` is unchanged.
+  name such as `shadow_map` is unchanged. A Windows path's backslashes
+  are doubled unrendered.
+- **Line starts.** A sentence can open with a path, a run name or an
+  error. So a sentence opening `#`, `>`, `-` or `+` gets a backslash
+  before it, and one opening with digits then `.` or `)` gets one
+  before that `.` or `)`. Otherwise it would render as a heading, a
+  quotation or a list. A cell never opens a line.
 
 ### 4.9 Trust warnings
 
@@ -2499,25 +2508,42 @@ breaks.
   differs from the JSON, a further table lacks the run column, or a
   table line is wider than 100.
 - **INV-87** — Markdown says what the text says. Over every fixture's
-  `check`, `report` and `floor` at 60, and INV-85's `compare` with and
-  without `--measure gpu/b --measure frame/wall`: the first paragraph,
-  unescaped, equals the JSON `summary`, in order; each pipe table has
-  the text table's rows, in order, every row with the header's cell
-  count; the exit code is the text's.
-  *Test:* `tests/test_markdown.py::test_markdown_matches_text`.
-  *Breaks when:* Markdown is built from anything but the result, a row
-  is dropped, added or reordered, or a cell is missing.
+  `check`, `report` and `floor` at 60, `--selftest`, a `bisect` of
+  three good runs, and INV-85's `compare` with and without `--measure
+  gpu/b --measure frame/wall`: the opening list's items, unescaped,
+  equal the JSON `summary`, in order; each pipe table has the text
+  table's rows, in order, under § 4.8's header for a list without one;
+  the exit code is the text's. Every line of a table has the same
+  length, a U+00A0 counting as one, so its pipes line up; a number
+  column's separator ends `:`. With INV-86's twelve further passes,
+  the per-run table is one table, with a line over 100 characters and
+  the 64-byte name whole. A `floor` with 11 frames over budget lists
+  10, and a `report` with 21 static facts lists 20; each then gives
+  the text's line saying 1 more is in the JSON.
+  *Test:* `tests/test_markdown.py::test_markdown_matches_text`,
+  `tests/test_markdown.py::test_tables_line_up`,
+  `tests/test_markdown.py::test_no_width_limit`,
+  `tests/test_markdown.py::test_row_limits_stay`.
+  *Breaks when:* Markdown is built from anything but the result; a row
+  is dropped, added or reordered; a header is missing; a table is not
+  padded or a number column not right-aligned; a table is cut or split
+  at 100 columns; or a row limit is lost.
 - **INV-88** — Engine text cannot break the Markdown. Fixture: a run
   whose static line holds `"note": "a|b *c* _d_ <e> [f](g) &h; ~i~ \\j"`
   and a pass at depth 1. In `report --markdown`, that fact's row has
   two cells, the second unescaping to the value as written; pandoc's
   `gfm` reader, where installed, renders it as plain text; and the
-  nested pass's cell opens with two U+00A0. `--markdown --json` is
+  nested pass's cell opens with two U+00A0. A `check` of breaching
+  files named `#a.csv`, `>b.csv`, `-c.csv`, `+d.csv` and `1. e.csv`,
+  run from their folder, opens sentences with those names; pandoc
+  renders each as a list item of plain text. `--markdown --json` is
   exit 3, and under `bisect` exit 128, its stop.
   *Test:* `tests/test_markdown.py::test_engine_text_is_escaped`,
+  `tests/test_markdown.py::test_line_starts_are_escaped`,
   `tests/test_markdown.py::test_markdown_and_json_refused`.
-  *Breaks when:* an escape is missing, so a cell splits or the value
-  formats; the depth indent is stripped; or both flags are accepted.
+  *Breaks when:* an escape is missing, so a cell splits, a value
+  formats or a sentence becomes a heading, quotation or list; the
+  depth indent is stripped; or both flags are accepted.
 
 ## 6. Failure modes
 
@@ -2693,8 +2719,8 @@ it on each release they pin.
 | INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
 | INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named`, `tests/test_compare_measure.py::test_measure_refused`, `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`, `tests/test_compare_measure.py::test_absent_text`, `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named`, `tests/test_compare_measure.py::test_by_scene_absent_json_and_unread`, `tests/test_compare_measure.py::test_short_kind_sentence_needs_frame_wall` |
 | INV-86 | `tests/test_compare_measure.py::test_per_run_table` |
-| INV-87 | `tests/test_markdown.py::test_markdown_matches_text` |
-| INV-88 | `tests/test_markdown.py::test_engine_text_is_escaped`, `tests/test_markdown.py::test_markdown_and_json_refused` |
+| INV-87 | `tests/test_markdown.py::test_markdown_matches_text`, `tests/test_markdown.py::test_tables_line_up`, `tests/test_markdown.py::test_no_width_limit`, `tests/test_markdown.py::test_row_limits_stay` |
+| INV-88 | `tests/test_markdown.py::test_engine_text_is_escaped`, `tests/test_markdown.py::test_line_starts_are_escaped`, `tests/test_markdown.py::test_markdown_and_json_refused` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
