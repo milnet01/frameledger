@@ -148,6 +148,12 @@ settles.
   some programs gives their peak (UT Ants); the `end` clock is read
   before the GPU is released (Vestige). `--max-gpu-busy` stays 20:
   UT Ants guessed 10 for itself, unmeasured, and may pass it.
+- For FLED-0031: `--measure` keeps only the named measures, and a
+  table gives each run's value of each on one row, so DOOM Ants'
+  private script is no longer needed (DOOM Ants). *Proposed here:*
+  `bisect`'s `CATEGORY/NAME` form; every depth, kind and statistic of
+  a name kept; a name no run has is exit 3; the table in text only,
+  and not under `--by-scene`.
 
 ## 4. Design
 
@@ -560,7 +566,7 @@ FLED-0008 builds this (S4, S5's refusal half, S16). Reviewed by the
 three engines 2026-10-26; their changes are folded in.
 
 ```
-compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
+compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
 ```
 
 `--by-scene` judges each scene apart, § 4.14. Without it, this
@@ -630,6 +636,25 @@ judged.
 A measure is judged only when every run of both sets has it. One
 missing from some runs goes into `unmatched`, naming the runs that have
 it, and judges nothing.
+
+**Naming measures** (FLED-0031). `--measure CATEGORY/NAME` keeps only
+the named measures; give it once per measure. Without it, every
+measure above is judged.
+
+- It splits at its first `/`, as under § 4.11: `frame/wall`,
+  `frame/cpu_span`, `frame/gpu_span`, a `cpu` or `gpu` pass, or a
+  `mem` name. Any other category, a frame measure not judged here, an
+  empty name, or a measure given twice, is exit 3.
+- It keeps the name at every depth and in every segment kind, with
+  each statistic judged: `frame/wall` keeps its median and its 99th
+  percentile.
+- A named measure that no run has is exit 3, naming it, so a misspelt
+  name never passes by judging nothing. One that only some runs have
+  goes into `unmatched`, as above.
+- Only kept measures are judged, ranked, counted and listed in
+  `unmatched`. So the verdict's step 3 applies only when `frame/wall`
+  is kept. Refusals, warnings, dropped rows, load and the static diff
+  are unchanged.
 
 **Judging a measure.** Arithmetic is exact, in fractions; JSON gives
 values in the measure's unit, ms or MB, rounded to four places, half
@@ -733,7 +758,8 @@ run's value, exactly as written; absent is null. The text prints the
 first 20 and counts the rest.
 
 **Opening sentences**, in order: one sentence naming every override
-and its reason; a refusal; each run's dropped rows, missing close
+and its reason; with `--measure`, one naming the kept measures in the
+order given ("Judging only gpu/trace and frame/gpu_span."); a refusal; each run's dropped rows, missing close
 line or load; one per kind of warning; the verdict sentence, naming the slower
 measure with the largest change in milliseconds, ties by percent (or
 why it is inconclusive); the `larger` `mem` measure with the largest
@@ -742,8 +768,17 @@ measure is `slower`; the segment kinds step 3 skipped; the `frame/wall`
 median per segment kind, old centre against new. A refusal ends the
 compare after its warning sentences; a file that cannot be read still
 opens with the overrides. Then a table of every ms measure not `unchanged`, one of
-every such `mem` measure in MB, a count of those that are, then the
-static diff.
+every such `mem` measure in MB, a count of those that are, with
+`--measure` each run's values (below), then the static diff.
+
+**Each run's values** (FLED-0031). With `--measure`, a table gives one
+row per run, in the order old-1, old-2, …, new-1, …, and one column
+per kept measure that was judged. Each cell is the run's value, as in
+`old` and `new`, to three places. A column is headed
+`category/name`, then ` p99` for a 99th percentile, the segment kind
+when the runs have more than one, and the depth when the name has more
+than one. Columns that do not fit in 100 go into a further table. The
+JSON adds nothing for it: `old` and `new` hold the same values.
 
 **Result:**
 
@@ -751,7 +786,7 @@ static diff.
 {
   "runs": [{"name", "set", "path", "run_id", "commit", "dirty", "started_utc",
             "rows_dropped", "finished", "under_load"}],
-  "min_ms", "min_mb", "min_pct", "max_load", "max_gpu_busy",
+  "min_ms", "min_mb", "min_pct", "max_load", "max_gpu_busy", "named_measures",
   "measures": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                 "old": [], "new": [], "old_centre", "new_centre",
                 "change", "change_pct", "spread", "floor", "verdict"}],
@@ -764,6 +799,8 @@ static diff.
 
 `under_load` lists each peak above its limit, `load.peak` and then
 `gpu_busy_pct.peak`, and is empty for a run not under load.
+`named_measures` lists `--measure`'s names in the order given, and is
+empty without it.
 `statistic` is `median` or `p99`; `unit` is `ms` or `MB`, as under
 § 4.11; `old` and `new` list the runs' values in run order; `change_pct` is the change over the old centre,
 in percent to two places, or null when the old centre is 0; `values`
@@ -1218,7 +1255,7 @@ FLED-0013 builds this (S15). The design was agreed with the three
 engines 2026-11-04.
 
 ```
-compare --by-scene --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
+compare --by-scene --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
 ```
 
 The flags are § 4.10's, with its defaults and bounds.
@@ -1256,6 +1293,9 @@ The flags are § 4.10's, with its defaults and bounds.
   `mem` measure, by its change in MB; ties by percent, then scene name.
 - **`override_unused`** is given once, when the field differs in no
   scene.
+- **`--measure`** keeps the same measures in every scene. A named
+  measure is exit 3 only when no judged scene's runs have it. The text
+  gives no per-run table; each scene's `compare` holds the values.
 
 **The command's verdict**, first match wins:
 
@@ -1316,7 +1356,7 @@ writes each run file; this command only starts the engine's command
 for each run, in turn, and then compares what they wrote.
 
 ```
-alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P]
+alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
 ```
 
 The compare flags are § 4.10's, with its defaults and bounds.
@@ -2344,6 +2384,28 @@ breaks.
   *Test:* `tests/test_compare_load.py::test_side_differs_warnings`.
   *Breaks when:* a limit is crossed at or below it, a run lacking the
   field still warns, or a warning changes the exit.
+- **INV-85** — `--measure` judges only the named measures. Fixture:
+  three old and three new runs, 120 frames each; `gpu/a` 2 ms slower
+  in every new run; `gpu/b` the same in all; `frame/wall` `noisy`
+  and `cpu/c` in old-1 only. Without the flag: exit 1. `--measure
+  gpu/b`: exit 0, every entry of `measures` is `gpu/b`, `unmatched`
+  is empty, `named_measures` is `["gpu/b"]`, and the sentence after
+  the overrides names it. `--measure gpu/a`: exit 1. `--measure
+  frame/wall`: exit 2. `--measure cpu/c`: exit 0, `cpu/c` in
+  `unmatched`. `--measure gpu/z`, `event/x`, `frame/fence_wait`,
+  `gpu/`, or `gpu/b` twice: exit 3.
+  *Test:* `tests/test_compare_measure.py::test_measure_keeps_named`.
+  *Breaks when:* an unnamed measure is judged or decides the verdict,
+  `frame/wall` makes the compare inconclusive when not named, or a
+  name no run has gives a verdict.
+- **INV-86** — The per-run table gives each run's value. With INV-85's
+  fixture and `--measure gpu/b --measure frame/wall`, the text has one
+  row per run in name order, each cell equal to the JSON's `old` or
+  `new` value to three places, and no line over 100 columns. Without
+  `--measure`, and under `--by-scene`, it has no such table.
+  *Test:* `tests/test_compare_measure.py::test_per_run_table`.
+  *Breaks when:* a run or a judged kept measure is missing, a cell
+  differs from the JSON, or a line is wider than 100.
 
 ## 6. Failure modes
 
@@ -2386,6 +2448,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0013: INV-73 to INV-77.
 - FLED-0029: INV-78 to INV-81.
 - FLED-0030: INV-82 to INV-84.
+- FLED-0031: INV-85 and INV-86.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -2515,6 +2578,8 @@ it on each release they pin.
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |
 | INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
+| INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named` |
+| INV-86 | `tests/test_compare_measure.py::test_per_run_table` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |

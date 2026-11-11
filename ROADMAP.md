@@ -663,12 +663,16 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Source: engine-answers-2026-11-10.
   Blocked-by: FLED-0028.
 
-- 📋 [FLED-0031] **compare can name its measures and show one row per run.**
+- 🚧 [FLED-0031] **compare can name its measures and show one row per run.**
   A --measure filter keeps only the named passes, and a per-run
   table gives each run's median of each kept measure on one row.
   DOOM Ants' private ledp.py does exactly this; DOOM says compare
   would replace it with both. compare already judges each pass by its
   own spread (S16).
+  2026-11-11: amended docs/specs/FLED-0001-run-file-format.md § 4.10
+  (and § 4.14, § 4.15): --measure CATEGORY/NAME and the per-run table,
+  INV-85 and INV-86. Sent to the three engines for review before
+  building.
   **Layman:** Lets you ask about just the parts of a frame you care about, with one line per test run.
   Kind: feature.
   Source: engine-answers-2026-11-10.
