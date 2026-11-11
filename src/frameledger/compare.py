@@ -116,7 +116,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
     summary = overrides_sentences(override_list)
     if named_measures:
-        summary.append(f"Judging only {listed(named_measures)}.")
+        summary.append(f"Judging only {joined(named_measures)}.")
     refused, unused = refusals(runs, overrides)
     notices = unused_override_notices(unused)
     run_list = [run_entry(r, limits) for r in runs]
@@ -134,8 +134,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
 
     measures, unmatched, absent = _judge_all(runs, floors, named_measures)
     short = _short_kinds(runs)
-    verdict, sentences, reason = _verdict(incomplete, loaded, measures, short,
-                                          unmatched if named_measures else None)
+    verdict, sentences, reason = _verdict(incomplete, loaded, measures, short, bool(named_measures), unmatched)
     summary += sentences
     if short:  # straight after the verdict, which it explains (Vestige)
         kinds = ", ".join(run_report.kind_name(k) for k in short)
@@ -475,12 +474,11 @@ def _short_kinds(runs: list[Named]) -> list[str | None]:
 
 
 def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], short: list,
-             named_unmatched: list[dict] | None = None) -> tuple[str, list[str], str | None]:
+             named: bool = False, unmatched: list[dict] = ()) -> tuple[str, list[str], str | None]:
     """§ 4.10's verdict, first match wins, the sentences saying it, and why
     it is inconclusive, or None. ms and MB never rank against each other,
-    so slower passes and larger memory each get a sentence.
-    `named_unmatched` is the unmatched list when --measure was given, and
-    None otherwise: with it, a compare that judged nothing cannot pass."""
+    so slower passes and larger memory each get a sentence. `named` says
+    --measure was given: then a compare that judged nothing cannot pass."""
     moved = {word: [m for m in measures if m["verdict"] == word]
              for word in ("slower", "larger", "faster", "smaller")}
     noisy_walls = [m for m in measures if (m["category"], m["name"], m["statistic"]) ==
@@ -505,9 +503,12 @@ def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], sho
         reason = (f"{_label(wall)} moved {wall['change']:+.3f} ms, within the runs' spread of "
                   f"{wall['spread']:.3f} ms; re-run with more runs a set")
         return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
-    if named_unmatched is not None and not measures:  # UT Ants: never pass by judging nothing
+    if named and not measures:  # step 3's second half (UT Ants): never pass by judging nothing
         # Each name once, though unmatched lists it per kind, depth and statistic.
-        missing = listed(dict.fromkeys(f"{m['category']}/{m['name']}" for m in named_unmatched))
+        missing = joined(dict.fromkeys(f"{m['category']}/{m['name']}" for m in unmatched))
+        # No missing name means no run has any: a plain compare refuses
+        # that first, so only a --by-scene scene, which scenes.py leaves
+        # out, reaches the second reason.
         reason = (f"no named measure is in every run ({missing}), so nothing was judged" if missing else
                   "no run of this compare has a named measure, so nothing was judged")
         return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
@@ -541,11 +542,12 @@ def _wall_sentences(measures: list[dict]) -> list[str]:
 
 def absent_sentence(absent: list[str]) -> str:
     """§ 4.10: a named measure no run has refuses the compare."""
-    return (f"No run has {listed(absent, 'or')}, so it cannot be judged; a name matches exactly, "
+    pronoun = "it" if len(absent) == 1 else "they"
+    return (f"No run has {joined(absent, 'or')}, so {pronoun} cannot be judged; a name matches exactly, "
             "case included.")
 
 
-def listed(names, word: str = "and") -> str:
+def joined(names, word: str = "and") -> str:
     """`a`, `a and b`, `a, b and c`: names as a sentence lists them."""
     names = list(names)
     if len(names) < 2:

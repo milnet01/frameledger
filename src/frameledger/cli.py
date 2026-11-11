@@ -511,14 +511,14 @@ def _named(measures: list[str]) -> tuple[str, ...]:
     """--measure's names, each checked as bisect checks its one, and none
     given twice; refused before any file is read or command started."""
     for text in measures:
-        _measure_name(text)
+        _parse_measure(text)
     twice = [text for text, count in Counter(measures).items() if count > 1]
     if twice:
         raise ledger.LedgerError(f"--measure {twice[0]} is given twice")
     return tuple(measures)
 
 
-def _measure_name(text: str) -> tuple[str, str]:
+def _parse_measure(text: str) -> tuple[str, str]:
     """A --measure's category and name: a frame measure § 4.10 judges, a
     cpu or gpu pass, or a mem name."""
     category, slash, name = text.partition("/")
@@ -649,7 +649,7 @@ def _bisect(args: argparse.Namespace) -> dict:
 
 def _wanted(args: argparse.Namespace) -> bisecting.Wanted:
     """The measure and frames, refusing what would skip every commit."""
-    category, name = _measure_name(args.measure)
+    category, name = _parse_measure(args.measure)
     if args.statistic == "p99" and (category, name) != ("frame", "wall"):
         raise ledger.LedgerError("--statistic p99 is for frame/wall only")
     if category == "frame" and args.depth is not None:

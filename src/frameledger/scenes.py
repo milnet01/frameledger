@@ -45,9 +45,9 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
         scenes.append(entry)
         if scene_unused is not None:  # the scene's runs were read
             unused &= scene_unused
-        if entry["verdict"] != "unjudged":
+        if scene_absent is not None:  # judged, or read and left out for lacking every name
             absent &= scene_absent
-        elif entry["reason"] == LACKS_NAMED:
+        if entry["reason"] == LACKS_NAMED:
             lacking.add(name)
     if not any(e["compare"] for e in scenes):
         unused = set()  # no scene was read, so no field was seen not to differ
@@ -66,12 +66,14 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     unused_notices = compare.unused_override_notices([f for f in overrides if f in unused])
     notices = [n for group in scene_notices for n in group] + unused_notices
     measures = sum(len(e["compare"]["measures"]) for e in judged)
-    absent = [n for n in named_measures if n in absent] if judged else []
-    verdict = _verdict(scenes, unread, lacking) if judged and not absent else "error"
+    absent = [n for n in named_measures if n in absent] if judged or lacking else []
+    if absent:  # § 4.14 step 2: refused as a plain compare is, with nothing judged shown
+        return {"verdict": "error", "summary": [*compare.overrides_sentences(override_list),
+                                                compare.absent_sentence(absent)],
+                "warnings": [], "overrides": override_list, "result": {"named_measures": absent}}
+    verdict = _verdict(scenes, unread, lacking) if judged else "error"
     summary = _summary(override_list, scenes, unread, failing, len(judged), measures,
                        [*scene_notices, unused_notices])
-    if absent:  # straight after the overrides, which always open (S5)
-        summary.insert(len(compare.overrides_sentences(override_list)), compare.absent_sentence(absent))
     result = {
         "scenes": scenes,
         "unread": unread,
@@ -132,8 +134,9 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
            named_measures: tuple[str, ...]) -> tuple[dict, set[str] | None, set[str]]:
     """One scene's entry; the overridden fields that differed in none of
     its runs, None when its runs were not read; and the names in
-    `named_measures` none of its runs has, every name when they were not
-    read."""
+    `named_measures` none of its runs has: every name for a scene left
+    out for lacking them all, and None for any other unjudged scene,
+    which says nothing of which names it has."""
     entry = {"scene": name, "verdict": "unjudged", "reason": None, "rank": None, "measure": None,
              "segment": None, "compare": None, "warnings": []}
     missing = [label for label, paths in (("old", old), ("new", new)) if not paths]
@@ -141,10 +144,10 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
              for label, paths in (("old", old), ("new", new)) if 0 < len(paths) < compare.FEWEST_RUNS]
     if missing:
         entry["reason"] = f"no {missing[0]} runs"
-        return entry, None, set(named_measures)
+        return entry, None, None
     if short:
         entry["reason"] = f"{' and '.join(short)}; each side needs at least {compare.FEWEST_RUNS}"
-        return entry, None, set(named_measures)
+        return entry, None, None
 
     try:
         old_runs, new_runs = [ledger.read(p) for p in old], [ledger.read(p) for p in new]
@@ -155,7 +158,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
         built = compare.compare(old_runs, new_runs, overrides, floors, limits, named_measures)
     except ledger.LedgerError as error:  # the file changed since it was first read
         entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
-        return entry, None, set(named_measures)
+        return entry, None, None
     unused, absent = set(built["unused"]), set(built["absent"])
     if named_measures and absent == set(named_measures):  # judges nothing here, by the caller's choice
         entry["compare"], entry["reason"] = built["result"], LACKS_NAMED
@@ -164,7 +167,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
     entry["warnings"] = [w for w in built["warnings"] if w["code"] != "override_unused"]
     if built["verdict"] == "error":  # refused
         entry["reason"] = built["reason"]
-        return entry, unused, absent
+        return entry, unused, None
     entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
     if built["verdict"] == "fail":
         measures = built["result"]["measures"]

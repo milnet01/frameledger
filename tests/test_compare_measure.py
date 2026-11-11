@@ -208,3 +208,22 @@ def test_absent_refusal_keeps_runs(capsys, tmp_path):
     code, result = compare(capsys, tmp_path, *fixture(), "--measure", "gpu/z")
     assert code == 3
     assert result["result"]["named_measures"] == ["gpu/z"] and len(result["result"]["runs"]) == 6
+
+
+@pytest.mark.parametrize("scenes", [[], ["--by-scene"]])
+def test_absent_text(capsys, tmp_path, scenes):
+    """INV-85: a name no run has, in text, is exit 3 with only that
+    sentence, as a plain compare and under --by-scene (UT Ants); no
+    scene's sentences or table follow it."""
+    old, new = fixture()
+    args = []
+    for label, texts in (("old", old), ("new", new)):
+        args.append(f"--{label}")
+        for i, text in enumerate(texts, 1):
+            path = tmp_path / f"{label}-{i}.csv"
+            path.write_text(text, encoding="utf-8")
+            args.append(str(path))
+    assert cli.main(["compare", *args, *scenes, "--measure", "gpu/z", "--measure", "gpu/y"]) == 3
+    out = capsys.readouterr().out
+    assert out == ("No run has gpu/z or gpu/y, so they cannot be judged; a name matches exactly, "
+                   "case included.\n")

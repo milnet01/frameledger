@@ -42,6 +42,7 @@ def _selftest_body(result: dict) -> list[str]:
 
 
 WIDTH = 100  # § 4.8: tables no wider than 100 columns
+GAP = 2  # spaces between a per-run table's columns
 STATIC_LINES = 20  # UT Ants' review: a large static line must not bury the ranking
 SLOW_FRAMES = 10  # the text lists this many; --json lists every one
 
@@ -100,7 +101,7 @@ def _floor_body(result: dict) -> list[str]:
 
 def _compare_body(result: dict) -> list[str]:
     compared = result["result"]
-    if not compared:  # an error: the opening sentences say why
+    if not {"scenes", "measures", "refused"} & compared.keys():  # an error before judging: the sentences say why
         return []
     if "scenes" in compared:
         return _scenes_body(compared)
@@ -175,32 +176,32 @@ def _per_run_tables(compared: dict) -> list[str]:
     if not measures:
         return []
     runs = [r["name"] for r in compared["runs"]]  # old-1, old-2, ..., new-1, ...: old + new's order
-    room = WIDTH - len(f"  {'run':<8}")
+    room = WIDTH - len(f"  {'run':<8}")  # what the run column leaves
     columns = []  # (width, header, one cell a run)
     for measure, header in zip(measures, _per_run_headers(measures), strict=True):
         cells = [f"{value:.3f}" for value in measure["old"] + measure["new"]]
-        header = _fit(header, room - 2)
+        header = _fit(header, room - GAP)
         columns.append((max(len(header), *map(len, cells)), header, cells))
     tables, table, used = [], [], 0
-    for column in columns:
-        if table and used + 2 + column[0] > room:
+    for width, header, cells in columns:
+        if table and used + GAP + width > room:
             tables.append(table)
             table, used = [], 0
-        table.append(column)
-        used += 2 + column[0]
+        table.append((width, header, cells))
+        used += GAP + width
     tables.append(table)
     lines = ["Each run's value of each named measure (ms; mem in MB):"]
     for table in tables:
-        lines.append(f"  {'run':<8}" + "".join(f"  {header:>{width}}" for width, header, _ in table))
-        lines += [f"  {run:<8}" + "".join(f"  {cells[row]:>{width}}" for width, _, cells in table)
+        lines.append(f"  {'run':<8}" + "".join(f"{'':{GAP}}{header:>{width}}" for width, header, _ in table))
+        lines += [f"  {run:<8}" + "".join(f"{'':{GAP}}{cells[row]:>{width}}" for width, _, cells in table)
                   for row, run in enumerate(runs)]
         lines.append("")
     return lines
 
 
 def _per_run_headers(measures: list[dict]) -> list[str]:
-    """category/name, then p99, the segment kind when the measures span
-    more than one, and the depth when the name is at more than one."""
+    """category/name, then p99, the segment kind when the judged measures
+    span more than one, and the depth when the name is at more than one."""
     kinds = {m["segment_kind"] for m in measures}
     depths: dict[tuple, set] = {}
     for m in measures:

@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=63 -->
+<!-- ants-roadmap-id-high-water: FLED=64 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -728,6 +728,16 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
   Kind: feature.
   Source: engine-review-2026-11-10.
+
+- 📋 [FLED-0064] **alternate prints compare's tables.**
+  § 4.15 says alternate gives § 4.10's text, but render.py's
+  _BODIES has no alternate entry, so alternate prints only the
+  opening sentences: none of compare's tables, the runs list, the
+  static diff, or FLED-0031's per-run table. Found by UT Ants' code
+  review of FLED-0031, 2026-11-11; it predates that item.
+  **Layman:** After running both builds, alternate shows the same tables of results that compare shows.
+  Kind: fix.
+  Source: engine-review-2026-11-11.
 
 ## 0.5.0 — variants and baselines
 

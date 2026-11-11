@@ -787,7 +787,7 @@ row per run, in the order old-1, old-2, …, new-1, …, and one column
 per kept measure that was judged. Each cell is the run's value, as in
 `old` and `new`, to three places. A column is headed
 `category/name`, then ` p99` for a 99th percentile, the segment kind
-when the runs have more than one, and the depth when the name has more
+when the judged named measures span more than one (UT Ants), and the depth when the name has more
 than one. Columns that do not fit in 100 characters go into a further
 table, which repeats the run column. A header too wide for one table
 is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `old` and `new` hold the same values.
@@ -1307,7 +1307,7 @@ The flags are § 4.10's, with its defaults and bounds.
 - **`override_unused`** is given once, when the field differs in no
   scene.
 - **`--measure`** keeps the same measures in every scene. A named
-  measure is exit 3 only when no judged scene's runs have it. A scene
+  measure is exit 3 only when no scene's runs have it (step 2). A scene
   whose kept measures are all unmatched is inconclusive, as § 4.10's
   step 3 makes a compare (Vestige). A scene none of whose runs has
   any named measure is unjudged, "none of its runs has a named
@@ -1324,7 +1324,10 @@ The flags are § 4.10's, with its defaults and bounds.
    the setup, such as a wrong folder or a GPU differing in every file
    (UT Ants). The opening sentence says so plainly: "No scene could be
    judged:", then each scene's reason and each unread file's (DOOM
-   Ants, Vestige).
+   Ants, Vestige). It is also `error`, checked first, when a named
+   measure is in no scene's runs. Then the text is only the overrides
+   sentence and § 4.10's sentence naming it, and the result is only
+   `named_measures`, as for a plain compare (UT Ants).
 3. `fail` (exit 1) when any scene fails.
 4. `inconclusive` (exit 2) when any scene is inconclusive or unjudged,
    or any file is unread. A scene unjudged for having none of the
@@ -2420,14 +2423,18 @@ breaks.
   cpu/c`: exit 0, since a partly unmatched list still judges `gpu/b`.
   `--measure gpu/z`, `gpu/B`, `event/x`,
   `frame/fence_wait`, `gpu/`, or `gpu/b` twice: exit 3, naming it;
-  for `gpu/z`, the JSON still gives `runs` and `named_measures`.
+  for `gpu/z`, the JSON still gives `runs` and `named_measures`. In
+  text, `--measure gpu/z --measure gpu/y`, plain or under
+  `--by-scene`, prints only "No run has gpu/z or gpu/y, so they cannot
+  be judged; a name matches exactly, case included."
   Under `--by-scene`, with scene atrium's runs holding `gpu/w` and
   hall's not, `--measure gpu/w`: exit 0 when atrium's `gpu/w` is
   unchanged, exit 1 when 2 ms slower; hall is unjudged, and one scene
   is judged.
   *Test:* `tests/test_compare_measure.py::test_measure_keeps_named`,
   `tests/test_compare_measure.py::test_measure_refused`,
-  `tests/test_compare_measure.py::test_absent_refusal_keeps_runs` and
+  `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`,
+  `tests/test_compare_measure.py::test_absent_text` and
   `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named`.
   *Breaks when:* an unnamed measure is judged or decides the verdict,
   `frame/wall` makes the compare inconclusive when not named, a name
@@ -2618,7 +2625,7 @@ it on each release they pin.
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |
 | INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
-| INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named`, `tests/test_compare_measure.py::test_measure_refused`, `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`, `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named` |
+| INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named`, `tests/test_compare_measure.py::test_measure_refused`, `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`, `tests/test_compare_measure.py::test_absent_text`, `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named` |
 | INV-86 | `tests/test_compare_measure.py::test_per_run_table` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
