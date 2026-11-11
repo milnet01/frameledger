@@ -663,7 +663,7 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Source: engine-answers-2026-11-10.
   Blocked-by: FLED-0028.
 
-- 🚧 [FLED-0031] **compare can name its measures and show one row per run.**
+- ✅ [FLED-0031] **compare can name its measures and show one row per run.**
   A --measure filter keeps only the named passes, and a per-run
   table gives each run's median of each kept measure on one row.
   DOOM Ants' private ledp.py does exactly this; DOOM says compare
@@ -677,6 +677,10 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   --measure on compare, --by-scene and alternate; the per-run tables;
   tests/test_compare_measure.py for INV-85 and INV-86. Sent to the
   engines for code review.
+  2026-11-11: shipped, all three engines agreeing the code at d042ed6
+  after three code-review folds (f753a1f, 7f34c72, d042ed6). DOOM Ants
+  checked it on its own runs. FLED-0064 queues alternate's missing
+  tables, found in review.
   **Layman:** Lets you ask about just the parts of a frame you care about, with one line per test run.
   Kind: feature.
   Source: engine-answers-2026-11-10.
