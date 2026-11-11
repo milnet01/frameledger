@@ -1,7 +1,7 @@
 """`alternate`: old and new runs in turn, each into its own file (S21).
 
 Invariants from docs/specs/FLED-0001-run-file-format.md § 5: INV-78 to
-INV-81, the rules of § 4.15. Each test runs the analyser from the tree as
+INV-81 and INV-95, the rules of § 4.15. Each test runs the analyser from the tree as
 a subprocess, as a user would, with tests/fixtures/alternate/fake_engine.py
 standing in for the engine.
 """
@@ -42,7 +42,9 @@ class Bench:
         "exec " makes the shell become the engine; "; exit $?" keeps the
         shell running after it."""
         words = [sys.executable, "-I", str(FAKE), side, str(self.sources[side]), str(self.log)]
-        return prefix + " ".join(shlex.quote(word) for word in words) + " {run}" + suffix
+        # cmd.exe reads double quotes, never /bin/sh's single quotes.
+        line = subprocess.list2cmdline(words) if sys.platform == "win32" else shlex.join(words)
+        return prefix + line + " {run}" + suffix
 
     def args(self, *flags: str, prefix: str = "", suffix: str = "") -> list[str]:
         return ["alternate", "--old", self.command("old", prefix, suffix),
@@ -259,6 +261,43 @@ def test_interrupted_run_stops(tmp_path, target, stop):
     assert stopped["finished"] == ["old-1", "new-1"]
     assert bench.files() == ["new-1.csv", "old-1.csv"]
     assert engine_ended(engine)
+
+
+def windows_process_ended(pid: int) -> bool:
+    """os.kill(pid, 0) would end the process on Windows, so ask tasklist."""
+    listing = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True,
+                             text=True, check=False).stdout
+    return str(pid) not in listing.split()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows process groups and Ctrl-Break")
+@pytest.mark.parametrize("mode", ["wait", "stubborn"])
+def test_windows_stop_ends_the_tree(tmp_path, mode):
+    """INV-95: Ctrl-Break during new-2 ends the engine behind cmd.exe.
+    `wait` ends on the Ctrl-Break passed on to its group; `stubborn`
+    ignores it, so only taskkill /T /F, after GRACE_S, can end it. The
+    analyser runs in its own group, so the Ctrl-Break sent to it reaches
+    nothing else, and the engine is in a third group of its own."""
+    bench = Bench(tmp_path)
+    process = subprocess.Popen([sys.executable, "-I", str(ROOT / "src" / "frameledger"),
+                                *bench.args("--json", prefix="cd . && ")],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                               text=True, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                               env={**os.environ, "FAKE_ENGINE": f"new-2={mode}"})
+    pid_file = Path(str(bench.log) + ".pid")
+    deadline = time.monotonic() + 30
+    while not pid_file.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    time.sleep(0.5)  # the pid file is written; let the engine reach its sleep
+    engine = int(pid_file.read_text(encoding="utf-8"))
+    process.send_signal(signal.CTRL_BREAK_EVENT)
+    stdout, _ = process.communicate(timeout=60)
+    assert process.returncode == 3
+    stopped = json.loads(stdout)["result"]["stopped"]
+    assert stopped["run"] == "new-2" and "SIGBREAK" in stopped["reason"]
+    assert stopped["finished"] == ["old-1", "new-1"]
+    assert bench.files() == ["new-1.csv", "old-1.csv"]
+    assert windows_process_ended(engine)
 
 
 def test_engine_output_to_stderr(tmp_path):

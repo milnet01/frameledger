@@ -1496,8 +1496,15 @@ Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
   a stop reaches every process it started, the engine behind a wrapper
   script or a `cd … &&` included. `alternate` passes the stop signal
   on to that group, since the terminal's Ctrl-C reaches only
-  `alternate`'s own. On Windows the console's Ctrl-C reaches the
-  command itself, and a SIGTERM kills it.
+  `alternate`'s own.
+- **On Windows each command runs in its own console process group**
+  (FLED-0063), so the console's Ctrl-C reaches only `alternate`.
+  Ctrl-C and Ctrl-Break stop it, as SIGINT does. It passes a stop on
+  as a Ctrl-Break to the command's group; the kill below is
+  `taskkill /T /F`, which ends `cmd.exe` and every process it started
+  (Vestige). Both reach a process only while `cmd.exe` still runs, so
+  on Windows a process left behind by a command that has exited is
+  neither checked for nor ended.
 - **A failed command's processes are ended before its file is
   deleted.** Any left are sent SIGTERM, or the stop signal, and given
   10 seconds; then they are killed. A second stop signal kills them at
@@ -2781,6 +2788,19 @@ breaks.
   *Breaks when:* the rounds do not reverse, a side's runs share a
   file, the judging differs from `compare`'s, or a setup error runs a
   command. The order log alone isolates the first.
+- **INV-95** — On Windows a stop ends the engine behind `cmd.exe`.
+  INV-80's interrupted fixture, `cd . && ` before each command so
+  `cmd.exe` stays between the analyser and the engine, with the
+  analyser in its own console process group and sent Ctrl-Break during
+  new-2: exit 3, the reason names SIGBREAK, `stopped.finished` is
+  old-1, new-1, only their files remain, and the engine has ended. It
+  holds for an engine that ends on Ctrl-Break, and for one that ignores
+  it, which only `taskkill /T /F` ends.
+  *Test:* `tests/test_alternate.py::test_windows_stop_ends_the_tree`,
+  run on Windows only.
+  *Breaks when:* the command shares the analyser's group, the stop is
+  not passed on, or the kill ends `cmd.exe` alone: the engine outlives
+  `alternate`. The engine that ignores Ctrl-Break isolates the kill.
 
 ## 6. Failure modes
 
@@ -2826,6 +2846,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0031: INV-85 and INV-86.
 - FLED-0032: INV-87 and INV-88.
 - FLED-0034: INV-89 to INV-94.
+- FLED-0063: INV-95.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -2966,6 +2987,7 @@ it on each release they pin.
 | INV-92 | `tests/test_compare_variants.py::test_rank` |
 | INV-93 | `tests/test_compare_variants.py::test_judged_count` |
 | INV-94 | `tests/test_compare_variants.py::test_alternate_variants` |
+| INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |

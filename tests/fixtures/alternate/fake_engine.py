@@ -7,6 +7,8 @@ run named NAME (new-2, say) does instead:
   nofile  writes nothing and exits 0;
   wait    writes its file and its process id (to LOG.pid), then sleeps
           until it is stopped;
+  stubborn  as wait, but ignores Ctrl-Break (SIGBREAK, Windows only),
+          so only a kill ends it;
   killself  kills itself with SIGKILL;
   background:S  writes its file, starts a child that sleeps S seconds
           and writes the child's process id to LOG.pid, then exits 0,
@@ -38,7 +40,9 @@ if mode == "background":
     child = subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({float(seconds)})"])
     with open(log + ".pid", "w", encoding="utf-8") as pid:
         pid.write(str(child.pid))
-if mode == "wait":
+if mode == "stubborn":
+    signal.signal(signal.SIGBREAK, signal.SIG_IGN)
+if mode in ("wait", "stubborn"):
     with open(log + ".pid", "w", encoding="utf-8") as pid:
         pid.write(str(os.getpid()))
     time.sleep(60)

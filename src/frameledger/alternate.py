@@ -23,8 +23,9 @@ MOST_WARMUPS = 10
 # The filled path needs no quoting in /bin/sh or cmd.exe.
 SAFE_DIR = re.compile(r"[A-Za-z0-9._\-/\\:]+")
 POSIX = os.name == "posix"
-STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
-KILL = getattr(signal, "SIGKILL", signal.SIGTERM)  # Windows has no SIGKILL; _signal_group kills there
+# Windows' Ctrl-Break arrives as SIGBREAK, which stops a run as Ctrl-C does.
+STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM) + ((signal.SIGBREAK,) if hasattr(signal, "SIGBREAK") else ())
+KILL = getattr(signal, "SIGKILL", signal.SIGTERM)  # Windows has no SIGKILL; _signal_windows_tree kills there
 GRACE_S = 10  # how long a stopped command has to end before it is killed
 POLL_S = 0.05  # how often a wait checks for a stop
 SETTLE_S = 2  # how long a finished command's leftover processes have to end
@@ -105,11 +106,12 @@ def run_all(commands: dict[str, str], planned: list[Run]) -> dict | None:
 def _run_one(command: str, path: str, stops: list[int]) -> tuple[int | None, str | None]:
     """(exit code, why the run failed), the reason None when it did not.
     The engine's output goes to standard error, so --json output is never
-    mixed with it. On POSIX the command gets its own process group, so a
-    stop reaches every process it started, a wrapper's engine included;
-    the terminal's Ctrl-C then reaches only this process, which passes it
+    mixed with it. The command gets its own process group, so a stop
+    reaches every process it started, a wrapper's engine included; the
+    terminal's Ctrl-C then reaches only this process, which passes it
     on."""
-    process = subprocess.Popen(command, shell=True, stdout=sys.stderr.fileno(), start_new_session=POSIX)
+    process = subprocess.Popen(command, shell=True, stdout=sys.stderr.fileno(), start_new_session=POSIX,
+                               creationflags=0 if POSIX else subprocess.CREATE_NEW_PROCESS_GROUP)
     code = _wait(process, stops)
     if code is None:
         return None, _stopped_reason(stops[0]) + _end_group(process, stops[0], stops)
@@ -163,14 +165,28 @@ def _waited(process: subprocess.Popen, give_up, seconds: float = GRACE_S) -> boo
 
 
 def _signal_group(process: subprocess.Popen, signum: int) -> None:
-    if not POSIX:  # Windows: the console's Ctrl-C reached the command itself
-        if signum != signal.SIGINT and process.poll() is None:
-            process.kill()
+    if not POSIX:
+        _signal_windows_tree(process, signum)
         return
     try:
         os.killpg(process.pid, signum)
     except ProcessLookupError:
         pass
+
+
+def _signal_windows_tree(process: subprocess.Popen, signum: int) -> None:
+    """Windows has no signals to send a group (Vestige's review). A stop
+    becomes CTRL_BREAK_EVENT, which reaches every process in the command's
+    console process group; a kill becomes taskkill /T /F, which ends
+    cmd.exe and every process it started that is still running. Both need
+    cmd.exe alive: a process whose parent has exited is in no tree."""
+    if process.poll() is not None:
+        return
+    if signum == KILL:
+        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    else:
+        process.send_signal(signal.CTRL_BREAK_EVENT)
 
 
 def _group_alive(process: subprocess.Popen) -> bool:
