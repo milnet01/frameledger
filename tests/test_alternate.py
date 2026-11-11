@@ -348,7 +348,7 @@ def test_windows_kill_is_no_stop_signal(monkeypatch):
 
     import alternate
 
-    monkeypatch.delattr(signal, "SIGKILL")
+    monkeypatch.delattr(signal, "SIGKILL", raising=False)  # Windows has none to delete (Vestige)
     try:
         windows_like = importlib.reload(alternate)
         assert windows_like.KILL not in windows_like.STOP_SIGNALS
