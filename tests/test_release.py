@@ -137,6 +137,20 @@ def test_the_launcher_runs_a_source_checkout(tmp_path):
     assert (launched.returncode, launched.stdout) == (0, expected), launched.stderr
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the POSIX launcher")
+def test_a_copied_launcher_says_it_cannot_find_the_analyser(tmp_path):
+    """A copy, not a link, has no analyser beside it: a plain message and 127,
+    which git bisect run cannot read as a verdict."""
+    copy = tmp_path / "copied" / "frameledger"
+    copy.parent.mkdir()
+    copy.write_bytes((ROOT / "launcher" / "frameledger").read_bytes())
+    copy.chmod(0o755)
+    launched = on_path(tmp_path, copy)("--version")
+    assert launched.returncode == 127
+    assert launched.stdout == ""
+    assert "no frameledger.pyz beside" in launched.stderr and "do not copy it" in launched.stderr
+
+
 def test_a_crlf_checkout_ships_the_same_windows_launcher(tmp_path):
     """A Windows checkout holds the .cmd with CRLF; the zip gets CRLF once, not CR CR LF."""
     build_release = load_script("build_release")

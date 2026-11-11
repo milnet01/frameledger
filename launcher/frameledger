@@ -22,5 +22,11 @@ done
 here=$(dirname "$self")
 analyser=$here/frameledger.pyz
 [ -e "$analyser" ] || analyser=$here/../src/frameledger
+# Neither: the launcher was copied away from the analyser. 127, as for a
+# missing python3, so git bisect run never reads it as a verdict.
+if [ ! -e "$analyser" ]; then
+    echo "frameledger: no frameledger.pyz beside $here; link this launcher, do not copy it" >&2
+    exit 127
+fi
 
 exec python3 -I "$analyser" "$@"
