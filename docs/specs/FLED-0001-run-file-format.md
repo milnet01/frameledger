@@ -393,7 +393,8 @@ size_t fled_json_escape (char *dst, size_t cap, const char *src);
 
 Run as `python3 -I frameledger.pyz <command> …`; on Windows `python -I`
 or `py -I`. Every command takes `--json`, printing the JSON result
-instead of text.
+instead of text, and `--markdown`, printing the text as Markdown
+(§ 4.8). Given both, it is a bad argument.
 
 | Command | Does | Exit |
 |---|---|---|
@@ -530,6 +531,35 @@ The `report` result, agreed with the three engines for FLED-0003:
   order), frames without a GPU result; then the frame
   count, the costliest depth-0 pass per segment kind by total time, and
   the bound-by share or that it does not apply.
+
+**Markdown** (`--markdown`, FLED-0032) is the text, made to paste into
+a commit body, a roadmap note or a pull request. It is GitHub-flavoured
+Markdown that also reads as a table unrendered. The verdict and exit
+code are the text's.
+
+- **Sentences.** The opening sentences come first, one to a line, as
+  one paragraph. A result whose text is its sentences alone, an error
+  among them, is those sentences.
+- **Tables.** Each text table is a pipe table, under its title line,
+  with a blank line before and after. Its header row is the text's;
+  number columns align right. Cells are padded with spaces so the
+  columns line up unrendered.
+- **Lists given without a header** become tables with one: `check`'s
+  breaches `line | breach | rule`, its warnings `warning | code`;
+  `--selftest`'s checks `result | check`; a runs list `run | path`,
+  and `bisect`'s `run | <unit> | path`; `compare`'s unmatched measures
+  `measure | only in` and its differing static facts `fact | values`;
+  `report`'s static facts `fact | value`.
+- **No width limit.** Nothing is cut short, and the per-run table of
+  § 4.10 is one table. The row limits stay: 10 frames over budget, 20
+  static facts, then the text's "N more: see --json." line.
+- **Depth.** A nested pass or measure is indented by two no-break
+  spaces (U+00A0) per level, which Markdown keeps.
+- **Escapes.** In sentences and cells, a backslash goes before each
+  `\`, `` ` ``, `*`, `~`, `&`, `<`, `[`, `]` and `|`, and before each
+  `_` not between two letters or digits. So a path, a segment id or a
+  static value cannot format the output or split a cell, and a pass
+  name such as `shadow_map` is unchanged.
 
 ### 4.9 Trust warnings
 
@@ -2468,6 +2498,26 @@ breaks.
   *Breaks when:* a run or a judged kept measure is missing, a cell
   differs from the JSON, a further table lacks the run column, or a
   table line is wider than 100.
+- **INV-87** — Markdown says what the text says. Over every fixture's
+  `check`, `report` and `floor` at 60, and INV-85's `compare` with and
+  without `--measure gpu/b --measure frame/wall`: the first paragraph,
+  unescaped, equals the JSON `summary`, in order; each pipe table has
+  the text table's rows, in order, every row with the header's cell
+  count; the exit code is the text's.
+  *Test:* `tests/test_markdown.py::test_markdown_matches_text`.
+  *Breaks when:* Markdown is built from anything but the result, a row
+  is dropped, added or reordered, or a cell is missing.
+- **INV-88** — Engine text cannot break the Markdown. Fixture: a run
+  whose static line holds `"note": "a|b *c* _d_ <e> [f](g) &h; ~i~ \\j"`
+  and a pass at depth 1. In `report --markdown`, that fact's row has
+  two cells, the second unescaping to the value as written; pandoc's
+  `gfm` reader, where installed, renders it as plain text; and the
+  nested pass's cell opens with two U+00A0. `--markdown --json` is
+  exit 3, and under `bisect` exit 128, its stop.
+  *Test:* `tests/test_markdown.py::test_engine_text_is_escaped`,
+  `tests/test_markdown.py::test_markdown_and_json_refused`.
+  *Breaks when:* an escape is missing, so a cell splits or the value
+  formats; the depth indent is stripped; or both flags are accepted.
 
 ## 6. Failure modes
 
@@ -2511,6 +2561,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0029: INV-78 to INV-81.
 - FLED-0030: INV-82 to INV-84.
 - FLED-0031: INV-85 and INV-86.
+- FLED-0032: INV-87 and INV-88.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -2642,6 +2693,8 @@ it on each release they pin.
 | INV-84 | `tests/test_compare_load.py::test_side_differs_warnings` |
 | INV-85 | `tests/test_compare_measure.py::test_measure_keeps_named`, `tests/test_compare_measure.py::test_measure_refused`, `tests/test_compare_measure.py::test_absent_refusal_keeps_runs`, `tests/test_compare_measure.py::test_absent_text`, `tests/test_compare_measure.py::test_by_scene_leaves_out_scenes_without_named`, `tests/test_compare_measure.py::test_by_scene_absent_json_and_unread`, `tests/test_compare_measure.py::test_short_kind_sentence_needs_frame_wall` |
 | INV-86 | `tests/test_compare_measure.py::test_per_run_table` |
+| INV-87 | `tests/test_markdown.py::test_markdown_matches_text` |
+| INV-88 | `tests/test_markdown.py::test_engine_text_is_escaped`, `tests/test_markdown.py::test_markdown_and_json_refused` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
