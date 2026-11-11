@@ -892,6 +892,10 @@ to compare against, and the small fixes they filed.
   Ants all chose to cut 0.4.0 without it. Leads for a Windows test: UT
   Ants' MSVC build machine, and the user's own Windows box (Vestige is
   asking the user). Using either is the user's call.
+  2026-11-11, user decision relayed by Vestige: Windows tests may run on
+  the Windows 10 test box Vestige reaches over SSH. Vestige runs them:
+  message vestige with the commit and the exact commands; Vestige copies
+  the release zip there and sends back the output. No longer blocked.
   **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
   Kind: feature.
   Source: engine-review-2026-11-10.
