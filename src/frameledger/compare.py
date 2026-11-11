@@ -94,23 +94,29 @@ class Measure(NamedTuple):
 
 
 def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors,
-            limits: LoadLimits = DEFAULT_LIMITS) -> dict:
+            limits: LoadLimits = DEFAULT_LIMITS, named_measures: tuple[str, ...] = ()) -> dict:
     """{"verdict", "reason", "summary", "warnings", "overrides", "unused",
-    "result"} for two sets of runs that meet the format. `reason` says, in
-    a clause, why the compare is refused or inconclusive, and is None
-    otherwise. `unused` lists the overridden fields that differ in no run.
-    cli.py checks the run counts and the override fields; a Run with a
-    breach raises LedgerError, as under `report`.
+    "absent", "result"} for two sets of runs that meet the format. `reason`
+    says, in a clause, why the compare is refused or inconclusive, and is
+    None otherwise. `unused` lists the overridden fields that differ in no
+    run. `named_measures` is --measure's CATEGORY/NAME list: when given,
+    only those measures are judged, and `absent` lists the ones no run
+    has, which the caller refuses. cli.py checks the run counts, the
+    override fields and the names' form; a Run with a breach raises
+    LedgerError, as under `report`.
 
-    The opening sentences follow § 4.10's order: the overrides; a refusal,
-    which ends the compare; each incomplete run; one per kind of warning;
-    the verdict; the short kinds; the frame time per segment kind."""
+    The opening sentences follow § 4.10's order: the overrides; the named
+    measures; a refusal, which ends the compare; each incomplete run; one
+    per kind of warning; the verdict; the short kinds; the frame time per
+    segment kind."""
     runs = [Named(f"{label}-{i}", label, run.path, run)
             for label, group in (("old", old), ("new", new)) for i, run in enumerate(group, 1)]
-    for named in runs:
-        run_report.refuse_breaches(named.run)
+    for r in runs:
+        run_report.refuse_breaches(r.run)
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
     summary = overrides_sentences(override_list)
+    if named_measures:
+        summary.append(f"Judging only {listed(named_measures)}.")
     refused, unused = refusals(runs, overrides)
     notices = unused_override_notices(unused)
     run_list = [run_entry(r, limits) for r in runs]
@@ -118,7 +124,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         summary += [refusal_sentence(refused), *run_report.warning_sentences(notices)]
         return {"verdict": "error", "reason": refusal_reason(refused), "summary": summary,
                 "warnings": run_report.warning_entries(notices), "overrides": override_list,
-                "unused": unused, "result": {"runs": run_list, "refused": refused}}
+                "unused": unused, "absent": [], "result": {"runs": run_list, "refused": refused}}
 
     incomplete = _incomplete_sentences(runs)
     loaded = _load_sentences(runs, limits)
@@ -126,9 +132,10 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + loaded + run_report.warning_sentences(shown)
 
-    measures, unmatched = _judge_all(runs, floors)
+    measures, unmatched, absent = _judge_all(runs, floors, named_measures)
     short = _short_kinds(runs)
-    verdict, sentences, reason = _verdict(incomplete, loaded, measures, short)
+    verdict, sentences, reason = _verdict(incomplete, loaded, measures, short,
+                                          unmatched if named_measures else None)
     summary += sentences
     if short:  # straight after the verdict, which it explains (Vestige)
         kinds = ", ".join(run_report.kind_name(k) for k in short)
@@ -143,6 +150,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         "min_pct": float(floors.min_pct),
         "max_load": float(limits.max_load),
         "max_gpu_busy": float(limits.max_gpu_busy),
+        "named_measures": list(named_measures),
         "measures": measures,
         "unmatched": unmatched,
         "static_diff": _static_diff(runs),
@@ -150,7 +158,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     }
     return {"verdict": verdict, "reason": reason, "summary": summary,
             "warnings": run_report.warning_entries(notices), "overrides": override_list, "unused": unused,
-            "result": result}
+            "absent": absent, "result": result}
 
 
 def run_entry(named: Named, limits: LoadLimits = DEFAULT_LIMITS) -> dict:
@@ -345,12 +353,20 @@ def run_values(run: ledger.Run, by_segment: bool = False) -> dict[Measure, int]:
     return values
 
 
-def _judge_all(runs: list[Named], floors: Floors) -> tuple[list[dict], list[dict]]:
-    """Every measure all runs share, judged; and those only some runs have."""
+def _judge_all(runs: list[Named], floors: Floors,
+               named_measures: tuple[str, ...] = ()) -> tuple[list[dict], list[dict], list[str]]:
+    """Every measure all runs share, judged; those only some runs have;
+    and the names in `named_measures` no run has. With `named_measures`,
+    only the measures it names count, at every depth, kind and statistic,
+    matched exactly."""
     per_run = [run_values(r.run) for r in runs]
+    found = {f"{m.category}/{m.name}" for values in per_run for m in values}
+    absent = [n for n in named_measures if n not in found]
     tick = largest_tick(runs)
     measures, unmatched = [], []
     for measure in set().union(*per_run):
+        if named_measures and f"{measure.category}/{measure.name}" not in named_measures:
+            continue
         present = [r.name for r, values in zip(runs, per_run, strict=True) if measure in values]
         if len(present) < len(runs):
             unmatched.append({**_measure_fields(measure), "present_in": present})
@@ -358,7 +374,7 @@ def _judge_all(runs: list[Named], floors: Floors) -> tuple[list[dict], list[dict
         old = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "old"]
         new = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "new"]
         measures.append(_judge(measure, old, new, floors, tick))
-    return sorted(measures, key=_rank), sorted(unmatched, key=_rank)
+    return sorted(measures, key=_rank), sorted(unmatched, key=_rank), absent
 
 
 def _judge(measure: Measure, old: list[int], new: list[int], floors: Floors, tick: Fraction) -> dict:
@@ -458,11 +474,13 @@ def _short_kinds(runs: list[Named]) -> list[str | None]:
                   key=run_report.kind_order)
 
 
-def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict],
-             short: list) -> tuple[str, list[str], str | None]:
+def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], short: list,
+             named_unmatched: list[dict] | None = None) -> tuple[str, list[str], str | None]:
     """§ 4.10's verdict, first match wins, the sentences saying it, and why
     it is inconclusive, or None. ms and MB never rank against each other,
-    so slower passes and larger memory each get a sentence."""
+    so slower passes and larger memory each get a sentence.
+    `named_unmatched` is the unmatched list when --measure was given, and
+    None otherwise: with it, a compare that judged nothing cannot pass."""
     moved = {word: [m for m in measures if m["verdict"] == word]
              for word in ("slower", "larger", "faster", "smaller")}
     noisy_walls = [m for m in measures if (m["category"], m["name"], m["statistic"]) ==
@@ -486,6 +504,12 @@ def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict],
         wall = noisy_walls[0]
         reason = (f"{_label(wall)} moved {wall['change']:+.3f} ms, within the runs' spread of "
                   f"{wall['spread']:.3f} ms; re-run with more runs a set")
+        return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
+    if named_unmatched is not None and not measures:  # UT Ants: never pass by judging nothing
+        # Each name once, though unmatched lists it per kind, depth and statistic.
+        missing = listed(dict.fromkeys(f"{m['category']}/{m['name']}" for m in named_unmatched))
+        reason = (f"no named measure is in every run ({missing}), so nothing was judged" if missing else
+                  "no run of this compare has a named measure, so nothing was judged")
         return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
     sentence = "No measure got slower or larger between the old and new runs"
     for word in ("faster", "smaller"):
@@ -513,6 +537,20 @@ def _wall_sentences(measures: list[dict]) -> list[str]:
     return [f"In {run_report.kind_name(m['segment_kind'])} segments the median frame/wall went from "
             f"{m['old_centre']:.3f} ms to {m['new_centre']:.3f} ms ({m['verdict']})."
             for m in measures if (m["category"], m["name"], m["statistic"]) == ("frame", "wall", "median")]
+
+
+def absent_sentence(absent: list[str]) -> str:
+    """§ 4.10: a named measure no run has refuses the compare."""
+    return (f"No run has {listed(absent, 'or')}, so it cannot be judged; a name matches exactly, "
+            "case included.")
+
+
+def listed(names, word: str = "and") -> str:
+    """`a`, `a and b`, `a, b and c`: names as a sentence lists them."""
+    names = list(names)
+    if len(names) < 2:
+        return "".join(names)
+    return f"{', '.join(names[:-1])} {word} {names[-1]}"
 
 
 def _label(measure: dict) -> str:

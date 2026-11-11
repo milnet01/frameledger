@@ -2418,14 +2418,15 @@ breaks.
   fixture and `--measure gpu/b --measure frame/wall`, the text has one
   row per run in run order, as § 4.10, each cell equal to the JSON's
   `old` or `new` value to three places. With twelve more passes named,
-  one of them 120 characters long, the columns spill into further
-  tables, each opening with the run column, and no line is over 100
-  characters. Without `--measure`, and under `--by-scene`, it has no
+  one with a 64-byte name, in runs with a second segment kind whose
+  name is 32 bytes, the columns spill into further tables. Each opens
+  with the run column, a header is cut, and no table line is over 100
+  characters. Without `--measure`, and under `--by-scene`, there is no
   such table.
   *Test:* `tests/test_compare_measure.py::test_per_run_table`.
   *Breaks when:* a run or a judged kept measure is missing, a cell
   differs from the JSON, a further table lacks the run column, or a
-  line is wider than 100.
+  table line is wider than 100.
 
 ## 6. Failure modes
 

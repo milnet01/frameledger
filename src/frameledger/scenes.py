@@ -20,9 +20,12 @@ import run_report
 
 
 def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
-             limits: compare.LoadLimits = compare.DEFAULT_LIMITS) -> dict:
+             limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
+             named_measures: tuple[str, ...] = ()) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for the
-    files at `old` and `new`, each scene judged apart."""
+    files at `old` and `new`, each scene judged apart. `named_measures` is
+    --measure's list, kept in every scene; a name no judged scene has is
+    an error."""
     unread, paths = [], {"old": defaultdict(list), "new": defaultdict(list)}
     for label, group in (("old", old), ("new", new)):
         for path in group:
@@ -32,13 +35,15 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
             else:
                 unread.append({"path": path, "set": label, "reason": reason})
 
-    scenes, unused = [], set(overrides)
+    scenes, unused, absent = [], set(overrides), set(named_measures)
     for name in sorted(set(paths["old"]) | set(paths["new"])):
-        entry, scene_unused = _judge(name, paths["old"][name], paths["new"][name], overrides, floors,
-                                     limits)
+        entry, scene_unused, scene_absent = _judge(name, paths["old"][name], paths["new"][name], overrides,
+                                                   floors, limits, named_measures)
         scenes.append(entry)
         if scene_unused is not None:  # the scene's runs were read
             unused &= scene_unused
+        if entry["verdict"] != "unjudged":
+            absent &= scene_absent
     if not any(e["compare"] for e in scenes):
         unused = set()  # no scene was read, so no field was seen not to differ
 
@@ -56,9 +61,12 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     unused_notices = compare.unused_override_notices([f for f in overrides if f in unused])
     notices = [n for group in scene_notices for n in group] + unused_notices
     measures = sum(len(e["compare"]["measures"]) for e in judged)
-    verdict = _verdict(scenes, unread) if judged else "error"
+    absent = [n for n in named_measures if n in absent] if judged else []
+    verdict = _verdict(scenes, unread) if judged and not absent else "error"
     summary = _summary(override_list, scenes, unread, failing, len(judged), measures,
                        [*scene_notices, unused_notices])
+    if absent:  # straight after the overrides, which always open (S5)
+        summary.insert(len(compare.overrides_sentences(override_list)), compare.absent_sentence(absent))
     result = {
         "scenes": scenes,
         "unread": unread,
@@ -114,10 +122,13 @@ def _scene_of(path: str) -> tuple[str | None, str | None]:
     return run.header["scene"], None
 
 
-def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
-           floors: compare.Floors, limits: compare.LoadLimits) -> tuple[dict, set[str] | None]:
-    """One scene's entry, and the overridden fields that differed in none
-    of its runs; None for those when its runs were not read."""
+def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
+           limits: compare.LoadLimits,
+           named_measures: tuple[str, ...]) -> tuple[dict, set[str] | None, set[str]]:
+    """One scene's entry; the overridden fields that differed in none of
+    its runs, None when its runs were not read; and the names in
+    `named_measures` none of its runs has, every name when they were not
+    read."""
     entry = {"scene": name, "verdict": "unjudged", "reason": None, "rank": None, "measure": None,
              "segment": None, "compare": None, "warnings": []}
     missing = [label for label, paths in (("old", old), ("new", new)) if not paths]
@@ -125,10 +136,10 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
              for label, paths in (("old", old), ("new", new)) if 0 < len(paths) < compare.FEWEST_RUNS]
     if missing:
         entry["reason"] = f"no {missing[0]} runs"
-        return entry, None
+        return entry, None, set(named_measures)
     if short:
         entry["reason"] = f"{' and '.join(short)}; each side needs at least {compare.FEWEST_RUNS}"
-        return entry, None
+        return entry, None, set(named_measures)
 
     try:
         old_runs, new_runs = [ledger.read(p) for p in old], [ledger.read(p) for p in new]
@@ -136,23 +147,23 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
             run_report.refuse_breaches(run)  # a file broken since may have no header to check
             if run.header["scene"] != name:
                 raise ledger.LedgerError(f"its scene is now {run.header['scene']!r}", run.path)
-        built = compare.compare(old_runs, new_runs, overrides, floors, limits)
+        built = compare.compare(old_runs, new_runs, overrides, floors, limits, named_measures)
     except ledger.LedgerError as error:  # the file changed since it was first read
         entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
-        return entry, None
-    unused = set(built["unused"])
+        return entry, None, set(named_measures)
+    unused, absent = set(built["unused"]), set(built["absent"])
     entry["compare"] = built["result"]
     entry["warnings"] = [w for w in built["warnings"] if w["code"] != "override_unused"]
     if built["verdict"] == "error":  # refused
         entry["reason"] = built["reason"]
-        return entry, unused
+        return entry, unused, absent
     entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
     if built["verdict"] == "fail":
         measures = built["result"]["measures"]
         worse = [m for m in measures if m["verdict"] == "slower"] or [m for m in measures if m["verdict"] == "larger"]
         entry["measure"] = compare.worst_of(worse)
         entry["segment"] = _segment(entry["measure"], old_runs, new_runs)
-    return entry, unused
+    return entry, unused, absent
 
 
 def _segment(measure: dict, old: list[ledger.Run], new: list[ledger.Run]) -> str | None:

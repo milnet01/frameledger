@@ -118,6 +118,8 @@ def _compare_body(result: dict) -> list[str]:
                       for m in rows]
     unchanged = len(compared["measures"]) - len(changed)
     lines += [f"{unchanged} of {len(compared['measures'])} measures unchanged.", ""]
+    if compared.get("named_measures"):
+        lines += _per_run_tables(compared)
     if compared["unmatched"]:
         lines.append("Not in every run, so not judged:")
         lines += [_fit(f"  {_measure_name(m)}: only in {', '.join(m['present_in'])}", WIDTH)
@@ -163,6 +165,55 @@ def _budget_body(result: dict) -> list[str]:
 
 def _measure_row(name: str, old: str, new: str, change: str, spread: str, verdict: str) -> str:
     return f"  {_fit(name, 40):<40}  {old:>10}  {new:>10}  {change:>10}  {spread:>10}  {verdict}"
+
+
+def _per_run_tables(compared: dict) -> list[str]:
+    """§ 4.10's *Each run's values*: a row a run, a column a named measure
+    that was judged. Columns past WIDTH go into a further table, which
+    repeats the run column."""
+    measures = compared["measures"]
+    if not measures:
+        return []
+    runs = [r["name"] for r in compared["runs"]]  # old-1, old-2, ..., new-1, ...: old + new's order
+    room = WIDTH - len(f"  {'run':<8}")
+    columns = []  # (width, header, one cell a run)
+    for measure, header in zip(measures, _per_run_headers(measures), strict=True):
+        cells = [f"{value:.3f}" for value in measure["old"] + measure["new"]]
+        header = _fit(header, room - 2)
+        columns.append((max(len(header), *map(len, cells)), header, cells))
+    tables, table, used = [], [], 0
+    for column in columns:
+        if table and used + 2 + column[0] > room:
+            tables.append(table)
+            table, used = [], 0
+        table.append(column)
+        used += 2 + column[0]
+    tables.append(table)
+    lines = ["Each run's value of each named measure (ms; mem in MB):"]
+    for table in tables:
+        lines.append(f"  {'run':<8}" + "".join(f"  {header:>{width}}" for width, header, _ in table))
+        lines += [f"  {run:<8}" + "".join(f"  {cells[row]:>{width}}" for width, _, cells in table)
+                  for row, run in enumerate(runs)]
+        lines.append("")
+    return lines
+
+
+def _per_run_headers(measures: list[dict]) -> list[str]:
+    """category/name, then p99, the segment kind when the measures span
+    more than one, and the depth when the name is at more than one."""
+    kinds = {m["segment_kind"] for m in measures}
+    depths: dict[tuple, set] = {}
+    for m in measures:
+        depths.setdefault((m["category"], m["name"]), set()).add(m["depth"])
+    headers = []
+    for m in measures:
+        header = f"{m['category']}/{m['name']}" + (" p99" if m["statistic"] == "p99" else "")
+        if len(kinds) > 1:
+            header += f" {_kind_name(m['segment_kind'])}"
+        if len(depths[(m["category"], m["name"])]) > 1:
+            header += f" d{m['depth']}"
+        headers.append(header)
+    return headers
 
 
 def _measure_name(measure: dict) -> str:

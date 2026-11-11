@@ -80,6 +80,8 @@ Each command must hold `{run}` where its run file's path goes.
 A run whose header records other programs loading the CPU or GPU
 while it ran makes the compare inconclusive; `--max-load` and
 `--max-gpu-busy` set how much is allowed.
+`--measure gpu/opaque`, given once per measure, judges only the
+measures named, and adds a table of each run's value of each.
 Compare reads each run's start time from its file's `started_utc`
 header, so list each build's files together on the command line.
 

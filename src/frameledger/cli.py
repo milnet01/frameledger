@@ -13,6 +13,7 @@ import argparse
 import os
 import sys
 import traceback
+from collections import Counter
 from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
@@ -128,6 +129,9 @@ def _add_compare_flags(command) -> None:
     command.add_argument("--max-gpu-busy", type=_share(100), default=compare.DEFAULT_LIMITS.max_gpu_busy,
                          metavar="P", help="a run whose gpu_busy_pct.peak, the GPU percent other programs "
                          f"used, is above this was taken under load (default {compare.DEFAULT_LIMITS.max_gpu_busy})")
+    command.add_argument("--measure", action="append", default=[], metavar="CATEGORY/NAME",
+                         help="judge only this measure, and show each run's value of it; give it once "
+                         "per measure")
     command.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
                          help="print the JSON result instead of text")
 
@@ -466,24 +470,30 @@ def _floor(args: argparse.Namespace) -> dict:
 def _compare(args: argparse.Namespace) -> dict:
     """§ 4.10: exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 when a
     file cannot be read or breaks the format, or the compare is refused."""
+    named = _named(args.measure)
     if args.by_scene:
-        return _compare_scenes(args)
+        return _compare_scenes(args, named)
     for label, paths in (("--old", args.old), ("--new", args.new)):
         if len(paths) < compare.FEWEST_RUNS:
             raise ledger.LedgerError(f"{label} has {len(paths)} runs; each set needs at least "
                                      f"{compare.FEWEST_RUNS}, since two give too many false changes")
-    return _compare_paths("compare", args.old, args.new, _overrides(args.override), args)
+    return _compare_paths("compare", args.old, args.new, _overrides(args.override), args, named)
 
 
 def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict[str, str],
-                   args: argparse.Namespace) -> dict:
+                   args: argparse.Namespace, named: tuple[str, ...]) -> dict:
     try:
         built = compare.compare([ledger.read(p) for p in old], [ledger.read(p) for p in new],
-                                overrides, _floors(args), _limits(args))
+                                overrides, _floors(args), _limits(args), named)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {}, listed)
+    if built["absent"]:  # a misspelt name must not pass by judging nothing
+        listed = _listed(overrides)
+        return _result(command, "error", ERROR,
+                       [*compare.overrides_sentences(listed), compare.absent_sentence(built["absent"])],
+                       [], {}, listed)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result(command, built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
@@ -497,6 +507,29 @@ def _limits(args: argparse.Namespace) -> compare.LoadLimits:
     return compare.LoadLimits(args.max_load, args.max_gpu_busy)
 
 
+def _named(measures: list[str]) -> tuple[str, ...]:
+    """--measure's names, each checked as bisect checks its one, and none
+    given twice; refused before any file is read or command started."""
+    for text in measures:
+        _measure_name(text)
+    twice = [text for text, count in Counter(measures).items() if count > 1]
+    if twice:
+        raise ledger.LedgerError(f"--measure {twice[0]} is given twice")
+    return tuple(measures)
+
+
+def _measure_name(text: str) -> tuple[str, str]:
+    """A --measure's category and name: a frame measure § 4.10 judges, a
+    cpu or gpu pass, or a mem name."""
+    category, slash, name = text.partition("/")
+    if not (slash and name) or category not in bisecting.CATEGORIES:
+        raise ledger.LedgerError(f"--measure {text} must be frame/NAME, cpu/NAME, gpu/NAME or mem/NAME")
+    if category == "frame" and name not in bisecting.FRAME_NAMES:
+        raise ledger.LedgerError(f"--measure frame/{name} is not judged; the frame measures are "
+                                 + ", ".join(f"frame/{n}" for n in bisecting.FRAME_NAMES))
+    return category, name
+
+
 def _listed(overrides: dict[str, str]) -> list[dict]:
     return [{"field": f, "reason": r} for f, r in overrides.items()]
 
@@ -505,6 +538,7 @@ def _alternate(args: argparse.Namespace) -> dict:
     """§ 4.15: every setup error is exit 3 before any command starts; a run
     that fails stops the rest, exit 3; otherwise § 4.10's compare."""
     commands = {"old": args.old, "new": args.new}
+    named = _named(args.measure)
     out = os.path.abspath(args.out)
     overrides = _overrides(args.override)
     planned = alternate.plan(out, args.runs, args.warmup)
@@ -519,16 +553,17 @@ def _alternate(args: argparse.Namespace) -> dict:
     # Compared in run-number order, old-1, old-2, ..., as compare names them.
     timed = sorted((run for run in planned if run.timed), key=lambda run: run.number)
     old, new = ([run.path for run in timed if run.side == side] for side in ("old", "new"))
-    built = _compare_paths("alternate", old, new, overrides, args)
+    built = _compare_paths("alternate", old, new, overrides, args, named)
     built["result"] = {**built["result"], **added, "stopped": None}
     return built
 
 
-def _compare_scenes(args: argparse.Namespace) -> dict:
+def _compare_scenes(args: argparse.Namespace, named: tuple[str, ...]) -> dict:
     """§ 4.14: exit 0 every scene passes, 1 a scene fails, 2 a scene is
     inconclusive or unjudged or a file unread, 3 a bad flag or no scene
     judged. The run counts are checked per scene, not here."""
-    built = scenes.by_scene(args.old, args.new, _overrides(args.override), _floors(args), _limits(args))
+    built = scenes.by_scene(args.old, args.new, _overrides(args.override), _floors(args), _limits(args),
+                            named)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
@@ -614,13 +649,7 @@ def _bisect(args: argparse.Namespace) -> dict:
 
 def _wanted(args: argparse.Namespace) -> bisecting.Wanted:
     """The measure and frames, refusing what would skip every commit."""
-    category, slash, name = args.measure.partition("/")
-    if not (slash and name) or category not in bisecting.CATEGORIES:
-        raise ledger.LedgerError(f"--measure {args.measure} must be frame/NAME, cpu/NAME, gpu/NAME or "
-                                 "mem/NAME")
-    if category == "frame" and name not in bisecting.FRAME_NAMES:
-        raise ledger.LedgerError(f"--measure frame/{name} is not judged; the frame measures are "
-                                 + ", ".join(f"frame/{n}" for n in bisecting.FRAME_NAMES))
+    category, name = _measure_name(args.measure)
     if args.statistic == "p99" and (category, name) != ("frame", "wall"):
         raise ledger.LedgerError("--statistic p99 is for frame/wall only")
     if category == "frame" and args.depth is not None:

@@ -673,6 +673,10 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   (and § 4.14, § 4.15): --measure CATEGORY/NAME and the per-run table,
   INV-85 and INV-86. Sent to the three engines for review before
   building.
+  2026-11-11: all three engines agreed the spec at b7c2c55. Built:
+  --measure on compare, --by-scene and alternate; the per-run tables;
+  tests/test_compare_measure.py for INV-85 and INV-86. Sent to the
+  engines for code review.
   **Layman:** Lets you ask about just the parts of a frame you care about, with one line per test run.
   Kind: feature.
   Source: engine-answers-2026-11-10.
