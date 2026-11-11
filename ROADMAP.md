@@ -904,6 +904,11 @@ to compare against, and the small fixes they filed.
   Gate green here; the Windows test skips on Linux. Sent to Vestige to
   run on its Windows 10 test box, green at 299499a and red with the old
   alternate.py.
+  2026-11-11: UT Ants' code review folded at d942254 (KILL no longer
+  aliases SIGTERM; no-console Ctrl-Break caught). Vestige's Windows runs
+  folded at 4533b7b and 759dfcb. Vestige's Windows 10 box at 759dfcb:
+  23 passed, 8 skipped, 0 failed; red with 26a6b84's alternate.py
+  (analyser died 0xC000013A). Awaiting DOOM Ants' code review to ship.
   **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
   Kind: feature.
   Source: engine-review-2026-11-10.
