@@ -643,8 +643,9 @@ measure above is judged.
 
 - It splits at its first `/`, as under § 4.11: `frame/wall`,
   `frame/cpu_span`, `frame/gpu_span`, a `cpu` or `gpu` pass, or a
-  `mem` name. Any other category, a frame measure not judged here, an
-  empty name, or a measure given twice, is exit 3.
+  `mem` name. Any other category, any other `frame` name (such as
+  `frame/fence_wait`), an empty name, or a measure given twice, is
+  exit 3.
 - It keeps the name at every depth and in every segment kind, with
   each statistic judged: `frame/wall` keeps its median and its 99th
   percentile.
@@ -777,7 +778,7 @@ per kept measure that was judged. Each cell is the run's value, as in
 `old` and `new`, to three places. A column is headed
 `category/name`, then ` p99` for a 99th percentile, the segment kind
 when the runs have more than one, and the depth when the name has more
-than one. Columns that do not fit in 100 go into a further table. The
+than one. Columns that do not fit in 100 characters go into a further table. The
 JSON adds nothing for it: `old` and `new` hold the same values.
 
 **Result:**
