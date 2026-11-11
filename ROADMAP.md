@@ -882,7 +882,7 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 📋 [FLED-0063] **alternate stops a Windows command's whole process tree.**
+- 🚧 [FLED-0063] **alternate stops a Windows command's whole process tree.**
   On Linux and macOS, alternate runs each command in its own process
   group and passes Ctrl-C and SIGTERM on to all of it (FLED-0029,
   spec § 4.15). On Windows it does not yet: the console's Ctrl-C reaches
@@ -899,6 +899,11 @@ to compare against, and the small fixes they filed.
   the Windows 10 test box Vestige reaches over SSH. Vestige runs them:
   message vestige with the commit and the exact commands; Vestige copies
   the release zip there and sends back the output. No longer blocked.
+  2026-11-11: built at 299499a (CREATE_NEW_PROCESS_GROUP, CTRL_BREAK_EVENT,
+  taskkill /T /F; SIGBREAK stops alternate); § 4.15 amended, INV-95.
+  Gate green here; the Windows test skips on Linux. Sent to Vestige to
+  run on its Windows 10 test box, green at 299499a and red with the old
+  alternate.py.
   **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
   Kind: feature.
   Source: engine-review-2026-11-10.
