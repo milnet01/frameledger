@@ -1595,7 +1595,8 @@ read or any command starts:
   first run and another variant's file.
 - Under `compare`, fewer than three files for the base or any
   variant, as § 4.10.
-- Under `alternate`, every § 4.15 setup error, for every command.
+- Under `alternate`, every § 4.15 setup error, for every side's
+  command and files (DOOM Ants).
 
 **Runs are named by side and order**: `base-1`, `base-2`, … and
 `<name>-1`, …, in the order given. Within each variant's compare the
@@ -1611,7 +1612,11 @@ read when it is judged and let go after.
 
 - **A file that cannot be read, or breaks the format**, is exit 3, as
   § 4.10: the files were named one by one, so a bad one is a mistake
-  in the command.
+  in the command. Under `alternate` the tool named the files, and a
+  long session must not be lost to one broken variant build: a bad
+  variant file makes that variant unjudged, naming the file and its
+  reason, and the others go on. A bad base file is still exit 3 (DOOM
+  Ants).
 - **A variant that refuses is unjudged, and the others go on**, as a
   scene does under § 4.14. Its reason names each field, as § 4.10's
   refusal sentence does.
@@ -1645,15 +1650,16 @@ table shows its verdict beside it.
 **The command's verdict**, first match wins:
 
 1. `error` (exit 3) for a setup error or a file as above.
-2. `error` (exit 3) when no variant could be judged, every one
+2. `error` (exit 3) when a named measure is in no run of any side,
+   base included, worded as § 4.14's step 2 (DOOM Ants).
+3. `error` (exit 3) when no variant could be judged, every one
    unjudged. The opening sentence says "No variant could be judged:",
-   then each variant's reason. It is also `error`, checked first, when
-   a named measure is in no run, worded as § 4.14's step 2.
-3. `fail` (exit 1) when any variant fails.
-4. `inconclusive` (exit 2) when any variant is inconclusive or
+   then each variant's reason.
+4. `fail` (exit 1) when any variant fails.
+5. `inconclusive` (exit 2) when any variant is inconclusive or
    unjudged. A variant unjudged for having none of the named measures
    does not count here.
-5. `pass` (exit 0) otherwise.
+6. `pass` (exit 0) otherwise.
 
 **Text** opens with the overrides sentence and, with `--measure`, the
 kept measures, as § 4.10. Then one sentence per failing variant, by
@@ -1710,6 +1716,13 @@ failures, stops and files, with files named `DIR/base-1.csv`,
   b-2, a-2, base-2, base-3, …. A steady drift then cancels over every
   two rounds, for every side; with one variant this is § 4.15's order
   (UT Ants: so drift is not read as an effect's cost).
+- **Two limits of that order** (DOOM Ants). Drift cancels exactly only
+  over an even `--runs`: an odd one ends on a forward round, so each
+  side's last run is later the further down the list it is. And the
+  first and last sides run twice in a row at each round's turn, so a
+  warm cache favours them; a middle variant never does. Give an even
+  `--runs` when drift matters, and judge an end side's small gain
+  with this in mind.
 - **Warm-ups** run W rounds first, each the base and then each variant
   in order.
 - **Once every run has finished**, the files are compared as
@@ -2792,10 +2805,15 @@ breaks.
   `--variant` over those files, with the same exit. With `--warmup 1`
   the log opens base, a, b. With `--old` and `--base` both, or a
   variant command without `{run}`, the exit is 3 and the log is empty.
+  With `b-2.csv` written empty, every run still runs, `b` is unjudged
+  with a reason naming `b-2`, `a` is judged, and the exit is 2 when
+  `a` passes; with
+  `base-2.csv` empty instead, the exit is 3 (DOOM Ants).
   *Test:* `tests/test_compare_variants.py::test_alternate_variants`.
   *Breaks when:* the rounds do not reverse, a side's runs share a
-  file, the judging differs from `compare`'s, or a setup error runs a
-  command. The order log alone isolates the first.
+  file, the judging differs from `compare`'s, a setup error runs a
+  command, or one bad variant file loses the other variants. The
+  order log alone isolates the first.
 - **INV-95** — On Windows a stop ends the engine behind `cmd.exe`.
   INV-80's interrupted fixture, `cd . && ` before each command so
   `cmd.exe` stays between the analyser and the engine, with the
