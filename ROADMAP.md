@@ -733,7 +733,7 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Kind: feature.
   Source: engine-review-2026-11-10.
 
-- 📋 [FLED-0064] **alternate prints compare's tables.**
+- 🚧 [FLED-0064] **alternate prints compare's tables.**
   § 4.15 says alternate gives § 4.10's text, but render.py's
   _BODIES has no alternate entry, so alternate prints only the
   opening sentences: none of compare's tables, the runs list, the

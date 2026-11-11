@@ -2324,12 +2324,15 @@ breaks.
   with the same exit. With `--warmup 1` too, the log opens old, new
   before the same six, `DIR` also holds `old-warmup-1.csv` and
   `new-warmup-1.csv`, and the result still equals the compare of the
-  six.
-  *Test:* `tests/test_alternate.py::test_alternates_and_compares`.
+  six. Without `--json`, the text equals `compare`'s text over the
+  same files, tables included.
+  *Test:* `tests/test_alternate.py::test_alternates_and_compares`,
+  `tests/test_alternate.py::test_text_is_compares`.
   *Breaks when:* all old runs go first, the order is plain
-  alternation, two runs share a file, a warm-up is compared, or the
-  judging differs from `compare`'s. The order log alone isolates the
-  first two; the file list alone, the third.
+  alternation, two runs share a file, a warm-up is compared, the
+  judging differs from `compare`'s, or the text stops at the opening
+  sentences. The order log alone isolates the first two; the file
+  list alone, the third.
 - **INV-79** — A setup error runs nothing. Each alone gives exit 3 with
   an empty order log: a command without `{run}`; `--runs 2`;
   `--runs 101`; `--warmup 11`; a `DIR` that does not exist; a `DIR`
@@ -2627,7 +2630,7 @@ it on each release they pin.
 | INV-75 | `tests/test_compare_scenes.py::test_nothing_judged` |
 | INV-76 | `tests/test_compare_scenes.py::test_rank_and_segment` |
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
-| INV-78 | `tests/test_alternate.py::test_alternates_and_compares` |
+| INV-78 | `tests/test_alternate.py::test_alternates_and_compares`, `tests/test_alternate.py::test_text_is_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
 | INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |

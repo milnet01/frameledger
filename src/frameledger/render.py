@@ -326,5 +326,5 @@ def _fit_left(text: str, width: int) -> str:
 
 
 _BODIES = {"check": _check_body, "report": _report_body, "floor": _floor_body,
-           "compare": _compare_body, "bisect": _bisect_body, "budget": _budget_body,
-           "survey": _survey_body, "selftest": _selftest_body}
+           "compare": _compare_body, "alternate": _compare_body, "bisect": _bisect_body,
+           "budget": _budget_body, "survey": _survey_body, "selftest": _selftest_body}

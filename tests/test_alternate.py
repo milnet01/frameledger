@@ -87,6 +87,16 @@ def test_alternates_and_compares(tmp_path, warmup):
     assert without_added(out) == without_added(json.loads(compared.stdout))
 
 
+def test_text_is_compares(tmp_path):
+    """INV-78: the text is compare's text over the same files, tables and all."""
+    bench = Bench(tmp_path)
+    done = analyser(bench.args())
+    paths = {side: [str(bench.out / f"{side}-{n}.csv") for n in (1, 2, 3)] for side in ("old", "new")}
+    compared = analyser(["compare", "--old", *paths["old"], "--new", *paths["new"]])
+    assert "Runs:" in compared.stdout  # compare's tables are there to be matched
+    assert done.stdout == compared.stdout
+
+
 SETUP_ERRORS = {  # each case, and what its error message must name
     "no placeholder": "must hold {run}", "runs 2": "from 3 to 100", "runs 101": "from 3 to 100",
     "warmup 11": "from 0 to 10", "missing dir": "is not an existing folder",
