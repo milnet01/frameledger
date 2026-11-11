@@ -87,13 +87,17 @@ def test_alternates_and_compares(tmp_path, warmup):
     assert without_added(out) == without_added(json.loads(compared.stdout))
 
 
-def test_text_is_compares(tmp_path):
+@pytest.mark.parametrize("flags, table", [
+    ((), "Runs:"),
+    (("--measure", "gpu/opaque"), "Each run's value of each named measure"),  # UT Ants
+])
+def test_text_is_compares(tmp_path, flags, table):
     """INV-78: the text is compare's text over the same files, tables and all."""
     bench = Bench(tmp_path)
-    done = analyser(bench.args())
+    done = analyser(bench.args(*flags))
     paths = {side: [str(bench.out / f"{side}-{n}.csv") for n in (1, 2, 3)] for side in ("old", "new")}
-    compared = analyser(["compare", "--old", *paths["old"], "--new", *paths["new"]])
-    assert "Runs:" in compared.stdout  # compare's tables are there to be matched
+    compared = analyser(["compare", "--old", *paths["old"], "--new", *paths["new"], *flags])
+    assert table in compared.stdout  # compare's tables are there to be matched
     assert done.stdout == compared.stdout
 
 
