@@ -685,13 +685,15 @@ the engines' answers to the 0.4–1.0 draft, 2026-11-10.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0032] **Every command can print Markdown.**
+- ✅ [FLED-0032] **Every command can print Markdown.**
   A --markdown output, made from the same result as text and JSON,
   ready to paste into a commit body, a roadmap note or a pull
   request. Asked by DOOM Ants and Vestige, who copy numbers by hand.
   2026-11-11: amended docs/specs/FLED-0001-run-file-format.md § 4.7
   and § 4.8: --markdown, INV-87 and INV-88. Sent to the three engines
   for review before building.
+  2026-11-11: shipped at 9d72f75, all three engines agreeing. --markdown
+  on every command; § 4.8, INV-87 and INV-88 in tests/test_markdown.py.
   **Layman:** Results come out ready to paste into notes and messages.
   Kind: feature.
   Source: engine-answers-2026-11-10.
