@@ -1,9 +1,12 @@
 #!/bin/sh
-# Runs frameledger.pyz from the folder this file is in, so `frameledger
-# report run.csv` works once this file, or a symlink to it, is on PATH.
+# Runs frameledger by name, so `frameledger report run.csv` works once
+# this file, or a symlink to it, is on PATH. In the release it sits beside
+# frameledger.pyz and runs that. In a source checkout it sits in launcher/
+# and runs src/frameledger, the same modules unbundled.
 #
-# A symlink is followed to the real file first, so the .pyz is found
-# beside the launcher, not beside the link. exec hands the process over
+# A symlink is followed to the real file first, so the analyser is found
+# beside the launcher, not beside the link. A symlink loop never gets
+# here: the system refuses to start the file. exec hands the process over
 # to Python: signals reach the analyser and its exit code is the
 # launcher's. Without python3 on PATH, the shell exits 127.
 
@@ -16,4 +19,8 @@ while [ -L "$self" ]; do
     esac
 done
 
-exec python3 -I "$(dirname "$self")/frameledger.pyz" "$@"
+here=$(dirname "$self")
+analyser=$here/frameledger.pyz
+[ -e "$analyser" ] || analyser=$here/../src/frameledger
+
+exec python3 -I "$analyser" "$@"

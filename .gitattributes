@@ -1,0 +1,3 @@
+# cmd needs CRLF for goto to find a label; sh needs LF. Git stores both as LF.
+launcher/frameledger.cmd text eol=crlf
+launcher/frameledger text eol=lf

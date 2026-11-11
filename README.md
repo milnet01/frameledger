@@ -73,11 +73,18 @@ $dir = "C:\tools\frameledger"   # the folder you unpacked into
 ```
 
 The Windows launcher uses the `py` launcher when it is installed, and
-`python` otherwise.
+`python` otherwise. Exit 9009 means it found no real Python. Ctrl+C
+stops the analyser, then `cmd` asks "Terminate batch job (Y/N)?";
+either answer is fine.
 
 `frameledger --version` checks it worked. A script can also call the
 launcher by its path, such as `tools/frameledger/frameledger`, with
 nothing on PATH.
+
+A source checkout has the same launcher in `launcher/`. With no
+`frameledger.pyz` beside it, it runs `src/frameledger`, so linking
+`launcher/frameledger` from a checkout, or putting `launcher` on the
+Windows PATH, runs the code in that checkout.
 
 ## Usage
 

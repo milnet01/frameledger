@@ -93,23 +93,28 @@ def test_only_the_linux_launcher_runs_and_the_windows_one_has_crlf(tmp_path):
     assert cmd.count(b"\r\n") == cmd.count(b"\n") > 0
 
 
+def on_path(tmp_path, launcher):
+    """A runner for `frameledger ARGS` from a PATH holding only a symlink to
+    `launcher`, as the README puts it, and this Python as python3."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "frameledger").symlink_to(launcher)
+    (bin_dir / "python3").symlink_to(sys.executable)  # this Python, not the machine's
+    env = {"PATH": f"{bin_dir}:/usr/bin:/bin"}
+    return lambda *args: subprocess.run(["frameledger", *args], capture_output=True, text=True, env=env,
+                                        cwd=tmp_path)
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="the POSIX launcher")
 def test_the_launcher_runs_by_name_through_a_symlink(tmp_path):
-    """On PATH as a symlink, as the README puts it, it finds the .pyz beside
-    the real file, passes each argument whole and returns the analyser's exit."""
+    """It finds the .pyz beside the real file, passes each argument whole and
+    returns the analyser's exit."""
     archive, _ = build(tmp_path / "dist", "v9.9.9")
     unpacked = tmp_path / "frameledger"
     with zipfile.ZipFile(archive) as zf:
         zf.extractall(unpacked)
     (unpacked / "frameledger").chmod(0o755)  # extractall drops the mode, as python -m zipfile -e does
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    (bin_dir / "frameledger").symlink_to(Path("..") / "frameledger" / "frameledger")
-    (bin_dir / "python3").symlink_to(sys.executable)  # this Python, not the machine's
-    env = {"PATH": f"{bin_dir}:/usr/bin:/bin"}
-
-    def run(*args):
-        return subprocess.run(["frameledger", *args], capture_output=True, text=True, env=env, cwd=tmp_path)
+    run = on_path(tmp_path, Path("..") / "frameledger" / "frameledger")
 
     version = run("--version")
     assert version.returncode == 0, version.stderr
@@ -120,6 +125,25 @@ def test_the_launcher_runs_by_name_through_a_symlink(tmp_path):
     assert direct.returncode != 0
     assert (launched.returncode, launched.stdout, launched.stderr) == (direct.returncode, direct.stdout,
                                                                        direct.stderr)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the POSIX launcher")
+def test_the_launcher_runs_a_source_checkout(tmp_path):
+    """With no .pyz beside it, the launcher in launcher/ runs src/frameledger."""
+    run = on_path(tmp_path, ROOT / "launcher" / "frameledger")
+    expected = subprocess.run([sys.executable, "-I", str(ROOT / "src" / "frameledger"), "--version"],
+                              capture_output=True, text=True, check=True).stdout
+    launched = run("--version")
+    assert (launched.returncode, launched.stdout) == (0, expected), launched.stderr
+
+
+def test_a_crlf_checkout_ships_the_same_windows_launcher(tmp_path):
+    """A Windows checkout holds the .cmd with CRLF; the zip gets CRLF once, not CR CR LF."""
+    build_release = load_script("build_release")
+    lf = b"@echo off\nexit /b 0\n"
+    checkout = tmp_path / "frameledger.cmd"
+    checkout.write_bytes(lf.replace(b"\n", b"\r\n"))
+    assert build_release.crlf(build_release.source_bytes(checkout)) == b"@echo off\r\nexit /b 0\r\n"
 
 
 def test_notes_are_the_section_dated_or_not():

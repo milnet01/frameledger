@@ -23,7 +23,7 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **Every command can print Markdown** (FLED-0032)
   `--markdown` prints the text as GitHub-flavoured Markdown, to paste into a pull request, a commit or a note. The opening sentences are a list and each table is a Markdown table, lined up so it also reads unrendered. Nothing is cut to fit 100 columns, so long names and paths stay whole. Characters Markdown would read as formatting are escaped, so a path or a static value cannot break a table. `--markdown` with `--json` is refused, exit 3.
 - **frameledger runs by name** (FLED-0033)
-  The release zip holds two launchers beside `frameledger.pyz`: `frameledger` for Linux and `frameledger.cmd` for Windows. With one on PATH, `frameledger report run.csv` runs from any folder; the README's Install section says how. Each passes its arguments through unchanged and exits with the analyser's code. The Linux launcher follows a symlink to find the analyser. The Windows launcher uses the `py` launcher where it is installed, and `python` otherwise.
+  The release zip holds two launchers beside `frameledger.pyz`: `frameledger` for Linux and `frameledger.cmd` for Windows. With one on PATH, `frameledger report run.csv` runs from any folder; the README's Install section says how. Each passes its arguments through unchanged and exits with the analyser's code. The Linux launcher follows a symlink to find the analyser. In a source checkout, `launcher/` holds the same launchers, and they run `src/frameledger`. The Windows launcher uses the `py` launcher where it is installed, and `python` otherwise.
 
 ## [0.3.0] - 2026-11-10
 
