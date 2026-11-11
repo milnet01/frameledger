@@ -178,6 +178,7 @@ def test_stopped_text_is_its_sentences(tmp_path):
     assert len(lines) == 2
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="signals and /bin/sh's exec and $? are POSIX (Vestige)")
 @pytest.mark.parametrize("shell_stays, reason", [
     (False, "the command was killed by signal 9 (SIGKILL)"),
     (True, "the command exited with code 137, as the shell reports a command killed by signal 9 (SIGKILL)"),

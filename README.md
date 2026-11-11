@@ -126,6 +126,9 @@ other lets drift over time read as a change, and compare warns
 `not_interleaved`. `alternate` runs both builds' commands in that
 order, five runs a side by default, then compares what they wrote.
 Each command must hold `{run}` where its run file's path goes.
+On Windows, stopping `alternate` reaches the engine as Ctrl-Break, not
+Ctrl-C. An engine that closes its run file on Ctrl-C must handle
+Ctrl-Break the same way, or a stopped run has no close line.
 A run whose header records other programs loading the CPU or GPU
 while it ran makes the compare inconclusive; `--max-load` and
 `--max-gpu-busy` set how much is allowed.

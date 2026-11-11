@@ -1507,7 +1507,12 @@ Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
   neither checked for nor ended. A windowed engine never receives a
   Ctrl-Break, and none can be sent when `alternate` has no console (a
   service, a scheduled task); then a stop waits out the 10 seconds
-  below and kills (UT Ants).
+  below and kills (UT Ants). An engine on Windows sees a stop as
+  Ctrl-Break, never Ctrl-C, and Ctrl-Break's default ends it at once.
+  So an engine that writes its close line on Ctrl-C handles Ctrl-Break
+  the same way (`SIGBREAK`, or `CTRL_BREAK_EVENT` in
+  `SetConsoleCtrlHandler`), or its stopped runs have no close line
+  (Vestige).
 - **A failed command's processes are ended before its file is
   deleted.** Any left are sent SIGTERM, or the stop signal, and given
   10 seconds; then they are killed. A second stop signal kills them at
