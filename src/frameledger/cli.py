@@ -4,7 +4,7 @@ and § 4.15 for `alternate`).
 
 The only module that prints or decides an exit code. Every command
 builds one result dict in the shape of § 4.8, and render.py turns it
-into text or JSON.
+into text, Markdown or JSON.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import os
 import sys
 import traceback
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
 import alternate
@@ -50,20 +50,16 @@ class _Parser(argparse.ArgumentParser):
 
 def _parser() -> _Parser:
     parser = _Parser(prog="frameledger", description="Read and judge frameledger run files.")
-    parser.add_argument("--json", action="store_true", help="print the JSON result instead of text")
+    _add_output_flags(parser, default=False)
     parser.add_argument("--selftest", action="store_true", help="run the analyser's own checks")
     parser.add_argument("--version", action="store_true", help="print the version")
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
     check = commands.add_parser("check", help="say whether each file meets the run-file format")
     check.add_argument("files", nargs="+", metavar="FILE")
-    # SUPPRESS: otherwise the subcommand's default False overwrites a
-    # --json given before the command name.
-    check.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                       help="print the JSON result instead of text")
+    _add_output_flags(check)
     report = commands.add_parser("report", help="say where one run's frame time went")
     report.add_argument("file", metavar="FILE")
-    report.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                        help="print the JSON result instead of text")
+    _add_output_flags(report)
     floor = commands.add_parser("floor", help="did the run hold a frame rate every second, "
                                 "and did any single frame take too long?")
     floor.add_argument("file", metavar="FILE")
@@ -76,8 +72,7 @@ def _parser() -> _Parser:
     floor.add_argument("--no-frames", action="store_true", help="skip the single-frame check")
     floor.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
                        help="frames over the budget to tolerate (default 0)")
-    floor.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                       help="print the JSON result instead of text")
+    _add_output_flags(floor)
     compare_cmd = commands.add_parser("compare", help="did the new runs get slower than the old, "
                                       "measure by measure?")
     compare_cmd.add_argument("--old", nargs="+", required=True, metavar="FILE",
@@ -95,8 +90,7 @@ def _parser() -> _Parser:
     budget.add_argument("--budgets", required=True, metavar="BUDGETS", help="the budget file")
     budget.add_argument("--warmup-s", type=_bounded, default=Decimal(0), metavar="S",
                         help="seconds at the start that are not judged, as floor's (default 0)")
-    budget.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                        help="print the JSON result instead of text")
+    _add_output_flags(budget)
     survey_cmd = commands.add_parser("survey", help="rank many runs by their slowest frames, and flag "
                                      "those floor's single-frame check fails")
     survey_cmd.add_argument("files", nargs="+", metavar="FILE")
@@ -108,9 +102,24 @@ def _parser() -> _Parser:
                             help="seconds at the start that are not judged, as floor's (default 2)")
     survey_cmd.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
                             help="frames over the budget a run may have before it is flagged (default 0)")
-    survey_cmd.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                            help="print the JSON result instead of text")
+    _add_output_flags(survey_cmd)
     return parser
+
+
+def _add_output_flags(parser, default=argparse.SUPPRESS) -> None:
+    """--json and --markdown (§ 4.8). A command's default is SUPPRESS:
+    otherwise its False overwrites a flag given before the command name."""
+    parser.add_argument("--json", action="store_true", default=default,
+                        help="print the JSON result instead of text")
+    parser.add_argument("--markdown", action="store_true", default=default,
+                        help="print the text as Markdown, to paste into a commit, note or pull request")
+
+
+def _renderer(args: argparse.Namespace) -> Callable[[dict], str]:
+    """How the result is printed. Asking for two forms is a bad argument."""
+    if args.json and args.markdown:
+        raise ledger.LedgerError("give --json or --markdown, not both")
+    return render.to_json if args.json else render.to_markdown if args.markdown else render.to_text
 
 
 def _add_compare_flags(command) -> None:
@@ -132,8 +141,7 @@ def _add_compare_flags(command) -> None:
     command.add_argument("--measure", action="append", default=[], metavar="CATEGORY/NAME",
                          help="judge only this measure, and show each run's value of it; give it once "
                          "per measure")
-    command.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                         help="print the JSON result instead of text")
+    _add_output_flags(command)
 
 
 def _add_alternate(commands) -> None:
@@ -185,8 +193,7 @@ def _add_bisect(commands) -> None:
                         help="skip a commit whose runs fall on both sides of the line")
     bisect.add_argument("--dry-run", type=_value, metavar="VALUE",
                         help="judge VALUE instead of run files, and exit with its code")
-    bisect.add_argument("--json", action="store_true", default=argparse.SUPPRESS,
-                        help="print the JSON result instead of text")
+    _add_output_flags(bisect)
 
 
 # In the unit of the flag it bounds. A file's values are below it
@@ -294,11 +301,12 @@ def main(argv: list[str] | None = None) -> int:
         return _bisect_main(argv)
     try:
         args = _parser().parse_args(argv)
+        print_as = _renderer(args)
         if args.version:
             _write(f"frameledger {VERSION}\n")
             return PASS
         result = _dispatch(args)
-        _write(render.to_json(result) if args.json else render.to_text(result))
+        _write(print_as(result))
     except ledger.LedgerError as error:
         print(f"frameledger: {error}", file=sys.stderr)
         return ERROR
@@ -344,11 +352,12 @@ def _bisect_main(argv: list[str]) -> int:
     UT Ants). Only the verdict is printed on standard output."""
     try:
         args = _parser().parse_args(argv)
+        print_as = _renderer(args)
         if args.version or args.selftest:
             raise ledger.LedgerError("--version and --selftest are not a bisect; git bisect run would "
                                      "read their 0 as good")
         result = _bisect(args)
-        _write(render.to_json(result) if args.json else render.to_text(result))
+        _write(print_as(result))
         return result["exit_code"]
     except ledger.LedgerError as error:
         print(f"frameledger: {error}", file=sys.stderr)

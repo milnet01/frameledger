@@ -61,7 +61,8 @@ python3 -I frameledger.pyz budget run.csv --budgets budgets.csv
 python3 -I frameledger.pyz --selftest
 ```
 
-On Windows, use `py -I` or `python -I`. Every command takes `--json`.
+On Windows, use `py -I` or `python -I`. Every command takes `--json`,
+and `--markdown` for results to paste into a pull request or a note.
 The spec lists the flags and exit codes:
 [check, report and floor](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands),
 [compare](docs/specs/FLED-0001-run-file-format.md#410-comparing-labelled-sets-of-runs),

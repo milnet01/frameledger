@@ -565,10 +565,14 @@ code are the text's.
   name such as `shadow_map` is unchanged. A Windows path's backslashes
   are doubled unrendered.
 - **Line starts.** A sentence can open with a path, a run name or an
-  error. So a sentence opening `#`, `>`, `-` or `+` gets a backslash
-  before it, and one opening with digits then `.` or `)` gets one
-  before that `.` or `)`. Otherwise it would render as a heading, a
-  quotation or a list. A cell never opens a line.
+  error. So a sentence opening `>`, or one to six `#`, a `-` or a `+`
+  then a space or the line's end, gets a backslash before it. One opening with digits
+  then `.` or `)`, then a space or the line's end, gets one before
+  that `.` or `)`. Otherwise it would render as a heading, a quotation
+  or a list. `100.0% of frames` and `-c.csv` are neither, so they are
+  left as they are. A cell never opens a line.
+- **GitHub's own links** — `@name`, `#123`, a commit hash — are not
+  escaped. A value holding one may link it in a pull request.
 
 ### 4.9 Trust warnings
 
@@ -2529,15 +2533,18 @@ breaks.
   padded or a number column not right-aligned; a table is cut or split
   at 100 columns; or a row limit is lost.
 - **INV-88** — Engine text cannot break the Markdown. Fixture: a run
-  whose static line holds `"note": "a|b *c* _d_ <e> [f](g) &h; ~i~ \\j"`
-  and a pass at depth 1. In `report --markdown`, that fact's row has
-  two cells, the second unescaping to the value as written; pandoc's
-  `gfm` reader, where installed, renders it as plain text; and the
-  nested pass's cell opens with two U+00A0. A `check` of breaching
-  files named `#a.csv`, `>b.csv`, `-c.csv`, `+d.csv` and `1. e.csv`,
-  run from their folder, opens sentences with those names; pandoc
-  renders each as a list item of plain text. `--markdown --json` is
-  exit 3, and under `bisect` exit 128, its stop.
+  whose static line holds ``"note": "a|b *c* _d_ <e> [f]g &amp; ~~i~~ `k` \\j"``,
+  a pass `shadow_map`, and a pass at depth 1. In `report --markdown`,
+  that fact's row is exactly
+  ``| note | a\|b \*c\* \_d\_ \<e> \[f\]g \&amp; \~\~i\~\~ \`k\` \\j |``
+  padded to its column; `shadow_map` is unchanged; and the nested
+  pass's cell opens with two U+00A0. A `check` of breaching files
+  named `# a.csv`, `> b.csv`, `- c.csv`, `+ d.csv`, `1. e.csv` and
+  `1) f.csv`, run from their folder, opens sentences `- \# a.csv`,
+  `- \> b.csv`, `- \- c.csv`, `- \+ d.csv`, `- 1\. e.csv` and
+  `- 1\) f.csv`; one named `100.0.csv` is unescaped.
+  `--markdown --json` is exit 3, and under `bisect` exit 128, its
+  stop.
   *Test:* `tests/test_markdown.py::test_engine_text_is_escaped`,
   `tests/test_markdown.py::test_line_starts_are_escaped`,
   `tests/test_markdown.py::test_markdown_and_json_refused`.
