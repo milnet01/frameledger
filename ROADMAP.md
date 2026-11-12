@@ -749,7 +749,7 @@ The engines' second asks: more than two builds at once, a saved set
 
 to compare against, and the small fixes they filed.
 
-- 🚧 [FLED-0034] **compare judges named variants against one base.**
+- ✅ [FLED-0034] **compare judges named variants against one base.**
   More than two sets at once: the full frame against each effect
   switched off, each variant judged against the base as compare
   judges new against old. UT Ants' UTA-0436, the cost of each effect
@@ -768,6 +768,9 @@ to compare against, and the small fixes they filed.
   re-read 79ca5d6. No scenes.py item wanted. UT Ants and DOOM Ants awaited.
   2026-11-12: UT Ants: yes to the fold, to its list and not to 4bab2e7's
   diff. DOOM Ants awaited.
+  2026-11-12: DOOM Ants: yes to the fold, on its description and the
+  named tests. All three engines agreed; none re-read the fold's diff.
+  Shipped.
   **Layman:** Compare many versions at once, such as the game with each effect turned off in turn.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -963,7 +966,7 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: engine-review-2026-11-11.
 
-- 🚧 [FLED-0067] **The writer header says which release it came from.**
+- ✅ [FLED-0067] **The writer header says which release it came from.**
   include/frameledger.h has no version macro, so a vendored copy is
   pinned only by the engine's own notes: DOOM Ants' copy at v0.2.0,
   Vestige's under external/frameledger/. DOOM Ants' review of FLED-0065:
@@ -980,11 +983,14 @@ to compare against, and the small fixes they filed.
   header yet, so no MSVC build to report. Its point folded: the test
   also asserts bump.json's exact pattern is in the header. DOOM Ants
   awaited.
+  2026-11-12: DOOM Ants: correct and readable, string only. Its caution
+  folded: § 4.6 says to vendor the header from a release tag. All three
+  engines agreed. Shipped.
   **Layman:** A copied writer file says which frameledger version it is, so an engine knows what it has.
   Kind: feature.
   Source: engine-review-2026-11-11.
 
-- 🚧 [FLED-0068] **A header line may be padded with spaces and rewritten in place.**
+- ✅ [FLED-0068] **A header line may be padded with spaces and rewritten in place.**
   `end` and `peak` are header fields known only after the last frame,
   and a streaming writer has already written line 1. Vestige (3D_E-0968)
   chose to pad the header with spaces after its closing brace and
@@ -998,6 +1004,8 @@ to compare against, and the small fixes they filed.
   2026-11-12: UT Ants: no objection. Its point folded: § 4.1 says only
   spaces, not tabs, and that the length kept counts the line ending;
   the test also runs with CRLF. DOOM Ants awaited.
+  2026-11-12: DOOM Ants: no objection; its writer pads `end` inside the
+  JSON and is unaffected. All three engines agreed. Shipped.
   **Layman:** A game can fill in end-of-run figures on the file's first line after the run, without rewriting the whole file.
   Kind: feature.
   Source: engine-request-2026-11-12.

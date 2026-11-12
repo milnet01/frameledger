@@ -405,7 +405,8 @@ size_t fled_json_escape (char *dst, size_t cap, const char *src);
   from. It is not `FLED_SCHEMA`, which moves only when the run-file
   format breaks (4.2). A header taken from `main` between releases
   carries the last release's version and may differ from that
-  release's header.
+  release's header, so vendor the header from a release tag (DOOM
+  Ants).
 
 ### 4.7 The 0.1.0 commands
 
