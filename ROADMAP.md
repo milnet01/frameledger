@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=68 -->
+<!-- ants-roadmap-id-high-water: FLED=69 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1020,6 +1020,18 @@ to compare against, and the small fixes they filed.
   **Layman:** A game can fill in end-of-run figures on the file's first line after the run, without rewriting the whole file.
   Kind: feature.
   Source: engine-request-2026-11-12.
+
+- 📋 [FLED-0069] **A header nested too deep ends in a traceback.**
+  UT Ants, reviewing FLED-0035 at e5f2758: json.loads raises
+  RecursionError on a header of very many nested brackets, and the
+  readers catch only ValueError. baseline.py was fixed with FLED-0035.
+  Seen 2026-11-12 on a run file whose `# frameledger` line holds 200,000
+  `[`: `check` ends in a traceback with exit 1. budgeting.py's `_header`
+  has the same `except ValueError`. Catch RecursionError wherever a
+  header's JSON is read, so each gives its own sentence and code.
+  **Layman:** A run file whose first line is damaged in one rare way makes frameledger crash instead of saying what is wrong.
+  Kind: fix.
+  Source: ut-ants-review-2026-11-12.
 
 ## 0.6.0 — other people's data
 

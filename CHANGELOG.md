@@ -36,7 +36,7 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 ### Fixed
 
 - **A long warm-up is shown as given** (FLED-0024)
-  `floor`, `budget` and `survey` named a `--warmup-s` of a million seconds or more in rounded exponent form, such as "the 1e+09 s warm-up". Their sentences now give the warm-up in full, "the 999999999 s warm-up". Shorter warm-ups read as before.
+  `floor`, `budget` and `survey` named a `--warmup-s` of a million seconds or more in rounded exponent form, such as "the 1e+09 s warm-up". Their sentences now give the warm-up in full, "the 999999999 s warm-up". A warm-up with more than six significant digits, such as 12345.678, was rounded the same way, and one under 0.0001 s was in exponent form; both are now given in full too.
 
 ## [0.4.0] - 2026-11-11
 

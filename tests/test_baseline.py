@@ -8,14 +8,18 @@ same compare with the files given after `--old` or `--base`.
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
+import baseline
 import cli
+import compare
 from test_alternate import Bench, analyser, without_added
 from test_compare import new, old
 from test_compare_scenes import Files
 
-LINE_1 = '# frameledger-baseline {"schema":1}'
+KEYWORD = "# frameledger-baseline"
+LINE_1 = KEYWORD + ' {"schema":1}'
 SLOW, SAME = [11.0, 11.01, 11.02], [10.0, 10.01, 10.02]
 BASELINE_CODES = {"baseline_not_interleaved", "baseline_driver_differs", "baseline_os_differs"}
 
@@ -68,9 +72,11 @@ def test_baseline_is_the_old_runs(capsys, tmp_path, monkeypatch):
     directory, with either slash. The sets' starts interleave, so no
     warning differs."""
     kept = write_runs(tmp_path / "perf" / "runs", "old", old(SAME))
+    kept = [kept[1], kept[0], kept[2]]  # the file's order, not the names'
     fresh = write_runs(tmp_path / "fresh", "new", new(SLOW))
-    baseline = write_baseline(tmp_path / "perf" / "meadow.txt",
-                              ["# taken at scale 50", "runs/old-1.csv", "", "runs\\old-2.csv", "  runs/old-3.csv  "],
+    lines = ["# taken at scale 50", "runs/old-2.csv", "", "  # an indented comment", "runs\\old-1.csv",
+             "  runs/old-3.csv  "]
+    baseline = write_baseline(tmp_path / "perf" / "meadow.txt", lines,
                               line_1='# frameledger-baseline {"schema":1,"note":"meadow"}')
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
@@ -80,6 +86,16 @@ def test_baseline_is_the_old_runs(capsys, tmp_path, monkeypatch):
     assert code == plain_code == 1
     held_against(based, plain, baseline)
     assert [r["path"] for r in based["result"]["runs"][:3]] == kept
+
+    # As a Windows editor saves it: a byte-order mark and CRLF line ends.
+    windows = tmp_path / "perf" / "windows.txt"
+    windows.write_bytes(b"\xef\xbb\xbf" + "\r\n".join([LINE_1, *lines, ""]).encode())
+    code, based = run(capsys, "compare", "--baseline", str(windows), "--new", *fresh)
+    held_against(based, plain, str(windows))
+
+    # The sentence follows the overrides sentence, which S5 keeps first.
+    code, based = run(capsys, "compare", "--baseline", baseline, "--new", *fresh, "--override", "scene=moved")
+    assert based["summary"][0].startswith("Overrides given") and based["summary"][1] == sentence(baseline)
 
 
 def test_by_scene_and_variants(capsys, tmp_path):
@@ -122,7 +138,17 @@ def test_bad_baseline_files(capsys, tmp_path):
         ("\n".join([LINE_1, "kept-1.csv", "./kept-1.csv", *three[1:]]) + "\n", ["line 3", "line 2's"]),
         ("\n".join([LINE_1, *three, "gone/kept-4.csv"]) + "\n",
          ["line 5", str(tmp_path / "gone" / "kept-4.csv"), "is not a file"]),
+        # Rooted, yet absolute on neither Linux nor Windows: never joined to the folder.
+        ("\n".join([LINE_1, "\\kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
+        ("\n".join([LINE_1, "C:\\runs\\kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
+        # Nested too deep to parse: one sentence, not a traceback (UT Ants).
+        (KEYWORD + ' {"schema":' + "[" * 200_000 + "\n" + "\n".join(three) + "\n", ["line 1", "JSON"]),
     ]
+    os.link(tmp_path / "kept-2.csv", tmp_path / "hard.csv")  # one file under two names
+    cases.append(("\n".join([LINE_1, *three, "hard.csv"]) + "\n", ["line 5", "line 3's"]))
+    if sys.platform != "win32":  # making a symbolic link needs a privilege there
+        (tmp_path / "alias.csv").symlink_to(tmp_path / "kept-1.csv")
+        cases.append(("\n".join([LINE_1, *three, "alias.csv"]) + "\n", ["line 5", "line 2's"]))
     path = tmp_path / "baseline.txt"
     for text, wanted in cases:
         path.write_text(text, encoding="utf-8")
@@ -135,6 +161,12 @@ def test_bad_baseline_files(capsys, tmp_path):
                                                  "--new", *broken)
 
 
+def test_smallest_set_is_compares():
+    """§ 4.17: a baseline needs as many runs as § 4.10's sets. baseline.py
+    may not import compare.py, so it holds its own copy of the number."""
+    assert baseline.FEWEST_RUNS == compare.FEWEST_RUNS
+
+
 def test_flag_setup_errors(capsys, tmp_path):
     """INV-99: --baseline replaces --old or --base, needs --new or
     --variant, and is not bisect's."""
@@ -145,6 +177,9 @@ def test_flag_setup_errors(capsys, tmp_path):
                  ["--baseline", baseline, "--base", *kept, "--variant", "a", *fresh],
                  ["--baseline", baseline]):
         assert "--baseline" in refused(capsys, "compare", *args)
+    # --new beside --variant: the sentence names the flags given, never --base.
+    said = refused(capsys, "compare", "--baseline", baseline, "--variant", "a", *fresh, "--new", *fresh)
+    assert "--baseline and --variant" in said and "--base " not in said
     assert cli.main(["bisect", "--baseline", baseline, "--tested", *fresh, "--measure", "frame/wall",
                      "--unsegmented", "--bad-above", "10"]) == 128
     capsys.readouterr()
@@ -181,7 +216,7 @@ def test_baseline_warnings(capsys, tmp_path):
     days = started(old(SAME), "2026-10-18T12:00:00Z", "2026-10-17T12:00:00Z", "2026-10-19T12:00:00Z")
     based, plain = compared(capsys, tmp_path / "days", days, fresh)
     message = messages(based)["baseline_not_interleaved"]
-    assert all(part in message for part in ("commit abc123,", "started 2026-10-17,", "9 days before"))
+    assert all(part in message for part in ("commit abc123,", "started 2026-10-17 (UTC),", "9 days before"))
     assert "not_interleaved" not in messages(based) and "not_interleaved" in messages(plain)
     assert based["verdict"] == "fail"
 
@@ -191,6 +226,12 @@ def test_baseline_warnings(capsys, tmp_path):
     minutes = started(old(SAME), "2026-10-26T11:21:00Z", "2026-10-26T11:23:00Z", "2026-10-26T11:25:00Z")
     based, _ = compared(capsys, tmp_path / "minutes", minutes, fresh)
     assert "40 minutes before" in messages(based)["baseline_not_interleaved"]
+    day = started(old(SAME), "2026-10-25T12:00:00Z", "2026-10-25T12:02:00Z", "2026-10-25T12:04:00Z")
+    based, _ = compared(capsys, tmp_path / "day", day, fresh)
+    assert "1 day before" in messages(based)["baseline_not_interleaved"]
+    seconds = started(old(SAME), "2026-10-26T12:00:10Z", "2026-10-26T12:00:20Z", "2026-10-26T12:00:30Z")
+    based, _ = compared(capsys, tmp_path / "seconds", seconds, fresh)
+    assert "less than a minute before" in messages(based)["baseline_not_interleaved"]
 
     dirty = [hours[0].replace('"dirty": false', '"dirty": true'), *hours[1:]]
     based, _ = compared(capsys, tmp_path / "dirty", dirty, fresh)
@@ -204,7 +245,7 @@ def test_baseline_warnings(capsys, tmp_path):
     assert not BASELINE_CODES & set(messages(based))
     based, _ = compared(capsys, tmp_path / "driver", old(SAME), new(SLOW, driver="Mesa 26.3"))
     message = messages(based)["baseline_driver_differs"]
-    assert "Mesa 26.2" in message and "Mesa 26.3" in message and "baseline_os_differs" not in messages(based)
+    assert '"Mesa 26.2"' in message and '"Mesa 26.3"' in message and "baseline_os_differs" not in messages(based)
     based, _ = compared(capsys, tmp_path / "os", old(SAME, os="Linux 7.2"), new(SLOW, os="Linux 7.3"))
     message = messages(based)["baseline_os_differs"]
     assert "Linux 7.2" in message and "Linux 7.3" in message

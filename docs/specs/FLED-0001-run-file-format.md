@@ -1788,7 +1788,7 @@ alternate --baseline FILE --variant NAME CMD [--variant NAME CMD]… --out DIR [
 reference files.
 
 **The baseline file** is UTF-8 text, LF or CRLF, as § 4.12's budget
-file:
+file. A byte-order mark at its start is skipped.
 
 ```
 # frameledger-baseline {"schema":1}      line 1, required
@@ -1801,14 +1801,20 @@ runs/meadow-3.csv
 - **Line 1** is the keyword and one JSON object whose `schema` is the
   integer 1. Its other keys are ignored.
 - **Each later line is one run file's path**, as written, with spaces
-  at both ends removed and no quoting. A blank line is skipped. A
-  comment line can say what the runs were taken at, such as
+  at both ends removed and no quoting. A blank line is skipped, and so
+  is a comment line, whose first character after any spaces is `#`
+  (Vestige). A comment line can say what the runs were taken at, such as
   "# scale 50, shot-0069" (DOOM Ants).
 - **A relative path starts at the folder that holds the baseline
   file**, not at the current directory. So the file and its runs can
   be committed together, and found from anywhere (UT Ants, DOOM Ants).
   In a relative path `/` and `\` both separate folders, on every
   platform, so one file serves Linux and Windows.
+- **A path that opens with a slash or a drive letter must be absolute
+  on the system reading it**, or the file is refused: `\runs\a.csv`
+  or `C:\runs\a.csv` on Linux, `/runs/a.csv` or `C:a.csv` on Windows
+  (UT Ants). Joined to the folder, it
+  would name a file the line never wrote (Vestige).
 - **A path may climb out with `..`, or be absolute.** Run files of
   every frame are large to commit. A baseline whose runs sit outside
   the repository serves the one machine that holds them (Vestige).
@@ -1822,10 +1828,15 @@ any command starts:
 - `--baseline` with `--old` or `--base`; `--baseline` with neither
   `--new` nor `--variant`.
 - A baseline file that cannot be read; a line that is not UTF-8; a
-  line 1 that is not the keyword and a JSON object; a `schema` other
-  than 1.
+  line 1 that is not the keyword and a JSON object, one nested too
+  deep to read included (UT Ants); a `schema` other than 1.
 - Fewer than three run files listed, as § 4.10's sets.
-- Two lines that name one file, naming both lines.
+- Two lines that name one file, naming both lines. A symbolic
+  or hard link to the file, and on Windows another letter case, is the
+  same file: one run counted twice would narrow the spread (Vestige,
+  UT Ants).
+- A path that opens with a slash or a drive letter and is not
+  absolute, above.
 - A listed path that is not a file, naming the path and its line. So a
   moved run file is never read as a regression (Vestige).
 
@@ -1850,23 +1861,25 @@ exit code.
   every new run. It is given in place of § 4.10's `not_interleaved`,
   and names the baseline's `commit`, the UTC day its oldest run
   started, and how long that was before the first new run started:
-  "the old runs are a baseline of commit 6012f70, started 2026-11-03,
-  9 days before the first new run; nothing ran in turn with them, so a
-  drift on the machine since then reads as a change". The time is in
+  "the old runs are a baseline of commit 6012f70, started 2026-11-03
+  (UTC), 9 days before the first new run; nothing ran in turn with
+  them, so a drift on the machine since then reads as a change". The time is in
   whole days, or whole hours under one day, or whole minutes under one
-  hour, rounded down. Several commits are each named, and a `dirty`
+  hour, rounded down; under one minute it reads "less than a minute". Several commits are each named, and a `dirty`
   one is marked "(dirty)". A stored baseline cannot alternate with the
   new runs, so the reader is told every time (all three engines). When
   the baseline runs did not all start first, § 4.10's own rule decides
   `not_interleaved` as ever.
 - `baseline_driver_differs` — the baseline runs' `driver` values are
   not the new runs' (UT Ants: two kept results were not baselines at
-  all, because the driver had moved). It names both sides' values.
+  all, because the driver had moved). It names both sides' values, each
+  in double quotes.
 - `baseline_os_differs` — the same for `os`. It needs `os` in every
   run.
 
 Under § 4.14 and § 4.16 each is a set warning, opening with its
-scene's or variant's name as `not_interleaved` does.
+scene's or variant's name as `not_interleaved` does. So each variant
+has its own, with its own age: its first run started at its own time.
 
 **Result.** Every `compare` and `alternate` result that is not empty
 gains `baseline`: the baseline file's absolute path, or null without
@@ -3063,12 +3076,15 @@ breaks.
   and three new, the new `gpu/opaque` 1 ms slower, and a baseline file
   beside the old runs naming them by relative path: `compare
   --baseline` run from another directory gives the result, summary and
-  exit code of `compare --old` over the same files, but for `baseline`
-  and the baseline sentence; the sets' starts interleave, so no warning
-  differs. A path written with `\`, a path with spaces around it, a
-  blank line, a comment line and a line 1 with a second key are all
-  read. With `--by-scene`, and with `--variant` in place of `--new`,
-  the same holds against `--old --by-scene` and against `--base`.
+  exit code of `compare --old` over the same files in the baseline's
+  order, old-2 listed first, but for `baseline` and the baseline
+  sentence; the sets' starts interleave, so no warning differs. A path written with `\`, a path with spaces around it, a
+  blank line, a comment line, an indented comment line and a line 1
+  with a second key are all read, and so is the file saved with a
+  byte-order mark and CRLF. With an `--override`, the baseline
+  sentence follows the overrides sentence. With `--by-scene`, and with
+  `--variant` in place of `--new`, the same holds against `--old
+  --by-scene` and against `--base`.
   *Test:* `tests/test_baseline.py::test_baseline_is_the_old_runs`, and
   beside it `test_by_scene_and_variants`.
   *Breaks when:* a path resolves from the current directory, the
@@ -3079,13 +3095,17 @@ breaks.
   alone gives exit 3: an empty file; a line 1 without the keyword; a
   line 1 whose JSON is broken; `schema` 2; a line that is not UTF-8;
   two runs listed; one file listed twice, once as `a.csv` and once as
-  `./a.csv`, the sentence naming both lines; a listed path that does
-  not exist, the sentence naming the path and its line; a baseline
+  `./a.csv`, the sentence naming both lines; a file and a hard link to
+  it; a file and a symbolic link to it; `\a.csv` and `C:\runs\a.csv`,
+  absolute on neither Linux nor Windows as written there; a line 1 of
+  200,000 nested brackets; `--baseline`, `--variant` and `--new`
+  together, the sentence naming no `--base`; a listed
+  path that does not exist, the sentence naming the path and its line; a baseline
   file that does not exist; `--baseline` with `--old`; with `--base`;
   with neither `--new` nor `--variant`. `bisect --baseline` is exit
   128.
   *Test:* `tests/test_baseline.py::test_bad_baseline_files`, and beside
-  it `test_flag_setup_errors`.
+  it `test_flag_setup_errors` and `test_smallest_set_is_compares`.
   *Breaks when:* a bad line is skipped or read as a path, a missing
   run file surfaces as a compare result, or a comment is read as a
   path. The new runs in the fixture are broken files, so reading any
@@ -3094,10 +3114,12 @@ breaks.
 - **INV-100** — A baseline's warnings name what it is. Baseline runs
   of commit `abc123` started 2026-10-17 and new runs started
   2026-10-26: the compare warns `baseline_not_interleaved`, its
-  message holding "commit abc123", "started 2026-10-17" and "9 days",
+  message holding "commit abc123", "started 2026-10-17 (UTC)" and
+  "9 days",
   and does not warn `not_interleaved`; the verdict and exit code are
   those of `--old`. Started 5 hours before, it says "5 hours"; 40
-  minutes before, "40 minutes"; with one baseline run `dirty`,
+  minutes before, "40 minutes"; a day and a minute before, "1 day";
+  under a minute before, "less than a minute"; with one baseline run `dirty`,
   "abc123 (dirty)". New runs that all started before the baseline's
   warn `not_interleaved` and not `baseline_not_interleaved`. A new
   `driver` warns `baseline_driver_differs`, naming both values; a new
@@ -3316,7 +3338,7 @@ it on each release they pin.
 | INV-96 | `tests/test_release.py::test_header_names_the_release` |
 | INV-97 | `tests/test_check.py::test_header_may_be_padded` |
 | INV-98 | `tests/test_baseline.py::test_baseline_is_the_old_runs`, `tests/test_baseline.py::test_by_scene_and_variants` |
-| INV-99 | `tests/test_baseline.py::test_bad_baseline_files`, `tests/test_baseline.py::test_flag_setup_errors` |
+| INV-99 | `tests/test_baseline.py::test_bad_baseline_files`, `tests/test_baseline.py::test_flag_setup_errors`, `tests/test_baseline.py::test_smallest_set_is_compares` |
 | INV-100 | `tests/test_baseline.py::test_baseline_warnings` |
 | INV-101 | `tests/test_baseline.py::test_alternate_baseline`, `tests/test_baseline.py::test_alternate_baseline_variants`, `tests/test_baseline.py::test_alternate_bad_baseline_runs_nothing` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |

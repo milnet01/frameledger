@@ -339,7 +339,7 @@ def _baseline_first_notice(runs: list[Named], called: dict[str, str], oldest: tu
     return ledger.Notice(
         "baseline_not_interleaved",
         f"the {called['old']} runs are a baseline of {'commit' if len(commits) == 1 else 'commits'} "
-        f"{joined(commits)}, started {oldest[0].date().isoformat()}, {_age(seconds)} before the first "
+        f"{joined(commits)}, started {oldest[0].date().isoformat()} (UTC), {_age(seconds)} before the first "
         f"{called['new']} run; nothing ran in turn with them, so a drift on the machine since then reads "
         "as a change")
 
@@ -347,10 +347,10 @@ def _baseline_first_notice(runs: list[Named], called: dict[str, str], oldest: tu
 def _age(seconds: Fraction) -> str:
     """A length of time in whole days, or hours under a day, or minutes
     under an hour, rounded down."""
-    for unit, length in (("day", 86400), ("hour", 3600)):
+    for unit, length in (("day", 86400), ("hour", 3600), ("minute", 60)):
         if seconds >= length:
             return run_report.counted(int(seconds // length), unit)
-    return run_report.counted(int(seconds // 60), "minute")
+    return "less than a minute"
 
 
 def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
@@ -361,9 +361,11 @@ def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[
         old, new = (sorted({r.run.header.get(field) for r in runs if r.set == label}, key=str)
                     for label in ("old", "new"))
         if old != new and None not in old + new:
+            # Quoted, so an empty value still shows (UT Ants).
+            shown_old, shown_new = (joined(f'"{value}"' for value in values) for values in (old, new))
             found.append(ledger.Notice(f"baseline_{field}_differs",
-                                       f"the {called['old']} runs' {field} is {joined(old)} and the "
-                                       f"{called['new']} runs' is {joined(new)}"))
+                                       f"the {called['old']} runs' {field} is {shown_old} and the "
+                                       f"{called['new']} runs' is {shown_new}"))
     return found
 
 

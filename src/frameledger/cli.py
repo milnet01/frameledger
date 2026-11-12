@@ -16,6 +16,7 @@ import traceback
 from collections import Counter
 from collections.abc import Callable, Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
+from typing import NamedTuple
 
 import alternate
 import baseline
@@ -502,16 +503,20 @@ def _compare(args: argparse.Namespace) -> dict:
     """§ 4.10: exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 when a
     file cannot be read or breaks the format, or the compare is refused.
     With --baseline, § 4.17, the file's runs are --old's or --base's."""
-    kept_side = _take_baseline(args)
-    return _name_baseline(_compare_sets(args), args.baseline, kept_side)
+    kept = _take_baseline(args)
+    return _name_baseline(_compare_sets(args, kept), kept)
 
 
-def _take_baseline(args: argparse.Namespace) -> str | None:
-    """§ 4.17's setup. With --baseline, read the file and put its run
-    files where --old's would be, or --base's with --variant, so the rest
-    of the command reads them as if given there; `args.baseline` becomes
-    the file's absolute path. Returns that side, "old" or "base"; None
-    without the flag."""
+class _Kept(NamedTuple):
+    """§ 4.17: a baseline file's runs, and the side they stand in for."""
+    side: str  # "old", or variants.BASE with --variant
+    path: str  # the baseline file, absolute
+    runs: list[str]  # its run files, absolute, in its order
+
+
+def _take_baseline(args: argparse.Namespace) -> _Kept | None:
+    """§ 4.17's setup: --baseline's file, read; None without the flag.
+    `args` is left as given, so --old and --base stay None."""
     if args.baseline is None:
         return None
     clash = "--old" if args.old is not None else "--base" if args.base is not None else None
@@ -519,48 +524,53 @@ def _take_baseline(args: argparse.Namespace) -> str | None:
         raise ledger.LedgerError(f"--baseline names the runs {clash} would: {clash} cannot be given with it")
     if args.new is None and not args.variant:
         raise ledger.LedgerError("--baseline needs --new, or --variant NAME, to judge against it")
-    args.baseline = os.path.abspath(args.baseline)
-    kept_side = variants.BASE if args.variant else "old"
-    setattr(args, kept_side, baseline.read(args.baseline))
-    return kept_side
+    path = os.path.abspath(args.baseline)
+    return _Kept(variants.BASE if args.variant else "old", path, baseline.read(path))
 
 
-def _name_baseline(built: dict, path: str | None, kept_side: str | None) -> dict:
+def _name_baseline(built: dict, kept: _Kept | None) -> dict:
     """§ 4.17: every result that is not empty holds `baseline`, the file's
-    path or None; with one, a sentence after the overrides sentence says
-    which runs it names."""
+    path or None; with one, a sentence says which runs it names."""
     if built["result"]:
-        built["result"] = {**built["result"], "baseline": path}
-    if path is not None:
-        built["summary"].insert(1 if built["overrides"] else 0, f"The {kept_side} runs are the baseline {path}.")
+        built["result"] = {**built["result"], "baseline": kept.path if kept else None}
+    if kept:
+        # After the overrides sentences, which S5 keeps first.
+        after = len(compare.overrides_sentences(built["overrides"]))
+        built["summary"].insert(after, f"The {kept.side} runs are the baseline {kept.path}.")
     return built
 
 
-def _compare_sets(args: argparse.Namespace) -> dict:
+def _compare_sets(args: argparse.Namespace, kept: _Kept | None) -> dict:
     named = _named(args.measure)
-    sides = _variant_sides(args, takes_files=True, other_flag=args.by_scene and "--by-scene")
+    sides = _variant_sides(args, takes_files=True, other_flag=args.by_scene and "--by-scene", kept=kept)
     if sides:
+        if kept:
+            sides = {variants.BASE: kept.runs, **sides}
         for name, paths in sides.items():
             if len(paths) < compare.FEWEST_RUNS:
                 flag = "--base" if name == variants.BASE else f"--variant {name}"
                 raise ledger.LedgerError(f"{flag} has {len(paths)} runs; each needs at least "
                                          f"{compare.FEWEST_RUNS}, since two give too many false changes")
-        return _compare_variants("compare", sides, _overrides(args.override), args, named)
+        return _compare_variants("compare", sides, _overrides(args.override), args, named,
+                                 baseline=kept is not None)
+    old = kept.runs if kept else args.old
     if args.by_scene:
-        return _compare_scenes(args, named)
-    for label, paths in (("--old", args.old), ("--new", args.new)):
+        return _compare_scenes(args, old, named, baseline=kept is not None)
+    for label, paths in (("--old", old), ("--new", args.new)):
         if len(paths) < compare.FEWEST_RUNS:
             raise ledger.LedgerError(f"{label} has {len(paths)} runs; each set needs at least "
                                      f"{compare.FEWEST_RUNS}, since two give too many false changes")
-    return _compare_paths("compare", args.old, args.new, _overrides(args.override), args, named)
+    return _compare_paths("compare", old, args.new, _overrides(args.override), args, named,
+                          baseline=kept is not None)
 
 
 def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict[str, str],
-                   args: argparse.Namespace, named: tuple[str, ...]) -> dict:
+                   args: argparse.Namespace, named: tuple[str, ...], baseline: bool = False) -> dict:
+    """§ 4.10's compare of the files at `old` and `new`; `baseline` says
+    `old` came from a baseline file."""
     try:
         built = compare.compare([ledger.read(p) for p in old], [ledger.read(p) for p in new],
-                                overrides, _floors(args), _limits(args), named,
-                                baseline=args.baseline is not None)
+                                overrides, _floors(args), _limits(args), named, baseline=baseline)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -575,47 +585,57 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
                    built["result"], built["overrides"])
 
 
-def _variant_sides(args: argparse.Namespace, takes_files: bool, other_flag: str | bool = False) -> dict:
+def _variant_sides(args: argparse.Namespace, takes_files: bool, other_flag: str | bool = False,
+                   kept: _Kept | None = None) -> dict:
     """§ 4.16's setup: {"base": its --base value, each variant's name: its
     --variant value}, in the order given; or {} for a command with neither
     flag, once its --old and --new are both there. With `takes_files`,
     compare's form, a variant's value is the list of files after its
     name; without, alternate's, the one command. `other_flag` names a
-    flag given that --base cannot go with."""
+    flag given that --base cannot go with.
+
+    With `kept`, a baseline's runs stand in for --old or for --base, so
+    that flag is not asked for, and the base is left out of what is
+    returned: the caller holds its runs."""
+    kept_base = kept is not None and kept.side == variants.BASE
     if args.base is None and not args.variant:
-        missing = [flag for flag, value in (("--old", args.old), ("--new", args.new)) if value is None]
+        wanted = [("--new", args.new)] if kept else [("--old", args.old), ("--new", args.new)]
+        missing = [flag for flag, value in wanted if value is None]
         if missing:
             raise ledger.LedgerError(f"give --old and --new, or --base and --variant; {missing[0]} is missing")
         return {}
-    if args.base is None:
+    if args.base is None and not kept_base:
         raise ledger.LedgerError("--variant needs --base, the runs each variant is judged against")
     if not args.variant:
         raise ledger.LedgerError("--base needs at least one --variant NAME to judge against it")
     clash = next((flag for flag, given in (("--old", args.old is not None), ("--new", args.new is not None),
                                            (other_flag, bool(other_flag))) if given), None)
     if clash:
-        raise ledger.LedgerError(f"--base and --variant replace --old and --new, and judge no scenes: "
+        base_flag = "--baseline" if kept_base else "--base"  # name the flag that was given (UT Ants)
+        raise ledger.LedgerError(f"{base_flag} and --variant replace --old and --new, and judge no scenes: "
                                  f"{clash} cannot be given with them")
     if not all(args.variant):
         raise ledger.LedgerError("--variant needs a name: --variant NAME ...")
     names = [given[0] for given in args.variant]
     variants.check_names(names)
     values = (given[1:] if takes_files else given[1] for given in args.variant)
-    return {variants.BASE: args.base, **dict(zip(names, values, strict=True))}
+    named_sides = dict(zip(names, values, strict=True))
+    return named_sides if kept_base else {variants.BASE: args.base, **named_sides}
 
 
 def _compare_variants(command: str, sides: dict[str, list[str]], overrides: dict[str, str],
-                      args: argparse.Namespace, named: tuple[str, ...], unread_is_unjudged: bool = False) -> dict:
+                      args: argparse.Namespace, named: tuple[str, ...], unread_is_unjudged: bool = False,
+                      baseline: bool = False) -> dict:
     """§ 4.16: exit 0 every variant passes, 1 a variant fails, 2 a variant
     is inconclusive or unjudged, 3 a file that cannot be read or no
     variant judged. `unread_is_unjudged` says the command named the files
     itself, as alternate does: then a bad variant file leaves that
-    variant unjudged."""
+    variant unjudged. `baseline` says the base's files came from a
+    baseline file."""
     paths = dict(sides)
     try:
         built = variants.against_base(paths.pop(variants.BASE), paths, overrides, _floors(args), _limits(args),
-                                      named, unread_is_unjudged=unread_is_unjudged,
-                                      baseline=args.baseline is not None)
+                                      named, unread_is_unjudged=unread_is_unjudged, baseline=baseline)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -665,9 +685,9 @@ def _alternate(args: argparse.Namespace) -> dict:
     that fails stops the rest, exit 3; otherwise § 4.10's compare, or with
     --base § 4.16's. With --baseline, § 4.17, its side has its runs
     already: every other side's command runs, and that side's does not."""
-    kept_side = _take_baseline(args)
-    commands = _variant_sides(args, takes_files=False) or {"old": args.old, "new": args.new}
-    kept = commands.pop(kept_side) if kept_side else []  # a baseline's run files, where a command would be
+    kept = _take_baseline(args)
+    commands = (_variant_sides(args, takes_files=False, kept=kept)
+                or ({"new": args.new} if kept else {"old": args.old, "new": args.new}))
     named = _named(args.measure)
     out = os.path.abspath(args.out)
     overrides = _overrides(args.override)
@@ -680,26 +700,28 @@ def _alternate(args: argparse.Namespace) -> dict:
         return _name_baseline(_result("alternate", "error", ERROR,
                                       [*compare.overrides_sentences(listed),
                                        *alternate.stopped_sentences(stopped)],
-                                      [], {**added, "stopped": stopped}, listed), args.baseline, kept_side)
+                                      [], {**added, "stopped": stopped}, listed), kept)
     # Compared in run-number order, old-1, old-2, ..., as compare names them.
     timed = sorted((run for run in planned if run.timed), key=lambda run: run.number)
     paths = {side: [run.path for run in timed if run.side == side] for side in commands}
-    if kept_side:
-        paths = {kept_side: kept, **paths}
+    if kept:
+        paths = {kept.side: kept.runs, **paths}
     if variants.BASE in paths:
-        built = _compare_variants("alternate", paths, overrides, args, named, unread_is_unjudged=True)
+        built = _compare_variants("alternate", paths, overrides, args, named, unread_is_unjudged=True,
+                                  baseline=kept is not None)
     else:
-        built = _compare_paths("alternate", paths["old"], paths["new"], overrides, args, named)
+        built = _compare_paths("alternate", paths["old"], paths["new"], overrides, args, named,
+                               baseline=kept is not None)
     built["result"] = {**built["result"], **added, "stopped": None}
-    return _name_baseline(built, args.baseline, kept_side)
+    return _name_baseline(built, kept)
 
 
-def _compare_scenes(args: argparse.Namespace, named: tuple[str, ...]) -> dict:
+def _compare_scenes(args: argparse.Namespace, old: list[str], named: tuple[str, ...], baseline: bool) -> dict:
     """§ 4.14: exit 0 every scene passes, 1 a scene fails, 2 a scene is
     inconclusive or unjudged or a file unread, 3 a bad flag or no scene
     judged. The run counts are checked per scene, not here."""
-    built = scenes.by_scene(args.old, args.new, _overrides(args.override), _floors(args), _limits(args),
-                            named, baseline=args.baseline is not None)
+    built = scenes.by_scene(old, args.new, _overrides(args.override), _floors(args), _limits(args),
+                            named, baseline=baseline)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])

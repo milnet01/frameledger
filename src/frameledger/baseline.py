@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 import ledger
 
 SCHEMA = 1
 KEYWORD = "# frameledger-baseline"
-FEWEST_RUNS = 3  # § 4.10's smallest set
+FEWEST_RUNS = 3  # § 4.10's smallest set; a test holds it equal to compare.py's
+WINDOWS_DRIVE = re.compile(r"[A-Za-z]:")
 
 
 def read(path: str) -> list[str]:
@@ -32,20 +34,37 @@ def read(path: str) -> list[str]:
                                  path)
     _check_header(texts[0], path)
 
-    listed: dict[str, int] = {}  # run file -> the line that names it
+    listed: dict[object, int] = {}  # a run file's _identity -> the line that names it
+    runs = []
     for number, text in enumerate(texts[1:], start=2):
-        if not text.strip() or text.startswith("#"):
+        written = text.strip()
+        if not written or written.startswith("#"):
             continue  # a blank line or a comment
-        run = _resolve(text.strip(), os.path.dirname(path))
-        if run in listed:
-            raise ledger.LedgerError(f"this line names {run}, which is line {listed[run]}'s", path, number)
+        run = _resolve(written, os.path.dirname(path))
+        if run is None:
+            raise ledger.LedgerError(f"'{written}' is neither a relative path nor an absolute one on this system",
+                                     path, number)
         if not os.path.isfile(run):  # a moved run must not read as a regression (Vestige)
             raise ledger.LedgerError(f"this line names {run}, which is not a file", path, number)
-        listed[run] = number
-    if len(listed) < FEWEST_RUNS:
-        raise ledger.LedgerError(f"the file names {len(listed)} runs; a baseline needs at least {FEWEST_RUNS}, "
+        # One file under two names would count twice and narrow the spread
+        # (Vestige, UT Ants).
+        same = _identity(run)
+        if same in listed:
+            raise ledger.LedgerError(f"this line names {run}, which is line {listed[same]}'s", path, number)
+        listed[same] = number
+        runs.append(run)
+    if len(runs) < FEWEST_RUNS:
+        raise ledger.LedgerError(f"the file names {len(runs)} runs; a baseline needs at least {FEWEST_RUNS}, "
                                  "since two give too many false changes", path)
-    return list(listed)
+    return runs
+
+
+def _identity(run: str) -> object:
+    """What two names of one file share: a symbolic link, a hard link, or
+    on Windows another letter case. The file's own number where the
+    system gives one, else its path with links followed."""
+    status = os.stat(run)
+    return (status.st_dev, status.st_ino) if status.st_ino else os.path.normcase(os.path.realpath(run))
 
 
 def _lines(data: bytes, path: str) -> list[str]:
@@ -69,18 +88,25 @@ def _check_header(text: str, path: str) -> None:
         raise ledger.LedgerError(f"the first line must be '{KEYWORD} {{\"schema\":{SCHEMA}}}'", path, 1)
     try:
         header = json.loads("{" + rest)
-    except ValueError:  # not just JSONDecodeError: a huge integer raises plain ValueError
+    except (ValueError, RecursionError):  # a huge integer is a plain ValueError; deep nesting recurses (UT Ants)
         raise ledger.LedgerError("the header is not one JSON object", path, 1) from None
     schema = header.get("schema") if isinstance(header, dict) else None
     if type(schema) is not int or schema != SCHEMA:  # not True, not 1.0
         raise ledger.LedgerError(f"schema must be {SCHEMA}, not {json.dumps(schema)}", path, 1)
 
 
-def _resolve(written: str, folder: str) -> str:
+def _resolve(written: str, folder: str) -> str | None:
     """A listed path as an absolute one. A relative path starts at the
     baseline file's folder, and may use either slash on any platform, so
     one file serves Linux and Windows; an absolute path is the
-    platform's own."""
-    if os.path.isabs(written):
+    platform's own. None for a path that is neither here: one that opens
+    with a slash or a drive letter and is still not absolute, as
+    `\\runs\\a.csv` or `C:\\runs\\a.csv` on Linux, or `/runs/a.csv` and
+    `C:a.csv` on Windows. Joining one to the folder would name a file
+    the line never wrote (Vestige, UT Ants)."""
+    drive, rest = os.path.splitdrive(written)
+    if os.path.isabs(written) and (drive or os.sep == "/"):
         return os.path.normpath(written)
+    if rest[:1] in ("/", "\\") or WINDOWS_DRIVE.match(written):
+        return None
     return os.path.normpath(os.path.join(folder, *written.replace("\\", "/").split("/")))
