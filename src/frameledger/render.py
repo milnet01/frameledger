@@ -243,6 +243,8 @@ def _compare_body(result: dict) -> list[Block]:
         return []
     if "scenes" in compared:
         return _scenes_body(compared)
+    if "variants" in compared:
+        return _variants_body(compared)
     blocks: list[Block] = [Table("Runs:", [Column("run"), Column("path")],
                                  [[r["name"], r["path"]] for r in compared["runs"]],
                                  text_layout=lambda t: [_fit(f"  {name:<8}  {path}", WIDTH) for name, path in t.rows])]
@@ -308,7 +310,7 @@ def _reached_judging(compared: dict) -> bool:
     """Whether a compare's result got as far as the runs' header check:
     a file error and a named measure no run has stop before it, and have
     nothing to show past their sentences."""
-    return bool({"scenes", "measures", "refused"} & compared.keys())
+    return bool({"scenes", "variants", "measures", "refused"} & compared.keys())
 
 
 def _per_run_table(compared: dict) -> Table:
@@ -473,6 +475,25 @@ def _scenes_body(compared: dict) -> list[Block]:
                   [Column("rank", 4, True), Column("scene", 20, fit=lambda s: _fit_left(s, 20)),
                    Column("verdict", 12), Column("measure", 28, fit=_fitter(28)), Column("change", 12, True),
                    Column("segment", fit=_fitter(10))], rows)]
+
+
+def _variants_body(compared: dict) -> list[Block]:
+    """Every variant, the largest saving first, within 100 columns in the
+    text (§ 4.16). The figures are the rank measure's; its unit is the
+    same in every row."""
+    units = {v["measure"]["unit"] for v in compared["variants"] if v["measure"]}
+    unit = units.pop() if units else "ms"
+    rows = []
+    for v in compared["variants"]:
+        m = v["measure"]
+        figures = ["-"] * 4 if m is None else [
+            f"{m['new_centre']:.3f}", f"{m['change']:+.3f}",
+            "-" if m["change_pct"] is None else f"{m['change_pct']:+.2f}%", m["verdict"]]
+        rows.append([str(v["rank"] or "-"), v["name"], v["verdict"], *figures])
+    return [Table("Variants, the largest saving first:",
+                  [Column("rank", 4, True), Column("variant", 28, fit=_fitter(28)), Column("verdict", 12),
+                   Column(f"median {unit}", 12, True), Column(f"change {unit}", 12, True),
+                   Column("change %", 8, True), Column("measure")], rows)]
 
 
 _BODIES = {"check": _check_body, "report": _report_body, "floor": _floor_body,

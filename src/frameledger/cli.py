@@ -1,6 +1,6 @@
 """Commands, flags and exit codes (docs/specs/FLED-0001-run-file-format.md
 § 4.7, § 4.10 and § 4.14 for `compare`, § 4.11 for `bisect`, § 4.12 for `budget`
-and § 4.15 for `alternate`).
+§ 4.15 for `alternate`, and § 4.16 for the `--base` and `--variant` form of both).
 
 The only module that prints or decides an exit code. Every command
 builds one result dict in the shape of § 4.8, and render.py turns it
@@ -27,6 +27,7 @@ import run_report
 import scenes
 import selftest
 import survey
+import variants
 
 VERSION = "0.4.0"
 
@@ -75,13 +76,20 @@ def _parser() -> _Parser:
     _add_output_flags(floor)
     compare_cmd = commands.add_parser("compare", help="did the new runs get slower than the old, "
                                       "measure by measure?")
-    compare_cmd.add_argument("--old", nargs="+", required=True, metavar="FILE",
+    compare_cmd.add_argument("--old", nargs="+", metavar="FILE",
                              help=f"the old build's runs, at least {compare.FEWEST_RUNS}")
-    compare_cmd.add_argument("--new", nargs="+", required=True, metavar="FILE",
+    compare_cmd.add_argument("--new", nargs="+", metavar="FILE",
                              help=f"the new build's runs, at least {compare.FEWEST_RUNS}")
     compare_cmd.add_argument("--by-scene", action="store_true",
                              help="judge each scene apart, by the header's scene, at least "
                              f"{compare.FEWEST_RUNS} runs a side each")
+    compare_cmd.add_argument("--base", nargs="+", metavar="FILE",
+                             help="instead of --old and --new: the runs every variant is judged against, "
+                             f"at least {compare.FEWEST_RUNS}")
+    # nargs="*", so a name with too few files is this module's error, not argparse's.
+    compare_cmd.add_argument("--variant", nargs="*", action="append", default=[], metavar="NAME FILE",
+                             help=f"a named variant's runs, at least {compare.FEWEST_RUNS}; give it once "
+                             "per variant")
     _add_compare_flags(compare_cmd)
     _add_bisect(commands)
     _add_alternate(commands)
@@ -151,10 +159,14 @@ def _add_compare_flags(command) -> None:
 def _add_alternate(commands) -> None:
     command = commands.add_parser("alternate", help="run the old and new builds in turn, each into "
                                     "its own run file, then compare them")
-    command.add_argument("--old", required=True, metavar="CMD",
+    command.add_argument("--old", metavar="CMD",
                            help=f"the old build's command; {alternate.PLACEHOLDER} is its run file's path")
-    command.add_argument("--new", required=True, metavar="CMD",
+    command.add_argument("--new", metavar="CMD",
                            help=f"the new build's command; {alternate.PLACEHOLDER} is its run file's path")
+    command.add_argument("--base", metavar="CMD",
+                           help="instead of --old and --new: the command every variant is judged against")
+    command.add_argument("--variant", nargs=2, action="append", default=[], metavar=("NAME", "CMD"),
+                           help="a named variant's command; give it once per variant")
     command.add_argument("--out", required=True, metavar="DIR", help="an existing folder for the run files")
     command.add_argument("--runs", type=_in_range(alternate.FEWEST_RUNS, alternate.MOST_RUNS),
                            default=5, metavar="N", help="runs a side (default 5)")
@@ -484,6 +496,14 @@ def _compare(args: argparse.Namespace) -> dict:
     """§ 4.10: exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 when a
     file cannot be read or breaks the format, or the compare is refused."""
     named = _named(args.measure)
+    sides = _variant_sides(args, args.by_scene and "--by-scene")
+    if sides:
+        for name, paths in sides.items():
+            if len(paths) < compare.FEWEST_RUNS:
+                flag = "--base" if name == variants.BASE else f"--variant {name}"
+                raise ledger.LedgerError(f"{flag} has {len(paths)} runs; each needs at least "
+                                         f"{compare.FEWEST_RUNS}, since two give too many false changes")
+        return _compare_variants("compare", sides, _overrides(args.override), args, named)
     if args.by_scene:
         return _compare_scenes(args, named)
     for label, paths in (("--old", args.old), ("--new", args.new)):
@@ -507,6 +527,54 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
         return _result(command, "error", ERROR,
                        [*compare.overrides_sentences(listed), compare.absent_sentence(built["absent"])],
                        [], {"runs": built["result"]["runs"], "named_measures": list(named)}, listed)
+    code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
+    return _result(command, built["verdict"], code, built["summary"], built["warnings"],
+                   built["result"], built["overrides"])
+
+
+def _variant_sides(args: argparse.Namespace, other_flag: str | bool = False) -> dict:
+    """§ 4.16's setup: {"base": its --base value, each variant's name: its
+    --variant value}, in the order given; or {} for a command with neither
+    flag, once its --old and --new are both there. `other_flag` names a
+    flag given that --base cannot go with. A value is a compare's files
+    or an alternate's command."""
+    if args.base is None and not args.variant:
+        missing = [flag for flag, value in (("--old", args.old), ("--new", args.new)) if value is None]
+        if missing:
+            raise ledger.LedgerError(f"give --old and --new, or --base and --variant; {missing[0]} is missing")
+        return {}
+    if args.base is None:
+        raise ledger.LedgerError("--variant needs --base, the runs each variant is judged against")
+    if not args.variant:
+        raise ledger.LedgerError("--base needs at least one --variant NAME to judge against it")
+    clash = next((flag for flag, given in (("--old", args.old is not None), ("--new", args.new is not None),
+                                           (other_flag, bool(other_flag))) if given), None)
+    if clash:
+        raise ledger.LedgerError(f"--base and --variant replace --old and --new, and judge no scenes: "
+                                 f"{clash} cannot be given with them")
+    if not all(args.variant):
+        raise ledger.LedgerError("--variant needs a name: --variant NAME ...")
+    names = [given[0] for given in args.variant]
+    variants.check_names(names)
+    values = (given[1:] if isinstance(args.base, list) else given[1] for given in args.variant)
+    return {variants.BASE: args.base, **dict(zip(names, values, strict=True))}
+
+
+def _compare_variants(command: str, sides: dict[str, list[str]], overrides: dict[str, str],
+                      args: argparse.Namespace, named: tuple[str, ...], own_files: bool = False) -> dict:
+    """§ 4.16: exit 0 every variant passes, 1 a variant fails, 2 a variant
+    is inconclusive or unjudged, 3 a file that cannot be read or no
+    variant judged. `own_files` says the command named the files itself,
+    as alternate does: then a bad variant file leaves that variant
+    unjudged."""
+    paths = dict(sides)
+    try:
+        built = variants.against_base(paths.pop(variants.BASE), paths, overrides, _floors(args), _limits(args),
+                                      named, unread_is_unjudged=own_files)
+    except ledger.LedgerError as error:  # S5: the overrides are named even here
+        listed = _listed(overrides)
+        return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
+                       [{"code": "file_error", "message": str(error)}], {}, listed)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result(command, built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
@@ -549,12 +617,13 @@ def _listed(overrides: dict[str, str]) -> list[dict]:
 
 def _alternate(args: argparse.Namespace) -> dict:
     """§ 4.15: every setup error is exit 3 before any command starts; a run
-    that fails stops the rest, exit 3; otherwise § 4.10's compare."""
-    commands = {"old": args.old, "new": args.new}
+    that fails stops the rest, exit 3; otherwise § 4.10's compare, or with
+    --base § 4.16's."""
+    commands = _variant_sides(args) or {"old": args.old, "new": args.new}
     named = _named(args.measure)
     out = os.path.abspath(args.out)
     overrides = _overrides(args.override)
-    planned = alternate.plan(out, args.runs, args.warmup)
+    planned = alternate.plan(out, list(commands), args.runs, args.warmup)
     alternate.check_setup(commands, out, planned)
     added = {"commands": commands, "out": out, "warmup": args.warmup}
     stopped = alternate.run_all(commands, planned)
@@ -565,8 +634,11 @@ def _alternate(args: argparse.Namespace) -> dict:
                        [], {**added, "stopped": stopped}, listed)
     # Compared in run-number order, old-1, old-2, ..., as compare names them.
     timed = sorted((run for run in planned if run.timed), key=lambda run: run.number)
-    old, new = ([run.path for run in timed if run.side == side] for side in ("old", "new"))
-    built = _compare_paths("alternate", old, new, overrides, args, named)
+    paths = {side: [run.path for run in timed if run.side == side] for side in commands}
+    if variants.BASE in commands:
+        built = _compare_variants("alternate", paths, overrides, args, named, own_files=True)
+    else:
+        built = _compare_paths("alternate", paths["old"], paths["new"], overrides, args, named)
     built["result"] = {**built["result"], **added, "stopped": None}
     return built
 

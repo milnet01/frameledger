@@ -1616,8 +1616,8 @@ read when it is judged and let go after.
   in the command. Under `alternate` the tool named the files, and a
   long session must not be lost to one broken variant build: a bad
   variant file makes that variant unjudged, naming the file and its
-  reason, and the others go on. A bad base file is still exit 3 (DOOM
-  Ants).
+  reason, with `compare` null, and the others go on. A bad base file
+  is still exit 3 (DOOM Ants).
 - **A variant that refuses is unjudged, and the others go on**, as a
   scene does under § 4.14. Its reason names each field, as § 4.10's
   refusal sentence does.
@@ -1667,9 +1667,10 @@ kept measures, as § 4.10. Then one sentence per failing variant, by
 name, § 4.10's verdict sentence opening with the variant's name:
 "no_bloom is slower: the gpu/opaque median in view rose from 3.100 to
 3.512 ms." Then one per inconclusive variant with § 4.10's reason, one
-per unjudged variant with its reason, and each variant's warnings,
-opening with its name. A base run's § 4.9 warnings are given once,
-opening with the run's name, not once per variant. Then one sentence
+per unjudged variant with its reason. A base run's § 4.9 warnings are
+given once, opening with the run's name, not once per variant. Then
+each variant's warnings, opening with its name; one about a whole set
+calls the sets "the base runs" and "the no_bloom runs". Then one sentence
 naming the rank measure: "Ranked by the frame/wall median in view;
 base 16.400 ms." When no base run has it, the sentence is "Nothing is
 ranked: no base run has gpu/x.", and every rank cell is `–`
@@ -2810,7 +2811,10 @@ breaks.
   with a reason naming `b-2`, `a` is judged, and the exit is 2 when
   `a` passes; with
   `base-2.csv` empty instead, the exit is 3 (DOOM Ants).
-  *Test:* `tests/test_compare_variants.py::test_alternate_variants`.
+  *Test:* `tests/test_compare_variants.py::test_alternate_variants`,
+  and beside it `test_alternate_variants_warm_up_in_order`,
+  `test_alternate_variants_setup_errors` and
+  `test_alternate_variants_bad_file`.
   *Breaks when:* the rounds do not reverse, a side's runs share a
   file, the judging differs from `compare`'s, a setup error runs a
   command, or one bad variant file loses the other variants. The
@@ -3028,7 +3032,7 @@ it on each release they pin.
 | INV-91 | `tests/test_compare_variants.py::test_refused_variant` |
 | INV-92 | `tests/test_compare_variants.py::test_rank` |
 | INV-93 | `tests/test_compare_variants.py::test_judged_count` |
-| INV-94 | `tests/test_compare_variants.py::test_alternate_variants` |
+| INV-94 | `tests/test_compare_variants.py::test_alternate_variants`, `tests/test_compare_variants.py::test_alternate_variants_warm_up_in_order`, `tests/test_compare_variants.py::test_alternate_variants_setup_errors`, `tests/test_compare_variants.py::test_alternate_variants_bad_file` |
 | INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`, `tests/test_alternate.py::test_windows_kill_is_no_stop_signal` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

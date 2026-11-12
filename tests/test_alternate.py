@@ -408,7 +408,7 @@ def test_stop_while_starting(tmp_path, capfd, monkeypatch):
         return process
 
     monkeypatch.setattr(alternate.subprocess, "Popen", popen_then_stop)
-    planned = alternate.plan(str(tmp_path), 3, 0)
+    planned = alternate.plan(str(tmp_path), ["old", "new"], 3, 0)
     stopped = alternate.run_all({"old": "sleep 30; : {run}", "new": "sleep 30; : {run}"}, planned)
     assert stopped["run"] == "old-1" and "SIGTERM" in stopped["reason"]
     assert started[0].poll() is not None  # the shell was ended and reaped, not left running

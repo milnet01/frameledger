@@ -5,6 +5,7 @@ copies SOURCE, a run file, to RUN. FAKE_ENGINE=NAME=MODE changes what the
 run named NAME (new-2, say) does instead:
   exit4   writes its file, then exits 4;
   nofile  writes nothing and exits 0;
+  empty   writes an empty file and exits 0;
   wait    writes its file and its process id (to LOG.pid), then sleeps
           until it is stopped;
   stubborn  as wait, but ignores Ctrl-Break (SIGBREAK, Windows only),
@@ -33,7 +34,9 @@ target, _, mode = os.environ.get("FAKE_ENGINE", "").partition("=")
 mode = mode if target == name else ""
 if mode == "killself":
     os.kill(os.getpid(), signal.SIGKILL)
-if mode != "nofile":
+if mode == "empty":
+    open(run, "w", encoding="utf-8").close()
+elif mode != "nofile":
     shutil.copyfile(source, run)
 mode, _, seconds = mode.partition(":")
 if mode == "background":

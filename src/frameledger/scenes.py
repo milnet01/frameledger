@@ -18,9 +18,6 @@ import compare
 import ledger
 import run_report
 
-# Why a scene with none of --measure's names is unjudged (§ 4.14).
-LACKS_NAMED = "none of its runs has a named measure"
-
 
 def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
              limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
@@ -50,7 +47,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
             absent &= scene_absent
         else:
             all_read = False
-        if entry["reason"] == LACKS_NAMED:
+        if entry["reason"] == compare.LACKS_NAMED:
             lacking.add(name)
     if not any(e["compare"] for e in scenes):
         unused = set()  # no scene was read, so no field was seen not to differ
@@ -165,7 +162,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
         return entry, None, None
     unused, absent = set(built["unused"]), set(built["absent"])
     if named_measures and absent == set(named_measures):  # judges nothing here, by the caller's choice
-        entry["compare"], entry["reason"] = built["result"], LACKS_NAMED
+        entry["compare"], entry["reason"] = built["result"], compare.LACKS_NAMED
         return entry, unused, absent
     entry["compare"] = built["result"]
     entry["warnings"] = [w for w in built["warnings"] if w["code"] != "override_unused"]
@@ -174,9 +171,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
         return entry, unused, None
     entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
     if built["verdict"] == "fail":
-        measures = built["result"]["measures"]
-        worse = [m for m in measures if m["verdict"] == "slower"] or [m for m in measures if m["verdict"] == "larger"]
-        entry["measure"] = compare.worst_of(worse)
+        entry["measure"] = compare.worse_measure(built["result"]["measures"])
         entry["segment"] = _segment(entry["measure"], old_runs, new_runs)
     return entry, unused, absent
 
@@ -224,10 +219,5 @@ def _verdict(scenes: list[dict], unread: list[dict], lacking: set[str]) -> str:
 
 
 def _fail_sentence(entry: dict) -> str:
-    m = entry["measure"]
-    opening = "is slower" if m["verdict"] == "slower" else "uses more memory"
     where = f", most in {entry['segment']}" if entry["segment"] else ""
-    kind = f" in {m['segment_kind']}" if m["segment_kind"] else ""
-    return (f"{entry['scene']} {opening}: the {m['category']}/{m['name']} {m['statistic']}{kind} "
-            f"rose from {m['old_centre']:.3f} to "
-            f"{m['new_centre']:.3f} {m['unit']}{where}.")
+    return compare.rose_sentence(entry["scene"], entry["measure"], where)

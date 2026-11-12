@@ -115,6 +115,7 @@ The spec lists the flags and exit codes:
 [check, report and floor](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands),
 [compare](docs/specs/FLED-0001-run-file-format.md#410-comparing-labelled-sets-of-runs),
 [alternate](docs/specs/FLED-0001-run-file-format.md#415-alternating-runs),
+[variants against one base](docs/specs/FLED-0001-run-file-format.md#416-variants-against-one-base),
 [bisect](docs/specs/FLED-0001-run-file-format.md#411-bisect-verdicts) and
 [budget](docs/specs/FLED-0001-run-file-format.md#412-pass-budgets).
 
@@ -132,6 +133,21 @@ Ctrl-Break the same way, or a stopped run has no close line.
 A run whose header records other programs loading the CPU or GPU
 while it ran makes the compare inconclusive; `--max-load` and
 `--max-gpu-busy` set how much is allowed.
+
+### Several variants against one base
+
+To cost each effect, give the full frame as `--base` and the frame
+with each effect off as a named `--variant`:
+
+```sh
+frameledger compare --base full1.csv full2.csv full3.csv --variant no_bloom nb1.csv nb2.csv nb3.csv --variant no_fog nf1.csv nf2.csv nf3.csv
+frameledger alternate --base './engine --frame-log={run}' --variant no_bloom './engine --no-bloom --frame-log={run}' --out effects
+```
+
+Each variant is judged against the base as `compare` judges new
+against old, and the variants are ranked by how much frame time each
+saved. A variant that cannot be judged does not stop the others.
+`--measure` picks another measure to rank by.
 `--measure gpu/opaque`, given once per measure, judges only the
 measures named, and adds a table of each run's value of each.
 Compare reads each run's start time from its file's `started_utc`

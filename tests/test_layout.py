@@ -20,6 +20,7 @@ ALLOWED = {
     "budgeting": {"compare", "run_report", "trust", "stats", "ledger"},
     "survey": {"run_report", "trust", "stats", "ledger"},
     "scenes": {"compare", "run_report", "trust", "stats", "ledger"},
+    "variants": {"compare", "run_report", "trust", "stats", "ledger"},
     "alternate": {"ledger"},
     "render": set(),
     "selftest": MODULES - {"cli", "selftest", "render"},

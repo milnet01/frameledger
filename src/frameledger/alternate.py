@@ -1,5 +1,6 @@
 """`alternate`: run the old and new builds' commands in turn, each into its
-own run file (docs/specs/FLED-0001-run-file-format.md § 4.15).
+own run file (docs/specs/FLED-0001-run-file-format.md § 4.15); or a base's
+command and each named variant's (§ 4.16). Each of those is a side.
 
 This module only plans and runs the commands. It times nothing and reads
 no run file: cli.py compares the files once every run has finished.
@@ -18,6 +19,7 @@ from typing import NamedTuple
 import ledger
 
 PLACEHOLDER = "{run}"
+FLAG_SIDES = ("old", "new", "base")  # the sides with a flag of their own; a variant's is --variant NAME
 FEWEST_RUNS, MOST_RUNS = 3, 100
 MOST_WARMUPS = 10
 # The filled path needs no quoting in /bin/sh or cmd.exe.
@@ -35,21 +37,23 @@ SETTLE_S = 2  # how long a finished command's leftover processes have to end
 
 class Run(NamedTuple):
     name: str     # old-1, new-warmup-1, ...
-    side: str     # old or new
+    side: str     # old or new; or base, or a variant's name
     number: int   # 1 for old-1 and old-warmup-1
     timed: bool   # False for a warm-up, which is never compared
     path: str     # the run's own file, absolute
 
 
-def plan(out: str, runs: int, warmup: int) -> list[Run]:
-    """Warm-ups first, old then new; then pairs, old first in odd pairs and
-    new first in even ones, so a steady drift cancels over every two pairs."""
+def plan(out: str, sides: list[str], runs: int, warmup: int) -> list[Run]:
+    """Rounds of one run a side. Warm-up rounds first, the sides in the
+    order given; then timed rounds, in that order in odd rounds and
+    reversed in even ones, so a steady drift cancels over every two
+    rounds, for every side. With old and new that is old-1, new-1, new-2,
+    old-2, ...."""
     planned = []
     for number in range(1, warmup + 1):
-        planned += [_run(out, side, number, False) for side in ("old", "new")]
+        planned += [_run(out, side, number, False) for side in sides]
     for number in range(1, runs + 1):
-        sides = ("old", "new") if number % 2 else ("new", "old")
-        planned += [_run(out, side, number, True) for side in sides]
+        planned += [_run(out, side, number, True) for side in (sides if number % 2 else reversed(sides))]
     return planned
 
 
@@ -59,10 +63,12 @@ def _run(out: str, side: str, number: int, timed: bool) -> Run:
 
 
 def check_setup(commands: dict[str, str], out: str, planned: list[Run]) -> None:
-    """Every setup error, found before any command starts."""
+    """Every setup error, found before any command starts. `commands` maps
+    each side to its command."""
     for side, command in commands.items():
         if PLACEHOLDER not in command:
-            raise ledger.LedgerError(f"--{side} must hold {PLACEHOLDER}, where its run file's path goes")
+            flag = f"--{side}" if side in FLAG_SIDES else f"--variant {side}"
+            raise ledger.LedgerError(f"{flag} must hold {PLACEHOLDER}, where its run file's path goes")
     if not os.path.isdir(out):
         raise ledger.LedgerError(f"--out {out} is not an existing folder")
     if not SAFE_DIR.fullmatch(out):

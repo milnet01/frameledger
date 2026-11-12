@@ -36,6 +36,8 @@ MEM_VERDICTS = {"slower": "larger", "faster": "smaller"}  # memory has no speed
 ABSENT = object()  # a run's header field that is absent: it matches only another absent one
 # Notice codes the opening sentences say themselves, per run.
 INCOMPLETE_CODES = ("rows_dropped", "unfinished")
+# Why a scene or variant with none of --measure's names is unjudged (§ 4.14, § 4.16).
+LACKS_NAMED = "none of its runs has a named measure"
 
 
 class Floors(NamedTuple):
@@ -94,7 +96,8 @@ class Measure(NamedTuple):
 
 
 def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors,
-            limits: LoadLimits = DEFAULT_LIMITS, named_measures: tuple[str, ...] = ()) -> dict:
+            limits: LoadLimits = DEFAULT_LIMITS, named_measures: tuple[str, ...] = (),
+            sides: tuple[str, str] = ("old", "new")) -> dict:
     """{"verdict", "reason", "summary", "warnings", "overrides", "unused",
     "absent", "result"} for two sets of runs that meet the format. `reason`
     says, in a clause, why the compare is refused or inconclusive, and is
@@ -105,11 +108,16 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     override fields and the names' form; a Run with a breach raises
     LedgerError, as under `report`.
 
+    `sides` names the two sets where a run or a warning names them: under
+    § 4.16 the old set is `base` and the new set the variant, so the runs
+    are base-1, no_bloom-1. Each run's `set` stays "old" or "new".
+
     The opening sentences follow § 4.10's order: the overrides; the named
     measures; a refusal, which ends the compare; each incomplete run; one
     per kind of warning; the verdict; the short kinds; the frame time per
     segment kind."""
-    runs = [Named(f"{label}-{i}", label, run.path, run)
+    called = dict(zip(("old", "new"), sides, strict=True))
+    runs = [Named(f"{called[label]}-{i}", label, run.path, run)
             for label, group in (("old", old), ("new", new)) for i, run in enumerate(group, 1)]
     for r in runs:
         run_report.refuse_breaches(r.run)
@@ -128,7 +136,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
 
     incomplete = _incomplete_sentences(runs)
     loaded = _load_sentences(runs, limits)
-    notices += run_notices(runs) + _set_notices(runs)
+    notices += run_notices(runs) + _set_notices(runs, called)
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + loaded + run_report.warning_sentences(shown)
 
@@ -293,7 +301,8 @@ def run_notices(runs: list[Named]) -> list[ledger.Notice]:
     return found
 
 
-def _set_notices(runs: list[Named]) -> list[ledger.Notice]:
+def _set_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
+    """The warnings about a whole set. `called` is each set's name in them."""
     found = []
     starts = {label: [_started(r.run.header["started_utc"]) for r in runs if r.set == label]
               for label in ("old", "new")}
@@ -303,12 +312,12 @@ def _set_notices(runs: list[Named]) -> list[ledger.Notice]:
     for label in ("old", "new"):
         builds = {(r.run.header["commit"], r.run.header["dirty"]) for r in runs if r.set == label}
         if len(builds) > 1:
-            found.append(ledger.Notice("mixed_build", f"the {label} runs differ in commit or dirty, so "
-                                       "they may not be one build"))
-    return found + _differ_notices(runs)
+            found.append(ledger.Notice("mixed_build", f"the {called[label]} runs differ in commit or dirty, "
+                                       "so they may not be one build"))
+    return found + _differ_notices(runs, called)
 
 
-def _differ_notices(runs: list[Named]) -> list[ledger.Notice]:
+def _differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
     """§ 4.10: the two sets' medians of a load or clock field differ by more
     than its limit. Each needs the field in every run."""
     found = []
@@ -321,9 +330,9 @@ def _differ_notices(runs: list[Named]) -> list[ledger.Notice]:
                     for label in ("old", "new"))
         allowed = limit * old if relative else limit
         if abs(new - old) > allowed:
-            shown = f"{(limit * 100).normalize()}% of the old" if relative else str(limit)
-            found.append(ledger.Notice(code, f"the old runs' median {field}.{key} is {old} and the new "
-                                       f"runs' is {new}, which differ by more than {shown}"))
+            shown = f"{(limit * 100).normalize()}% of the {called['old']}" if relative else str(limit)
+            found.append(ledger.Notice(code, f"the {called['old']} runs' median {field}.{key} is {old} and "
+                                       f"the {called['new']} runs' is {new}, which differ by more than {shown}"))
     return found
 
 
@@ -525,6 +534,30 @@ def worst_of(measures: list[dict]) -> dict:
     """The largest change among `measures`, all in one unit; ties by
     percent. The verdict sentence names it."""
     return max(measures, key=lambda m: (m["change"], m["change_pct"] or 0))
+
+
+def worse_measure(measures: list[dict]) -> dict | None:
+    """The measure a failing scene or variant is named for: its largest
+    slowdown, or without one its largest growth in memory; None when
+    nothing got worse."""
+    worse = ([m for m in measures if m["verdict"] == "slower"]
+             or [m for m in measures if m["verdict"] == "larger"])
+    return worst_of(worse) if worse else None
+
+
+def rose_sentence(subject: str, measure: dict, where: str = "") -> str:
+    """"atrium is slower: the gpu/opaque median in view rose from 3.100
+    to 3.512 ms.": how § 4.14 names a failing scene and § 4.16 a failing
+    variant. `where` ends the sentence, for a scene's segment."""
+    opening = "is slower" if measure["verdict"] == "slower" else "uses more memory"
+    return (f"{subject} {opening}: the {measure_phrase(measure)} rose from {measure['old_centre']:.3f} to "
+            f"{measure['new_centre']:.3f} {measure['unit']}{where}.")
+
+
+def measure_phrase(measure: dict) -> str:
+    """"gpu/opaque median in view"; an unsegmented measure names no kind."""
+    kind = f" in {measure['segment_kind']}" if measure["segment_kind"] else ""
+    return f"{measure['category']}/{measure['name']} {measure['statistic']}{kind}"
 
 
 def _worse_sentence(opening: str, word: str, measures: list[dict]) -> str:
