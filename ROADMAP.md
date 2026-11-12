@@ -758,6 +758,9 @@ to compare against, and the small fixes they filed.
   2026-11-11: spec amendment drafted as docs/specs/FLED-0001-run-file-format.md
   § 4.16 (compare --base/--variant, alternate --base/--variant) with
   INV-89 to INV-94; sent to the three engines for review before building.
+  2026-11-12: built at a9b3c35 (variants.py; compare and alternate
+  --base/--variant; tests/test_compare_variants.py). Gate green. Sent to
+  the three engines for code review, correctness and readability.
   **Layman:** Compare many versions at once, such as the game with each effect turned off in turn.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -909,6 +912,15 @@ to compare against, and the small fixes they filed.
   folded at 4533b7b and 759dfcb. Vestige's Windows 10 box at 759dfcb:
   23 passed, 8 skipped, 0 failed; red with 26a6b84's alternate.py
   (analyser died 0xC000013A). Awaiting DOOM Ants' code review to ship.
+  2026-11-12: DOOM Ants' code review folded at 2b23c4c (the Windows test
+  times Ctrl-Break to exit; tasklist polled; INV-95's Breaks-when
+  narrowed; "did not end after being killed"). Sent to Vestige for a
+  Windows re-run: green at 2b23c4c, and red with only
+  _signal_windows_tree reverted. Ships when that comes back.
+  2026-11-12: Vestige's Windows run at 2b23c4c: green as it stands; with
+  the tree signalling emptied [wait] went red but [stubborn] stayed
+  green, so the test was tightened at 4621891 and 27bb14e. Vestige asked
+  to re-run at 27bb14e.
   **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
   Kind: feature.
   Source: engine-review-2026-11-10.
