@@ -36,7 +36,10 @@ MEM_VERDICTS = {"slower": "larger", "faster": "smaller"}  # memory has no speed
 ABSENT = object()  # a run's header field that is absent: it matches only another absent one
 # Notice codes the opening sentences say themselves, per run.
 INCOMPLETE_CODES = ("rows_dropped", "unfinished")
-# Why a scene or variant with none of --measure's names is unjudged (§ 4.14, § 4.16).
+# Why a scene or variant with none of --measure's names is unjudged. One
+# sentence, two tests: a scene lacks them when no run of either side has one
+# (§ 4.14); a variant when none of its own runs has, whatever the base runs
+# have (§ 4.16).
 LACKS_NAMED = "none of its runs has a named measure"
 
 
@@ -134,7 +137,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
                 "unused": unused, "absent": [], "result": {"runs": run_list, "refused": refused}}
 
     incomplete = _incomplete_sentences(runs)
-    loaded = _load_sentences(runs, limits)
+    loaded = load_sentences(runs, limits)
     notices += run_notices(runs) + _set_notices(runs, called)
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + loaded + run_report.warning_sentences(shown)
@@ -286,7 +289,7 @@ def _incomplete_sentences(runs: list[Named]) -> list[str]:
     return sentences
 
 
-def _load_sentences(runs: list[Named], limits: LoadLimits) -> list[str]:
+def load_sentences(runs: list[Named], limits: LoadLimits) -> list[str]:
     """A run taken under load cannot pass or fail a compare (S22): other
     programs shared the machine while it ran."""
     sentences = []

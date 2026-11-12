@@ -48,6 +48,7 @@ class _Judged(NamedTuple):
     """One variant, judged or not."""
     entry: dict  # its entry in the result's "variants"
     warnings: list[dict]  # its compare's warnings; the result lists them apart from the entry
+    loaded: list[str]  # § 4.10's sentence for each of its own runs taken under load
     # The overridden fields that differed in none of its compare's runs;
     # None when its runs were not read.
     unused: set[str] | None
@@ -79,6 +80,7 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
 
     judged_all = [_judge(name, base_runs, paths, overrides, floors, limits, named_measures, unread_is_unjudged)
                   for name, paths in variants.items()]
+    by_name = sorted(judged_all, key=lambda j: j.entry["name"])
     entries = [j.entry for j in judged_all]
     judged = [e for e in entries if e["verdict"] != "unjudged"]
     lacking = {j.entry["name"] for j in judged_all if j.lacks_named}
@@ -98,9 +100,10 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     rank_measure = _rank_measure(base_runs, named_measures)
     # Text groups the warnings by side, the base's and then each variant's
     # by name (`_summary`); JSON's "warnings" is the same groups, flat.
-    notice_groups = [base_notices,
-                     *(_own_notices(j, base_warnings) for j in sorted(judged_all, key=lambda j: j.entry["name"])),
+    notice_groups = [base_notices, *(_own_notices(j, base_warnings) for j in by_name),
                      compare.unused_override_notices(_unused(overrides, judged_all))]
+    # A loaded base run makes every variant inconclusive, so it is named first.
+    loaded = [*compare.load_sentences(base_named, limits), *(s for j in by_name for s in j.loaded)]
     entries = _ranked(entries, rank_measure)
     measures = sum(len(e["compare"]["measures"]) for e in judged)
     result = {
@@ -117,7 +120,7 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
         "named_measures": list(named_measures),
         "overrides": override_list,
     }
-    summary = _summary(override_list, named_measures, entries, len(judged), measures, notice_groups,
+    summary = _summary(override_list, named_measures, entries, len(judged), measures, loaded, notice_groups,
                        _rank_sentence(base_runs, rank_measure, named_measures))
     return {"verdict": _verdict(entries, lacking) if judged else "error", "summary": summary,
             "warnings": run_report.warning_entries([n for group in notice_groups for n in group]),
@@ -138,19 +141,21 @@ def _judge(name: str, base_runs: list[ledger.Run], paths: list[str], overrides: 
         if not unread_is_unjudged:
             raise
         entry["reason"] = str(error)
-        return _Judged(entry, [], None, None, False)
+        return _Judged(entry, [], [], None, None, False)
     entry["compare"] = built["result"]
     unused = set(built["unused"])
     if built["verdict"] == "error":  # refused, so its compare looked for no measure
         entry["reason"] = built["reason"]
-        return _Judged(entry, [], unused, set(compare.absent_names(runs, named_measures)), False)
-    if named_measures and not _own_runs_have_named(built["result"]):
-        entry["reason"] = compare.LACKS_NAMED  # judges nothing here, by the caller's choice
-        return _Judged(entry, [], unused, set(built["absent"]), True)
-    entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
+        return _Judged(entry, [], [], unused, set(compare.absent_names(runs, named_measures)), False)
     # override_unused is the command's to give, once: `_unused`.
     warnings = [w for w in built["warnings"] if w["code"] != "override_unused"]
-    return _Judged(entry, warnings, unused, set(built["absent"]), False)
+    loaded = compare.load_sentences(compare.named_set("new", name, runs), limits)
+    lacks_named = bool(named_measures) and not _own_runs_have_named(built["result"])
+    if lacks_named:  # judges nothing here, by the caller's choice; its runs' warnings still stand (Vestige)
+        entry["reason"] = compare.LACKS_NAMED
+    else:
+        entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
+    return _Judged(entry, warnings, loaded, unused, set(built["absent"]), lacks_named)
 
 
 def _own_notices(judged: _Judged, base_warnings: list[dict]) -> list[ledger.Notice]:
@@ -230,13 +235,16 @@ def _is(entry: dict, measure: compare.Measure) -> bool:
 
 def _rank_sentence(base_runs: list[ledger.Run], rank_measure: compare.Measure | None,
                    named_measures: tuple[str, ...]) -> str:
-    """Names the rank measure and the base's centre of it, over the base
-    runs that have it."""
+    """Names the rank measure and the base's centre of it; or says why no
+    variant has a rank. A measure only some base runs have is in every
+    variant's `unmatched`, so none has a rank entry (Vestige)."""
     if rank_measure is None:
         return f"Nothing is ranked: no base run has {named_measures[0] if named_measures else DEFAULT_RANK_MEASURE}."
     values = [values[rank_measure] for values in map(compare.run_values, base_runs) if rank_measure in values]
     fields = {"segment_kind": rank_measure.kind, "category": rank_measure.category, "name": rank_measure.name,
               "statistic": rank_measure.statistic}
+    if len(values) < len(base_runs):
+        return f"Nothing is ranked: not every base run has the {compare.measure_phrase(fields)}."
     return (f"Ranked by the {compare.measure_phrase(fields)}; base {float(compare.centre(values) / 1000):.3f} "
             f"{compare.unit_of(rank_measure.category)}.")
 
@@ -255,9 +263,10 @@ def _verdict(entries: list[dict], lacking: set[str]) -> str:
 
 
 def _summary(override_list: list[dict], named_measures: tuple[str, ...], entries: list[dict],
-             judged_count: int, measures: int, notice_groups: list[list[ledger.Notice]],
-             rank_sentence: str) -> list[str]:
-    """§ 4.16's text sentences, in its order. `notice_groups` holds the
+             judged_count: int, measures: int, loaded: list[str],
+             notice_groups: list[list[ledger.Notice]], rank_sentence: str) -> list[str]:
+    """§ 4.16's text sentences, in its order. `loaded` names each run
+    taken under load. `notice_groups` holds the
     base runs' warnings and each variant's apart, so two variants with
     the same warning both say so."""
     summary = compare.overrides_sentences(override_list)
@@ -273,6 +282,7 @@ def _summary(override_list: list[dict], named_measures: tuple[str, ...], entries
         # A refusal's reason holds semicolons, so each reason is bracketed.
         summary.append("No variant could be judged: "
                        + ", ".join(f"{e['name']} ({e['reason']})" for e in by_name) + ".")
+    summary += loaded
     for group in notice_groups:
         summary += run_report.warning_sentences(group)
     if judged_count:

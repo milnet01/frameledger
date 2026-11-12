@@ -562,16 +562,16 @@ def _variant_sides(args: argparse.Namespace, takes_files: bool, other_flag: str 
 
 
 def _compare_variants(command: str, sides: dict[str, list[str]], overrides: dict[str, str],
-                      args: argparse.Namespace, named: tuple[str, ...], own_files: bool = False) -> dict:
+                      args: argparse.Namespace, named: tuple[str, ...], unread_is_unjudged: bool = False) -> dict:
     """§ 4.16: exit 0 every variant passes, 1 a variant fails, 2 a variant
     is inconclusive or unjudged, 3 a file that cannot be read or no
-    variant judged. `own_files` says the command named the files itself,
-    as alternate does: then a bad variant file leaves that variant
-    unjudged."""
+    variant judged. `unread_is_unjudged` says the command named the files
+    itself, as alternate does: then a bad variant file leaves that
+    variant unjudged."""
     paths = dict(sides)
     try:
         built = variants.against_base(paths.pop(variants.BASE), paths, overrides, _floors(args), _limits(args),
-                                      named, unread_is_unjudged=own_files)
+                                      named, unread_is_unjudged=unread_is_unjudged)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -637,7 +637,7 @@ def _alternate(args: argparse.Namespace) -> dict:
     timed = sorted((run for run in planned if run.timed), key=lambda run: run.number)
     paths = {side: [run.path for run in timed if run.side == side] for side in commands}
     if variants.BASE in commands:
-        built = _compare_variants("alternate", paths, overrides, args, named, own_files=True)
+        built = _compare_variants("alternate", paths, overrides, args, named, unread_is_unjudged=True)
     else:
         built = _compare_paths("alternate", paths["old"], paths["new"], overrides, args, named)
     built["result"] = {**built["result"], **added, "stopped": None}

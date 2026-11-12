@@ -337,6 +337,50 @@ def test_judged_count(capsys, tmp_path):
         variants["c"] = side(files, SAME)  # a second judged variant shares the base run's warning
 
 
+LOADED = {"load": {"start": 0.1, "end": 0.1, "peak": 0.9}}
+
+
+def test_run_under_load_is_named(capsys, tmp_path):
+    """§ 4.16 (Vestige): a run taken under load is named with its peak, as
+    § 4.10 names it; a base run's once, though it makes every variant
+    inconclusive."""
+    files = Files(tmp_path)
+    base = side(files, SAME)
+    variants = {"a": [*side(files, SAME[:2]), *side(files, SAME[2:], **LOADED)], "b": side(files, SAME)}
+    code, out = against_base(capsys, base, variants)
+    assert code == 2 and variant(out, "a")["verdict"] == "inconclusive"
+    assert [s for s in out["summary"] if "under load:" in s] == [
+        "a-3 was taken under load: load.peak 0.9, above 0.25."]
+
+    code, out = against_base(capsys, [*base[:2], *side(files, SAME[2:], **LOADED)], variants)
+    assert code == 2 and variant(out, "b")["verdict"] == "inconclusive"
+    assert [s for s in out["summary"] if "under load:" in s] == [
+        "base-3 was taken under load: load.peak 0.9, above 0.25.",
+        "a-3 was taken under load: load.peak 0.9, above 0.25."]
+
+
+def test_left_out_variant_keeps_its_warnings(capsys, tmp_path):
+    """§ 4.16 (Vestige): a variant unjudged for lacking the named measure
+    still gives its runs' warnings."""
+    files = Files(tmp_path)
+    lacking = [*side(files, [None] * 2), *side(files, [None], settled_frames=1, settling_frames=5)]
+    code, out = against_base(capsys, side(files, SAME), {"a": side(files, SAME), "e": lacking},
+                             "--measure", "gpu/x")
+    assert code == 0 and variant(out, "e")["reason"] == LACKS_NAMED
+    assert [w["message"].partition(":")[0] for w in out["warnings"] if w["code"] == "settling_short"] == ["e-3"]
+
+
+def test_rank_measure_in_some_base_runs(capsys, tmp_path):
+    """§ 4.16 (Vestige): with the rank measure in two of three base runs,
+    no variant has a rank entry, and the text says why, not a base figure."""
+    files = Files(tmp_path)
+    base = [*side(files, SAME[:2]), *side(files, [None])]
+    _, out = against_base(capsys, base, {"a": side(files, SAME)}, "--measure", "gpu/x", "--measure", "cpu/sim")
+    assert variant(out, "a")["rank"] is None
+    assert "Nothing is ranked: not every base run has the gpu/x median in view." in out["summary"]
+    assert not any(s.startswith("Ranked by") for s in out["summary"])
+
+
 def test_text_table(capsys, tmp_path):
     """§ 4.16's text: every variant in one table, within 100 columns."""
     files = Files(tmp_path)
