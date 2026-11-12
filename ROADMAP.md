@@ -913,7 +913,7 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: engine-review-2026-11-10.
 
-- 🚧 [FLED-0065] **Record how frameledger numbers its 0.x releases.**
+- ✅ [FLED-0065] **Record how frameledger numbers its 0.x releases.**
   versioning.md § 4 says that inside 0.x only a breaking change bumps
   the MINOR; new features bump the PATCH. frameledger instead cuts one
   MINOR per roadmap milestone (0.3.0 and 0.4.0 carried only Added
@@ -922,6 +922,8 @@ to compare against, and the small fixes they filed.
   send it to the three engine sessions for review.
   2026-11-11: written at 06cea97 as docs/standards/versioning-overrides.md;
   sent to the three engines for review.
+  2026-11-12: all three reviews folded at dd5d103; UT Ants, Vestige and
+  DOOM Ants agreed. Shipped.
   **Layman:** Write down why each roadmap milestone gets its own 0.x number, and what would make frameledger 1.0.
   Kind: doc.
   Source: cut-release-0.4.0-2026-11-11.
