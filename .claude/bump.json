@@ -6,6 +6,11 @@
       "path": "src/frameledger/cli.py",
       "pattern": "VERSION = \"{OLD}\"",
       "replace": "VERSION = \"{NEW}\""
+    },
+    {
+      "path": "include/frameledger.h",
+      "pattern": "#define FLED_VERSION    \"{OLD}\"",
+      "replace": "#define FLED_VERSION    \"{NEW}\""
     }
   ],
   "$not_bumped": "FLED_SCHEMA in include/frameledger.h and `schema` in run files are the run-file format's version, not the release's: they move only when the format breaks (docs/specs/FLED-0001-run-file-format.md § 4.2).",

@@ -339,6 +339,7 @@ unfinished run: the engine crashed or was killed.
 
 ```c
 #define FLED_SCHEMA         1
+#define FLED_VERSION        /* this release's version, a string such as "0.5.0" */
 #define FLED_NAME_MAX       64   /* name */
 #define FLED_PART_MAX       32   /* category; segment kind; segment id */
 #define FLED_RUN_ID_MAX     64
@@ -388,6 +389,13 @@ size_t fled_json_escape (char *dst, size_t cap, const char *src);
   call `memmove`, `memcpy`, `strlen` and `llround`. One thread: the
   caller's; one writer may be used from C and C++ files of the same
   program. Compiles as C99 and as C++17.
+- `FLED_VERSION` is a string literal: the version of the release the
+  header shipped in, as that release's `frameledger --version` prints
+  it. A copy vendored into an engine so says which release it came
+  from. It is not `FLED_SCHEMA`, which moves only when the run-file
+  format breaks (4.2). A header taken from `main` between releases
+  carries the last release's version and may differ from that
+  release's header.
 
 ### 4.7 The 0.1.0 commands
 
@@ -2848,6 +2856,15 @@ breaks.
   the test run with it: on Vestige's Windows 10 box the Ctrl-Break
   passed on then reached pytest itself.
 
+- **INV-96** — The header names its release. `FLED_VERSION` in
+  `include/frameledger.h` is one string literal, equal to `VERSION` in
+  `src/frameledger/cli.py`, which `--version` prints. The release bump
+  changes both (`.claude/bump.json`).
+  *Test:* `tests/test_release.py::test_header_names_the_release`.
+  *Breaks when:* a release bumps the analyser's version and leaves the
+  header's, so a copied header names an older release; or the macro is
+  removed or defined twice.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -2893,6 +2910,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0032: INV-87 and INV-88.
 - FLED-0034: INV-89 to INV-94.
 - FLED-0063: INV-95.
+- FLED-0067: INV-96.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3034,6 +3052,7 @@ it on each release they pin.
 | INV-93 | `tests/test_compare_variants.py::test_judged_count` |
 | INV-94 | `tests/test_compare_variants.py::test_alternate_variants`, `tests/test_compare_variants.py::test_alternate_variants_warm_up_in_order`, `tests/test_compare_variants.py::test_alternate_variants_setup_errors`, `tests/test_compare_variants.py::test_alternate_variants_bad_file` |
 | INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`, `tests/test_alternate.py::test_windows_kill_is_no_stop_signal` |
+| INV-96 | `tests/test_release.py::test_header_names_the_release` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |

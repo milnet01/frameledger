@@ -1,10 +1,12 @@
 """The release archive (scripts/build_release.py; docs/design.md § The stack,
 and what it rules out): what it holds, that it rebuilds to the same bytes,
 that its frameledger.pyz runs, and that its launcher runs it by name; and the
-release notes' hash check."""
+release notes' hash check; and that the writer header names the release
+(INV-96)."""
 
 import hashlib
 import importlib.util
+import re
 import subprocess
 import sys
 import zipfile
@@ -63,6 +65,13 @@ def test_archive_holds_the_analyser_header_and_licence(tmp_path):
         assert zf.namelist() == ["LICENSE", "frameledger", "frameledger.cmd", "frameledger.pyz",
                                  "include/frameledger.h"]
         assert zf.read("include/frameledger.h") == (ROOT / "include" / "frameledger.h").read_bytes()
+
+
+def test_header_names_the_release():
+    """A vendored copy of the header says which release it came from."""
+    import cli
+    header = (ROOT / "include" / "frameledger.h").read_text(encoding="utf-8")
+    assert re.findall(r'^#define FLED_VERSION\s+"(.*)"$', header, re.MULTILINE) == [cli.VERSION]
 
 
 def test_a_rebuild_under_another_tag_is_the_same_bytes(tmp_path):

@@ -3,7 +3,7 @@
 ## Where this project is
 
 **State:** 5 — On an item.
-**In flight:** FLED-0034, FLED-0063.
+**In flight:** FLED-0034, FLED-0063, FLED-0067.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.

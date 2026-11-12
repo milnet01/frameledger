@@ -952,13 +952,17 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: engine-review-2026-11-11.
 
-- 📋 [FLED-0067] **The writer header says which release it came from.**
+- 🚧 [FLED-0067] **The writer header says which release it came from.**
   include/frameledger.h has no version macro, so a vendored copy is
   pinned only by the engine's own notes: DOOM Ants' copy at v0.2.0,
   Vestige's under external/frameledger/. DOOM Ants' review of FLED-0065:
   an FLED_VERSION macro would let a copied header say its version.
   Needs a § 4.6 amendment, reviewed by the engines, and a release step
   that keeps the macro equal to the release's version.
+  2026-11-12: § 4.6 of docs/specs/FLED-0001-run-file-format.md amended
+  (FLED_VERSION, INV-96) and built with it: the macro, a bump.json entry
+  and tests/test_release.py::test_header_names_the_release. Sent to the
+  three engines for review, string-only or with numeric parts asked.
   **Layman:** A copied writer file says which frameledger version it is, so an engine knows what it has.
   Kind: feature.
   Source: engine-review-2026-11-11.
