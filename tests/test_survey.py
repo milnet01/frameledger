@@ -73,6 +73,9 @@ def test_flag_is_floors(capsys, tmp_path):
         "f1,view:1,0,frame,wall,0,16.000", "f1,view:1,0,frame,wall,0,90.000"), encoding="utf-8")
     assert survey(capsys, [slow_start], "--fps", "60")[0] == 0
     assert survey(capsys, [slow_start], "--fps", "60", "--warmup-s", "0")[0] == 1
+    # FLED-0024: a long warm-up is shown as given, not as 1e+09.
+    code, out = survey(capsys, [slow_start], "--fps", "60", "--warmup-s", "999999999")
+    assert any("the 999999999 s warm-up" in s for s in out["summary"]), out["summary"]
 
 
 def test_rank(capsys, tmp_path):

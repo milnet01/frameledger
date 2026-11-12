@@ -32,7 +32,7 @@ def survey(paths: list[str], budget_us: int, warmup_us: int, allowed: int) -> di
         entry["rank"] = rank
     runs = ranked + [e for e in entries if e["p99_ms"] is None]
 
-    warmup = f"{warmup_us / run_report.SECOND:g} s warm-up"
+    warmup = f"{run_report.seconds(warmup_us)} s warm-up"
     summary = [_flag_sentence(e, warmup, budget_us, allowed) for e in runs if e["verdict"] == "flagged"]
     summary += [_unjudged_sentence(e, warmup) for e in runs if e["verdict"] in ("inconclusive", "unjudged")]
     warnings = [w for e in runs for w in e["warnings"]]

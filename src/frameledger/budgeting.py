@@ -184,7 +184,7 @@ def judge(run: ledger.Run, budget_file: BudgetFile, warmup_us: int) -> dict:
                 f"{e['limit_ms']:.3f} ms budget." for e in over]
     if only is not None and not only:
         # Every line is unmatched, but the run is too short, not the file wrong (UT Ants).
-        summary.append(f"No frame ends after the {_seconds(warmup_us)} s warm-up, so no budget "
+        summary.append(f"No frame ends after the {run_report.seconds(warmup_us)} s warm-up, so no budget "
                        "can be judged; a longer run is the fix.")
     else:
         summary += [_unmatched_sentence(b) for b in unmatched]
@@ -340,10 +340,6 @@ def _unmatched_sentence(budget: Budget) -> str:
     return (f"Line {budget.line}'s {budget.category}/{budget.name}{depth} is in no {frames} judged, "
             f"so its {budget.statistic} budget cannot be judged: the pass is in none of those frames, "
             "so a re-run gives the same: fix the budget file or the engine.")
-
-
-def _seconds(microseconds: int) -> str:
-    return f"{microseconds / run_report.SECOND:g}"
 
 
 def _incomplete(run: ledger.Run, stop: str | None) -> list[str]:

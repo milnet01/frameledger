@@ -287,6 +287,9 @@ def test_warmup(capsys, tmp_path):
     # One sentence for the run, not a broken budget file per line.
     assert any("No frame ends after the 3 s warm-up" in s for s in out["summary"])
     assert not any("fix the budget file" in s for s in out["summary"])
+    # FLED-0024: a long warm-up is shown as given, not as 1e+09.
+    code, out = budget(capsys, tmp_path, run_text(frames), budgets, "--warmup-s", "999999999")
+    assert any("No frame ends after the 999999999 s warm-up" in s for s in out["summary"])
 
 
 def test_huge_warmup_is_exit_3(capsys, tmp_path):

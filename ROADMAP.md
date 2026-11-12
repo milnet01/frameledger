@@ -795,7 +795,7 @@ to compare against, and the small fixes they filed.
   Kind: enhancement.
   Source: vestige-review-2026-10-26.
 
-- 📋 [FLED-0024] **A long warm-up is shown rounded, in exponent form.**
+- ✅ [FLED-0024] **A long warm-up is shown rounded, in exponent form.**
   album-builder, 2026-11-04: floor --warmup-s 999999999 on
   tests/fixtures/passing-run.csv says "follows the 1e+09 s warm-up",
   which is the refused limit. run_report.floor and budgeting format the
@@ -804,6 +804,8 @@ to compare against, and the small fixes they filed.
   the value as given would fix it.
   2026-11-10: planned for 0.5.0, a small fix kept out of 0.4.0's A/B
   work.
+  2026-11-12: fixed. run_report.seconds gives a warm-up in full for
+  floor, budget and survey; a test in each command's file.
   **Layman:** A warm-up of millions of seconds is printed as a rounded number like 1e+09 instead of as typed.
   Kind: fix.
   Source: album-builder-fact-check-2026-11-04.

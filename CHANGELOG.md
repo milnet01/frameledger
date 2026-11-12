@@ -30,6 +30,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 - A process group that outlives its kill is reported as "did not end after being killed", where it said "after SIGKILL": on Windows the kill is `taskkill` (FLED-0063).
 
+### Fixed
+
+- **A long warm-up is shown as given** (FLED-0024)
+  `floor`, `budget` and `survey` named a `--warmup-s` of a million seconds or more in rounded exponent form, such as "the 1e+09 s warm-up". Their sentences now give the warm-up in full, "the 999999999 s warm-up". Shorter warm-ups read as before.
+
 ## [0.4.0] - 2026-11-11
 
 **Theme:** A/B runs you can trust.

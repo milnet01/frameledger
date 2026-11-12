@@ -293,6 +293,15 @@ def test_huge_warmup_is_exit_3(capsys):
     assert (code, out["verdict"]) == (2, "inconclusive")
 
 
+def test_long_warmup_is_shown_as_given(capsys):
+    """FLED-0024: a warm-up of a million seconds or more is shown in full,
+    not rounded into exponent form; a short one reads as before."""
+    for given, shown in (("999999999", "999999999"), ("1234567.000001", "1234567.000001"),
+                         ("100.50", "100.5"), ("0.000001", "0.000001")):
+        code, out = run_floor(capsys, FIXTURES / "passing-run.csv", "--warmup-s", given)
+        assert any(f"the {shown} s warm-up" in s for s in out["summary"]), (given, out["summary"])
+
+
 def test_breach_is_exit_3(capsys):
     """§ 6: floor never skips a malformed row; it stops naming the line."""
     code, out = run_floor(capsys, FIXTURES / "zero-wall.csv")

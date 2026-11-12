@@ -77,6 +77,15 @@ def refuse_breaches(run: ledger.Run) -> None:
 
 
 SECOND = 1_000_000  # microseconds; a ms row's thousandths are microseconds
+
+
+def seconds(microseconds: int) -> str:
+    """Microseconds as seconds, in full: 2500000 is "2.5". Never rounded
+    or in exponent form, however long a warm-up is (FLED-0024)."""
+    whole, part = divmod(microseconds, SECOND)
+    return f"{whole}.{part:06d}".rstrip("0").rstrip(".")
+
+
 # The floor's opening sentences say these themselves, as reasons.
 FLOOR_REASONS = ("rows_dropped", "unfinished", "wall_missing", "frame_missing")
 
@@ -108,7 +117,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
                     else "fail" if failed else "pass")
     frame_state = check.state if frames else None
     states = {window_state, frame_state}
-    warmup = f"{warmup_us / SECOND:g} s warm-up"
+    warmup = f"{seconds(warmup_us)} s warm-up"
     no_window = f"no full one-second window follows the {warmup}"
     no_frame = f"no frame ends after the {warmup}"
     said = set()  # inconclusive checks the verdict sentence already explains
