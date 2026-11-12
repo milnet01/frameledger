@@ -764,6 +764,8 @@ to compare against, and the small fixes they filed.
   2026-11-12: all three engines reviewed a9b3c35; no blocker. UT Ants' and
   DOOM Ants' findings folded at 171668f, Vestige's at 79ca5d6. Sent back
   to the three for a yes or no on the folds; ships on their yes.
+  2026-11-12: Vestige: yes to the fold, on its description; it did not
+  re-read 79ca5d6. No scenes.py item wanted. UT Ants and DOOM Ants awaited.
   **Layman:** Compare many versions at once, such as the game with each effect turned off in turn.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -970,6 +972,8 @@ to compare against, and the small fixes they filed.
   (FLED_VERSION, INV-96) and built with it: the macro, a bump.json entry
   and tests/test_release.py::test_header_names_the_release. Sent to the
   three engines for review, string-only or with numeric parts asked.
+  2026-11-12: Vestige: yes at a6625de, string only. UT Ants and DOOM Ants
+  awaited.
   **Layman:** A copied writer file says which frameledger version it is, so an engine knows what it has.
   Kind: feature.
   Source: engine-review-2026-11-11.
@@ -981,6 +985,10 @@ to compare against, and the small fixes they filed.
   rewrite the line in place at close. The reader already ignores such
   spaces; docs/specs/FLED-0001-run-file-format.md § 4.1 did not promise
   it. This item adds the promise and its test.
+  2026-11-12: built at f89d7ac (§ 4.1, INV-97,
+  tests/test_check.py::test_header_may_be_padded; no reader change).
+  Vestige: yes; it will report when a real padded run file has gone
+  through `check`. UT Ants and DOOM Ants awaited.
   **Layman:** A game can fill in end-of-run figures on the file's first line after the run, without rewriting the whole file.
   Kind: feature.
   Source: engine-request-2026-11-12.
