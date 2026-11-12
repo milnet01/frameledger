@@ -151,7 +151,7 @@ def _end_group(process: subprocess.Popen, signum: int, stops: list[int]) -> str:
     if not _waited(process, lambda: len(stops) > seen):
         _signal_group(process, KILL)
         if not _waited(process, lambda: False):
-            return f"; process group {process.pid} did not end after SIGKILL"
+            return f"; process group {process.pid} did not end after being killed"
     return ""
 
 
@@ -182,8 +182,8 @@ def _signal_windows_tree(process: subprocess.Popen, signum: int | None) -> None:
     console process group; a kill becomes taskkill /T /F, which ends
     cmd.exe and every process it started that is still running. Both need
     cmd.exe alive: a process whose parent has exited is in no tree. If
-    cmd.exe exits between poll() and taskkill, its id could in principle
-    be reused; the gap is too short to guard (UT Ants)."""
+    cmd.exe exits between poll() and taskkill, taskkill finds nothing:
+    Popen's open handle keeps the id from being reused (DOOM Ants)."""
     if process.poll() is not None:
         return
     if signum is KILL:

@@ -1519,7 +1519,8 @@ Stopping `alternate` with SIGINT (Ctrl-C) or SIGTERM (`kill`,
   once. So nothing writes the file after it is deleted. A process that
   still has not ended 10 seconds after being killed, as one stuck in a
   GPU driver can, is not waited for: the reason ends "; process group
-  N did not end after SIGKILL" (UT Ants).
+  N did not end after being killed" (UT Ants). The kill is SIGKILL on
+  Linux and macOS, `taskkill /T /F` on Windows (DOOM Ants).
 - **A stop is only recorded when it arrives**, and each wait checks for
   one, so a stop cannot land between two steps (DOOM Ants).
 - **Then its file, if it left one, is deleted**; a directory there is
@@ -2821,7 +2822,10 @@ breaks.
   new-2: exit 3, the reason names SIGBREAK, `stopped.finished` is
   old-1, new-1, only their files remain, and the engine has ended. It
   holds for an engine that ends on Ctrl-Break, and for one that ignores
-  it, which only `taskkill /T /F` ends.
+  it, which only `taskkill /T /F` ends. The first makes `alternate`
+  exit in under the 10 seconds a stopped command is given, so the
+  Ctrl-Break passed on ended it, not the kill; the second takes at
+  least those 10 seconds (DOOM Ants).
   On any system, the Windows branch called directly with a stand-in
   `cmd.exe` sends Ctrl-Break for a SIGINT or SIGTERM stop and taskkill
   only for the kill; with no console, a stop sends nothing and raises
@@ -2830,10 +2834,12 @@ breaks.
   *Test:* `tests/test_alternate.py::test_windows_stop_ends_the_tree`,
   run on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`,
   `tests/test_alternate.py::test_windows_kill_is_no_stop_signal`.
-  *Breaks when:* the command shares the analyser's group, the stop is
-  not passed on, or the kill ends `cmd.exe` alone: the engine outlives
-  `alternate`. The engine that ignores Ctrl-Break isolates the kill.
+  *Breaks when:* the stop is not passed on, so the engine that ends
+  on Ctrl-Break lasts until the kill; or the kill ends `cmd.exe`
+  alone, so the engine that ignores Ctrl-Break outlives `alternate`.
   Or a SIGTERM stop kills at once, or a stop with no console crashes.
+  No test catches a command that shares the analyser's group: the
+  test's own Ctrl-Break would reach its engine directly (DOOM Ants).
 
 ## 6. Failure modes
 

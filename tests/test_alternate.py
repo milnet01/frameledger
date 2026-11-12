@@ -265,10 +265,18 @@ def test_interrupted_run_stops(tmp_path, target, stop):
 
 
 def windows_process_ended(pid: int) -> bool:
-    """os.kill(pid, 0) would end the process on Windows, so ask tasklist."""
-    listing = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True,
-                             text=True, check=False).stdout
-    return str(pid) not in listing.split()
+    """os.kill(pid, 0) would end the process on Windows, so ask tasklist.
+    taskkill /F can return before its target has gone, and alternate
+    waits only for cmd.exe, so ask for up to 5 seconds (DOOM Ants)."""
+    deadline = time.monotonic() + 5
+    while True:
+        listing = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True,
+                                 text=True, check=False).stdout
+        if str(pid) not in listing.split():
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows process groups and Ctrl-Break")
@@ -278,7 +286,13 @@ def test_windows_stop_ends_the_tree(tmp_path, mode):
     `wait` ends on the Ctrl-Break passed on to its group; `stubborn`
     ignores it, so only taskkill /T /F, after GRACE_S, can end it. The
     analyser runs in its own group, so the Ctrl-Break sent to it reaches
-    nothing else, and the engine is in a third group of its own."""
+    nothing else, and the engine is in a third group of its own.
+
+    The time from Ctrl-Break to exit tells the two apart (DOOM Ants):
+    without it, a stop never passed on would pass `wait` too, ended by
+    the kill."""
+    import alternate
+
     bench = Bench(tmp_path)
     process = subprocess.Popen([sys.executable, "-I", str(ROOT / "src" / "frameledger"),
                                 *bench.args("--json", prefix="cd . && ")],
@@ -292,8 +306,14 @@ def test_windows_stop_ends_the_tree(tmp_path, mode):
     time.sleep(0.5)  # the pid file is written; let the engine reach its sleep
     engine = int(pid_file.read_text(encoding="utf-8"))
     process.send_signal(signal.CTRL_BREAK_EVENT)
+    sent = time.monotonic()
     stdout, _ = process.communicate(timeout=60)
+    took = time.monotonic() - sent
     assert process.returncode == 3
+    if mode == "wait":
+        assert took < alternate.GRACE_S
+    else:
+        assert took >= alternate.GRACE_S
     stopped = json.loads(stdout)["result"]["stopped"]
     assert stopped["run"] == "new-2" and "SIGBREAK" in stopped["reason"]
     assert stopped["finished"] == ["old-1", "new-1"]
