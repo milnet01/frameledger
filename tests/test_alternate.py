@@ -318,9 +318,9 @@ def test_windows_stop_ends_the_tree(tmp_path, mode):
         assert took < alternate.GRACE_S
     else:
         assert alternate.GRACE_S <= took < 3 * alternate.GRACE_S
-    assert "did not end" not in stopped["reason"]
     stopped = json.loads(stdout)["result"]["stopped"]
     assert stopped["run"] == "new-2" and "SIGBREAK" in stopped["reason"]
+    assert "did not end" not in stopped["reason"]
     assert stopped["finished"] == ["old-1", "new-1"]
     assert bench.files() == ["new-1.csv", "old-1.csv"]
     assert windows_process_ended(engine)
