@@ -100,7 +100,7 @@ class Measure(NamedTuple):
 
 def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors,
             limits: LoadLimits = DEFAULT_LIMITS, named_measures: tuple[str, ...] = (),
-            sides: tuple[str, str] = ("old", "new")) -> dict:
+            sides: tuple[str, str] = ("old", "new"), baseline: bool = False) -> dict:
     """{"verdict", "reason", "summary", "warnings", "overrides", "unused",
     "absent", "result"} for two sets of runs that meet the format. `reason`
     says, in a clause, why the compare is refused or inconclusive, and is
@@ -114,6 +114,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     `sides` names the two sets where a run or a warning names them: under
     § 4.16 the old set is `base` and the new set the variant, so the runs
     are base-1, no_bloom-1. Each run's `set` stays "old" or "new".
+    `baseline` says the old set came from a baseline file, which has
+    warnings of its own (§ 4.17).
 
     The opening sentences follow § 4.10's order: the overrides; the named
     measures; a refusal, which ends the compare; each incomplete run; one
@@ -138,7 +140,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
 
     incomplete = _incomplete_sentences(runs)
     loaded = load_sentences(runs, limits)
-    notices += run_notices(runs) + _set_notices(runs, called)
+    notices += run_notices(runs) + _set_notices(runs, called, baseline)
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + loaded + run_report.warning_sentences(shown)
 
@@ -310,17 +312,59 @@ def run_notices(runs: list[Named]) -> list[ledger.Notice]:
     return found
 
 
-def _set_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
-    """The warnings about a whole set. `called` is each set's name in them."""
+def _set_notices(runs: list[Named], called: dict[str, str], baseline: bool = False) -> list[ledger.Notice]:
+    """The warnings about a whole set. `called` is each set's name in
+    them; `baseline` says the old set is a baseline's runs (§ 4.17)."""
     found = []
     starts = {label: [_started(r.run.header["started_utc"]) for r in runs if r.set == label]
               for label in ("old", "new")}
-    if max(starts["old"]) < min(starts["new"]) or max(starts["new"]) < min(starts["old"]):
+    if baseline and max(starts["old"]) < min(starts["new"]):
+        found.append(_baseline_first_notice(runs, called, min(starts["old"]), min(starts["new"])))
+    elif max(starts["old"]) < min(starts["new"]) or max(starts["new"]) < min(starts["old"]):
         found.append(ledger.Notice("not_interleaved", "every run of one set started before every run "
                                    "of the other, so a drift over time reads as a change"))
     for label in ("old", "new"):
         found += mixed_build_notices([r for r in runs if r.set == label], called[label])
-    return found + _differ_notices(runs, called)
+    found += _differ_notices(runs, called)
+    return found + (_baseline_differ_notices(runs, called) if baseline else [])
+
+
+def _baseline_first_notice(runs: list[Named], called: dict[str, str], oldest: tuple[datetime, Fraction],
+                           first_new: tuple[datetime, Fraction]) -> ledger.Notice:
+    """§ 4.17's stand-in for not_interleaved: what the baseline is, and how
+    long before the first new run its oldest run started."""
+    builds = dict.fromkeys((r.run.header["commit"], r.run.header["dirty"]) for r in runs if r.set == "old")
+    commits = [f"{commit} (dirty)" if dirty else commit for commit, dirty in builds]
+    seconds = int((first_new[0] - oldest[0]).total_seconds()) + first_new[1] - oldest[1]
+    return ledger.Notice(
+        "baseline_not_interleaved",
+        f"the {called['old']} runs are a baseline of {'commit' if len(commits) == 1 else 'commits'} "
+        f"{joined(commits)}, started {oldest[0].date().isoformat()}, {_age(seconds)} before the first "
+        f"{called['new']} run; nothing ran in turn with them, so a drift on the machine since then reads "
+        "as a change")
+
+
+def _age(seconds: Fraction) -> str:
+    """A length of time in whole days, or hours under a day, or minutes
+    under an hour, rounded down."""
+    for unit, length in (("day", 86400), ("hour", 3600)):
+        if seconds >= length:
+            return run_report.counted(int(seconds // length), unit)
+    return run_report.counted(int(seconds // 60), "minute")
+
+
+def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
+    """§ 4.17: the driver, or the os when every run names one, is not the
+    one the baseline was taken on."""
+    found = []
+    for field in ("driver", "os"):
+        old, new = (sorted({r.run.header.get(field) for r in runs if r.set == label}, key=str)
+                    for label in ("old", "new"))
+        if old != new and None not in old + new:
+            found.append(ledger.Notice(f"baseline_{field}_differs",
+                                       f"the {called['old']} runs' {field} is {joined(old)} and the "
+                                       f"{called['new']} runs' is {joined(new)}"))
+    return found
 
 
 def mixed_build_notices(one_set: list[Named], called: str) -> list[ledger.Notice]:

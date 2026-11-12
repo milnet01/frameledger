@@ -21,11 +21,11 @@ import run_report
 
 def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
              limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
-             named_measures: tuple[str, ...] = ()) -> dict:
+             named_measures: tuple[str, ...] = (), baseline: bool = False) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for the
     files at `old` and `new`, each scene judged apart. `named_measures` is
     --measure's list, kept in every scene; a name no judged scene has is
-    an error."""
+    an error. `baseline` says `old` came from a baseline file (§ 4.17)."""
     unread, paths = [], {"old": defaultdict(list), "new": defaultdict(list)}
     for label, group in (("old", old), ("new", new)):
         for path in group:
@@ -39,7 +39,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     all_read = not unread  # whether every run's names were seen, for the absent sentence
     for name in sorted(set(paths["old"]) | set(paths["new"])):
         entry, scene_unused, scene_absent = _judge(name, paths["old"][name], paths["new"][name], overrides,
-                                                   floors, limits, named_measures)
+                                                   floors, limits, named_measures, baseline)
         scenes.append(entry)
         if scene_unused is not None:  # the scene's runs were read
             unused &= scene_unused
@@ -131,8 +131,8 @@ def _scene_of(path: str) -> tuple[str | None, str | None]:
 
 
 def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
-           limits: compare.LoadLimits,
-           named_measures: tuple[str, ...]) -> tuple[dict, set[str] | None, set[str] | None]:
+           limits: compare.LoadLimits, named_measures: tuple[str, ...],
+           baseline: bool) -> tuple[dict, set[str] | None, set[str] | None]:
     """One scene's entry; the overridden fields that differed in none of
     its runs, None when its runs were not read; and the names in
     `named_measures` none of its runs has: every name for a scene left
@@ -156,7 +156,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
             run_report.refuse_breaches(run)  # a file broken since may have no header to check
             if run.header["scene"] != name:
                 raise ledger.LedgerError(f"its scene is now {run.header['scene']!r}", run.path)
-        built = compare.compare(old_runs, new_runs, overrides, floors, limits, named_measures)
+        built = compare.compare(old_runs, new_runs, overrides, floors, limits, named_measures, baseline=baseline)
     except ledger.LedgerError as error:  # the file changed since it was first read
         entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
         return entry, None, None

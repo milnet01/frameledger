@@ -116,6 +116,7 @@ The spec lists the flags and exit codes:
 [compare](docs/specs/FLED-0001-run-file-format.md#410-comparing-labelled-sets-of-runs),
 [alternate](docs/specs/FLED-0001-run-file-format.md#415-alternating-runs),
 [variants against one base](docs/specs/FLED-0001-run-file-format.md#416-variants-against-one-base),
+[a saved baseline](docs/specs/FLED-0001-run-file-format.md#417-a-saved-baseline),
 [bisect](docs/specs/FLED-0001-run-file-format.md#411-bisect-verdicts) and
 [budget](docs/specs/FLED-0001-run-file-format.md#412-pass-budgets).
 
@@ -152,6 +153,35 @@ saved. A variant that cannot be judged does not stop the others.
 measures named, and adds a table of each run's value of each.
 Compare reads each run's start time from its file's `started_utc`
 header, so list each build's files together on the command line.
+
+### A saved baseline
+
+To check each new build against runs you kept, list the kept run
+files in a baseline file, one path per line under a first line that
+names the format:
+
+```
+# frameledger-baseline {"schema":1}
+runs/meadow-1.csv
+runs/meadow-2.csv
+runs/meadow-3.csv
+```
+
+A relative path starts at the baseline file's own folder. Give the
+file as `--baseline` in place of `--old`, or in place of `--base`:
+
+```sh
+frameledger compare --baseline perf/meadow.txt --new b1.csv b2.csv b3.csv
+frameledger alternate --baseline perf/meadow.txt --new './new/engine --frame-log={run}' --out today
+```
+
+`alternate` then runs only the new build. The kept runs are judged as
+any old runs are, so a baseline from another GPU or graphics API is
+refused. Nothing alternates with a baseline, so the machine may have
+drifted since it was taken: compare warns `baseline_not_interleaved`
+and says how old the baseline is. An A/B in one sitting is the surer
+check. frameledger never writes the baseline file; to renew it, keep
+a session's run files and list them.
 
 For each measure, compare takes each build's median across its runs,
 and judges the change against the spread. The spread is the larger of

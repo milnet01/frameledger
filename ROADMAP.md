@@ -775,11 +775,20 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0035] **A saved baseline to compare against.**
+- 🚧 [FLED-0035] **A saved baseline to compare against.**
   A file naming a set of runs taken as the reference, which compare
   and the run helper take in place of --old. The analyser keeps no
   state: the engine keeps the file. Vestige needs it, with the run
   helper, to retire perf_gate.py.
+  2026-11-12, engines: all three agreed the design. The file lists run
+  paths, relative to its own folder; `--baseline FILE` stands in for
+  `--old` or `--base` on compare and alternate, not on bisect; runs stay
+  old-N; no thresholds, measure list or hash in the file; no converter
+  from perf_gate.py's JSON (Vestige). Added from their answers: a listed
+  path that is not a file is exit 3 naming its line (Vestige); the
+  not-interleaved warning names the baseline's commit, date and age (all
+  three); a warning when driver or os differs (UT Ants).
+  Spec: docs/specs/FLED-0001-run-file-format.md § 4.17.
   **Layman:** Keep a known-good set of test runs and check every new version against it.
   Kind: feature.
   Source: engine-answers-2026-11-10.

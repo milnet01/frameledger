@@ -67,7 +67,9 @@ def test_variant_is_one_compare(capsys, tmp_path):
         cli.main(["compare", "--old", *base, "--new", *paths, "--json"])
         plain = capsys.readouterr().out
         renamed = re.sub(r"\bnew-(\d+)\b", rf"{name}-\1", re.sub(r"\bold-(\d+)\b", r"base-\1", plain))
-        assert variant(out, name)["compare"] == json.loads(renamed)["result"]
+        plain_result = json.loads(renamed)["result"]
+        assert plain_result.pop("baseline") is None  # the command's own key, § 4.17
+        assert variant(out, name)["compare"] == plain_result
         assert [r["name"] for r in variant(out, name)["compare"]["runs"]] == [
             "base-1", "base-2", "base-3", f"{name}-1", f"{name}-2", f"{name}-3"]
 

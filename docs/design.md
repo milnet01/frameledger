@@ -109,8 +109,8 @@ tool, not by any one part.
   `cli.py` imports `selftest.py`,
   which may import any file but `cli.py`. `render.py` and `picture.py`
   are called only by `cli.py`.
-- **`ledger.py`, `stats.py` and `baseline.py` import no other analyser
-  file.** `presentmon.py` imports only `ledger.py`. Only `cli.py`
+- **`ledger.py` and `stats.py` import no other analyser file.**
+  `baseline.py` and `presentmon.py` import only `ledger.py`. Only `cli.py`
   calls `baseline.py` and `presentmon.py`.
 - **Only `__main__.py` and the tests import `cli.py`.** The reports
   return results; they never print and never exit.

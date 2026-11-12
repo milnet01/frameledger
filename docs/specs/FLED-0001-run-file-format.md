@@ -644,7 +644,8 @@ compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [-
 ```
 
 `--by-scene` judges each scene apart, § 4.14. `--base` and
-`--variant` judge named variants against one base, § 4.16. Without
+`--variant` judge named variants against one base, § 4.16.
+`--baseline FILE` names the old runs in a file, § 4.17. Without
 them, this section holds.
 
 Exit 0 pass, 1 a measure got slower or larger, 2 inconclusive, 3 error
@@ -1457,7 +1458,8 @@ alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIEL
 ```
 
 The compare flags are § 4.10's, with its defaults and bounds.
-`--base` and `--variant` run named variants, § 4.16.
+`--base` and `--variant` run named variants, § 4.16. `--baseline`
+takes the place of `--old`, § 4.17.
 A `--measure` name is checked for its form before any command starts,
 but whether a run has it only after every run has finished: names come
 from the runs (Vestige). The run files stay, for `compare` to re-read.
@@ -1766,6 +1768,123 @@ failures, stops and files, with files named `DIR/base-1.csv`,
   `compare --base … --variant NAME …` compares them, above. The result
   is that compare's, with § 4.15's `out`, `warmup` and `stopped`, and
   `commands` mapping `base` and each variant's name to its command.
+
+### 4.17 A saved baseline
+
+FLED-0035 builds this (S24). A baseline file names a set of reference
+runs, and stands in for the old runs of a compare. The engine keeps
+the file and the runs it names; the analyser keeps nothing. Agreed by
+the three engines 2026-11-12.
+
+```
+compare --baseline FILE --new FILE… [--by-scene] [the compare flags]
+compare --baseline FILE --variant NAME FILE… [--variant NAME FILE…]… [the compare flags]
+alternate --baseline FILE --new CMD --out DIR [--runs N] [--warmup W] [the compare flags]
+alternate --baseline FILE --variant NAME CMD [--variant NAME CMD]… --out DIR [--runs N] [--warmup W] [the compare flags]
+```
+
+`--baseline FILE` takes the place of `--old`, or of `--base` when
+`--variant` is given. `bisect` does not take it: § 4.11 has its own
+reference files.
+
+**The baseline file** is UTF-8 text, LF or CRLF, as § 4.12's budget
+file:
+
+```
+# frameledger-baseline {"schema":1}      line 1, required
+runs/meadow-1.csv                        one run file per line
+runs/meadow-2.csv
+runs/meadow-3.csv
+# any later line beginning # is a comment
+```
+
+- **Line 1** is the keyword and one JSON object whose `schema` is the
+  integer 1. Its other keys are ignored.
+- **Each later line is one run file's path**, as written, with spaces
+  at both ends removed and no quoting. A blank line is skipped. A
+  comment line can say what the runs were taken at, such as
+  "# scale 50, shot-0069" (DOOM Ants).
+- **A relative path starts at the folder that holds the baseline
+  file**, not at the current directory. So the file and its runs can
+  be committed together, and found from anywhere (UT Ants, DOOM Ants).
+  In a relative path `/` and `\` both separate folders, on every
+  platform, so one file serves Linux and Windows.
+- **A path may climb out with `..`, or be absolute.** Run files of
+  every frame are large to commit. A baseline whose runs sit outside
+  the repository serves the one machine that holds them (Vestige).
+- **The file names runs and nothing else**: no limits, no measure
+  list, no hash of a run. `--min-ms` and `--measure` stay flags, so one
+  baseline serves several gates (DOOM Ants).
+
+**Setup.** Each of these is exit 3, before any run file is read or
+any command starts:
+
+- `--baseline` with `--old` or `--base`; `--baseline` with neither
+  `--new` nor `--variant`.
+- A baseline file that cannot be read; a line that is not UTF-8; a
+  line 1 that is not the keyword and a JSON object; a `schema` other
+  than 1.
+- Fewer than three run files listed, as § 4.10's sets.
+- Two lines that name one file, naming both lines.
+- A listed path that is not a file, naming the path and its line. So a
+  moved run file is never read as a regression (Vestige).
+
+**The listed runs are the old runs**, `old-1`, `old-2`, … in the
+file's order, or `base-1`, … with `--variant`. From there the compare
+is § 4.10's, § 4.14's with `--by-scene`, or § 4.16's with `--variant`:
+the same refusals, runs taken under load, measures, judging, verdict,
+exit code and warnings. A listed file that cannot be read, or breaks
+the format, is treated as that file given after `--old` or `--base`.
+A baseline taken on another `device` or `api` is refused as any old
+run is, and needs its `--override` (Vestige).
+
+**Text.** One sentence follows the overrides sentence, or comes first
+without one: "The old runs are the baseline /home/me/perf/meadow.txt."
+With `--variant` it says "The base runs". It is there on a refusal
+and on an error too.
+
+**Warnings**, with `--baseline` only. None changes a verdict or an
+exit code.
+
+- `baseline_not_interleaved` — every baseline run started before
+  every new run. It is given in place of § 4.10's `not_interleaved`,
+  and names the baseline's `commit`, the UTC day its oldest run
+  started, and how long that was before the first new run started:
+  "the old runs are a baseline of commit 6012f70, started 2026-11-03,
+  9 days before the first new run; nothing ran in turn with them, so a
+  drift on the machine since then reads as a change". The time is in
+  whole days, or whole hours under one day, or whole minutes under one
+  hour, rounded down. Several commits are each named, and a `dirty`
+  one is marked "(dirty)". A stored baseline cannot alternate with the
+  new runs, so the reader is told every time (all three engines). When
+  the baseline runs did not all start first, § 4.10's own rule decides
+  `not_interleaved` as ever.
+- `baseline_driver_differs` — the baseline runs' `driver` values are
+  not the new runs' (UT Ants: two kept results were not baselines at
+  all, because the driver had moved). It names both sides' values.
+- `baseline_os_differs` — the same for `os`. It needs `os` in every
+  run.
+
+Under § 4.14 and § 4.16 each is a set warning, opening with its
+scene's or variant's name as `not_interleaved` does.
+
+**Result.** Every `compare` and `alternate` result that is not empty
+gains `baseline`: the baseline file's absolute path, or null without
+`--baseline`. It is the command's own key: a scene's or variant's
+`compare` does not hold it.
+
+**`alternate` with a baseline** runs only the new command: `new-1` to
+`new-N` one after another, after `new-warmup-1` to `new-warmup-W`.
+With `--variant` it runs § 4.16's reversing rounds over the variants
+alone. `--runs` counts the runs of each side it runs; the baseline
+has the runs it lists. `commands` holds no `old` or `base`. Then the
+files are compared as `compare --baseline` compares them. Nothing
+alternates with the baseline, so machine drift is not cancelled, and
+`baseline_not_interleaved` says so.
+
+**The analyser never writes a baseline file.** To take or renew one,
+keep the run files of a session, such as `alternate`'s `DIR/new-1.csv`
+to `DIR/new-N.csv`, and list them.
 
 ## 5. Invariants
 
@@ -2542,7 +2661,7 @@ breaks.
 - **INV-73** — Each scene is judged as one compare. With scenes `a`
   and `b`, three runs a side each, given interleaved in one list, each
   scene's `compare` equals `compare --old` and `--new` over that
-  scene's files alone, and `a`, its old runs all started before its
+  scene's files alone, but for § 4.17's `baseline`, and `a`, its old runs all started before its
   new, carries `not_interleaved`. Scene `b`'s runs differ in `scene`
   from `a`'s and refuse nothing.
   *Test:* `tests/test_compare_scenes.py::test_scene_is_one_compare`.
@@ -2781,8 +2900,9 @@ breaks.
 - **INV-89** — Each variant is judged as one compare. With three base
   runs and variants `a` and `b` of three runs each, `b` slower in
   `gpu/x`, each variant's `compare` equals `compare --old` over the base
-  files and `--new` over that variant's, but for run names: `base-1` in
-  place of `old-1`, `a-1` in place of `new-1`. `a` passes, `b` fails,
+  files and `--new` over that variant's, but for § 4.17's `baseline`
+  and for run names: `base-1` in place of `old-1`, `a-1` in place of
+  `new-1`. `a` passes, `b` fails,
   and the exit is 1.
   *Test:* `tests/test_compare_variants.py::test_variant_is_one_compare`.
   *Breaks when:* two variants' runs are judged together, a variant's
@@ -2939,6 +3059,71 @@ breaks.
   ends in spaces, so a header rewritten in place at a fixed length
   stops reading.
 
+- **INV-98** — A baseline's runs are the old runs. With three old runs
+  and three new, the new `gpu/opaque` 1 ms slower, and a baseline file
+  beside the old runs naming them by relative path: `compare
+  --baseline` run from another directory gives the result, summary and
+  exit code of `compare --old` over the same files, but for `baseline`
+  and the baseline sentence; the sets' starts interleave, so no warning
+  differs. A path written with `\`, a path with spaces around it, a
+  blank line, a comment line and a line 1 with a second key are all
+  read. With `--by-scene`, and with `--variant` in place of `--new`,
+  the same holds against `--old --by-scene` and against `--base`.
+  *Test:* `tests/test_baseline.py::test_baseline_is_the_old_runs`, and
+  beside it `test_by_scene_and_variants`.
+  *Breaks when:* a path resolves from the current directory, the
+  listed order is not the runs' order, or a baseline is judged by any
+  rule `--old` is not.
+
+- **INV-99** — A bad baseline reads no run and starts no command. Each
+  alone gives exit 3: an empty file; a line 1 without the keyword; a
+  line 1 whose JSON is broken; `schema` 2; a line that is not UTF-8;
+  two runs listed; one file listed twice, once as `a.csv` and once as
+  `./a.csv`, the sentence naming both lines; a listed path that does
+  not exist, the sentence naming the path and its line; a baseline
+  file that does not exist; `--baseline` with `--old`; with `--base`;
+  with neither `--new` nor `--variant`. `bisect --baseline` is exit
+  128.
+  *Test:* `tests/test_baseline.py::test_bad_baseline_files`, and beside
+  it `test_flag_setup_errors`.
+  *Breaks when:* a bad line is skipped or read as a path, a missing
+  run file surfaces as a compare result, or a comment is read as a
+  path. The new runs in the fixture are broken files, so reading any
+  of them changes the sentence.
+
+- **INV-100** — A baseline's warnings name what it is. Baseline runs
+  of commit `abc123` started 2026-10-17 and new runs started
+  2026-10-26: the compare warns `baseline_not_interleaved`, its
+  message holding "commit abc123", "started 2026-10-17" and "9 days",
+  and does not warn `not_interleaved`; the verdict and exit code are
+  those of `--old`. Started 5 hours before, it says "5 hours"; 40
+  minutes before, "40 minutes"; with one baseline run `dirty`,
+  "abc123 (dirty)". New runs that all started before the baseline's
+  warn `not_interleaved` and not `baseline_not_interleaved`. A new
+  `driver` warns `baseline_driver_differs`, naming both values; a new
+  `os` warns `baseline_os_differs`, and not when one run has no `os`.
+  The same sets under `--old` give none of the three codes.
+  *Test:* `tests/test_baseline.py::test_baseline_warnings`.
+  *Breaks when:* a baseline compare warns as a plain one, the age is
+  measured from any run but the oldest, a warning changes the verdict,
+  or a plain compare gains a baseline warning.
+
+- **INV-101** — `alternate` with a baseline runs only the new side.
+  INV-78's fixture with `--baseline` naming three kept old runs,
+  `--runs 3 --warmup 1`: the log reads new four times; `DIR` holds
+  `new-1.csv` to `new-3.csv` and `new-warmup-1.csv` and no `old` file;
+  `commands` has `new` alone; and the result, without `commands`,
+  `out`, `warmup` and `stopped`, equals `compare --baseline` over
+  those files, with the same exit. With `--variant a` and `--variant
+  b` the log reads a, b, b, a, a, b. With a baseline naming a missing
+  file, the exit is 3 and the log is empty.
+  *Test:* `tests/test_baseline.py::test_alternate_baseline`, and beside
+  it `test_alternate_baseline_variants` and
+  `test_alternate_bad_baseline_runs_nothing`.
+  *Breaks when:* the old command is asked for or run, the judging
+  differs from `compare --baseline`'s, or a bad baseline is found only
+  after the new runs have been paid for.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -2986,6 +3171,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0063: INV-95.
 - FLED-0067: INV-96.
 - FLED-0068: INV-97.
+- FLED-0035: INV-98 to INV-101.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3022,7 +3208,7 @@ it on each release they pin.
 - Charts or HTML — deferred; not yet queued (discovery, *not yet*).
 - `alternate`'s prepare command (none of the three engines needs
   one), a time limit per run (UT Ants: low priority), and
-  `--by-scene`: not yet queued. Baselines (S24) are their own item.
+  `--by-scene`: not yet queued.
 - Variants with `--by-scene`, each variant judged per scene: not yet
   queued (§ 4.16 refuses the pair).
 - A `peak` in `report`'s or `floor`'s warnings: not yet queued. Only
@@ -3129,6 +3315,10 @@ it on each release they pin.
 | INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`, `tests/test_alternate.py::test_windows_kill_is_no_stop_signal` |
 | INV-96 | `tests/test_release.py::test_header_names_the_release` |
 | INV-97 | `tests/test_check.py::test_header_may_be_padded` |
+| INV-98 | `tests/test_baseline.py::test_baseline_is_the_old_runs`, `tests/test_baseline.py::test_by_scene_and_variants` |
+| INV-99 | `tests/test_baseline.py::test_bad_baseline_files`, `tests/test_baseline.py::test_flag_setup_errors` |
+| INV-100 | `tests/test_baseline.py::test_baseline_warnings` |
+| INV-101 | `tests/test_baseline.py::test_alternate_baseline`, `tests/test_baseline.py::test_alternate_baseline_variants`, `tests/test_baseline.py::test_alternate_bad_baseline_runs_nothing` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

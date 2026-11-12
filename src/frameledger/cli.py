@@ -18,6 +18,7 @@ from collections.abc import Callable, Sequence
 from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 
 import alternate
+import baseline
 import bisecting
 import budgeting
 import compare
@@ -86,6 +87,8 @@ def _parser() -> _Parser:
     compare_cmd.add_argument("--base", nargs="+", metavar="FILE",
                              help="instead of --old and --new: the runs every variant is judged against, "
                              f"at least {compare.FEWEST_RUNS}")
+    compare_cmd.add_argument("--baseline", metavar="FILE",
+                             help="instead of --old, or of --base: a baseline file naming those runs")
     # nargs="*", so a name with too few files is this module's error, not argparse's.
     compare_cmd.add_argument("--variant", nargs="*", action="append", default=[], metavar="NAME FILE",
                              help=f"a named variant's runs, at least {compare.FEWEST_RUNS}; give it once "
@@ -167,6 +170,9 @@ def _add_alternate(commands) -> None:
                            help="instead of --old and --new: the command every variant is judged against")
     command.add_argument("--variant", nargs=2, action="append", default=[], metavar=("NAME", "CMD"),
                            help="a named variant's command; give it once per variant")
+    command.add_argument("--baseline", metavar="FILE",
+                           help="instead of --old, or of --base: a baseline file naming runs already "
+                           "taken, so only the other commands run")
     command.add_argument("--out", required=True, metavar="DIR", help="an existing folder for the run files")
     command.add_argument("--runs", type=_in_range(alternate.FEWEST_RUNS, alternate.MOST_RUNS),
                            default=5, metavar="N", help="runs a side (default 5)")
@@ -494,7 +500,43 @@ def _floor(args: argparse.Namespace) -> dict:
 
 def _compare(args: argparse.Namespace) -> dict:
     """§ 4.10: exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 when a
-    file cannot be read or breaks the format, or the compare is refused."""
+    file cannot be read or breaks the format, or the compare is refused.
+    With --baseline, § 4.17, the file's runs are --old's or --base's."""
+    kept_side = _take_baseline(args)
+    return _name_baseline(_compare_sets(args), args.baseline, kept_side)
+
+
+def _take_baseline(args: argparse.Namespace) -> str | None:
+    """§ 4.17's setup. With --baseline, read the file and put its run
+    files where --old's would be, or --base's with --variant, so the rest
+    of the command reads them as if given there; `args.baseline` becomes
+    the file's absolute path. Returns that side, "old" or "base"; None
+    without the flag."""
+    if args.baseline is None:
+        return None
+    clash = "--old" if args.old is not None else "--base" if args.base is not None else None
+    if clash:
+        raise ledger.LedgerError(f"--baseline names the runs {clash} would: {clash} cannot be given with it")
+    if args.new is None and not args.variant:
+        raise ledger.LedgerError("--baseline needs --new, or --variant NAME, to judge against it")
+    args.baseline = os.path.abspath(args.baseline)
+    kept_side = variants.BASE if args.variant else "old"
+    setattr(args, kept_side, baseline.read(args.baseline))
+    return kept_side
+
+
+def _name_baseline(built: dict, path: str | None, kept_side: str | None) -> dict:
+    """§ 4.17: every result that is not empty holds `baseline`, the file's
+    path or None; with one, a sentence after the overrides sentence says
+    which runs it names."""
+    if built["result"]:
+        built["result"] = {**built["result"], "baseline": path}
+    if path is not None:
+        built["summary"].insert(1 if built["overrides"] else 0, f"The {kept_side} runs are the baseline {path}.")
+    return built
+
+
+def _compare_sets(args: argparse.Namespace) -> dict:
     named = _named(args.measure)
     sides = _variant_sides(args, takes_files=True, other_flag=args.by_scene and "--by-scene")
     if sides:
@@ -517,7 +559,8 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
                    args: argparse.Namespace, named: tuple[str, ...]) -> dict:
     try:
         built = compare.compare([ledger.read(p) for p in old], [ledger.read(p) for p in new],
-                                overrides, _floors(args), _limits(args), named)
+                                overrides, _floors(args), _limits(args), named,
+                                baseline=args.baseline is not None)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -571,7 +614,8 @@ def _compare_variants(command: str, sides: dict[str, list[str]], overrides: dict
     paths = dict(sides)
     try:
         built = variants.against_base(paths.pop(variants.BASE), paths, overrides, _floors(args), _limits(args),
-                                      named, unread_is_unjudged=unread_is_unjudged)
+                                      named, unread_is_unjudged=unread_is_unjudged,
+                                      baseline=args.baseline is not None)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -619,8 +663,11 @@ def _listed(overrides: dict[str, str]) -> list[dict]:
 def _alternate(args: argparse.Namespace) -> dict:
     """§ 4.15: every setup error is exit 3 before any command starts; a run
     that fails stops the rest, exit 3; otherwise § 4.10's compare, or with
-    --base § 4.16's."""
+    --base § 4.16's. With --baseline, § 4.17, its side has its runs
+    already: every other side's command runs, and that side's does not."""
+    kept_side = _take_baseline(args)
     commands = _variant_sides(args, takes_files=False) or {"old": args.old, "new": args.new}
+    kept = commands.pop(kept_side) if kept_side else []  # a baseline's run files, where a command would be
     named = _named(args.measure)
     out = os.path.abspath(args.out)
     overrides = _overrides(args.override)
@@ -630,18 +677,21 @@ def _alternate(args: argparse.Namespace) -> dict:
     stopped = alternate.run_all(commands, planned)
     if stopped:
         listed = _listed(overrides)
-        return _result("alternate", "error", ERROR,
-                       [*compare.overrides_sentences(listed), *alternate.stopped_sentences(stopped)],
-                       [], {**added, "stopped": stopped}, listed)
+        return _name_baseline(_result("alternate", "error", ERROR,
+                                      [*compare.overrides_sentences(listed),
+                                       *alternate.stopped_sentences(stopped)],
+                                      [], {**added, "stopped": stopped}, listed), args.baseline, kept_side)
     # Compared in run-number order, old-1, old-2, ..., as compare names them.
     timed = sorted((run for run in planned if run.timed), key=lambda run: run.number)
     paths = {side: [run.path for run in timed if run.side == side] for side in commands}
-    if variants.BASE in commands:
+    if kept_side:
+        paths = {kept_side: kept, **paths}
+    if variants.BASE in paths:
         built = _compare_variants("alternate", paths, overrides, args, named, unread_is_unjudged=True)
     else:
         built = _compare_paths("alternate", paths["old"], paths["new"], overrides, args, named)
     built["result"] = {**built["result"], **added, "stopped": None}
-    return built
+    return _name_baseline(built, args.baseline, kept_side)
 
 
 def _compare_scenes(args: argparse.Namespace, named: tuple[str, ...]) -> dict:
@@ -649,7 +699,7 @@ def _compare_scenes(args: argparse.Namespace, named: tuple[str, ...]) -> dict:
     inconclusive or unjudged or a file unread, 3 a bad flag or no scene
     judged. The run counts are checked per scene, not here."""
     built = scenes.by_scene(args.old, args.new, _overrides(args.override), _floors(args), _limits(args),
-                            named)
+                            named, baseline=args.baseline is not None)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])

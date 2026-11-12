@@ -14,6 +14,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Added
 
+- **`compare` and `alternate` take a saved baseline** (FLED-0035)
+  `--baseline FILE` names kept runs in a file and takes the place of `--old`, or of `--base` with `--variant`. The file is a first line `# frameledger-baseline {"schema":1}` and then one run file's path per line; a relative path starts at the file's own folder. The kept runs are judged as any old runs, so the same refusals and warnings apply. `alternate --baseline` runs only the new build's command. Since nothing alternates with a baseline, the warning `baseline_not_interleaved` names its commit, the day it was taken and its age; `baseline_driver_differs` and `baseline_os_differs` warn when the driver or the system has changed since. Every `compare` and `alternate` JSON result gains a `baseline` key, null without the flag. A listed run file that is missing is exit 3, naming its line.
+
 - **`compare` and `alternate` judge named variants against one base** (FLED-0034)
   `compare --base FILE… --variant NAME FILE…`, with `--variant` given once per variant, judges each variant's runs against the base runs exactly as `compare` judges new against old. Runs are named `base-1`, `no_bloom-1` and so on. The variants are ranked by the change in one measure, the largest saving first: the first `--measure` name, or `frame/wall`. A variant that cannot be compared with the base is unjudged and the others go on. Exit 1 when any variant fails, 2 when any is inconclusive or unjudged, 3 when none could be judged. `alternate --base CMD --variant NAME CMD` runs every side in rounds that reverse, base, a, b, b, a, base, …, then compares the files that way.
 

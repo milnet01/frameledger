@@ -87,7 +87,7 @@ def test_scene_is_one_compare(capsys, tmp_path):
     for name, old, new in (("a", a_old, a_new), ("b", b_old, b_new)):
         alone = cli.main(["compare", "--old", *old, "--new", *new, "--json"])
         expected = json.loads(capsys.readouterr().out)
-        assert alone == 0
+        assert alone == 0 and expected["result"].pop("baseline") is None  # the command's own key, § 4.17
         assert scene(out, name)["compare"] == expected["result"], name
         assert scene(out, name)["verdict"] == "pass", name
     warned = {w["code"]: w["message"] for w in out["warnings"]}

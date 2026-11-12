@@ -22,6 +22,7 @@ ALLOWED = {
     "scenes": {"compare", "run_report", "trust", "stats", "ledger"},
     "variants": {"compare", "run_report", "trust", "stats", "ledger"},
     "alternate": {"ledger"},
+    "baseline": {"ledger"},
     "render": set(),
     "selftest": MODULES - {"cli", "selftest", "render"},
     "cli": MODULES - {"cli"},

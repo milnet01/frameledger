@@ -60,7 +60,8 @@ class _Judged(NamedTuple):
 
 def against_base(base: list[str], variants: dict[str, list[str]], overrides: dict[str, str],
                  floors: compare.Floors, limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
-                 named_measures: tuple[str, ...] = (), unread_is_unjudged: bool = False) -> dict:
+                 named_measures: tuple[str, ...] = (), unread_is_unjudged: bool = False,
+                 baseline: bool = False) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for the
     base's files and each variant's, name to files in the order given.
     `named_measures` is --measure's list, kept in every variant; a name no
@@ -68,7 +69,8 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
 
     A file that cannot be read, or breaks the format, raises LedgerError.
     With `unread_is_unjudged`, `alternate`'s case, only a base file does:
-    a variant with such a file is unjudged, and the others go on."""
+    a variant with such a file is unjudged, and the others go on.
+    `baseline` says the base's files came from a baseline file (§ 4.17)."""
     base_runs = [ledger.read(path) for path in base]
     for run in base_runs:
         run_report.refuse_breaches(run)
@@ -78,7 +80,8 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     base_notices = compare.run_notices(base_named) + compare.mixed_build_notices(base_named, BASE)
     base_warnings = run_report.warning_entries(base_notices)
 
-    judged_all = [_judge(name, base_runs, paths, overrides, floors, limits, named_measures, unread_is_unjudged)
+    judged_all = [_judge(name, base_runs, paths, overrides, floors, limits, named_measures, unread_is_unjudged,
+                         baseline)
                   for name, paths in variants.items()]
     by_name = sorted(judged_all, key=lambda j: j.entry["name"])
     entries = [j.entry for j in judged_all]
@@ -129,14 +132,15 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
 
 def _judge(name: str, base_runs: list[ledger.Run], paths: list[str], overrides: dict[str, str],
            floors: compare.Floors, limits: compare.LoadLimits, named_measures: tuple[str, ...],
-           unread_is_unjudged: bool) -> _Judged:
+           unread_is_unjudged: bool, baseline: bool) -> _Judged:
     """One variant against the base. The variant's runs are let go when
     this returns."""
     entry = {"name": name, "verdict": "unjudged", "reason": None, "rank": None, "measure": None,
              "compare": None}
     try:
         runs = [ledger.read(path) for path in paths]
-        built = compare.compare(base_runs, runs, overrides, floors, limits, named_measures, sides=(BASE, name))
+        built = compare.compare(base_runs, runs, overrides, floors, limits, named_measures, sides=(BASE, name),
+                                baseline=baseline)
     except ledger.LedgerError as error:  # cannot be read, or breaks the format
         if not unread_is_unjudged:
             raise
