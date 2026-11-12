@@ -316,17 +316,19 @@ def test_warnings_do_not_fail(capsys, tmp_path, code_name, edit):
     assert len(out["summary"]) == 2  # the warning's sentence, then the verdict
 
 
-def test_header_may_be_padded(capsys, tmp_path):
+@pytest.mark.parametrize("ending", ["\n", "\r\n"], ids=["LF", "CRLF"])
+def test_header_may_be_padded(capsys, tmp_path, ending):
     """INV-97 (Vestige): spaces after a `# frameledger` line's closing
     brace are ignored, so a writer can rewrite the header in place, at
-    the same length, once the run's `end` and `peak` are known."""
+    the same length, once the run's `end` and `peak` are known. The
+    spaces sit before the line's ending, LF or CRLF (UT Ants)."""
     import ledger
 
     plain = FIXTURES / "schema-1.csv"
     lines = plain.read_text(encoding="utf-8").splitlines()
     padded = tmp_path / "padded.csv"
-    padded.write_text("\n".join(line + " " * 200 if line.startswith("# frameledger") else line
-                                for line in lines) + "\n", encoding="utf-8")
+    padded.write_bytes("".join((line + " " * 200 if line.startswith("# frameledger") else line) + ending
+                               for line in lines).encode())
     code, out = run_check(capsys, padded)
     assert (code, found(out), out["warnings"]) == (0, [], [])
     assert ledger.read(padded).header == ledger.read(plain).header

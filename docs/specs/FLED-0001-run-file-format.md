@@ -185,7 +185,10 @@ learns the header's `end` and `peak` (4.2) only after the last frame
 may pad line 1 with spaces when it opens the file, and at close write
 the finished header over it at the same length (Vestige, 3D_E-0968;
 FLED-0068). The padding goes after the closing brace, never inside a
-string.
+string. Only spaces are promised, not tabs. The spaces come before the
+line's ending, and the length to keep counts that ending: a file
+opened in text mode on Windows ends line 1 in CRLF, two bytes (UT
+Ants).
 
 ### 4.2 The header
 
@@ -2928,7 +2931,7 @@ breaks.
 
 - **INV-97** — Spaces after a `# frameledger` line's closing brace are
   ignored. `schema-1.csv` with 200 spaces added to its header and close
-  lines: `check` exits 0 with no breach and no warning, and the header
+  lines, its lines ending in LF and again in CRLF: `check` exits 0 with no breach and no warning, and the header
   and close read are those of the file unpadded.
   *Test:* `tests/test_check.py::test_header_may_be_padded`.
   *Breaks when:* the reader refuses, or warns on, a header line that

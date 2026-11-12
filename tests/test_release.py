@@ -6,6 +6,7 @@ release notes' hash check; and that the writer header names the release
 
 import hashlib
 import importlib.util
+import json
 import re
 import subprocess
 import sys
@@ -72,6 +73,11 @@ def test_header_names_the_release():
     import cli
     header = (ROOT / "include" / "frameledger.h").read_text(encoding="utf-8")
     assert re.findall(r'^#define FLED_VERSION\s+"(.*)"$', header, re.MULTILINE) == [cli.VERSION]
+    # The release bump replaces this exact text, spacing included, so a
+    # reformatted define fails here and not one release later (UT Ants).
+    bumped = {entry["path"]: entry["pattern"]
+              for entry in json.loads((ROOT / ".claude" / "bump.json").read_text(encoding="utf-8"))["files"]}
+    assert header.count(bumped["include/frameledger.h"].replace("{OLD}", cli.VERSION)) == 1
 
 
 def test_a_rebuild_under_another_tag_is_the_same_bytes(tmp_path):

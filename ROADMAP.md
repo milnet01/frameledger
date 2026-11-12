@@ -766,6 +766,8 @@ to compare against, and the small fixes they filed.
   to the three for a yes or no on the folds; ships on their yes.
   2026-11-12: Vestige: yes to the fold, on its description; it did not
   re-read 79ca5d6. No scenes.py item wanted. UT Ants and DOOM Ants awaited.
+  2026-11-12: UT Ants: yes to the fold, to its list and not to 4bab2e7's
+  diff. DOOM Ants awaited.
   **Layman:** Compare many versions at once, such as the game with each effect turned off in turn.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -974,6 +976,10 @@ to compare against, and the small fixes they filed.
   three engines for review, string-only or with numeric parts asked.
   2026-11-12: Vestige: yes at a6625de, string only. UT Ants and DOOM Ants
   awaited.
+  2026-11-12: UT Ants: no objection, string only; it does not vendor the
+  header yet, so no MSVC build to report. Its point folded: the test
+  also asserts bump.json's exact pattern is in the header. DOOM Ants
+  awaited.
   **Layman:** A copied writer file says which frameledger version it is, so an engine knows what it has.
   Kind: feature.
   Source: engine-review-2026-11-11.
@@ -989,6 +995,9 @@ to compare against, and the small fixes they filed.
   tests/test_check.py::test_header_may_be_padded; no reader change).
   Vestige: yes; it will report when a real padded run file has gone
   through `check`. UT Ants and DOOM Ants awaited.
+  2026-11-12: UT Ants: no objection. Its point folded: § 4.1 says only
+  spaces, not tabs, and that the length kept counts the line ending;
+  the test also runs with CRLF. DOOM Ants awaited.
   **Layman:** A game can fill in end-of-run figures on the file's first line after the run, without rewriting the whole file.
   Kind: feature.
   Source: engine-request-2026-11-12.
