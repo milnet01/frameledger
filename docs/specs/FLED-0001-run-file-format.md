@@ -2825,7 +2825,9 @@ breaks.
   it, which only `taskkill /T /F` ends. The first makes `alternate`
   exit in under the 10 seconds a stopped command is given, so the
   Ctrl-Break passed on ended it, not the kill; the second takes at
-  least those 10 seconds (DOOM Ants).
+  least those 10 seconds (DOOM Ants), and under 30, well before the
+  fixture's engine would end by itself. Neither reason says a group
+  did not end (Vestige).
   On any system, the Windows branch called directly with a stand-in
   `cmd.exe` sends Ctrl-Break for a SIGINT or SIGTERM stop and taskkill
   only for the kill; with no console, a stop sends nothing and raises
@@ -2838,8 +2840,9 @@ breaks.
   on Ctrl-Break lasts until the kill; or the kill ends `cmd.exe`
   alone, so the engine that ignores Ctrl-Break outlives `alternate`.
   Or a SIGTERM stop kills at once, or a stop with no console crashes.
-  No test catches a command that shares the analyser's group: the
-  test's own Ctrl-Break would reach its engine directly (DOOM Ants).
+  A command that shares the analyser's group fails the test and ends
+  the test run with it: on Vestige's Windows 10 box the Ctrl-Break
+  passed on then reached pytest itself.
 
 ## 6. Failure modes
 

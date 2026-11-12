@@ -290,7 +290,11 @@ def test_windows_stop_ends_the_tree(tmp_path, mode):
 
     The time from Ctrl-Break to exit tells the two apart (DOOM Ants):
     without it, a stop never passed on would pass `wait` too, ended by
-    the kill."""
+    the kill. The engine ends by itself after 60 seconds, and the test
+    waits for that, since the engine holds the analyser's standard
+    error. So `stubborn` has an upper bound too, and the reason must not
+    say the kill failed: without them a kill never sent passes
+    (Vestige's Windows run)."""
     import alternate
 
     bench = Bench(tmp_path)
@@ -313,7 +317,8 @@ def test_windows_stop_ends_the_tree(tmp_path, mode):
     if mode == "wait":
         assert took < alternate.GRACE_S
     else:
-        assert took >= alternate.GRACE_S
+        assert alternate.GRACE_S <= took < 3 * alternate.GRACE_S
+    assert "did not end" not in stopped["reason"]
     stopped = json.loads(stdout)["result"]["stopped"]
     assert stopped["run"] == "new-2" and "SIGBREAK" in stopped["reason"]
     assert stopped["finished"] == ["old-1", "new-1"]
