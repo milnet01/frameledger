@@ -17,6 +17,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **`compare` and `alternate` judge named variants against one base** (FLED-0034)
   `compare --base FILE… --variant NAME FILE…`, with `--variant` given once per variant, judges each variant's runs against the base runs exactly as `compare` judges new against old. Runs are named `base-1`, `no_bloom-1` and so on. The variants are ranked by the change in one measure, the largest saving first: the first `--measure` name, or `frame/wall`. A variant that cannot be compared with the base is unjudged and the others go on. Exit 1 when any variant fails, 2 when any is inconclusive or unjudged, 3 when none could be judged. `alternate --base CMD --variant NAME CMD` runs every side in rounds that reverse, base, a, b, b, a, base, …, then compares the files that way.
 
+- **On Windows, stopping `alternate` stops the command's whole process tree** (FLED-0063)
+  Each command runs in its own console process group. Ctrl-C, Ctrl-Break or a terminate signal is passed on as Ctrl-Break, and a command still running 10 seconds later is ended with `taskkill /T /F`, so an engine started through `cmd.exe` or a script no longer outlives the run. A process whose parent has already exited is not found.
+
 - **The writer header says which release it came from** (FLED-0067)
   `include/frameledger.h` defines `FLED_VERSION`, a string such as `"0.5.0"`: the release the header shipped in. A copy vendored into an engine names its own version.
 

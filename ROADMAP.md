@@ -885,7 +885,7 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 🚧 [FLED-0063] **alternate stops a Windows command's whole process tree.**
+- ✅ [FLED-0063] **alternate stops a Windows command's whole process tree.**
   On Linux and macOS, alternate runs each command in its own process
   group and passes Ctrl-C and SIGTERM on to all of it (FLED-0029,
   spec § 4.15). On Windows it does not yet: the console's Ctrl-C reaches
@@ -921,6 +921,10 @@ to compare against, and the small fixes they filed.
   the tree signalling emptied [wait] went red but [stubborn] stayed
   green, so the test was tightened at 4621891 and 27bb14e. Vestige asked
   to re-run at 27bb14e.
+  2026-11-12: Vestige's Windows 10 box with 27bb14e's test: as committed,
+  2 passed ([wait] 2.14 s, [stubborn] 11.37 s). With `return` first in
+  _signal_windows_tree, both modes red on the timing asserts alone
+  (59.5 s each). DOOM Ants agreed both readings. Shipped.
   **Layman:** On Windows, stopping a test run also stops every program the game's start-up script launched.
   Kind: feature.
   Source: engine-review-2026-11-10.
