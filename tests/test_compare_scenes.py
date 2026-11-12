@@ -17,18 +17,19 @@ FRAMES = 120  # per segment: above § 4.10's 100, so a noisy wall can make a sce
 
 def run_text(scene: str, run_id: str, started: str, segments: dict, **header) -> str:
     """A run of `scene`: for each segment, FRAMES frames (or the count
-    given with its rows, as (rows, frames)) carrying its rows. The last
-    frame has no wall, as in a real run."""
+    given with its rows, as (rows, frames)) carrying its rows. A row's
+    key is (category, name), at depth 0, or (category, name, depth). The
+    last frame has no wall, as in a real run."""
     fields = {**HEADER, "scene": scene, "run_id": run_id, "started_utc": started, **header}
     lines = [f"# frameledger {json.dumps(fields)}", "run_id,segment,frame,category,name,depth,value"]
     frames = [segment for segment, spec in segments.items()
               for _ in range(spec[1] if isinstance(spec, tuple) else FRAMES)]
     for number, segment in enumerate(frames):
         spec = segments[segment]
-        for (category, name), value in (spec[0] if isinstance(spec, tuple) else spec).items():
+        for (category, name, *deeper), value in (spec[0] if isinstance(spec, tuple) else spec).items():
             if (category, name) == ("frame", "wall") and number == len(frames) - 1:
                 continue
-            lines.append(f"{run_id},{segment},{number},{category},{name},0,{value:.3f}")
+            lines.append(f"{run_id},{segment},{number},{category},{name},{deeper[0] if deeper else 0},{value:.3f}")
     lines.append(f'# frameledger-close {{"rows_dropped":0,"frames":{len(frames)}}}')
     return "\n".join(lines) + "\n"
 

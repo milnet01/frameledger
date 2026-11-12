@@ -176,6 +176,51 @@ def test_rank(capsys, tmp_path):
     assert out["result"]["judged"]["variants"] == 3
 
 
+def deeper(x: float) -> dict:
+    """rows(), with its gpu/x one level down: a pass inside another."""
+    frame = rows(None)
+    return {**frame, ("gpu", "x", 1): x}
+
+
+def test_rank_measure_is_the_top_level_pass(capsys, tmp_path):
+    """INV-92 (UT Ants): a pass at two depths ranks by the smallest. A
+    frame holds a pass once, so view:1 has gpu/x at depth 0 and view:2,
+    with more frames, at depth 1. At depth 0 a saves most; at depth 1 b
+    does, so ranking by the deepest or the busiest would put b first."""
+    files = Files(tmp_path)
+
+    def runs(top, inner):
+        return [files.run("atrium", {"view:1": rows(top), "view:2": (deeper(inner), 300)}) for _ in range(3)]
+
+    variants = {"b": runs(4.8, 1.0), "a": runs(4.0, 3.0)}
+    _, out = against_base(capsys, runs(5.0, 2.0), variants, "--measure", "gpu/x")
+    assert out["result"]["rank_measure"]["depth"] == 0
+    assert [(v["name"], v["rank"], v["measure"]["depth"]) for v in out["result"]["variants"]] == [
+        ("a", 1, 0), ("b", 2, 0)]
+
+
+def test_rank_measure_kind_is_chosen_at_that_depth(capsys, tmp_path):
+    """INV-92 (UT Ants): the kind is the busiest among the kinds that have
+    the measure at the smallest depth, so 20 load frames at depth 0 beat
+    300 view frames at depth 1; and kinds with equal frames tie as text."""
+    files = Files(tmp_path)
+    runs = [files.run("atrium", {"load:1": (rows(), 20), "view:1": (deeper(2.0), 300)}) for _ in range(6)]
+    _, out = against_base(capsys, runs[:3], {"a": runs[3:]}, "--measure", "gpu/x")
+    assert (out["result"]["rank_measure"]["segment_kind"], out["result"]["rank_measure"]["depth"]) == ("load", 0)
+
+    runs = [files.run("atrium", {"view:1": rows(), "load:1": rows()}) for _ in range(6)]
+    _, out = against_base(capsys, runs[:3], {"a": runs[3:]}, "--measure", "gpu/x")
+    assert out["result"]["rank_measure"]["segment_kind"] == "load"  # as many frames each: "load" < "view"
+
+
+def test_rank_ties_go_by_name(capsys, tmp_path):
+    """INV-92: variants with the same change rank by name, not by the
+    order given."""
+    files = Files(tmp_path)
+    _, out = against_base(capsys, side(files, SAME), {"b": side(files, SAME), "a": side(files, SAME)})
+    assert [(v["name"], v["rank"]) for v in out["result"]["variants"]] == [("a", 1), ("b", 2)]
+
+
 def test_unranked_and_absent_measures(capsys, tmp_path):
     """§ 4.16: with no base run holding the rank measure nothing is
     ranked; a named measure in no run of any side is an error."""
@@ -191,6 +236,85 @@ def test_unranked_and_absent_measures(capsys, tmp_path):
     assert (code, out["verdict"]) == (3, "error")
     assert out["summary"] == ["No run has gpu/nothing, so it cannot be judged; a name matches exactly, "
                               "case included."]
+
+
+def test_named_measure_only_a_refused_variant_has(capsys, tmp_path):
+    """§ 4.16's step 2 (DOOM Ants): a named measure is absent only when no
+    run of any side has it, a refused variant's runs included. Here only
+    r's runs have gpu/x, and r is refused, so the steps after 2 decide."""
+    files = Files(tmp_path)
+    base = side(files, [None] * 3)
+    variants = {"a": side(files, [None] * 3), "r": side(files, SAME, device="Other GPU")}
+    code, out = against_base(capsys, base, variants, "--measure", "gpu/x", "--measure", "cpu/sim")
+    assert (code, out["verdict"]) == (2, "inconclusive")  # a passes on cpu/sim; r is unjudged
+    assert variant(out, "a")["verdict"] == "pass"
+
+    code, out = against_base(capsys, base, variants, "--measure", "gpu/x")
+    assert (code, out["verdict"]) == (3, "error")
+    assert out["summary"][1].startswith(f"No variant could be judged: a ({LACKS_NAMED}), r (device differs")
+
+
+def test_every_variant_lacks_the_named_measure(capsys, tmp_path):
+    """§ 4.16's step 3: the base has gpu/x and no variant does, so no
+    variant is judged."""
+    files = Files(tmp_path)
+    variants = {"a": side(files, [None] * 3), "b": side(files, [None] * 3)}
+    code, out = against_base(capsys, side(files, SAME), variants, "--measure", "gpu/x")
+    assert (code, out["verdict"]) == (3, "error")
+    assert out["summary"][1] == f"No variant could be judged: a ({LACKS_NAMED}), b ({LACKS_NAMED})."
+
+
+def test_inconclusive_variant(capsys, tmp_path):
+    """§ 4.16's step 5: one inconclusive variant makes the command
+    inconclusive, and its sentence gives § 4.10's reason."""
+    files = Files(tmp_path)
+    unfinished = side(files, SAME)
+    text = open(unfinished[0], encoding="utf-8").read()
+    open(unfinished[0], "w", encoding="utf-8").write(text[:text.index("# frameledger-close")])
+    code, out = against_base(capsys, side(files, SAME), {"a": side(files, SAME), "b": unfinished})
+    assert (code, out["verdict"]) == (2, "inconclusive")
+    assert (variant(out, "a")["verdict"], variant(out, "b")["verdict"]) == ("pass", "inconclusive")
+    assert any(s.startswith("b is inconclusive: ") for s in out["summary"])
+
+
+def test_compare_bad_variant_file(capsys, tmp_path):
+    """§ 4.16: under `compare` the files were named one by one, so a
+    variant file that breaks the format is exit 3, whatever the others
+    hold. `alternate`'s other rule is test_alternate_variants_bad_file."""
+    files = Files(tmp_path)
+    broken = side(files, SAME)
+    open(broken[1], "w", encoding="utf-8").close()
+    code, out = against_base(capsys, side(files, SAME), {"a": side(files, SAME), "b": broken})
+    assert (code, out["verdict"]) == (3, "error")
+    assert broken[1] in out["summary"][0] and out["result"] == {}
+
+
+def test_override_unused_is_said_once(capsys, tmp_path):
+    """§ 4.16: `override_unused` is given once, and only when the field
+    differs in no variant."""
+    files = Files(tmp_path)
+    base = side(files, SAME)
+    variants = {"a": side(files, SAME), "b": side(files, SAME)}
+    code, out = against_base(capsys, base, variants, "--override", "device=a reason")
+    assert code == 0 and [w["code"] for w in out["warnings"]].count("override_unused") == 1
+
+    variants["c"] = side(files, SAME, device="Other GPU")  # now the override is used, by c alone
+    code, out = against_base(capsys, base, variants, "--override", "device=a reason")
+    assert code == 0 and "override_unused" not in [w["code"] for w in out["warnings"]]
+
+
+def test_set_warnings_name_the_sides(capsys, tmp_path):
+    """§ 4.16 and INV-93 (UT Ants, DOOM Ants): a warning about the base
+    runs as a set is given once, not once per variant; a variant's own
+    opens with its name and calls the set "the b runs"."""
+    files = Files(tmp_path)
+    base = [*side(files, SAME[:2]), *side(files, SAME[2:], commit="def456")]
+    variants = {"a": side(files, SAME), "b": [*side(files, SAME[:2]), *side(files, SAME[2:], commit="def456")]}
+    code, out = against_base(capsys, base, variants)
+    assert code == 0
+    assert [w["message"].partition(" differ")[0] for w in out["warnings"] if w["code"] == "mixed_build"] == [
+        "the base runs", "b: the b runs"]
+    assert len([s for s in out["summary"] if "differ in commit" in s]) == 2
 
 
 def test_judged_count(capsys, tmp_path):
@@ -224,6 +348,17 @@ def test_text_table(capsys, tmp_path):
     assert table[2].split() == ["1", "no_bloom", "pass", "16.000", "+0.000", "+0.00%", "unchanged"]
     assert table[3].split()[0] == "-" and table[3].split()[2:] == ["unjudged", "-", "-", "-", "-"]
     assert max(map(len, text[text.index(""):])) <= 100
+    assert table[3].split()[1] == "z" * 32  # the longest name is shown whole
+
+
+def test_markdown_table(capsys, tmp_path):
+    """§ 4.16's table under --markdown: one row a variant, the same cells."""
+    files = Files(tmp_path)
+    cli.main(["compare", *flags(side(files, SAME), {"no_bloom": side(files, SAME)}), "--markdown"])
+    text = capsys.readouterr().out.splitlines()
+    cells = [[cell.strip() for cell in line.strip("|").split("|")] for line in text if line.startswith("|")]
+    assert cells[0] == ["rank", "variant", "verdict", "median ms", "change ms", "change %", "measure"]
+    assert cells[2] == ["1", "no_bloom", "pass", "16.000", "+0.000", "+0.00%", "unchanged"]
 
 
 class VariantBench(Bench):
@@ -271,9 +406,11 @@ def test_alternate_variants_setup_errors(tmp_path):
     """INV-94: a setup error runs no command."""
     bench = VariantBench(tmp_path)
     no_placeholder = [*bench.args(sides=("base", "a")), "--variant", "b", "true"]
-    for args in ([*bench.args(), "--old", bench.command("old")], no_placeholder,
-                 bench.args(sides=("base",)), bench.args(sides=("a",)),
-                 [*bench.args(sides=("base", "a")), "--variant", "a", bench.command("a")]):
+    for args in ([*bench.args(), "--old", bench.command("old")], [*bench.args(), "--new", bench.command("new")],
+                 no_placeholder, bench.args(sides=("base",)), bench.args(sides=("a",)),
+                 [*bench.args(sides=("base", "a")), "--variant", "a", bench.command("a")],
+                 [*bench.args(sides=("base", "a")), "--variant", "old", bench.command("a")],
+                 [*bench.args(sides=("base", "a")), "--variant", "A", bench.command("a")]):
         done = analyser(args)
         assert done.returncode == 3 and done.stdout == ""
         assert bench.order() == [] and bench.files() == []

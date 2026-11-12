@@ -496,7 +496,7 @@ def _compare(args: argparse.Namespace) -> dict:
     """§ 4.10: exit 0 pass, 1 a measure got slower, 2 inconclusive, 3 when a
     file cannot be read or breaks the format, or the compare is refused."""
     named = _named(args.measure)
-    sides = _variant_sides(args, args.by_scene and "--by-scene")
+    sides = _variant_sides(args, takes_files=True, other_flag=args.by_scene and "--by-scene")
     if sides:
         for name, paths in sides.items():
             if len(paths) < compare.FEWEST_RUNS:
@@ -532,12 +532,13 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
                    built["result"], built["overrides"])
 
 
-def _variant_sides(args: argparse.Namespace, other_flag: str | bool = False) -> dict:
+def _variant_sides(args: argparse.Namespace, takes_files: bool, other_flag: str | bool = False) -> dict:
     """§ 4.16's setup: {"base": its --base value, each variant's name: its
     --variant value}, in the order given; or {} for a command with neither
-    flag, once its --old and --new are both there. `other_flag` names a
-    flag given that --base cannot go with. A value is a compare's files
-    or an alternate's command."""
+    flag, once its --old and --new are both there. With `takes_files`,
+    compare's form, a variant's value is the list of files after its
+    name; without, alternate's, the one command. `other_flag` names a
+    flag given that --base cannot go with."""
     if args.base is None and not args.variant:
         missing = [flag for flag, value in (("--old", args.old), ("--new", args.new)) if value is None]
         if missing:
@@ -556,7 +557,7 @@ def _variant_sides(args: argparse.Namespace, other_flag: str | bool = False) -> 
         raise ledger.LedgerError("--variant needs a name: --variant NAME ...")
     names = [given[0] for given in args.variant]
     variants.check_names(names)
-    values = (given[1:] if isinstance(args.base, list) else given[1] for given in args.variant)
+    values = (given[1:] if takes_files else given[1] for given in args.variant)
     return {variants.BASE: args.base, **dict(zip(names, values, strict=True))}
 
 
@@ -619,7 +620,7 @@ def _alternate(args: argparse.Namespace) -> dict:
     """§ 4.15: every setup error is exit 3 before any command starts; a run
     that fails stops the rest, exit 3; otherwise § 4.10's compare, or with
     --base § 4.16's."""
-    commands = _variant_sides(args) or {"old": args.old, "new": args.new}
+    commands = _variant_sides(args, takes_files=False) or {"old": args.old, "new": args.new}
     named = _named(args.measure)
     out = os.path.abspath(args.out)
     overrides = _overrides(args.override)

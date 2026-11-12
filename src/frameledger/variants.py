@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from typing import NamedTuple
 
 import compare
 import ledger
@@ -23,6 +24,8 @@ BASE = "base"
 # Safe in a file name on every platform, and never another side's: a-1.csv
 # is variant a's first run and no other variant's file.
 NAME = re.compile(r"[a-z][a-z0-9_]{0,31}")
+# Every side with a flag of its own. alternate.FLAG_SIDES lists the same
+# three, to tell --base from --variant NAME: a side added there joins here.
 RESERVED = (BASE, "old", "new")
 DEFAULT_RANK_MEASURE = "frame/wall"
 
@@ -41,6 +44,19 @@ def check_names(names: list[str]) -> None:
         raise ledger.LedgerError(f"--variant {twice[0]} is given twice")
 
 
+class _Judged(NamedTuple):
+    """One variant, judged or not."""
+    entry: dict  # its entry in the result's "variants"
+    warnings: list[dict]  # its compare's warnings; the result lists them apart from the entry
+    # The overridden fields that differed in none of its compare's runs;
+    # None when its runs were not read.
+    unused: set[str] | None
+    # The names in --measure's list none of its runs has, the base runs'
+    # included unless it was refused; None when its runs were not read.
+    absent: set[str] | None
+    lacks_named: bool  # unjudged because none of its own runs has a named measure
+
+
 def against_base(base: list[str], variants: dict[str, list[str]], overrides: dict[str, str],
                  floors: compare.Floors, limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
                  named_measures: tuple[str, ...] = (), unread_is_unjudged: bool = False) -> dict:
@@ -55,44 +71,37 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     base_runs = [ledger.read(path) for path in base]
     for run in base_runs:
         run_report.refuse_breaches(run)
-    base_notices = compare.run_notices([compare.Named(f"{BASE}-{i}", "old", run.path, run)
-                                        for i, run in enumerate(base_runs, 1)])
-    shared = run_report.warning_entries(base_notices)  # every variant's compare repeats these
+    # What is about the base alone, said once. Every variant's compare
+    # repeats these, word for word, since it names the base runs the same way.
+    base_named = compare.named_set("old", BASE, base_runs)
+    base_notices = compare.run_notices(base_named) + compare.mixed_build_notices(base_named, BASE)
+    base_warnings = run_report.warning_entries(base_notices)
 
-    entries, unused, absent = [], set(overrides), set(named_measures)
-    all_seen = True  # whether every run's measure names were seen, for the absent sentence
-    for name, paths in variants.items():
-        entry, variant_unused, variant_absent = _judge(name, base_runs, paths, overrides, floors, limits,
-                                                       named_measures, unread_is_unjudged)
-        entry["warnings"] = [w for w in entry["warnings"] if w not in shared]
-        entries.append(entry)
-        if variant_unused is not None:  # the variant's runs were read
-            unused &= variant_unused
-        if variant_absent is not None:
-            absent &= variant_absent
-        else:
-            all_seen = False
-    if not any(e["compare"] for e in entries):
-        unused = set()  # no variant was read, so no field was seen not to differ
-
+    judged_all = [_judge(name, base_runs, paths, overrides, floors, limits, named_measures, unread_is_unjudged)
+                  for name, paths in variants.items()]
+    entries = [j.entry for j in judged_all]
     judged = [e for e in entries if e["verdict"] != "unjudged"]
-    lacking = [e for e in entries if e["reason"] == compare.LACKS_NAMED]
+    lacking = {j.entry["name"] for j in judged_all if j.lacks_named}
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
+
+    # § 4.16's step 2. With no variant judged or lacking, the base runs'
+    # names were in no `absent`, so step 3 speaks instead.
+    absent = set(named_measures).intersection(*(j.absent for j in judged_all if j.absent is not None))
     absent_names = [n for n in named_measures if n in absent] if judged or lacking else []
     if absent_names:  # refused as a plain compare is, with nothing judged shown
+        every_run_read = all(j.absent is not None for j in judged_all)
         return {"verdict": "error", "summary": [*compare.overrides_sentences(override_list),
-                                                compare.absent_sentence(absent_names, all_seen)],
+                                                compare.absent_sentence(absent_names, every_run_read)],
                 "warnings": [], "overrides": override_list,
                 "result": {"named_measures": list(named_measures)}}
 
     rank_measure = _rank_measure(base_runs, named_measures)
-    entries = _ranked(entries, rank_measure)
-    # Both forms are kept: text groups the warnings by variant (`_summary`),
-    # and JSON's "warnings" is one flat list.
+    # Text groups the warnings by side, the base's and then each variant's
+    # by name (`_summary`); JSON's "warnings" is the same groups, flat.
     notice_groups = [base_notices,
-                     *([ledger.Notice(w["code"], f"{e['name']}: {w['message']}") for w in e.pop("warnings")]
-                       for e in entries),
-                     compare.unused_override_notices([f for f in overrides if f in unused])]
+                     *(_own_notices(j, base_warnings) for j in sorted(judged_all, key=lambda j: j.entry["name"])),
+                     compare.unused_override_notices(_unused(overrides, judged_all))]
+    entries = _ranked(entries, rank_measure)
     measures = sum(len(e["compare"]["measures"]) for e in judged)
     result = {
         "variants": entries,
@@ -110,46 +119,63 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     }
     summary = _summary(override_list, named_measures, entries, len(judged), measures, notice_groups,
                        _rank_sentence(base_runs, rank_measure, named_measures))
-    return {"verdict": _verdict(entries) if judged else "error", "summary": summary,
+    return {"verdict": _verdict(entries, lacking) if judged else "error", "summary": summary,
             "warnings": run_report.warning_entries([n for group in notice_groups for n in group]),
             "overrides": override_list, "result": result}
 
 
 def _judge(name: str, base_runs: list[ledger.Run], paths: list[str], overrides: dict[str, str],
            floors: compare.Floors, limits: compare.LoadLimits, named_measures: tuple[str, ...],
-           unread_is_unjudged: bool) -> tuple[dict, set[str] | None, set[str] | None]:
-    """One variant's entry; the overridden fields that differed in none of
-    its compare's runs, None when its runs were not read; and the names in
-    `named_measures` no run of its compare has, None for a variant not
-    read or refused, which says nothing of which names it has. The
-    variant's runs are let go when this returns."""
+           unread_is_unjudged: bool) -> _Judged:
+    """One variant against the base. The variant's runs are let go when
+    this returns."""
     entry = {"name": name, "verdict": "unjudged", "reason": None, "rank": None, "measure": None,
-             "compare": None, "warnings": []}
+             "compare": None}
     try:
-        built = compare.compare(base_runs, [ledger.read(path) for path in paths], overrides, floors, limits,
-                                named_measures, sides=(BASE, name))
-    except ledger.LedgerError as error:
+        runs = [ledger.read(path) for path in paths]
+        built = compare.compare(base_runs, runs, overrides, floors, limits, named_measures, sides=(BASE, name))
+    except ledger.LedgerError as error:  # cannot be read, or breaks the format
         if not unread_is_unjudged:
             raise
         entry["reason"] = str(error)
-        return entry, None, None
+        return _Judged(entry, [], None, None, False)
     entry["compare"] = built["result"]
     unused = set(built["unused"])
-    if built["verdict"] == "error":  # refused
+    if built["verdict"] == "error":  # refused, so its compare looked for no measure
         entry["reason"] = built["reason"]
-        return entry, unused, None
+        return _Judged(entry, [], unused, set(compare.absent_names(runs, named_measures)), False)
     if named_measures and not _own_runs_have_named(built["result"]):
         entry["reason"] = compare.LACKS_NAMED  # judges nothing here, by the caller's choice
-        return entry, unused, set(built["absent"])
+        return _Judged(entry, [], unused, set(built["absent"]), True)
     entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
-    entry["warnings"] = [w for w in built["warnings"] if w["code"] != "override_unused"]
-    return entry, unused, set(built["absent"])
+    # override_unused is the command's to give, once: `_unused`.
+    warnings = [w for w in built["warnings"] if w["code"] != "override_unused"]
+    return _Judged(entry, warnings, unused, set(built["absent"]), False)
+
+
+def _own_notices(judged: _Judged, base_warnings: list[dict]) -> list[ledger.Notice]:
+    """A variant's warnings without the base's, each opening with the
+    variant's name. A run's warning already opens with the run's name,
+    `no_bloom-1`, and is left as it is (DOOM Ants)."""
+    name = judged.entry["name"]
+    return [ledger.Notice(w["code"], w["message"] if w["message"].startswith(f"{name}-")
+                          else f"{name}: {w['message']}")
+            for w in judged.warnings if w not in base_warnings]
+
+
+def _unused(overrides: dict[str, str], judged_all: list[_Judged]) -> list[str]:
+    """The overridden fields that differed in no variant whose runs were
+    read; none when no variant's were, since no field was seen not to
+    differ."""
+    seen = [j.unused for j in judged_all if j.unused is not None]
+    return [f for f in overrides if all(f in unused for unused in seen)] if seen else []
 
 
 def _own_runs_have_named(result: dict) -> bool:
     """Whether any of the variant's own runs has a named measure. The base
     runs having one is not enough (Vestige): with the effect off, the
-    effect's own pass is gone. `result` holds only named measures."""
+    effect's own pass is gone. `result` holds only named measures. In a
+    variant's compare the variant is the "new" set and the base the "old"."""
     own = {run["name"] for run in result["runs"] if run["set"] == "new"}
     return bool(result["measures"]) or any(own & set(m["present_in"]) for m in result["unmatched"])
 
@@ -158,7 +184,12 @@ def _rank_measure(base_runs: list[ledger.Run], named_measures: tuple[str, ...]) 
     """The measure variants rank by: the first --measure name, or
     frame/wall, its median, at the smallest depth the base runs have it,
     in the segment kind with the most base frames carrying it there; ties
-    by kind as text. None when no base run has it."""
+    by kind as text. None when no base run has it.
+
+    This counts any frame row, where compare.run_values keeps only
+    compare.FRAME_MEASURES' rows. A named frame row compare does not judge
+    is in no run's values, so § 4.16's step 2 has stopped the command
+    before `_rank_sentence` looks for this measure's values and finds none."""
     category, _, name = (named_measures[0] if named_measures else DEFAULT_RANK_MEASURE).partition("/")
     frames: Counter[tuple[int, str | None]] = Counter()  # (depth, kind): frames carrying the measure
     for run in base_runs:
@@ -210,11 +241,12 @@ def _rank_sentence(base_runs: list[ledger.Run], rank_measure: compare.Measure | 
             f"{compare.unit_of(rank_measure.category)}.")
 
 
-def _verdict(entries: list[dict]) -> str:
-    """§ 4.16's steps 4 to 6, once a variant was judged. A variant with
-    none of the named measures was left out by --measure's choice: it is
-    unjudged, and does not make the command inconclusive."""
-    verdicts = {e["verdict"] for e in entries if e["reason"] != compare.LACKS_NAMED}
+def _verdict(entries: list[dict], lacking: set[str]) -> str:
+    """§ 4.16's steps 4 to 6, once a variant was judged. A variant in
+    `lacking`, with none of the named measures, was left out by
+    --measure's choice: it is unjudged, and does not make the command
+    inconclusive."""
+    verdicts = {e["verdict"] for e in entries if e["name"] not in lacking}
     if "fail" in verdicts:
         return "fail"
     if verdicts & {"inconclusive", "unjudged"}:
@@ -225,9 +257,9 @@ def _verdict(entries: list[dict]) -> str:
 def _summary(override_list: list[dict], named_measures: tuple[str, ...], entries: list[dict],
              judged_count: int, measures: int, notice_groups: list[list[ledger.Notice]],
              rank_sentence: str) -> list[str]:
-    """§ 4.16's text sentences, in its order. The base runs' warnings and
-    each variant's are grouped apart, so two variants with the same
-    warning both say so."""
+    """§ 4.16's text sentences, in its order. `notice_groups` holds the
+    base runs' warnings and each variant's apart, so two variants with
+    the same warning both say so."""
     summary = compare.overrides_sentences(override_list)
     if named_measures:
         summary.append(f"Judging only {compare.joined(named_measures)}.")

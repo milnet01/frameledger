@@ -117,8 +117,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     per kind of warning; the verdict; the short kinds; the frame time per
     segment kind."""
     called = dict(zip(("old", "new"), sides, strict=True))
-    runs = [Named(f"{called[label]}-{i}", label, run.path, run)
-            for label, group in (("old", old), ("new", new)) for i, run in enumerate(group, 1)]
+    runs = named_set("old", called["old"], old) + named_set("new", called["new"], new)
     for r in runs:
         run_report.refuse_breaches(r.run)
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
@@ -168,6 +167,13 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     return {"verdict": verdict, "reason": reason, "summary": summary,
             "warnings": run_report.warning_entries(notices), "overrides": override_list, "unused": unused,
             "absent": absent, "result": result}
+
+
+def named_set(label: str, called: str, runs: list[ledger.Run]) -> list[Named]:
+    """One set's runs under the names every sentence and result uses:
+    `called`-1, `called`-2, …, in the order given. `label` is "old" or
+    "new"."""
+    return [Named(f"{called}-{i}", label, run.path, run) for i, run in enumerate(runs, 1)]
 
 
 def run_entry(named: Named, limits: LoadLimits = DEFAULT_LIMITS) -> dict:
@@ -310,11 +316,17 @@ def _set_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notic
         found.append(ledger.Notice("not_interleaved", "every run of one set started before every run "
                                    "of the other, so a drift over time reads as a change"))
     for label in ("old", "new"):
-        builds = {(r.run.header["commit"], r.run.header["dirty"]) for r in runs if r.set == label}
-        if len(builds) > 1:
-            found.append(ledger.Notice("mixed_build", f"the {called[label]} runs differ in commit or dirty, "
-                                       "so they may not be one build"))
+        found += mixed_build_notices([r for r in runs if r.set == label], called[label])
     return found + _differ_notices(runs, called)
+
+
+def mixed_build_notices(one_set: list[Named], called: str) -> list[ledger.Notice]:
+    """The one warning that is about a single set: its runs are not all
+    one build. § 4.16 gives the base's once, not once per variant."""
+    if len({(r.run.header["commit"], r.run.header["dirty"]) for r in one_set}) < 2:
+        return []
+    return [ledger.Notice("mixed_build", f"the {called} runs differ in commit or dirty, so they may not be "
+                          "one build")]
 
 
 def _differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
@@ -370,8 +382,7 @@ def _judge_all(runs: list[Named], floors: Floors,
     only the measures it names count, at every depth, kind and statistic,
     matched exactly."""
     per_run = [run_values(r.run) for r in runs]
-    found = {f"{m.category}/{m.name}" for values in per_run for m in values}
-    absent = [n for n in named_measures if n not in found]
+    absent = _absent(per_run, named_measures)
     tick = largest_tick(runs)
     measures, unmatched = [], []
     for measure in set().union(*per_run):
@@ -385,6 +396,17 @@ def _judge_all(runs: list[Named], floors: Floors,
         new = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "new"]
         measures.append(_judge(measure, old, new, floors, tick))
     return sorted(measures, key=_rank), sorted(unmatched, key=_rank), absent
+
+
+def absent_names(runs: list[ledger.Run], named_measures: tuple[str, ...]) -> list[str]:
+    """The names in `named_measures` none of `runs` has: for runs that
+    were read and never judged, such as a refused variant's."""
+    return _absent([run_values(run) for run in runs], named_measures)
+
+
+def _absent(per_run: list[dict[Measure, int]], named_measures: tuple[str, ...]) -> list[str]:
+    found = {f"{m.category}/{m.name}" for values in per_run for m in values}
+    return [n for n in named_measures if n not in found]
 
 
 def _judge(measure: Measure, old: list[int], new: list[int], floors: Floors, tick: Fraction) -> dict:
@@ -536,13 +558,13 @@ def worst_of(measures: list[dict]) -> dict:
     return max(measures, key=lambda m: (m["change"], m["change_pct"] or 0))
 
 
-def worse_measure(measures: list[dict]) -> dict | None:
+def worse_measure(measures: list[dict]) -> dict:
     """The measure a failing scene or variant is named for: its largest
-    slowdown, or without one its largest growth in memory; None when
-    nothing got worse."""
+    slowdown, or without one its largest growth in memory. Only for a
+    compare whose verdict is `fail`, which has one or the other."""
     worse = ([m for m in measures if m["verdict"] == "slower"]
              or [m for m in measures if m["verdict"] == "larger"])
-    return worst_of(worse) if worse else None
+    return worst_of(worse)
 
 
 def rose_sentence(subject: str, measure: dict, where: str = "") -> str:

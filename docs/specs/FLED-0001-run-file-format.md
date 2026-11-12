@@ -1622,15 +1622,17 @@ read when it is judged and let go after.
 - **A file that cannot be read, or breaks the format**, is exit 3, as
   § 4.10: the files were named one by one, so a bad one is a mistake
   in the command. Under `alternate` the tool named the files, and a
-  long session must not be lost to one broken variant build: a bad
-  variant file makes that variant unjudged, naming the file and its
-  reason, with `compare` null, and the others go on. A bad base file
-  is still exit 3 (DOOM Ants).
+  long session must not be lost to one broken variant build: a
+  variant file that cannot be read, or breaks the format, makes that
+  variant unjudged, naming the file and its reason, with `compare`
+  null, and the others go on. Such a base file is still exit 3 (DOOM
+  Ants).
 - **A variant that refuses is unjudged, and the others go on**, as a
   scene does under § 4.14. Its reason names each field, as § 4.10's
   refusal sentence does.
 - **`--measure`** keeps the same measures in every variant. A named
-  measure is exit 3 only when no run has it. A variant none of whose
+  measure is exit 3 only when no run has it, a refused variant's runs
+  included (DOOM Ants). A variant none of whose
   own runs has any named measure is unjudged, "none of its runs has a
   named measure", and step 4 below passes over it, as § 4.14. This
   holds even when the base runs have the measure (Vestige).
@@ -1643,8 +1645,10 @@ read when it is judged and let go after.
 without one, its median. A pass may appear at more than one depth
 (§ 4.4: 0 is a top-level pass, 1 a pass inside one); the rank measure
 takes the smallest depth at which the base runs have it (UT Ants).
-Its segment kind is the one with the most frames carrying it over the
-base runs together; ties by kind compared as text, frames with no
+Its segment kind is the one with the most frames carrying it at that
+depth, over the base runs together (UT Ants: depth first, so 3 `load`
+frames at depth 0 are chosen over 3000 `view` frames at depth 1); ties
+by kind compared as text, frames with no
 segment counting as the kind `""`. A variant's **rank entry** is that
 measure's entry in its compare's `measures`, or none when the variant
 is unjudged or the measure is in its `unmatched`.
@@ -1676,13 +1680,16 @@ name, § 4.10's verdict sentence opening with the variant's name:
 "no_bloom is slower: the gpu/opaque median in view rose from 3.100 to
 3.512 ms." Then one per inconclusive variant with § 4.10's reason, one
 per unjudged variant with its reason. A base run's § 4.9 warnings are
-given once, opening with the run's name, not once per variant. Then
-each variant's warnings, opening with its name; one about a whole set
-calls the sets "the base runs" and "the no_bloom runs". Then one sentence
+given once, opening with the run's name, not once per variant; so is
+the warning that the base runs are not one build (UT Ants, DOOM
+Ants). Then each variant's warnings, the variants by name. A run's
+opens with the run's name, `no_bloom-1`; one about a whole set opens
+with the variant's name and calls the sets "the base runs" and "the
+no_bloom runs". Then one sentence
 naming the rank measure: "Ranked by the frame/wall median in view;
 base 16.400 ms." When no base run has it, the sentence is "Nothing is
-ranked: no base run has gpu/x.", and every rank cell is `–`
-(Vestige). Then one counting what was judged, as § 4.14: "Judged 4
+ranked: no base run has gpu/x.", and every rank cell is `-`, as an
+empty cell is in every table (Vestige). Then one counting what was judged, as § 4.14: "Judged 4
 variants and 96 measures; with this many, a slower measure can be
 chance, and a base that ran unusually fast or slow moves every variant
 together." Every variant shares the base runs, so their verdicts are
@@ -1728,7 +1735,9 @@ failures, stops and files, with files named `DIR/base-1.csv`,
   (UT Ants: so drift is not read as an effect's cost).
 - **Two limits of that order** (DOOM Ants). Drift cancels exactly only
   over an even `--runs`: an odd one ends on a forward round, so each
-  side's last run is later the further down the list it is. And the
+  side's last run is later the further down the list it is. The first
+  and last sides are then one slot fewer than the count of sides
+  apart, so the more variants, the larger the bias (UT Ants). And the
   first and last sides run twice in a row at each round's turn, so a
   warm cache favours them; a middle variant never does. Give an even
   `--runs` when drift matters, and judge an end side's small gain
@@ -2777,9 +2786,21 @@ breaks.
   is 2. Make `a` slower and it is 1. With `b` alone, the exit is 3 and
   the first sentence after the overrides opens "No variant could be
   judged:" and names `device`.
-  *Test:* `tests/test_compare_variants.py::test_refused_variant`.
+  With the base and `a` lacking `gpu/x`, `b` refused and holding it,
+  and `--measure gpu/x --measure cpu/sim`: the exit is 2, `a` passing
+  on `cpu/sim`, since a run has `gpu/x` (DOOM Ants). Under `compare` a
+  variant file that breaks the format is exit 3. One inconclusive
+  variant makes the exit 2. With every variant lacking the named
+  measure the base has, the exit is 3.
+  *Test:* `tests/test_compare_variants.py::test_refused_variant`,
+  `tests/test_compare_variants.py::test_named_measure_only_a_refused_variant_has`,
+  `tests/test_compare_variants.py::test_compare_bad_variant_file`,
+  `tests/test_compare_variants.py::test_inconclusive_variant`,
+  `tests/test_compare_variants.py::test_every_variant_lacks_the_named_measure`.
   *Breaks when:* one refused variant stops the command, a command with
-  one exits 0, or a command that judged nothing exits 2.
+  one exits 0, or a command that judged nothing exits 2; or a refused
+  variant's runs are not looked at for a named measure, so step 2
+  refuses a name a run has.
 - **INV-92** — Variants rank by the rank measure's change, lowest
   first. Base runs with 300 `view` frames and 20 `load` frames;
   variant `a`'s `frame/wall` median in `view` falls 1.200 ms, `b`'s
@@ -2791,21 +2812,38 @@ breaks.
   variant `e` whose runs lack `gpu/x`, which every base run has, is
   unjudged with "none of its runs has a named measure", has `rank`
   null, and leaves the exit as it is without `e` (Vestige).
-  *Test:* `tests/test_compare_variants.py::test_rank`.
+  With `gpu/x` at depth 0 in `view:1` and at depth 1 in the longer
+  `view:2`, `a` saving most at depth 0 and `b` at depth 1:
+  `rank_measure.depth` is 0 and `a` ranks 1. With it at depth 0 in 20
+  `load` frames and at depth 1 in 300 `view` frames, the kind is
+  `load`; with as many `load` frames as `view`, also `load` (UT Ants).
+  Two variants with the same change rank by name.
+  *Test:* `tests/test_compare_variants.py::test_rank`,
+  `tests/test_compare_variants.py::test_rank_measure_is_the_top_level_pass`,
+  `tests/test_compare_variants.py::test_rank_measure_kind_is_chosen_at_that_depth`,
+  `tests/test_compare_variants.py::test_rank_ties_go_by_name`.
   *Breaks when:* variants rank by another kind, by verdict, by size of
   change rather than its sign, or ignore `--measure`; or a variant
   lacking a named measure the base has is judged inconclusive or
   counted in step 4. The `load` kind isolates the kind choice; `c`,
   both slowest and failing, isolates the sign; `e` isolates "its own
-  runs".
+  runs". Or the rank measure takes the deepest depth, or a tie between
+  kinds goes to the later one as text.
 - **INV-93** — The count judged is given, and base warnings once. In
   INV-91's fixture with a base run carrying a § 4.9 warning,
   `judged.variants` is 1 and `judged.measures` equals the length of
   `a`'s `compare.measures`; the text gives both in its count sentence,
-  and the base run's warning appears once.
-  *Test:* `tests/test_compare_variants.py::test_judged_count`.
+  and the base run's warning appears once. With base runs of two
+  commits and variants `a` and `b`, `b`'s runs of two commits too,
+  `mixed_build` is given twice: "the base runs differ…" and "b: the b
+  runs differ…" (UT Ants, DOOM Ants). `override_unused` is given once
+  when the field differs in no variant, and not when it differs in one.
+  *Test:* `tests/test_compare_variants.py::test_judged_count`,
+  `tests/test_compare_variants.py::test_set_warnings_name_the_sides`,
+  `tests/test_compare_variants.py::test_override_unused_is_said_once`.
   *Breaks when:* unjudged variants are counted, the count is missing
-  from the text, or a base warning repeats per variant.
+  from the text, or a warning about the base alone repeats per
+  variant.
 - **INV-94** — `alternate` runs every side in reversing rounds, and
   judges as `compare`. INV-78's fixture with `--base` and variants `a`
   and `b`, `--runs 3`: the log reads base, a, b, b, a, base, base, a,
@@ -3047,14 +3085,15 @@ it on each release they pin.
 | INV-88 | `tests/test_markdown.py::test_engine_text_is_escaped`, `tests/test_markdown.py::test_line_starts_are_escaped`, `tests/test_markdown.py::test_markdown_and_json_refused` |
 | INV-89 | `tests/test_compare_variants.py::test_variant_is_one_compare` |
 | INV-90 | `tests/test_compare_variants.py::test_setup_errors` |
-| INV-91 | `tests/test_compare_variants.py::test_refused_variant` |
-| INV-92 | `tests/test_compare_variants.py::test_rank` |
-| INV-93 | `tests/test_compare_variants.py::test_judged_count` |
+| INV-91 | `tests/test_compare_variants.py::test_refused_variant`, `tests/test_compare_variants.py::test_named_measure_only_a_refused_variant_has`, `tests/test_compare_variants.py::test_compare_bad_variant_file`, `tests/test_compare_variants.py::test_inconclusive_variant`, `tests/test_compare_variants.py::test_every_variant_lacks_the_named_measure` |
+| INV-92 | `tests/test_compare_variants.py::test_rank`, `tests/test_compare_variants.py::test_rank_measure_is_the_top_level_pass`, `tests/test_compare_variants.py::test_rank_measure_kind_is_chosen_at_that_depth`, `tests/test_compare_variants.py::test_rank_ties_go_by_name` |
+| INV-93 | `tests/test_compare_variants.py::test_judged_count`, `tests/test_compare_variants.py::test_set_warnings_name_the_sides`, `tests/test_compare_variants.py::test_override_unused_is_said_once` |
 | INV-94 | `tests/test_compare_variants.py::test_alternate_variants`, `tests/test_compare_variants.py::test_alternate_variants_warm_up_in_order`, `tests/test_compare_variants.py::test_alternate_variants_setup_errors`, `tests/test_compare_variants.py::test_alternate_variants_bad_file` |
 | INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`, `tests/test_alternate.py::test_windows_kill_is_no_stop_signal` |
 | INV-96 | `tests/test_release.py::test_header_names_the_release` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
+| 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |
 
 ## 11. Cross-doc impact

@@ -19,7 +19,9 @@ from typing import NamedTuple
 import ledger
 
 PLACEHOLDER = "{run}"
-FLAG_SIDES = ("old", "new", "base")  # the sides with a flag of their own; a variant's is --variant NAME
+# The sides with a flag of their own; a variant's is --variant NAME. A side
+# added here is a name variants.RESERVED must refuse.
+FLAG_SIDES = ("old", "new", "base")
 FEWEST_RUNS, MOST_RUNS = 3, 100
 MOST_WARMUPS = 10
 # The filled path needs no quoting in /bin/sh or cmd.exe.

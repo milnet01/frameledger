@@ -491,8 +491,8 @@ def _variants_body(compared: dict) -> list[Block]:
             "-" if m["change_pct"] is None else f"{m['change_pct']:+.2f}%", m["verdict"]]
         rows.append([str(v["rank"] or "-"), v["name"], v["verdict"], *figures])
     return [Table("Variants, the largest saving first:",
-                  [Column("rank", 4, True), Column("variant", 28, fit=_fitter(28)), Column("verdict", 12),
-                   Column(f"median {unit}", 12, True), Column(f"change {unit}", 12, True),
+                  [Column("rank", 4, True), Column("variant", 32), Column("verdict", 12),  # 32: § 4.16's longest name
+                   Column(f"median {unit}", 10, True), Column(f"change {unit}", 10, True),
                    Column("change %", 8, True), Column("measure")], rows)]
 
 
