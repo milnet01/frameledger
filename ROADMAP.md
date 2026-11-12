@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=67 -->
+<!-- ants-roadmap-id-high-water: FLED=68 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -761,6 +761,9 @@ to compare against, and the small fixes they filed.
   2026-11-12: built at a9b3c35 (variants.py; compare and alternate
   --base/--variant; tests/test_compare_variants.py). Gate green. Sent to
   the three engines for code review, correctness and readability.
+  2026-11-12: all three engines reviewed a9b3c35; no blocker. UT Ants' and
+  DOOM Ants' findings folded at 171668f, Vestige's at 79ca5d6. Sent back
+  to the three for a yes or no on the folds; ships on their yes.
   **Layman:** Compare many versions at once, such as the game with each effect turned off in turn.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -970,6 +973,17 @@ to compare against, and the small fixes they filed.
   **Layman:** A copied writer file says which frameledger version it is, so an engine knows what it has.
   Kind: feature.
   Source: engine-review-2026-11-11.
+
+- 🚧 [FLED-0068] **A header line may be padded with spaces and rewritten in place.**
+  `end` and `peak` are header fields known only after the last frame,
+  and a streaming writer has already written line 1. Vestige (3D_E-0968)
+  chose to pad the header with spaces after its closing brace and
+  rewrite the line in place at close. The reader already ignores such
+  spaces; docs/specs/FLED-0001-run-file-format.md § 4.1 did not promise
+  it. This item adds the promise and its test.
+  **Layman:** A game can fill in end-of-run figures on the file's first line after the run, without rewriting the whole file.
+  Kind: feature.
+  Source: engine-request-2026-11-12.
 
 ## 0.6.0 — other people's data
 

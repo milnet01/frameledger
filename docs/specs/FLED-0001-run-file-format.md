@@ -180,6 +180,13 @@ A line beginning `# frameledger` holds one JSON object after the first
 space following the keyword. JSON is on one line. No other line begins
 with `#`.
 
+Spaces after the object's closing brace are ignored. So a writer that
+learns the header's `end` and `peak` (4.2) only after the last frame
+may pad line 1 with spaces when it opens the file, and at close write
+the finished header over it at the same length (Vestige, 3D_E-0968;
+FLED-0068). The padding goes after the closing brace, never inside a
+string.
+
 ### 4.2 The header
 
 Required fields:
@@ -2919,6 +2926,15 @@ breaks.
   header's, so a copied header names an older release; or the macro is
   removed or defined twice.
 
+- **INV-97** — Spaces after a `# frameledger` line's closing brace are
+  ignored. `schema-1.csv` with 200 spaces added to its header and close
+  lines: `check` exits 0 with no breach and no warning, and the header
+  and close read are those of the file unpadded.
+  *Test:* `tests/test_check.py::test_header_may_be_padded`.
+  *Breaks when:* the reader refuses, or warns on, a header line that
+  ends in spaces, so a header rewritten in place at a fixed length
+  stops reading.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -2965,6 +2981,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0034: INV-89 to INV-94.
 - FLED-0063: INV-95.
 - FLED-0067: INV-96.
+- FLED-0068: INV-97.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3107,6 +3124,7 @@ it on each release they pin.
 | INV-94 | `tests/test_compare_variants.py::test_alternate_variants`, `tests/test_compare_variants.py::test_alternate_variants_warm_up_in_order`, `tests/test_compare_variants.py::test_alternate_variants_setup_errors`, `tests/test_compare_variants.py::test_alternate_variants_bad_file` |
 | INV-95 | `tests/test_alternate.py::test_windows_stop_ends_the_tree`, on Windows only; `tests/test_alternate.py::test_windows_stop_is_never_a_kill`, `tests/test_alternate.py::test_windows_kill_is_no_stop_signal` |
 | INV-96 | `tests/test_release.py::test_header_names_the_release` |
+| INV-97 | `tests/test_check.py::test_header_may_be_padded` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

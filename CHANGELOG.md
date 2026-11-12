@@ -23,6 +23,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **The writer header says which release it came from** (FLED-0067)
   `include/frameledger.h` defines `FLED_VERSION`, a string such as `"0.5.0"`: the release the header shipped in. A copy vendored into an engine names its own version.
 
+- **A header line may be padded with spaces** (FLED-0068)
+  Spaces after the closing brace of a `# frameledger` line are ignored, and the format now promises it. A writer that learns the header's `end` and `peak` only after the last frame can pad line 1 and rewrite it in place at close.
+
 ### Changed
 
 - A process group that outlives its kill is reported as "did not end after being killed", where it said "after SIGKILL": on Windows the kill is `taskkill` (FLED-0063).
