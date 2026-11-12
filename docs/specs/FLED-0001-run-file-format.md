@@ -24,7 +24,9 @@ depth skip and `skip_reason` with INV-46 amended (FLED-0020) agreed by
 the three engines 2026-11-04 at 139c66c, and their code review
 confirmed it at d2ff396. § 4.13 `survey` with INV-69 to INV-72
 (FLED-0012) agreed by the three engines 2026-11-04 at 991a9de, with
-their wording changes.
+their wording changes. § 4.17 a saved baseline with INV-98 to INV-101
+(FLED-0035) designed with the three engines 2026-11-12, and their code
+reviews of e5f2758 settled its paths, duplicates and warnings.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1813,7 +1815,8 @@ runs/meadow-3.csv
 - **A path that opens with a slash or a drive letter must be absolute
   on the system reading it**, or the file is refused: `\runs\a.csv`
   or `C:\runs\a.csv` on Linux, `/runs/a.csv` or `C:a.csv` on Windows
-  (UT Ants). Joined to the folder, it
+  (UT Ants). A later part that opens with a drive letter,
+  `runs/C:a.csv`, is refused too (DOOM Ants). Joined to the folder, it
   would name a file the line never wrote (Vestige).
 - **A path may climb out with `..`, or be absolute.** Run files of
   every frame are large to commit. A baseline whose runs sit outside
@@ -3082,7 +3085,9 @@ breaks.
   blank line, a comment line, an indented comment line and a line 1
   with a second key are all read, and so is the file saved with a
   byte-order mark and CRLF. With an `--override`, the baseline
-  sentence follows the overrides sentence. With `--by-scene`, and with
+  sentence follows the overrides sentence. It comes first when the new
+  runs' `device` refuses the compare, and when a listed run breaks the
+  format. With `--by-scene`, and with
   `--variant` in place of `--new`, the same holds against `--old
   --by-scene` and against `--base`.
   *Test:* `tests/test_baseline.py::test_baseline_is_the_old_runs`, and
@@ -3096,8 +3101,9 @@ breaks.
   line 1 whose JSON is broken; `schema` 2; a line that is not UTF-8;
   two runs listed; one file listed twice, once as `a.csv` and once as
   `./a.csv`, the sentence naming both lines; a file and a hard link to
-  it; a file and a symbolic link to it; `\a.csv` and `C:\runs\a.csv`,
-  absolute on neither Linux nor Windows as written there; a line 1 of
+  it; a file and a symbolic link to it; `\a.csv`, `C:\runs\a.csv` and
+  `runs/C:a.csv`, none absolute on both Linux and Windows; a listed
+  path that is a folder; a line 1 of
   200,000 nested brackets; `--baseline`, `--variant` and `--new`
   together, the sentence naming no `--base`; a listed
   path that does not exist, the sentence naming the path and its line; a baseline
@@ -3121,7 +3127,8 @@ breaks.
   minutes before, "40 minutes"; a day and a minute before, "1 day";
   under a minute before, "less than a minute"; with one baseline run `dirty`,
   "abc123 (dirty)". New runs that all started before the baseline's
-  warn `not_interleaved` and not `baseline_not_interleaved`. A new
+  warn `not_interleaved` and not `baseline_not_interleaved`. A baseline
+  whose newest run started with the first new run gives neither. A new
   `driver` warns `baseline_driver_differs`, naming both values; a new
   `os` warns `baseline_os_differs`, and not when one run has no `os`.
   The same sets under `--old` give none of the three codes.
@@ -3138,7 +3145,8 @@ breaks.
   `out`, `warmup` and `stopped`, equals `compare --baseline` over
   those files, with the same exit. With `--variant a` and `--variant
   b` the log reads a, b, b, a, a, b. With a baseline naming a missing
-  file, the exit is 3 and the log is empty.
+  file, or with `--old` beside `--baseline`, the exit is 3 and the log
+  is empty.
   *Test:* `tests/test_baseline.py::test_alternate_baseline`, and beside
   it `test_alternate_baseline_variants` and
   `test_alternate_bad_baseline_runs_nothing`.

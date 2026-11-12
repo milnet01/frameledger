@@ -103,10 +103,13 @@ def _resolve(written: str, folder: str) -> str | None:
     with a slash or a drive letter and is still not absolute, as
     `\\runs\\a.csv` or `C:\\runs\\a.csv` on Linux, or `/runs/a.csv` and
     `C:a.csv` on Windows. Joining one to the folder would name a file
-    the line never wrote (Vestige, UT Ants)."""
+    the line never wrote (Vestige, UT Ants). So would a later part with
+    a drive letter, `runs/C:a.csv`: Windows' join starts again at it
+    (DOOM Ants)."""
     drive, rest = os.path.splitdrive(written)
     if os.path.isabs(written) and (drive or os.sep == "/"):
         return os.path.normpath(written)
-    if rest[:1] in ("/", "\\") or WINDOWS_DRIVE.match(written):
+    parts = written.replace("\\", "/").split("/")
+    if rest[:1] in ("/", "\\") or any(WINDOWS_DRIVE.match(part) for part in parts):
         return None
-    return os.path.normpath(os.path.join(folder, *written.replace("\\", "/").split("/")))
+    return os.path.normpath(os.path.join(folder, *parts))

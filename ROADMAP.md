@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=69 -->
+<!-- ants-roadmap-id-high-water: FLED=70 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -775,7 +775,7 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0035] **A saved baseline to compare against.**
+- ✅ [FLED-0035] **A saved baseline to compare against.**
   A file naming a set of runs taken as the reference, which compare
   and the run helper take in place of --old. The analyser keeps no
   state: the engine keeps the file. Vestige needs it, with the run
@@ -789,6 +789,11 @@ to compare against, and the small fixes they filed.
   not-interleaved warning names the baseline's commit, date and age (all
   three); a warning when driver or os differs (UT Ants).
   Spec: docs/specs/FLED-0001-run-file-format.md § 4.17.
+  2026-11-12: built at e5f2758. The three engines' code reviews found
+  no blocker and agreed where the build departed from the design; their
+  points on comments, duplicate files, paths that are not absolute, the
+  warning's wording and cli.py's readability are folded. FLED-0069 and
+  FLED-0070 queue two older crashes the reviews found.
   **Layman:** Keep a known-good set of test runs and check every new version against it.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -1032,6 +1037,20 @@ to compare against, and the small fixes they filed.
   **Layman:** A run file whose first line is damaged in one rare way makes frameledger crash instead of saying what is wrong.
   Kind: fix.
   Source: ut-ants-review-2026-11-12.
+
+- 📋 [FLED-0070] **A started_utc that is no real date crashes compare.**
+  DOOM Ants, reviewing FLED-0035 at c962eaa: ledger.UTC_RE checks only
+  the digits' shape, so `2026-13-01T12:00:00Z` passes `check`, and
+  compare._started then raises ValueError from strptime. Seen
+  2026-11-12: `check` says the file meets the format; `compare` with
+  that run ends in a traceback with exit 1, the code for a regression.
+  Older than FLED-0035 (compare._started), but a hand-kept baseline run
+  is where a bad date is likeliest. Make an impossible date a `check`
+  breach, so every other command gives exit 3 on it. A format rule:
+  needs the spec's § 4.2 to say so, and the engines' agreement.
+  **Layman:** A run file with an impossible date, such as month 13, passes the format check and then makes a comparison crash with the code that means "got slower".
+  Kind: fix.
+  Source: doom-ants-review-2026-11-12.
 
 ## 0.6.0 — other people's data
 

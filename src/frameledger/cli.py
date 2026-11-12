@@ -552,25 +552,25 @@ def _compare_sets(args: argparse.Namespace, kept: _Kept | None) -> dict:
                 raise ledger.LedgerError(f"{flag} has {len(paths)} runs; each needs at least "
                                          f"{compare.FEWEST_RUNS}, since two give too many false changes")
         return _compare_variants("compare", sides, _overrides(args.override), args, named,
-                                 baseline=kept is not None)
+                                 from_baseline=kept is not None)
     old = kept.runs if kept else args.old
     if args.by_scene:
-        return _compare_scenes(args, old, named, baseline=kept is not None)
+        return _compare_scenes(args, old, named, from_baseline=kept is not None)
     for label, paths in (("--old", old), ("--new", args.new)):
         if len(paths) < compare.FEWEST_RUNS:
             raise ledger.LedgerError(f"{label} has {len(paths)} runs; each set needs at least "
                                      f"{compare.FEWEST_RUNS}, since two give too many false changes")
     return _compare_paths("compare", old, args.new, _overrides(args.override), args, named,
-                          baseline=kept is not None)
+                          from_baseline=kept is not None)
 
 
 def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict[str, str],
-                   args: argparse.Namespace, named: tuple[str, ...], baseline: bool = False) -> dict:
-    """§ 4.10's compare of the files at `old` and `new`; `baseline` says
+                   args: argparse.Namespace, named: tuple[str, ...], from_baseline: bool = False) -> dict:
+    """§ 4.10's compare of the files at `old` and `new`; `from_baseline` says
     `old` came from a baseline file."""
     try:
         built = compare.compare([ledger.read(p) for p in old], [ledger.read(p) for p in new],
-                                overrides, _floors(args), _limits(args), named, baseline=baseline)
+                                overrides, _floors(args), _limits(args), named, baseline=from_baseline)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -602,10 +602,11 @@ def _variant_sides(args: argparse.Namespace, takes_files: bool, other_flag: str 
         wanted = [("--new", args.new)] if kept else [("--old", args.old), ("--new", args.new)]
         missing = [flag for flag, value in wanted if value is None]
         if missing:
-            raise ledger.LedgerError(f"give --old and --new, or --base and --variant; {missing[0]} is missing")
+            raise ledger.LedgerError(f"give --old and --new, or --base and --variant; {missing[0]} is missing "
+                                     "(--baseline FILE can stand in for --old or --base)")
         return {}
     if args.base is None and not kept_base:
-        raise ledger.LedgerError("--variant needs --base, the runs each variant is judged against")
+        raise ledger.LedgerError("--variant needs --base, or --baseline: the runs each variant is judged against")
     if not args.variant:
         raise ledger.LedgerError("--base needs at least one --variant NAME to judge against it")
     clash = next((flag for flag, given in (("--old", args.old is not None), ("--new", args.new is not None),
@@ -625,17 +626,17 @@ def _variant_sides(args: argparse.Namespace, takes_files: bool, other_flag: str 
 
 def _compare_variants(command: str, sides: dict[str, list[str]], overrides: dict[str, str],
                       args: argparse.Namespace, named: tuple[str, ...], unread_is_unjudged: bool = False,
-                      baseline: bool = False) -> dict:
+                      from_baseline: bool = False) -> dict:
     """§ 4.16: exit 0 every variant passes, 1 a variant fails, 2 a variant
     is inconclusive or unjudged, 3 a file that cannot be read or no
     variant judged. `unread_is_unjudged` says the command named the files
     itself, as alternate does: then a bad variant file leaves that
-    variant unjudged. `baseline` says the base's files came from a
+    variant unjudged. `from_baseline` says the base's files came from a
     baseline file."""
     paths = dict(sides)
     try:
         built = variants.against_base(paths.pop(variants.BASE), paths, overrides, _floors(args), _limits(args),
-                                      named, unread_is_unjudged=unread_is_unjudged, baseline=baseline)
+                                      named, unread_is_unjudged=unread_is_unjudged, baseline=from_baseline)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -708,20 +709,20 @@ def _alternate(args: argparse.Namespace) -> dict:
         paths = {kept.side: kept.runs, **paths}
     if variants.BASE in paths:
         built = _compare_variants("alternate", paths, overrides, args, named, unread_is_unjudged=True,
-                                  baseline=kept is not None)
+                                  from_baseline=kept is not None)
     else:
         built = _compare_paths("alternate", paths["old"], paths["new"], overrides, args, named,
-                               baseline=kept is not None)
+                               from_baseline=kept is not None)
     built["result"] = {**built["result"], **added, "stopped": None}
     return _name_baseline(built, kept)
 
 
-def _compare_scenes(args: argparse.Namespace, old: list[str], named: tuple[str, ...], baseline: bool) -> dict:
+def _compare_scenes(args: argparse.Namespace, old: list[str], named: tuple[str, ...], from_baseline: bool) -> dict:
     """§ 4.14: exit 0 every scene passes, 1 a scene fails, 2 a scene is
     inconclusive or unjudged or a file unread, 3 a bad flag or no scene
     judged. The run counts are checked per scene, not here."""
     built = scenes.by_scene(old, args.new, _overrides(args.override), _floors(args), _limits(args),
-                            named, baseline=baseline)
+                            named, baseline=from_baseline)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])

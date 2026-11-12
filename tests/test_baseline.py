@@ -11,7 +11,7 @@ import re
 import sys
 from pathlib import Path
 
-import baseline
+import baseline as baseline_reader  # `baseline` below is always a baseline file's path
 import cli
 import compare
 from test_alternate import Bench, analyser, without_added
@@ -97,6 +97,15 @@ def test_baseline_is_the_old_runs(capsys, tmp_path, monkeypatch):
     code, based = run(capsys, "compare", "--baseline", baseline, "--new", *fresh, "--override", "scene=moved")
     assert based["summary"][0].startswith("Overrides given") and based["summary"][1] == sentence(baseline)
 
+    # It is there on a refusal, and when a listed run breaks the format.
+    other_gpu = write_runs(tmp_path / "other", "new", new(SLOW, device="Another GPU"))
+    code, based = run(capsys, "compare", "--baseline", baseline, "--new", *other_gpu)
+    assert (code, based["summary"][0]) == (3, sentence(baseline)) and "device" in based["summary"][1]
+    Path(kept[0]).write_text("not a run\n", encoding="utf-8")
+    code, based = run(capsys, "compare", "--baseline", baseline, "--new", *fresh)
+    assert (code, based["summary"][0], based["result"]) == (3, sentence(baseline), {})
+    assert kept[0] in based["summary"][1]
+
 
 def test_by_scene_and_variants(capsys, tmp_path):
     """INV-98: with --by-scene the baseline is --old; with --variant it is
@@ -141,9 +150,12 @@ def test_bad_baseline_files(capsys, tmp_path):
         # Rooted, yet absolute on neither Linux nor Windows: never joined to the folder.
         ("\n".join([LINE_1, "\\kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
         ("\n".join([LINE_1, "C:\\runs\\kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
+        ("\n".join([LINE_1, "runs/C:kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
+        ("\n".join([LINE_1, *three, "folder"]) + "\n", ["line 5", "is not a file"]),
         # Nested too deep to parse: one sentence, not a traceback (UT Ants).
         (KEYWORD + ' {"schema":' + "[" * 200_000 + "\n" + "\n".join(three) + "\n", ["line 1", "JSON"]),
     ]
+    (tmp_path / "folder").mkdir()
     os.link(tmp_path / "kept-2.csv", tmp_path / "hard.csv")  # one file under two names
     cases.append(("\n".join([LINE_1, *three, "hard.csv"]) + "\n", ["line 5", "line 3's"]))
     if sys.platform != "win32":  # making a symbolic link needs a privilege there
@@ -164,7 +176,7 @@ def test_bad_baseline_files(capsys, tmp_path):
 def test_smallest_set_is_compares():
     """§ 4.17: a baseline needs as many runs as § 4.10's sets. baseline.py
     may not import compare.py, so it holds its own copy of the number."""
-    assert baseline.FEWEST_RUNS == compare.FEWEST_RUNS
+    assert baseline_reader.FEWEST_RUNS == compare.FEWEST_RUNS
 
 
 def test_flag_setup_errors(capsys, tmp_path):
@@ -243,6 +255,10 @@ def test_baseline_warnings(capsys, tmp_path):
 
     based, _ = compared(capsys, tmp_path / "same", old(SAME), fresh)
     assert not BASELINE_CODES & set(messages(based))
+    # The newest baseline run started with the first new run, not before it: neither warning.
+    level = started(old(SAME), "2026-10-26T11:00:00Z", "2026-10-26T12:01:00Z", "2026-10-26T11:02:00Z")
+    based, _ = compared(capsys, tmp_path / "level", level, fresh)
+    assert not {"baseline_not_interleaved", "not_interleaved"} & set(messages(based))
     based, _ = compared(capsys, tmp_path / "driver", old(SAME), new(SLOW, driver="Mesa 26.3"))
     message = messages(based)["baseline_driver_differs"]
     assert '"Mesa 26.2"' in message and '"Mesa 26.3"' in message and "baseline_os_differs" not in messages(based)
@@ -308,3 +324,8 @@ def test_alternate_bad_baseline_runs_nothing(tmp_path):
     assert done.returncode == 3 and done.stdout == ""
     assert "line 3" in done.stderr and bench.kept[1] in done.stderr
     assert bench.order() == [] and bench.files() == []
+    (tmp_path / "clash").mkdir()
+    other = BaselineBench(tmp_path / "clash")
+    clash = analyser([*other.args("--json"), "--old", other.command("old")])
+    assert clash.returncode == 3 and clash.stdout == "" and "--baseline" in clash.stderr
+    assert other.order() == [] and other.files() == []
