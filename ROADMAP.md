@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=72 -->
+<!-- ants-roadmap-id-high-water: FLED=74 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1162,7 +1162,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 🚧 [FLED-0071] **A header value cannot forge or flood a warning line.**
+- ✅ [FLED-0071] **A header value cannot forge or flood a warning line.**
   DOOM Ants, reviewing 8e9a970 (FLED-0016): plain-text output quotes a
   header string as written, so a `sanitizers` name of "addr\nWarning: fake"
   prints a forged second Warning line; ESC and NUL pass too. `renderer`
@@ -1186,9 +1186,28 @@ can still use the analyser, and a stranger's writer can prove itself.
   cannot carry one, since it fires only when `build_type` is "debug" in
   some case. Amends docs/specs/FLED-0001-run-file-format.md § 4.8,
   INV-110.
+  2026-11-13: built at 26583ea; the three engines' code reviews folded at
+  44c1a1b. They found callers that quoted file text uncut and a baseline
+  file's line reaching standard error raw. Now cut: an undefined header
+  key, a refusal's values, the baseline warning's commit, a scene's name
+  in a sentence, a budget file's fields. Standard error is cleaned and
+  cut. INV-110's test feeds a hostile value to every free-string header
+  field. Markdown is its own item.
   **Layman:** A run file cannot make frameledger print a fake warning or a huge line.
   Kind: fix.
   Source: doom-ants-review-2026-11-13.
+
+- 📋 [FLED-0073] **Markdown output cannot reorder or split a line.**
+  Split from FLED-0071. `render._escape` makes U+0000 to U+001F and U+007F
+  a space, but passes the text-direction marks, U+2028, U+2029 and the
+  C1 controls, which `render.visible` shows as escapes in plain text. So
+  Markdown has a second, shorter list (`render._CONTROL`). Vestige and
+  DOOM Ants, reviewing 26583ea: a rendered pull-request comment is where
+  U+202E reorders a verdict, so do it soon. To decide with the engines:
+  a space, as now, or a visible escape. Amends FLED-0001 § 4.8.
+  **Layman:** A run file cannot make a report pasted into a pull request read in a different order than it was written.
+  Kind: fix.
+  Source: engine-reviews-FLED-0071-2026-11-13.
 
 ## 0.7.0 — seen, not only read
 
@@ -1226,9 +1245,29 @@ the source of truth; all three engines set that condition, 2026-11-10.
   Waiting on: Vestige's three quiet-machine captures under 3D_E-0970;
   UT Ants has no ledgers yet. Needs a spec amendment to FLED-0001 § 4.9
   or § 4.10.
+  2026-11-13, Vestige's figures (message 1974; commit 0508b49, Release,
+  RX 6600, 1920x1080, meadow-flythrough, no vsync, about 2490 frames a
+  run, warm-up included). Five quiet runs: (p75 - p25) / median of
+  frame/wall is 0.105 to 0.115; their medians span 1.06%. One run under
+  load, taken right after a build: 0.2194, p99 81.663 ms against about
+  14.5. So for this scene a limit between 0.12 and 0.21 separates them;
+  one loaded sample, so the upper end is soft. Vestige's caution: the
+  camera moves, so much of the 0.11 is the path, not noise, and a still
+  scene would read lower. Still waiting on: UT Ants and DOOM Ants runs.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
+
+- 💭 [FLED-0074] **Read a gzip-compressed run file.**
+  Vestige, 2026-11-13: `check run.csv.gz` reads the gzip bytes as a run
+  with no close line ("unfinished") rather than refusing it as not a run
+  file. Five of its runs are 29 MB, 2.2 MB gzipped, so a baseline's runs
+  are too big to commit. Two parts: say plainly that a .gz is not a run
+  file, and perhaps read one. Low priority by Vestige's word. Not
+  checked here: the message `check` gives.
+  **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
+  Kind: feature.
+  Source: vestige-2026-11-13.
 
 ## 0.8.0 — stable promises (beta)
 
