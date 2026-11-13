@@ -30,6 +30,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Fixed
 
+- **Text from a run file or a path cannot forge or flood a line** (FLED-0071)
+  A header value holding a line break could print a second line reading "Warning: …", and an escape character reached the terminal. Plain text now shows such a character as an escape, `\n` or `\x1b`: the control characters, the line separators and the marks that set text direction. A quoted header string also shows a backslash doubled; a path keeps single backslashes, so a Windows path can still be copied. A `sanitizers` list names its first five entries, then "and N more", and a long `renderer`, `device`, `driver` or `os` is cut to 60 characters. `--json` is unchanged and exact.
+
 - **A huge whole number in the header is refused in a sentence** (FLED-0055)
   A header number such as a `gpu_clock_mhz.end` of 1 followed by 400 zeros ended `check` in a traceback. It is now a `header` breach, as any other bad value.
 

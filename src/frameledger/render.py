@@ -51,12 +51,35 @@ def to_json(result: dict) -> str:
     return json.dumps(result, indent=2) + "\n"
 
 
+# What a terminal obeys instead of showing: Unicode's control characters,
+# its line and paragraph separators, and the marks that set text direction,
+# which can show a line's letters in another order than they were written
+# (Vestige, UT Ants).
+_UNPRINTED = re.compile("[\x00-\x1f\x7f-\x9f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+_SHORT_ESCAPES = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
+
+
+def visible(line: str) -> str:
+    """One line of plain text with each character a terminal would obey
+    shown as an escape, `\\n`, `\\x1b` or `\\u202e`, so text from a run file
+    or a path cannot start a line of its own, clear the screen or reorder
+    what is read (§ 4.8, DOOM Ants). A backslash is left single: a Windows
+    path must stay one that can be copied. So in a path a real line break
+    reads as the typed characters `\\n` do; --json tells them apart."""
+    def escape(m: re.Match) -> str:
+        code = ord(m[0])
+        return _SHORT_ESCAPES.get(m[0]) or (f"\\x{code:02x}" if code < 0x100 else f"\\u{code:04x}")
+    return _UNPRINTED.sub(escape, line)
+
+
 def to_text(result: dict) -> str:
+    """§ 4.8's plain text. Every line passes through `visible` here, the
+    one place the text's lines are joined."""
     lines = list(result["summary"])
     body = _text_lines(_body(result))
     if body:
         lines += ["", *body]
-    return "\n".join(lines) + "\n"
+    return "\n".join(map(visible, lines)) + "\n"
 
 
 def to_markdown(result: dict) -> str:

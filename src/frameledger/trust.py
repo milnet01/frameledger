@@ -20,6 +20,7 @@ GPU_BUSY_LIMIT = 20   # percent
 # Below 100 frames the nearest-rank 99th percentile is the slowest frame,
 # so the 1% low is one frame's time.
 FEWEST_FRAMES = 100
+LISTED = 5  # a quoted list names this many entries and counts the rest, so it cannot flood a line
 
 
 def warnings(run: ledger.Run, measured: int, cut_frames: set[int] | None = None) -> list[ledger.Notice]:
@@ -38,12 +39,15 @@ def warnings(run: ledger.Run, measured: int, cut_frames: set[int] | None = None)
              "Debug build")
     sanitizers = header.get("sanitizers")
     if sanitizers:  # absent is unknown and [] is none: neither warns
-        names = ", ".join(f"'{ledger.clip(name)}'" for name in sanitizers)
+        names = ", ".join(f"'{ledger.quoted(name)}'" for name in sanitizers[:LISTED])
+        if len(sanitizers) > LISTED:
+            names += f" and {len(sanitizers) - LISTED} more"
         warn("sanitizer_build", f"the build has {'sanitizer' if len(sanitizers) == 1 else 'sanitizers'} "
              f"{names}, so the run timed instrumented code")
     for field in ("renderer", "device"):
         if any(name in header[field].casefold() for name in SOFTWARE_RENDERERS):
-            warn("software_renderer", f"the {field} is '{header[field]}', which draws in software, "
+            warn("software_renderer", f"the {field} is '{ledger.quoted(header[field], ledger.LONG_QUOTE)}', "
+                 "which draws in software, "
                  "so the run says nothing about a GPU")
             break
     load = header.get("load", {}).get("start")

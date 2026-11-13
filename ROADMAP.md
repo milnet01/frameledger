@@ -1162,7 +1162,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 📋 [FLED-0071] **A header value cannot forge or flood a warning line.**
+- 🚧 [FLED-0071] **A header value cannot forge or flood a warning line.**
   DOOM Ants, reviewing 8e9a970 (FLED-0016): plain-text output quotes a
   header string as written, so a `sanitizers` name of "addr\nWarning: fake"
   prints a forged second Warning line; ESC and NUL pass too. `renderer`
@@ -1176,6 +1176,16 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-13, DOOM Ants (FLED-0025 review): survey's table heading now
   carries a directory from the paths given, so a control character in a
   directory name reaches plain-text output there too.
+  2026-11-13: the three engines agreed the design. Plain text is cleaned
+  where it is written and `check` is unchanged. A control character
+  shows as an escape (\n, \x1b, \x00): Unicode's controls, the line and
+  paragraph separators and the text-direction marks. A backslash is
+  doubled only inside a quoted header value; a path keeps single ones. A
+  list quoted in a warning shows five entries, then "and N more"; a long
+  value is cut. `--json` is exact. Checked while building: `debug_build`
+  cannot carry one, since it fires only when `build_type` is "debug" in
+  some case. Amends docs/specs/FLED-0001-run-file-format.md § 4.8,
+  INV-110.
   **Layman:** A run file cannot make frameledger print a fake warning or a huge line.
   Kind: fix.
   Source: doom-ants-review-2026-11-13.

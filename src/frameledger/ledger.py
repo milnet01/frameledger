@@ -317,9 +317,21 @@ def _row_problem(run_id, segment, frame, category, name, depth, value, header_ru
     return None
 
 
-def clip(text: str) -> str:
-    """A field short enough to quote in a sentence."""
-    return text if len(text) <= 20 else text[:17] + "..."
+def clip(text: str, most: int = 20) -> str:
+    """A field short enough to quote in a sentence: at most `most`
+    characters."""
+    return text if len(text) <= most else text[:most - 3] + "..."
+
+
+LONG_QUOTE = 60  # for a value that is a sentence of its own, such as a renderer's name
+
+
+def quoted(text: str, most: int = 20) -> str:
+    """A header string as a sentence quotes it: cut to `most` characters,
+    and each backslash doubled. Plain text shows a line break in it as
+    `\\n` (render.visible), and the doubling keeps the typed characters
+    backslash and n from reading as one (§ 4.8; Vestige, UT Ants)."""
+    return clip(text, most).replace("\\", "\\\\")
 
 
 def _thousandths(value: str) -> int:

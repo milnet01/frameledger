@@ -43,7 +43,9 @@ its code review of 8f04c58 added that `./` names nothing. § 4.10's
 `outlier_run` with INV-109 (FLED-0053) agreed by the three engines
 2026-11-13 before it was built; Vestige's code review of 1b8756b
 added that a set of two names no run, and DOOM Ants' that each
-named run has its sentence and a base run is named once.
+named run has its sentence and a base run is named once. § 4.8's
+cleaned plain text with INV-110 (FLED-0071) found by DOOM Ants
+2026-11-13 and agreed by the three engines before it was built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -649,6 +651,44 @@ code are the text's.
   `:smile:` — are not escaped. A value holding one may link it in a
   pull request, or show an emoji. Escaping `:` would mark every path
   and segment.
+
+**Plain text shows what a terminal would obey** (FLED-0071, DOOM
+Ants). A header value, a path or a static value is text from outside,
+and a line break in one printed a second line that could read
+"Warning: …". So every line of the plain text is cleaned where the
+lines are joined, and nowhere else:
+
+- **Shown as an escape:** Unicode's control characters (U+0000 to
+  U+001F, U+007F to U+009F), the line and paragraph separators U+2028
+  and U+2029, and the marks that set text direction, U+200E, U+200F,
+  U+202A to U+202E and U+2066 to U+2069, which can show a line's
+  letters in another order than written (Vestige, UT Ants). A line
+  break is `\n`, a return `\r`, a tab `\t`; any other is `\x1b` or
+  `\u202e`, by its code. Every other character prints as written, so
+  a name in another alphabet is unchanged.
+- **A backslash is doubled only in a quoted header string**: a
+  `sanitizers` name, the `renderer` or `device` of
+  `software_renderer`, the `driver` or `os` of § 4.17's warnings. There
+  the typed characters `\` and `n` show as `\\n`, apart from a line
+  break's `\n`. The values § 4.10's setting warnings give as JSON are
+  already so.
+- **A path keeps its backslashes single**, so a Windows path can be
+  copied as shown. The cost: in a path, a line break reads as the
+  typed characters `\` and `n` do. `--json` tells them apart; it is
+  exact.
+- **A quoted list names its first five entries**, then "and N more",
+  N being the count left out. A `sanitizers` name is cut to 20
+  characters, a `renderer`, `device`, `driver` or `os` to 60.
+  `--json`'s `message` is cut the same way; the header is not echoed.
+- **`check` is unchanged**: none of this is a breach. A refusal could
+  not reach a path, and each new quoted field would need its own rule.
+- **`--json` and Markdown** carry the sentences uncleaned. JSON
+  escapes a control character itself, and Markdown makes it a space,
+  above. Not cleaned: a message on standard error, which quotes what
+  was typed on the command line.
+
+A cleaned cell is wider than the table laid it out, so such a table
+can pass 100 columns.
 
 ### 4.9 Trust warnings
 
@@ -3384,6 +3424,30 @@ breaks.
   (Vestige); a range at the floor names none; the text hides a second
   named run; or a base run is named once per variant (DOOM Ants).
 
+- **INV-110** — Plain text shows what a terminal would obey. Under
+  `report`, a `sanitizers` name holding a line break then "Warning:
+  fake" gives one warning line, quoting it with `\n`; the same name
+  with the typed characters `\` and `n` is quoted with `\\n`. Names
+  holding U+001B, U+0000 and U+202E show `\x1b`, `\x00` and `\u202e`;
+  a Cyrillic name prints as written. 5000 names give the first five
+  and "and 4995 more", in a line under 200 characters; six give five
+  and "and 1 more"; five give all five. A `renderer` of `llvmpipe`, a
+  line break and 50000 more characters gives one line under 200.
+  `--json`'s message holds the line break itself, and Markdown has
+  the name on one line. Under `survey`, a directory holding a line
+  break and U+001B is named in the heading with `\n` and `\x1b`, and
+  no line opens "Warning: fake"; `--json` gives the paths exactly. A
+  file named `C:\new.csv` is shown with one backslash. In Markdown a
+  file named `my_runs*|.csv` has `*` and `|` escaped (Vestige). A
+  missing file under that directory is named the same way.
+  *Test:* `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`,
+  and beside it `test_path_text_cannot_forge_a_line`.
+  *Breaks when:* text from a run file or a path starts a line of its
+  own, reaches the terminal as a control or direction character, or
+  fills a line without limit; a typed `\n` reads as a line break in a
+  header string; a Windows path is doubled; or `--json` loses the
+  exact value.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -3437,6 +3501,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0055: INV-104 to INV-107.
 - FLED-0025: INV-108.
 - FLED-0053: INV-109.
+- FLED-0071: INV-110.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3592,6 +3657,7 @@ it on each release they pin.
 | INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
 | INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
 | INV-109 | `tests/test_compare.py::test_outlier_run`, `tests/test_compare_variants.py::test_base_outlier_is_named_once` |
+| INV-110 | `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`, `tests/test_plain_text.py::test_path_text_cannot_forge_a_line` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

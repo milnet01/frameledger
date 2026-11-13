@@ -370,7 +370,8 @@ def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[
                     for label in ("old", "new"))
         if old != new and None not in old + new:
             # Quoted, so an empty value still shows (UT Ants).
-            shown_old, shown_new = (joined(f'"{value}"' for value in values) for values in (old, new))
+            shown_old, shown_new = (joined(f'"{ledger.quoted(value, ledger.LONG_QUOTE)}"' for value in values)
+                                    for values in (old, new))
             found.append(ledger.Notice(f"baseline_{field}_differs",
                                        f"the {called['old']} runs' {field} is {shown_old} and the "
                                        f"{called['new']} runs' is {shown_new}"))
