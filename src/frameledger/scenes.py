@@ -61,7 +61,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
     # Both forms are kept: text groups the warnings by scene (`_summary`),
     # and JSON's "warnings" is one flat list.
-    scene_notices = [[ledger.Notice(w["code"], f"{e['scene']}: {w['message']}") for w in e.pop("warnings")]
+    scene_notices = [[ledger.Notice(w["code"], f"{_named(e)}: {w['message']}") for w in e.pop("warnings")]
                      for e in scenes]
     unused_notices = compare.unused_override_notices([f for f in overrides if f in unused])
     notices = [n for group in scene_notices for n in group] + unused_notices
@@ -88,6 +88,13 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
             "overrides": override_list, "result": result}
 
 
+def _named(entry: dict) -> str:
+    """A scene's name as a sentence gives it, from a scene's entry or a
+    run's header: cut like any header string (§ 4.8). The table and
+    --json name each scene whole."""
+    return ledger.clip(entry["scene"], ledger.LONG_QUOTE)
+
+
 def _summary(override_list: list[dict], scenes: list[dict], unread: list[dict], failing: list[dict],
              judged_count: int, measures: int, notice_groups: list[list[ledger.Notice]]) -> list[str]:
     """§ 4.14's text sentences, in its order. Each scene's warnings are
@@ -95,12 +102,12 @@ def _summary(override_list: list[dict], scenes: list[dict], unread: list[dict], 
     summary = compare.overrides_sentences(override_list)
     if judged_count:
         summary += [_fail_sentence(e) for e in failing]
-        summary += [f"{e['scene']} is inconclusive: {e['reason']}." for e in scenes if e["verdict"] == "inconclusive"]
-        summary += [f"{e['scene']} is unjudged: {e['reason']}." for e in scenes if e["verdict"] == "unjudged"]
+        summary += [f"{_named(e)} is inconclusive: {e['reason']}." for e in scenes if e["verdict"] == "inconclusive"]
+        summary += [f"{_named(e)} is unjudged: {e['reason']}." for e in scenes if e["verdict"] == "unjudged"]
         summary += [f"{u['path']} is unread: {u['reason']}." for u in unread]
     else:
         # A refusal's reason holds semicolons, so each reason is bracketed.
-        reasons = [f"{e['scene']} ({e['reason']})" for e in scenes] + [f"{u['path']} ({u['reason']})" for u in unread]
+        reasons = [f"{_named(e)} ({e['reason']})" for e in scenes] + [f"{u['path']} ({u['reason']})" for u in unread]
         summary.append(f"No scene could be judged: {', '.join(reasons)}.")
     for group in notice_groups:
         summary += run_report.warning_sentences(group)
@@ -155,7 +162,7 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
         for run in old_runs + new_runs:
             run_report.refuse_breaches(run)  # a file broken since may have no header to check
             if run.header["scene"] != name:
-                raise ledger.LedgerError(f"its scene is now {run.header['scene']!r}", run.path)
+                raise ledger.LedgerError(f"its scene is now {_named(run.header)!r}", run.path)
         built = compare.compare(old_runs, new_runs, overrides, floors, limits, named_measures, baseline=baseline)
     except ledger.LedgerError as error:  # the file changed since it was first read
         entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
@@ -220,4 +227,4 @@ def _verdict(scenes: list[dict], unread: list[dict], lacking: set[str]) -> str:
 
 def _fail_sentence(entry: dict) -> str:
     where = f", most in {entry['segment']}" if entry["segment"] else ""
-    return compare.rose_sentence(entry["scene"], entry["measure"], where)
+    return compare.rose_sentence(_named(entry), entry["measure"], where)

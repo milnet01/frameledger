@@ -51,11 +51,15 @@ def to_json(result: dict) -> str:
     return json.dumps(result, indent=2) + "\n"
 
 
-# What a terminal obeys instead of showing: Unicode's control characters,
-# its line and paragraph separators, and the marks that set text direction,
-# which can show a line's letters in another order than they were written
-# (Vestige, UT Ants).
-_UNPRINTED = re.compile("[\x00-\x1f\x7f-\x9f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+# What a terminal obeys or hides instead of showing: Unicode's control
+# characters, its line and paragraph separators, the marks that set text
+# direction, which can show a line's letters in another order than they
+# were written (Vestige, UT Ants), and the invisible characters no script
+# needs: the zero-width space, the word joiner and its neighbours, and the
+# byte-order mark. The zero-width joiner and non-joiner stay: Persian and
+# emoji are written with them.
+_UNPRINTED = re.compile("[\x00-\x1f\x7f-\x9f\u061c\u200b\u200e\u200f\u2028\u2029\u202a-\u202e"
+                        "\u2060-\u2064\u2066-\u2069\ufeff]")
 _SHORT_ESCAPES = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
 
 

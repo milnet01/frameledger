@@ -85,7 +85,7 @@ def test_sanitizer_build(capsys, tmp_path):
         out = run(capsys, tmp_path, command, with_header(PASSING, sanitizers=["address", "undefined"]))
         warned = trust(out)
         assert [w["code"] for w in warned] == ["sanitizer_build"]
-        assert "sanitizers 'address', 'undefined'" in warned[0]["message"]
+        assert "sanitizers 'address' and 'undefined'" in warned[0]["message"]
         assert f"Warning: {warned[0]['message']}." in out["summary"]
         assert (out["verdict"], out["exit_code"]) == (plain["verdict"], plain["exit_code"])
         # An empty list says the build has none; that is known, and clean.

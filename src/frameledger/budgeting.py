@@ -140,16 +140,16 @@ def _budget(text: str, number: int, path: str) -> Budget:
         return ledger.LedgerError(message, path, number)
 
     if category not in run_report.SPAN:
-        raise bad(f"category '{category}' must be cpu or gpu")
+        raise bad(f"category '{ledger.clip(category)}' must be cpu or gpu")
     if not ledger.NAME_RE.fullmatch(name) or len(name) > ledger.NAME_MAX:
-        raise bad(f"name '{name}' must be 1 to {ledger.NAME_MAX} ASCII letters, digits and '_ . / -'")
+        raise bad(f"name '{ledger.clip(name)}' must be 1 to {ledger.NAME_MAX} ASCII letters, digits and '_ . / -'")
     if ":" in kind or len(kind.encode()) > ledger.PART_MAX:
-        raise bad(f"kind '{kind}' must be a segment kind of at most {ledger.PART_MAX} bytes, "
+        raise bad(f"kind '{ledger.clip(kind)}' must be a segment kind of at most {ledger.PART_MAX} bytes, "
                   f"'{EVERY_KIND}', or empty")
     if depth and not DEPTH_RE.fullmatch(depth):
         raise bad(f"depth '{ledger.clip(depth)}' must be a whole number of at most nine digits, or empty")
     if statistic not in stats.RANKS:
-        raise bad(f"statistic '{statistic}' must be median or p99")
+        raise bad(f"statistic '{ledger.clip(statistic)}' must be median or p99")
     parts = LIMIT_RE.fullmatch(limit)
     thousandths = 0
     if parts:
@@ -273,8 +273,9 @@ def _refuse_mismatch(run: ledger.Run, match: dict) -> None:
         have = run.header.get(field, compare.ABSENT)
         want_key, have_key = compare.match_key(field, wanted), compare.match_key(field, have)
         if want_key is None or have_key is None or want_key != have_key:
-            shown = "absent" if have is compare.ABSENT else json.dumps(have)
-            differ.append(f"{field} is {json.dumps(wanted)} in the budget file and {shown} in the run")
+            have_shown = "absent" if have is compare.ABSENT else compare.shown(have, ledger.LONG_QUOTE)
+            differ.append(f"{field} is {compare.shown(wanted, ledger.LONG_QUOTE)} in the budget file and "
+                          f"{have_shown} in the run")
     if differ:
         raise ledger.LedgerError("the run does not have the settings the budgets were set for: "
                                  + "; ".join(differ), run.path)

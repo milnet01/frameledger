@@ -191,7 +191,7 @@ class _Reader:
             self.breach(number, "header", problem)
         for name in sorted(header.keys() - HEADER_FIELDS.keys()):
             self.notice("unknown_field", f"the header has a field this format does not define: "
-                        f"'{name}'", number)
+                        f"'{quoted(name)}'", number)
         if header.get("inputs") == []:
             self.notice("inputs_empty", "the header lists no inputs, so no compare can tell whether the "
                         "same content was run", number)
@@ -292,7 +292,7 @@ def frame_segment(rows: dict) -> str:
 def _row_problem(run_id, segment, frame, category, name, depth, value, header_run_id):
     """The first rule a row's fields break, as (rule, message), or None."""
     if header_run_id is not None and run_id != header_run_id:
-        return "run_id", f"run_id '{clip(run_id)}' differs from the header's '{header_run_id}'"
+        return "run_id", f"run_id '{clip(run_id)}' differs from the header's '{clip(header_run_id)}'"
     if segment:
         kind, colon, ident = segment.partition(":")
         if not (colon and kind and ident):
@@ -319,19 +319,37 @@ def _row_problem(run_id, segment, frame, category, name, depth, value, header_ru
 
 def clip(text: str, most: int = 20) -> str:
     """A field short enough to quote in a sentence: at most `most`
-    characters."""
-    return text if len(text) <= most else text[:most - 3] + "..."
+    characters. A longer one keeps both ends, since two renderers or two
+    drivers mostly differ at the end, in a version (Vestige). Any text
+    from a file that a message quotes goes through here or `quoted`
+    (§ 4.8): tests/test_plain_text.py feeds each one far too much."""
+    if len(text) <= most:
+        return text
+    head = (most - 2) // 2
+    return f"{text[:head]}...{text[len(text) - (most - 3 - head):]}"
 
 
 LONG_QUOTE = 60  # for a value that is a sentence of its own, such as a renderer's name
+LISTED = 5  # a quoted list names this many entries and counts the rest, so it cannot flood a line
 
 
 def quoted(text: str, most: int = 20) -> str:
     """A header string as a sentence quotes it: cut to `most` characters,
     and each backslash doubled. Plain text shows a line break in it as
     `\\n` (render.visible), and the doubling keeps the typed characters
-    backslash and n from reading as one (§ 4.8; Vestige, UT Ants)."""
+    backslash and n from reading as one (§ 4.8; Vestige, UT Ants). The
+    cut comes first, so an escape is never cut in half; a value of
+    nothing but control characters is then up to six times `most` wide."""
     return clip(text, most).replace("\\", "\\\\")
+
+
+def listed(names) -> str:
+    """`a`, `a and b`, `a, b and c`, and past LISTED names `a, b, c, d, e
+    and N more`: values from a file as a sentence lists them."""
+    names = list(names)
+    if len(names) > LISTED:
+        names = [*names[:LISTED], f"{len(names) - LISTED} more"]
+    return "".join(names) if len(names) < 2 else f"{', '.join(names[:-1])} and {names[-1]}"
 
 
 def _thousandths(value: str) -> int:

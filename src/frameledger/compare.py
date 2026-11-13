@@ -263,16 +263,19 @@ def refusal_reason(refused: list[dict]) -> str:
     would allow it."""
     parts = []
     for entry in refused:
-        by_value: dict[str, list[str]] = {}
+        by_value: dict[str, list[str]] = {}  # the whole value as JSON -> the runs holding it
+        cut = {}  # the same key -> the value as the sentence shows it
         for name, value in entry["values"].items():
             # A blocking field holding null breaks the format, so None is absent.
-            by_value.setdefault("absent" if value is None else json.dumps(value), []).append(name)
+            key = "absent" if value is None else json.dumps(value)
+            by_value.setdefault(key, []).append(name)
+            cut[key] = key if value is None else shown(value, ledger.LONG_QUOTE)
         if entry["field"] == "inputs" and list(by_value) == ["[]"]:
             what = "inputs is empty in every run, so the inputs are unknown"
         else:
             # Two empty input lists are unknown, not equal (§ 4.2), so say so.
             what = f"{entry['field']} differs: " + "; ".join(
-                f"{'[] (unknown)' if value == '[]' else value} in {', '.join(names)}"
+                f"{'[] (unknown)' if value == '[]' else cut[value]} in {', '.join(names)}"
                 for value, names in by_value.items())
         parts.append(f"{what} (--override {entry['field']}=REASON compares anyway)")
     return "; ".join(parts)
@@ -342,12 +345,12 @@ def _baseline_first_notice(runs: list[Named], called: dict[str, str], oldest: tu
     """§ 4.17's stand-in for not_interleaved: what the baseline is, and how
     long before the first new run its oldest run started."""
     builds = dict.fromkeys((r.run.header["commit"], r.run.header["dirty"]) for r in runs if r.set == "old")
-    commits = [f"{commit} (dirty)" if dirty else commit for commit, dirty in builds]
+    commits = [ledger.quoted(commit, ledger.LONG_QUOTE) + (" (dirty)" if dirty else "") for commit, dirty in builds]
     seconds = int((first_new[0] - oldest[0]).total_seconds()) + first_new[1] - oldest[1]
     return ledger.Notice(
         "baseline_not_interleaved",
         f"the {called['old']} runs are a baseline of {'commit' if len(commits) == 1 else 'commits'} "
-        f"{joined(commits)}, started {oldest[0].date().isoformat()} (UTC), {_age(seconds)} before the first "
+        f"{ledger.listed(commits)}, started {oldest[0].date().isoformat()} (UTC), {_age(seconds)} before the first "
         f"{called['new']} run; nothing ran in turn with them, so a drift on the machine since then reads "
         "as a change")
 
@@ -370,7 +373,7 @@ def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[
                     for label in ("old", "new"))
         if old != new and None not in old + new:
             # Quoted, so an empty value still shows (UT Ants).
-            shown_old, shown_new = (joined(f'"{ledger.quoted(value, ledger.LONG_QUOTE)}"' for value in values)
+            shown_old, shown_new = (ledger.listed(f'"{ledger.quoted(value, ledger.LONG_QUOTE)}"' for value in values)
                                     for values in (old, new))
             found.append(ledger.Notice(f"baseline_{field}_differs",
                                        f"the {called['old']} runs' {field} is {shown_old} and the "
@@ -421,7 +424,8 @@ def _setting_differ_notices(runs: list[Named], called: dict[str, str]) -> list[l
         old, new = (sorted({_whole(r.run.header[field]) for r in runs if r.set == label})
                     for label in ("old", "new"))
         if old != new:
-            shown_old, shown_new = (joined(_shown(json.loads(value)) for value in values) for values in (old, new))
+            shown_old, shown_new = (ledger.listed(shown(json.loads(value)) for value in values)
+                                    for values in (old, new))
             found.append(ledger.Notice(code, f"the {called['old']} runs' {field} is {shown_old} and the "
                                        f"{called['new']} runs' is {shown_new}"))
     return found
@@ -433,12 +437,16 @@ def _whole(value: object) -> str:
     return json.dumps(sorted(value) if isinstance(value, list) else value)
 
 
-def _shown(value: object) -> str:
+def shown(value: object, most: int = 20) -> str:
     """A header value as it is quoted in a sentence: JSON, each string cut
-    short."""
-    if isinstance(value, list):
-        return f"[{', '.join(_shown(item) for item in value)}]"
-    return json.dumps(ledger.clip(value) if isinstance(value, str) else value)
+    to `most` characters and each list after its first ledger.LISTED."""
+    if isinstance(value, (list, dict)):
+        items = ([shown(item, most) for item in value] if isinstance(value, list)
+                 else [f"{shown(key, most)}: {shown(item, most)}" for key, item in value.items()])
+        more = f" and {len(items) - ledger.LISTED} more" if len(items) > ledger.LISTED else ""
+        inside = ", ".join(items[:ledger.LISTED]) + more
+        return f"[{inside}]" if isinstance(value, list) else f"{{{inside}}}"
+    return json.dumps(ledger.clip(value, most) if isinstance(value, str) else value)
 
 
 def run_values(run: ledger.Run, by_segment: bool = False) -> dict[Measure, int]:

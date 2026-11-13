@@ -331,7 +331,7 @@ def main(argv: list[str] | None = None) -> int:
         result = _dispatch(args)
         _write(print_as(result))
     except ledger.LedgerError as error:
-        print(f"frameledger: {error}", file=sys.stderr)
+        _complain(error)
         return ERROR
     except SystemExit as stop:  # --help prints and stops
         return stop.code if isinstance(stop.code, int) else ERROR
@@ -383,7 +383,7 @@ def _bisect_main(argv: list[str]) -> int:
         _write(print_as(result))
         return result["exit_code"]
     except ledger.LedgerError as error:
-        print(f"frameledger: {error}", file=sys.stderr)
+        _complain(error)
     except SystemExit as stop:  # --help prints and stops; anything else says so
         if stop.code:
             print(f"frameledger: stopped ({stop.code})", file=sys.stderr)
@@ -392,6 +392,16 @@ def _bisect_main(argv: list[str]) -> int:
     except Exception:  # a bug in the analyser must not mark the commit bad
         traceback.print_exc()
     return STOP
+
+
+STDERR_MOST = 500  # a setup error names one path and says one thing; a line of a baseline file can be any length
+
+
+def _complain(error: ledger.LedgerError) -> None:
+    """A setup error on standard error, cut and cleaned as plain text is
+    (§ 4.8): it can quote a baseline file's line, not only the command
+    line (Vestige, UT Ants)."""
+    print(f"frameledger: {render.visible(ledger.clip(str(error), STDERR_MOST))}", file=sys.stderr)
 
 
 def _write(text: str) -> None:

@@ -42,8 +42,8 @@ def read(path: str) -> list[str]:
             continue  # a blank line or a comment
         run = _resolve(written, os.path.dirname(path))
         if run is None:
-            raise ledger.LedgerError(f"'{written}' is neither a relative path nor an absolute one on this system",
-                                     path, number)
+            raise ledger.LedgerError(f"'{ledger.clip(written, ledger.LONG_QUOTE)}' is neither a relative path "
+                                     "nor an absolute one on this system", path, number)
         if not os.path.isfile(run):  # a moved run must not read as a regression (Vestige)
             raise ledger.LedgerError(f"this line names {run}, which is not a file", path, number)
         # One file under two names would count twice and narrow the spread

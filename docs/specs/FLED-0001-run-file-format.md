@@ -660,15 +660,19 @@ lines are joined, and nowhere else:
 
 - **Shown as an escape:** Unicode's control characters (U+0000 to
   U+001F, U+007F to U+009F), the line and paragraph separators U+2028
-  and U+2029, and the marks that set text direction, U+200E, U+200F,
-  U+202A to U+202E and U+2066 to U+2069, which can show a line's
-  letters in another order than written (Vestige, UT Ants). A line
+  and U+2029, and the marks that set text direction, U+061C, U+200E,
+  U+200F, U+202A to U+202E and U+2066 to U+2069, which can show a
+  line's letters in another order than written (Vestige, UT Ants).
+  Also the invisible characters no script needs: U+200B, U+2060 to
+  U+2064 and U+FEFF. The joiners U+200C and U+200D print as written,
+  since Persian and emoji are written with them. A line
   break is `\n`, a return `\r`, a tab `\t`; any other is `\x1b` or
   `\u202e`, by its code. Every other character prints as written, so
   a name in another alphabet is unchanged.
 - **A backslash is doubled only in a quoted header string**: a
   `sanitizers` name, the `renderer` or `device` of
-  `software_renderer`, the `driver` or `os` of § 4.17's warnings. There
+  `software_renderer`, the `driver`, `os` or `commit` of § 4.17's
+  warnings, a header key of `unknown_field`. There
   the typed characters `\` and `n` show as `\\n`, apart from a line
   break's `\n`. The values § 4.10's setting warnings give as JSON are
   already so.
@@ -677,15 +681,29 @@ lines are joined, and nowhere else:
   typed characters `\` and `n` do. `--json` tells them apart; it is
   exact.
 - **A quoted list names its first five entries**, then "and N more",
-  N being the count left out. A `sanitizers` name is cut to 20
-  characters, a `renderer`, `device`, `driver` or `os` to 60.
-  `--json`'s `message` is cut the same way.
-- **`check` is unchanged**: none of this is a breach. A refusal could
-  not reach a path, and each new quoted field would need its own rule.
+  N being the count left out. So does a list inside a value given as
+  JSON.
+- **A quoted value is cut**, keeping both its ends around `...`, since
+  two renderers or drivers mostly differ at the end (Vestige). A
+  `sanitizers` name, a header key and a row's or a budget file's field
+  are cut to 20 characters. Cut to 60: a `renderer`, `device`,
+  `driver`, `os` or `commit`; each string of a value in a refusal
+  (§ 4.2) or a budget file's mismatch; a scene's name in a sentence of
+  § 4.14; a baseline file's line that is no path. Values are compared
+  whole and only shown cut. The cut counts characters before they are
+  shown as escapes, so a value of nothing but control characters is up
+  to six times as wide. `--json`'s `message` is cut the same way.
+- **Shown whole:** a path, and a scene's name in § 4.14's table. Each
+  is what a reader looks the run up by.
+- **`check` adds no breach**: its text is cleaned and cut as any
+  other. A refusal could not reach a path, and each new quoted field
+  would need its own rule.
 - **`--json` and Markdown** carry the sentences uncleaned. JSON
   escapes a control character itself, and Markdown makes it a space,
-  above. Not cleaned: a message on standard error, which quotes what
-  was typed on the command line.
+  above.
+- **Standard error** is cleaned the same way, and a setup error is cut
+  to 500 characters: it can quote a line of a baseline file, not only
+  the command line (Vestige, UT Ants).
 
 A cleaned cell is wider than the table laid it out, so such a table
 can pass 100 columns.
@@ -3440,8 +3458,27 @@ breaks.
   file named `C:\new.csv` is shown with one backslash. In Markdown a
   file named `my_runs*|.csv` has `*` and `|` escaped (Vestige). A
   missing file under that directory is named the same way.
+  One character of each listed range is shown as an escape, and the
+  joiners print as written. Each header field that may hold any
+  string, and an undefined header key, holding a forged line, U+001B,
+  a typed `\n` and 50000 characters, leaves every line of `report`,
+  `check` and a `compare` under 700 characters with no line opening
+  "Warning: fake". § 4.17's warnings quote a `driver` with a typed
+  `\n` as `\\n`, and a long `driver` or `commit` with both its ends.
+  A baseline file's line of that kind gives one line on standard
+  error, under 700 characters, with no control character. So does a
+  budget file's long field, and a long `scene` the budgets were not set
+  for. Under `--by-scene`, a long scene name is cut in each sentence
+  and whole in `--json`.
   *Test:* `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`,
-  and beside it `test_path_text_cannot_forge_a_line`.
+  and beside it `test_path_text_cannot_forge_a_line`,
+  `test_each_kind_of_unprinted_character_is_shown`,
+  `test_joining_characters_print_as_written`,
+  `test_no_header_string_forges_or_floods`,
+  `test_baseline_warnings_quote_header_strings`,
+  `test_a_baseline_file_cannot_forge_or_flood_standard_error`,
+  `test_a_budget_file_cannot_flood_a_line` and
+  `test_a_scene_name_cannot_flood_a_sentence`.
   *Breaks when:* text from a run file or a path starts a line of its
   own, reaches the terminal as a control or direction character, or
   fills a line without limit; a typed `\n` reads as a line break in a
@@ -3657,7 +3694,7 @@ it on each release they pin.
 | INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
 | INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
 | INV-109 | `tests/test_compare.py::test_outlier_run`, `tests/test_compare_variants.py::test_base_outlier_is_named_once` |
-| INV-110 | `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`, `tests/test_plain_text.py::test_path_text_cannot_forge_a_line` |
+| INV-110 | `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`, `tests/test_plain_text.py::test_path_text_cannot_forge_a_line`, `tests/test_plain_text.py::test_each_kind_of_unprinted_character_is_shown`, `tests/test_plain_text.py::test_joining_characters_print_as_written`, `tests/test_plain_text.py::test_no_header_string_forges_or_floods`, `tests/test_plain_text.py::test_baseline_warnings_quote_header_strings`, `tests/test_plain_text.py::test_a_baseline_file_cannot_forge_or_flood_standard_error`, `tests/test_plain_text.py::test_a_budget_file_cannot_flood_a_line`, `tests/test_plain_text.py::test_a_scene_name_cannot_flood_a_sentence` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |
