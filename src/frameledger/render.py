@@ -129,9 +129,10 @@ _LIST_OR_HEADING = re.compile(r"^(?:(?P<mark>>|#{1,6}(?=\s|$)|[+-](?=\s|$))"
 NBSP = "\u00a0"
 
 
-# A line break, or any other control character, in a path or a static value
-# would end a table row or a sentence's list item early (Vestige).
-_CONTROL = re.compile(r"\r\n|[\x00-\x1f\x7f]")
+# A line break in a path or a static value would end a table row or a
+# sentence's list item early (Vestige), and a direction mark would reorder a
+# sentence as rendered. Plain text's list, so the two cannot drift (FLED-0073).
+_CONTROL = re.compile(r"\r\n|" + _UNPRINTED.pattern)
 
 
 def _escape(text: str) -> str:

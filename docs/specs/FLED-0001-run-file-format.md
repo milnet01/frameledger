@@ -636,8 +636,10 @@ code are the text's.
   `_` not between two letters or digits. So a path, a segment id or a
   static value cannot format the output or split a cell, and a pass
   name such as `shadow_map` is unchanged. A Windows path's backslashes
-  are doubled unrendered. A line break or other control character
-  becomes a space, so it cannot end a row or a sentence's item.
+  are doubled unrendered. A line break, or any other character plain
+  text shows as an escape (below), becomes a space, so it cannot end a
+  row or a sentence's item, or reorder a sentence as rendered
+  (FLED-0073; Vestige, DOOM Ants).
 - **Line starts.** A sentence can open with a path, a run name or an
   error. So a sentence opening `>`, or one to six `#`, a `-` or a `+`
   then a space or the line's end, gets a backslash before it. One opening with digits
@@ -3469,7 +3471,8 @@ breaks.
   error, under 700 characters, with no control character. So does a
   budget file's long field, and a long `scene` the budgets were not set
   for. Under `--by-scene`, a long scene name is cut in each sentence
-  and whole in `--json`.
+  and whole in `--json`. In Markdown one character of each listed
+  range becomes a space, and a joiner prints as written.
   *Test:* `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`,
   and beside it `test_path_text_cannot_forge_a_line`,
   `test_each_kind_of_unprinted_character_is_shown`,
@@ -3477,8 +3480,9 @@ breaks.
   `test_no_header_string_forges_or_floods`,
   `test_baseline_warnings_quote_header_strings`,
   `test_a_baseline_file_cannot_forge_or_flood_standard_error`,
-  `test_a_budget_file_cannot_flood_a_line` and
-  `test_a_scene_name_cannot_flood_a_sentence`.
+  `test_a_budget_file_cannot_flood_a_line`,
+  `test_a_scene_name_cannot_flood_a_sentence` and
+  `test_markdown_makes_each_unprinted_character_a_space`.
   *Breaks when:* text from a run file or a path starts a line of its
   own, reaches the terminal as a control or direction character, or
   fills a line without limit; a typed `\n` reads as a line break in a
@@ -3538,7 +3542,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0055: INV-104 to INV-107.
 - FLED-0025: INV-108.
 - FLED-0053: INV-109.
-- FLED-0071: INV-110.
+- FLED-0071 and FLED-0073: INV-110.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3694,7 +3698,7 @@ it on each release they pin.
 | INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
 | INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
 | INV-109 | `tests/test_compare.py::test_outlier_run`, `tests/test_compare_variants.py::test_base_outlier_is_named_once` |
-| INV-110 | `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`, `tests/test_plain_text.py::test_path_text_cannot_forge_a_line`, `tests/test_plain_text.py::test_each_kind_of_unprinted_character_is_shown`, `tests/test_plain_text.py::test_joining_characters_print_as_written`, `tests/test_plain_text.py::test_no_header_string_forges_or_floods`, `tests/test_plain_text.py::test_baseline_warnings_quote_header_strings`, `tests/test_plain_text.py::test_a_baseline_file_cannot_forge_or_flood_standard_error`, `tests/test_plain_text.py::test_a_budget_file_cannot_flood_a_line`, `tests/test_plain_text.py::test_a_scene_name_cannot_flood_a_sentence` |
+| INV-110 | `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`, `tests/test_plain_text.py::test_path_text_cannot_forge_a_line`, `tests/test_plain_text.py::test_each_kind_of_unprinted_character_is_shown`, `tests/test_plain_text.py::test_joining_characters_print_as_written`, `tests/test_plain_text.py::test_no_header_string_forges_or_floods`, `tests/test_plain_text.py::test_baseline_warnings_quote_header_strings`, `tests/test_plain_text.py::test_a_baseline_file_cannot_forge_or_flood_standard_error`, `tests/test_plain_text.py::test_a_budget_file_cannot_flood_a_line`, `tests/test_plain_text.py::test_a_scene_name_cannot_flood_a_sentence`, `tests/test_plain_text.py::test_markdown_makes_each_unprinted_character_a_space` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

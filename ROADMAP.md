@@ -1197,7 +1197,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: fix.
   Source: doom-ants-review-2026-11-13.
 
-- 📋 [FLED-0073] **Markdown output cannot reorder or split a line.**
+- 🚧 [FLED-0073] **Markdown output cannot reorder or split a line.**
   Split from FLED-0071. `render._escape` makes U+0000 to U+001F and U+007F
   a space, but passes the text-direction marks, U+2028, U+2029 and the
   C1 controls, which `render.visible` shows as escapes in plain text. So
@@ -1205,6 +1205,10 @@ can still use the analyser, and a stranger's writer can prove itself.
   DOOM Ants, reviewing 26583ea: a rendered pull-request comment is where
   U+202E reorders a verdict, so do it soon. To decide with the engines:
   a space, as now, or a visible escape. Amends FLED-0001 § 4.8.
+  2026-11-13: the three engines each chose a space, for one list shared
+  with plain text. Built: `render._CONTROL` is `render._UNPRINTED`'s
+  list plus the two-character line break. INV-110 gained the Markdown
+  case. In review with the three engines.
   **Layman:** A run file cannot make a report pasted into a pull request read in a different order than it was written.
   Kind: fix.
   Source: engine-reviews-FLED-0071-2026-11-13.

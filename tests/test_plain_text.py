@@ -111,8 +111,11 @@ def assert_tame(text: str, what: object) -> None:
         assert not render._UNPRINTED.search(line), (what, line[:120])
 
 
-@pytest.mark.parametrize("mark", ["\x00", "\x1b", "\x7f", "\x85", "\x9f", "؜", "​", "‎", "‏",
-                                  "‪", "‮", " ", " ", "⁠", "⁦", "⁩", "﻿"])
+MARKS = ["\x00", "\x1b", "\x7f", "\x85", "\x9f", "\u061c", "\u200b", "\u200e", "\u200f", "\u202a",
+         "\u202e", "\u2028", "\u2029", "\u2060", "\u2066", "\u2069", "\ufeff"]
+
+
+@pytest.mark.parametrize("mark", MARKS)
 def test_each_kind_of_unprinted_character_is_shown(mark):
     """INV-110: each range of § 4.8's list, by one of its characters."""
     shown = render.visible(f"a{mark}b")
@@ -121,7 +124,7 @@ def test_each_kind_of_unprinted_character_is_shown(mark):
 
 def test_joining_characters_print_as_written():
     """§ 4.8: Persian and emoji need the zero-width joiners, so they stay."""
-    assert render.visible("می‌خواهم 👩‍🚀") == "می‌خواهم 👩‍🚀"
+    assert render.visible("می\u200cخواهم 👩\u200d🚀") == "می\u200cخواهم 👩\u200d🚀"
 
 
 STRING_FIELDS = sorted(name for name, (_, rule, _) in ledger.HEADER_FIELDS.items() if rule is ledger._is_string)
@@ -202,3 +205,12 @@ def test_a_scene_name_cannot_flood_a_sentence(capsys, tmp_path):
     assert any("fake" in sentence for sentence in out["summary"])
     assert all(len(sentence) < LONGEST for sentence in out["summary"]), out["summary"]
     assert HOSTILE in [scene["scene"] for scene in out["result"]["scenes"]]
+
+
+def test_markdown_makes_each_unprinted_character_a_space(capsys, tmp_path):
+    """INV-110: Markdown has plain text's list (FLED-0073). A direction
+    mark in a pull-request comment would reorder a sentence as rendered."""
+    for mark in MARKS:
+        text = text_of(capsys, tmp_path, "--markdown", sanitizers=[f"a{mark}b"])
+        assert mark not in text and "'a b'" in text, repr(mark)
+    assert "می\u200cخواهم" in text_of(capsys, tmp_path, "--markdown", sanitizers=["می\u200cخواهم"])
