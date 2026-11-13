@@ -639,7 +639,9 @@ code are the text's.
   are doubled unrendered. A line break, or any other character plain
   text shows as an escape (below), becomes a space, so it cannot end a
   row or a sentence's item, or reorder a sentence as rendered
-  (FLED-0073; Vestige, DOOM Ants).
+  (FLED-0073; Vestige, DOOM Ants). A space and not the escape: the
+  escape's backslash would need escaping again, and `--json` holds
+  what was there.
 - **Line starts.** A sentence can open with a path, a run name or an
   error. So a sentence opening `>`, or one to six `#`, a `-` or a `+`
   then a space or the line's end, gets a backslash before it. One opening with digits
@@ -3471,8 +3473,8 @@ breaks.
   error, under 700 characters, with no control character. So does a
   budget file's long field, and a long `scene` the budgets were not set
   for. Under `--by-scene`, a long scene name is cut in each sentence
-  and whole in `--json`. In Markdown one character of each listed
-  range becomes a space, and a joiner prints as written.
+  and whole in `--json`. In Markdown each listed character
+  becomes a space, and a joiner prints as written.
   *Test:* `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`,
   and beside it `test_path_text_cannot_forge_a_line`,
   `test_each_kind_of_unprinted_character_is_shown`,

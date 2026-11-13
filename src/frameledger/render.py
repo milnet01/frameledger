@@ -132,6 +132,9 @@ NBSP = "\u00a0"
 # A line break in a path or a static value would end a table row or a
 # sentence's list item early (Vestige), and a direction mark would reorder a
 # sentence as rendered. Plain text's list, so the two cannot drift (FLED-0073).
+# Each becomes a space, not plain text's escape: an escape's backslash would
+# need escaping again for Markdown, and --json holds what was there. The
+# two-character line break comes first, so it is one space and not two.
 _CONTROL = re.compile(r"\r\n|" + _UNPRINTED.pattern)
 
 
