@@ -54,6 +54,10 @@ def warnings(run: ledger.Run, measured: int, cut_frames: set[int] | None = None)
     if busy is not None and busy > GPU_BUSY_LIMIT:
         warn("gpu_load", f"gpu_busy_pct.start is {busy}, above {GPU_BUSY_LIMIT}: the GPU was busy "
              "before the run, so other work may have slowed it")
+    if header.get("power") == "battery":
+        warn("on_battery", "the power is 'battery', so the machine may have held its speed down")
+    if header.get("throttled"):  # absent is unknown, never "not throttled"
+        warn("throttled", "throttled is true: the CPU or GPU was slowed for heat or power during the run")
     settled, settling = header.get("settled_frames"), header.get("settling_frames")
     if settled is not None and settling is not None and settled < settling:
         warn("settling_short", f"settled_frames is {settled}, below settling_frames {settling}, so a "

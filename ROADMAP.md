@@ -1115,7 +1115,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 📋 [FLED-0055] **The header records machine state, and compare warns when it differs.**
+- 🚧 [FLED-0055] **The header records machine state, and compare warns when it differs.**
   Optional header fields: CPU governor, turbo on or off, on battery or
   mains, CPU clock, CPU and GPU temperature or throttling. compare warns
   when the two sides differ, as FLED-0030 does for load. A governor or
@@ -1131,6 +1131,12 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-13, engines (FLED-0016 review): the differs-warning also
   covers `sanitizers`. DOOM Ants: compare passes three clean runs
   against three ["address"] runs with warnings only.
+  2026-11-13: design agreed by the three engines before it was built.
+  Fields: cpu_governor (free text), turbo, power, cpu_clock_mhz,
+  cpu_temp_c, gpu_temp_c, throttled. Per run: on_battery, throttled.
+  compare: governor, turbo, power and sanitizers differ; CPU clock by
+  5%; temperatures by 10 degrees, on peak when every run has one.
+  Amends docs/specs/FLED-0001-run-file-format.md §§ 4.2, 4.9 and 4.10.
   **Layman:** Each run notes things like CPU power mode and temperature, and frameledger warns when the two builds were tested under different conditions.
   Kind: feature.
   Source: competitor-research-2026-11-10.

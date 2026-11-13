@@ -72,11 +72,19 @@ class LoadLimits(NamedTuple):
 
 DEFAULT_LIMITS = LoadLimits()
 
-# § 4.10's difference warnings: (code, field, key, the largest difference
-# allowed, whether that is a share of the old median).
-DIFFERS = (("load_differs", "load", "start", Decimal("0.1"), False),
-           ("gpu_busy_differs", "gpu_busy_pct", "start", Decimal(10), False),
-           ("gpu_clock_differs", "gpu_clock_mhz", "end", Decimal("0.05"), True))
+# § 4.10's difference warnings on a number: (code, field, keys, the largest
+# difference allowed, whether that is a share of the old median). The key
+# judged is the first of `keys` that every run has.
+DIFFERS = (("load_differs", "load", ("start",), Decimal("0.1"), False),
+           ("gpu_busy_differs", "gpu_busy_pct", ("start",), Decimal(10), False),
+           ("gpu_clock_differs", "gpu_clock_mhz", ("end",), Decimal("0.05"), True),
+           ("cpu_clock_differs", "cpu_clock_mhz", ("end",), Decimal("0.05"), True),
+           # A short run ends cooler than it ran, so a peak says more (the engines).
+           ("cpu_temp_differs", "cpu_temp_c", ("peak", "end"), Decimal(10), False),
+           ("gpu_temp_differs", "gpu_temp_c", ("peak", "end"), Decimal(10), False))
+# § 4.10's difference warnings on a setting: (code, field).
+SETTINGS_DIFFER = (("governor_differs", "cpu_governor"), ("turbo_differs", "turbo"),
+                   ("power_differs", "power"), ("sanitizers_differs", "sanitizers"))
 
 
 def unit_of(category: str) -> str:
@@ -325,7 +333,7 @@ def _set_notices(runs: list[Named], called: dict[str, str], baseline: bool = Fal
                                    "of the other, so a drift over time reads as a change"))
     for label in ("old", "new"):
         found += mixed_build_notices([r for r in runs if r.set == label], called[label])
-    found += _differ_notices(runs, called)
+    found += _differ_notices(runs, called) + _setting_differ_notices(runs, called)
     return found + (_baseline_differ_notices(runs, called) if baseline else [])
 
 
@@ -379,13 +387,15 @@ def mixed_build_notices(one_set: list[Named], called: str) -> list[ledger.Notice
 
 
 def _differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
-    """§ 4.10: the two sets' medians of a load or clock field differ by more
-    than its limit. Each needs the field in every run."""
+    """§ 4.10: the two sets' medians of a load, clock or temperature field
+    differ by more than its limit. Each needs the field in every run."""
     found = []
-    for code, field, key, limit, relative in DIFFERS:
-        values = [r.run.header.get(field, {}).get(key) for r in runs]
-        if any(v is None for v in values):
+    for code, field, keys, limit, relative in DIFFERS:
+        spans = [r.run.header.get(field, {}) for r in runs]
+        key = next((key for key in keys if all(key in span for span in spans)), None)
+        if key is None:
             continue
+        values = [span[key] for span in spans]
         old, new = (statistics.median(Decimal(repr(v)) for r, v in zip(runs, values, strict=True)
                                       if r.set == label)
                     for label in ("old", "new"))
@@ -395,6 +405,31 @@ def _differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.No
             found.append(ledger.Notice(code, f"the {called['old']} runs' median {field}.{key} is {old} and "
                                        f"the {called['new']} runs' is {new}, which differ by more than {shown}"))
     return found
+
+
+def _setting_differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:
+    """§ 4.10: the two sets were not run under the same setting. Each
+    needs the field in every run; the same mix on both sides is no
+    difference."""
+    found = []
+    for code, field in SETTINGS_DIFFER:
+        if any(field not in r.run.header for r in runs):
+            continue
+        # As JSON text, so a list can sit in a set, and true is not True.
+        old, new = (sorted({_shown(r.run.header[field]) for r in runs if r.set == label})
+                    for label in ("old", "new"))
+        if old != new:
+            found.append(ledger.Notice(code, f"the {called['old']} runs' {field} is {joined(old)} and the "
+                                       f"{called['new']} runs' is {joined(new)}"))
+    return found
+
+
+def _shown(value: object) -> str:
+    """A header value as it is quoted in a sentence: JSON, each string cut
+    short."""
+    if isinstance(value, list):
+        return f"[{', '.join(_shown(item) for item in value)}]"
+    return json.dumps(ledger.clip(value) if isinstance(value, str) else value)
 
 
 def run_values(run: ledger.Run, by_segment: bool = False) -> dict[Measure, int]:

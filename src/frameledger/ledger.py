@@ -382,6 +382,10 @@ def _is_display(value) -> bool:
     return value in ("onscreen", "headless", "offscreen")
 
 
+def _is_power(value) -> bool:
+    return value in ("mains", "battery")
+
+
 def _is_input(value) -> bool:
     return (isinstance(value, dict) and isinstance(value.get("name"), str)
             and isinstance(value.get("hash"), str) and bool(HASH_RE.fullmatch(value["hash"]))
@@ -459,6 +463,13 @@ HEADER_FIELDS = {
     "gpu_clock_mhz": (False, _is_span, '{"start": number, "end": number}'),
     "os": (False, _is_string, "a string"),
     "sanitizers": (False, _is_names, "a list of strings, none empty or blank"),
+    "cpu_governor": (False, _is_string, "a string"),
+    "turbo": (False, _is_bool, "true or false"),
+    "power": (False, _is_power, "mains or battery"),
+    "cpu_clock_mhz": (False, _is_span, '{"start": number, "end": number}'),
+    "cpu_temp_c": (False, _is_peaked_span, '{"start": number, "end": number}, and an optional "peak": number'),
+    "gpu_temp_c": (False, _is_peaked_span, '{"start": number, "end": number}, and an optional "peak": number'),
+    "throttled": (False, _is_bool, "true or false"),
     "extra": (False, _is_object, "an object"),
 }
 

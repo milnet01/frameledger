@@ -32,7 +32,10 @@ the three engines 2026-11-13 before it was built; their code reviews
 of 736b210 added the limit on fraction digits. § 4.2's `sanitizers`
 and § 4.9's `sanitizer_build` with INV-103 (FLED-0016) asked for by
 Vestige 2026-10-26; the three engines' code reviews of 8e9a970 added
-the refusal of an empty name and the cut of a long one.
+the refusal of an empty name and the cut of a long one. § 4.2's
+machine-state fields, § 4.9's `on_battery` and `throttled` and § 4.10's
+setting and temperature warnings with INV-104 to INV-107 (FLED-0055)
+agreed by the three engines 2026-11-13 before they were built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -237,8 +240,11 @@ optional), `gpu_clock_mhz`
 (`{"start": n, "end": n}`), `os` (string), `sanitizers` (array of
 strings: each sanitizer the build was compiled with, such as
 `"address"`, in the writer's own words, never empty or only spaces;
-`[]` says it has none), `extra`
-(object, the engine's own).
+`[]` says it has none), `cpu_governor` (string), `turbo` (boolean),
+`power` (`"mains"` or `"battery"`), `cpu_clock_mhz`
+(`{"start": n, "end": n}`), `cpu_temp_c` and `gpu_temp_c`
+(`{"start": n, "end": n}`, degrees Celsius, `peak` optional),
+`throttled` (boolean), `extra` (object, the engine's own).
 
 `started_utc` names a real date and time: year 0001 to 9999, a month
 and day that exist, with 29 February only in a leap year, hour 00 to
@@ -278,6 +284,25 @@ sample, can do either (DOOM Ants).
 - **How to sample is the writer's choice.** A `gpu_clock_mhz.end` is
   read after the last frame and before the run releases the GPU,
   since a GPU drops to its idle clock within moments (Vestige).
+
+The machine-state fields say what the machine was set to, since a
+governor or a hot machine mimics a regression (FLED-0055):
+
+- **`cpu_governor`** is the writer's own words for the CPU's power
+  setting. On Linux it may carry the energy preference beside the
+  governor, as `powersave/balance_performance`, since the governor
+  alone can mislead (UT Ants). On Windows it may be the power plan's
+  name, or be left out (Vestige).
+- **`turbo`** is true when turbo or boost is enabled, whatever the CPU
+  maker calls it (Vestige).
+- **`cpu_clock_mhz`** is one number for the machine: the mean over the
+  online cores, since one core's reading swings (Vestige).
+- **A temperature's `peak`** is the highest reading from the run's
+  first frame to its last. Unlike a load's `peak`, it is the whole
+  device's: heat has no share to leave out.
+- **`throttled`** is true when the CPU or GPU reported that it was
+  slowed for heat or power during the run. A writer with no dependable
+  source leaves it out; absent is unknown, never false (the engines).
 
 **Compare-blocking fields**: `resolution`, `render_scale`, `tier`,
 `ray_tracing`, `build_type`, `inputs`, `display`, `api`, `device`,
@@ -629,6 +654,8 @@ code are the text's.
 | `software_renderer` | `renderer` or `device` holds, in any case, `llvmpipe`, `lavapipe`, `softpipe`, `swrast`, `swiftshader`, `software rasterizer`, `gdi generic` or `microsoft basic render driver` |
 | `cpu_load` | `load.start` is above 0.5 |
 | `gpu_load` | `gpu_busy_pct.start` is above 20 |
+| `on_battery` | `power` is `battery` |
+| `throttled` | `throttled` is true |
 | `settling_short` | `settled_frames` is below `settling_frames` |
 | `too_few_frames` | fewer than 100 frames are measured: for `report`, frames with a `frame/wall`; for `floor`, frames ending after the warm-up |
 | `cut_in_stretch` | an `event/cut` sits on a frame whose nearest earlier frame has the same segment; `floor` counts only frames ending after the warm-up |
@@ -647,6 +674,8 @@ code are the text's.
 - **Why 100 frames:** below that, the nearest-rank 99th percentile is
   the slowest frame, so the 1% low is one frame's time.
 - **Why only `start` loads:** an `end` includes the run's own work.
+- **A governor, a clock or a temperature gives no warning alone.** No
+  one value of them is wrong; § 4.10 warns when two sides differ.
 - **A frame's segment** is as § 4.8 defines it. A cut on frame 0, or
   where the segment changes, starts a stretch and gives no warning. A
   missing frame is skipped, not taken as a change, since dropped rows
@@ -850,10 +879,24 @@ weighs one `slower` among them.
   reporting 0 MHz, warns on any other new median: one side's clock
   was not read, which is worth naming.
 
-Each of the last three needs its field in every run; a run without it
-gives none. Each message gives both medians and the limit. So two
-sides measured on differently loaded or clocked machines are named,
-even when no run was under load.
+- `cpu_clock_differs` — the same for `cpu_clock_mhz.end`.
+- `cpu_temp_differs` and `gpu_temp_differs` — the two sets' medians of
+  `cpu_temp_c` or `gpu_temp_c` differ by more than 10 degrees. They
+  are medians of `peak` when every run has one, and of `end`
+  otherwise: a short run ends cooler than it ran (the engines).
+- `governor_differs`, `turbo_differs`, `power_differs` and
+  `sanitizers_differs` — the values of `cpu_governor`, `turbo`, `power`
+  or `sanitizers` found among the old runs are not those found among
+  the new. The same mix on both sides is no difference. The message
+  gives each side's values as JSON, a long string cut short.
+
+Each warning from `load_differs` on needs its field in every run; a
+run without it gives none. Each message on medians gives both and the
+limit, and names the key it judged. So two sides measured on
+differently loaded, clocked, heated or set machines are named, even
+when no run was under load. None of them refuses the compare: a
+difference in a setting is a reason to look, and may be the thing
+under test.
 
 **Static-line diff** (UT Ants). The static line is flattened to dotted
 keys (`pipelines.opaque.vs_invocations`); an array is one value. Each
@@ -3206,6 +3249,60 @@ breaks.
   empty list warns, or a list that is not all strings is read, or an
   empty name is, which warns of a sanitizer it cannot name (Vestige).
 
+- **INV-104** — Each machine-state field is read in its § 4.2 shape and
+  refused in another: `check` exits 0 on `cpu_governor`
+  `"powersave/balance_performance"`, `turbo` false, `power`
+  `"battery"`, a `cpu_clock_mhz` with `start` and `end`, a `cpu_temp_c`
+  with a `peak`, a `gpu_temp_c` without one, and `throttled` true; and
+  exits 1 with one `header` breach naming the field on `cpu_governor`
+  1, `turbo` `"on"`, `power` `"ac"`, a `cpu_clock_mhz` with no `end`, a
+  `cpu_temp_c` whose `peak` is `"hot"`, `gpu_temp_c` 55 and `throttled`
+  `"no"`.
+  *Test:* `tests/test_machine_state.py::test_field_shapes`.
+  *Breaks when:* a field is read in any shape, so a later command meets
+  a value it cannot compare.
+
+- **INV-105** — `passing-run.csv` with `power` `"battery"` gives
+  `on_battery` under `report` and `floor`, with `throttled` true gives
+  `throttled`, and with both gives both in that order, each with the
+  same verdict and exit code. `power` `"mains"` with `throttled` false
+  gives no § 4.9 warning, and nor do a governor, a turbo flag, a CPU
+  clock and both temperatures together. `check` gives none.
+  *Test:* `tests/test_machine_state.py::test_battery_and_throttled_runs`.
+  *Breaks when:* a battery or throttled run goes unnamed, `throttled`
+  false warns, or a governor or temperature warns on one run alone.
+
+- **INV-106** — Three old runs and three new, alike but for one header
+  field: `cpu_governor` `"performance"` against `"powersave"` gives
+  `governor_differs`, `turbo` true against false `turbo_differs`,
+  `power` `"mains"` against `"battery"` `power_differs`, and
+  `sanitizers` `[]` against `["address", "undefined"]`
+  `sanitizers_differs`, each alone among the difference warnings,
+  quoting both values, with exit 0. One new run differing is enough.
+  The same value on both sides, the same mix on both sides, or a new
+  run lacking the field, gives none. A governor of 5000 characters is
+  quoted cut short, in a message under 200 characters.
+  *Test:* `tests/test_machine_state.py::test_side_values_differ`, and
+  beside it `test_side_values_are_shown_short`.
+  *Breaks when:* a differing setting goes unnamed, a run lacking the
+  field reads as differing, sides holding the same mix warn, or the
+  warning changes the exit.
+
+- **INV-107** — With old `cpu_clock_mhz.end` 3000, new 2840 gives
+  `cpu_clock_differs` and 2850 none. With old `cpu_temp_c.end` 60 and
+  no `peak`, new 71 gives `cpu_temp_differs` naming `cpu_temp_c.end`
+  and 70 none. With a `peak` in every run, old 65, a new `peak` of 76
+  with the same `end` warns naming `cpu_temp_c.peak`, and a new `peak`
+  of 75 with an `end` of 71 gives none. With a `peak` in only two new
+  runs, of 76, and every `end` 60, there is none. The same holds for
+  `gpu_temp_c` and `gpu_temp_differs`. A new run lacking the field
+  gives none. Every case exits 0.
+  *Test:* `tests/test_machine_state.py::test_cpu_clock_differs`, and
+  beside it `test_temperature_differs`.
+  *Breaks when:* a limit is crossed at or below it, `end` is judged
+  though every run has a `peak`, a `peak` is judged that some run
+  lacks, or a warning changes the exit.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -3256,6 +3353,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0035: INV-98 to INV-101.
 - FLED-0070: INV-102.
 - FLED-0016: INV-103.
+- FLED-0055: INV-104 to INV-107.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3405,6 +3503,10 @@ it on each release they pin.
 | INV-101 | `tests/test_baseline.py::test_alternate_baseline`, `tests/test_baseline.py::test_alternate_baseline_variants`, `tests/test_baseline.py::test_alternate_bad_baseline_runs_nothing` |
 | INV-102 | `tests/test_check.py::test_started_utc_is_a_real_time`, `tests/test_check.py::test_real_started_utc_is_read` |
 | INV-103 | `tests/test_trust.py::test_sanitizer_build`, `tests/test_check.py::test_header_breaches` |
+| INV-104 | `tests/test_machine_state.py::test_field_shapes` |
+| INV-105 | `tests/test_machine_state.py::test_battery_and_throttled_runs` |
+| INV-106 | `tests/test_machine_state.py::test_side_values_differ`, `tests/test_machine_state.py::test_side_values_are_shown_short` |
+| INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

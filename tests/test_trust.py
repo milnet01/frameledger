@@ -13,8 +13,8 @@ from floor_runs import WARMUP, run_text
 
 FIXTURES = Path(__file__).parent / "fixtures"
 PASSING = (FIXTURES / "passing-run.csv").read_text(encoding="utf-8")
-TRUST = {"debug_build", "sanitizer_build", "software_renderer", "cpu_load", "gpu_load", "settling_short",
-         "too_few_frames", "cut_in_stretch"}
+TRUST = {"debug_build", "sanitizer_build", "software_renderer", "cpu_load", "gpu_load", "on_battery",
+         "throttled", "settling_short", "too_few_frames", "cut_in_stretch"}
 
 
 def with_header(text, **changes):
@@ -154,7 +154,8 @@ def test_cut_in_stretch(capsys, tmp_path):
 
 def test_absent_fields_and_check(capsys, tmp_path):
     header = json.loads(PASSING.split("\n", 1)[0].removeprefix("# frameledger "))
-    assert not {"settling_frames", "settled_frames", "load", "gpu_busy_pct", "sanitizers"} & header.keys()
+    assert not {"settling_frames", "settled_frames", "load", "gpu_busy_pct", "sanitizers",
+                "power", "throttled"} & header.keys()
     for command in ("report", "floor"):
         assert trust(run(capsys, tmp_path, command, PASSING)) == []
     debug = run(capsys, tmp_path, "check", with_header(PASSING, build_type="Debug",
