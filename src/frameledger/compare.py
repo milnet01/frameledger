@@ -316,7 +316,7 @@ def _set_notices(runs: list[Named], called: dict[str, str], baseline: bool = Fal
     """The warnings about a whole set. `called` is each set's name in
     them; `baseline` says the old set is a baseline's runs (§ 4.17)."""
     found = []
-    starts = {label: [_started(r.run.header["started_utc"]) for r in runs if r.set == label]
+    starts = {label: [ledger.started(r.run.header["started_utc"]) for r in runs if r.set == label]
               for label in ("old", "new")}
     if baseline and max(starts["old"]) < min(starts["new"]):
         found.append(_baseline_first_notice(runs, called, min(starts["old"]), min(starts["new"])))
@@ -395,13 +395,6 @@ def _differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.No
             found.append(ledger.Notice(code, f"the {called['old']} runs' median {field}.{key} is {old} and "
                                        f"the {called['new']} runs' is {new}, which differ by more than {shown}"))
     return found
-
-
-def _started(utc: str) -> tuple[datetime, Fraction]:
-    """started_utc as a sortable value; ledger.py has checked its shape. Any
-    number of fraction digits, which Python 3.10's fromisoformat refuses."""
-    whole, _, fraction = utc.rstrip("Z").partition(".")
-    return datetime.strptime(whole, "%Y-%m-%dT%H:%M:%S"), Fraction(f"0.{fraction or 0}")
 
 
 def run_values(run: ledger.Run, by_segment: bool = False) -> dict[Measure, int]:

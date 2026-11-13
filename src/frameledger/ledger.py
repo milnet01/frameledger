@@ -13,6 +13,8 @@ import json
 import math
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
+from fractions import Fraction
 from pathlib import Path
 
 SCHEMA = 1
@@ -384,8 +386,25 @@ def _is_inputs(value) -> bool:
     return isinstance(value, list) and all(_is_input(item) for item in value)
 
 
+def started(utc: str) -> tuple[datetime, Fraction]:
+    """A started_utc as a sortable value: the whole seconds, then the
+    fraction. ValueError when it names no real date and time (§ 4.2), such
+    as month 13 or second 60. Any number of fraction digits, which Python
+    3.10's fromisoformat refuses."""
+    if not UTC_RE.fullmatch(utc):
+        raise ValueError(utc)
+    whole, _, fraction = utc.rstrip("Z").partition(".")
+    return datetime.strptime(whole, "%Y-%m-%dT%H:%M:%S"), Fraction(f"0.{fraction or 0}")
+
+
 def _is_utc(value) -> bool:
-    return isinstance(value, str) and bool(UTC_RE.fullmatch(value))
+    if not isinstance(value, str):
+        return False
+    try:
+        started(value)
+    except ValueError:
+        return False
+    return True
 
 
 def _is_span(value) -> bool:
@@ -417,7 +436,7 @@ HEADER_FIELDS = {
     "display": (True, _is_display, "onscreen, headless or offscreen"),
     "scene": (True, _is_string, "a string"),
     "inputs": (True, _is_inputs, 'a list of {"name", "hash": "sha256:<hex>" or "md5:<hex>", "bytes"}'),
-    "started_utc": (True, _is_utc, "an ISO 8601 time ending in Z"),
+    "started_utc": (True, _is_utc, "a real UTC date and time, written as 2026-10-24T12:00:00Z"),
     "tier": (False, _is_string, "a string"),
     "ray_tracing": (False, _is_bool, "true or false"),
     "frames_in_flight": (False, _is_int, "a whole number"),

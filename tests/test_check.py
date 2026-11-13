@@ -266,6 +266,40 @@ def edited(tmp_path, edit):
     return path
 
 
+NO_SUCH_TIMES = ["2026-13-01T12:00:00Z", "2026-00-10T12:00:00Z", "2026-01-00T12:00:00Z", "2026-02-30T12:00:00Z",
+                 "2025-02-29T12:00:00Z", "2026-10-24T24:00:00Z", "2026-10-24T12:60:00Z", "2026-10-24T23:59:60Z",
+                 "0000-01-01T00:00:00Z"]
+REAL_TIMES = ["2024-02-29T23:59:59Z", "0001-01-01T00:00:00Z", "9999-12-31T23:59:59Z",
+              "2026-10-24T00:00:00.123456789012Z"]
+
+
+def run_started(tmp_path, started):
+    return edited(tmp_path, lambda ls: ls.__setitem__(0, header_with(started_utc=started)))
+
+
+@pytest.mark.parametrize("started", NO_SUCH_TIMES)
+def test_started_utc_is_a_real_time(capsys, tmp_path, started):
+    """INV-102: a started_utc of the right shape that names no real date
+    and time is a header breach, so a command judging the file stops at 3
+    (DOOM Ants: compare ended in a traceback with exit 1)."""
+    path = run_started(tmp_path, started)
+    code, out = run_check(capsys, path)
+    assert (code, found(out)) == (1, [(1, "header")])
+    assert "started_utc" in out["result"]["files"][0]["breaches"][0]["message"]
+
+    good = str(FIXTURES / "schema-1.csv")
+    assert cli.main(["compare", "--json", "--old", str(path), good, good, "--new", good, good, good]) == 3
+    assert json.loads(capsys.readouterr().out)["verdict"] == "error"
+
+
+@pytest.mark.parametrize("started", REAL_TIMES)
+def test_real_started_utc_is_read(capsys, tmp_path, started):
+    """INV-102: a leap day, the first and last years and any number of
+    fraction digits are within the format."""
+    code, out = run_check(capsys, run_started(tmp_path, started))
+    assert (code, found(out)) == (0, [])
+
+
 def test_static_line_rules(capsys, tmp_path):
     """§ 4.3: a static statistic is a JSON string, never a number."""
     path = edited(tmp_path, lambda ls: ls.insert(1, '# frameledger-static {"draws": "1520"}'))

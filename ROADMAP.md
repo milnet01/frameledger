@@ -1034,6 +1034,9 @@ to compare against, and the small fixes they filed.
   `[`: `check` ends in a traceback with exit 1. budgeting.py's `_header`
   has the same `except ValueError`. Catch RecursionError wherever a
   header's JSON is read, so each gives its own sentence and code.
+  2026-11-13: built at 329e62f. ledger.py's JSON reader and budgeting.py's
+  header reader catch RecursionError; check reports a breach, budget
+  gives exit 3. Code sent to the three engines for review.
   **Layman:** A run file whose first line is damaged in one rare way makes frameledger crash instead of saying what is wrong.
   Kind: fix.
   Source: ut-ants-review-2026-11-12.
@@ -1048,6 +1051,11 @@ to compare against, and the small fixes they filed.
   is where a bad date is likeliest. Make an impossible date a `check`
   breach, so every other command gives exit 3 on it. A format rule:
   needs the spec's § 4.2 to say so, and the engines' agreement.
+  2026-11-13, engines: all three agreed the rule before it was built. A real
+  date and time, year 0001 to 9999, second 60 refused, no schema bump;
+  each writer formats gmtime fields and cannot break it.
+  Spec: docs/specs/FLED-0001-run-file-format.md § 4.2, INV-102.
+  2026-11-13: built; code sent to the three engines for review.
   **Layman:** A run file with an impossible date, such as month 13, passes the format check and then makes a comparison crash with the code that means "got slower".
   Kind: fix.
   Source: doom-ants-review-2026-11-12.

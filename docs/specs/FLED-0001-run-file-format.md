@@ -26,7 +26,9 @@ confirmed it at d2ff396. § 4.13 `survey` with INV-69 to INV-72
 (FLED-0012) agreed by the three engines 2026-11-04 at 991a9de, with
 their wording changes. § 4.17 a saved baseline with INV-98 to INV-101
 (FLED-0035) designed with the three engines 2026-11-12, and their code
-reviews of e5f2758 settled its paths, duplicates and warnings.
+reviews of e5f2758 settled its paths, duplicates and warnings. § 4.2's
+real-date rule for `started_utc` with INV-102 (FLED-0070) agreed by
+the three engines 2026-11-13 before it was built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -216,7 +218,7 @@ Required fields:
 | `display` | string | `onscreen`, `headless` (a private display) or `offscreen` (no display) |
 | `scene` | string | what was run |
 | `inputs` | array | `[{"name": ..., "hash": "sha256:<hex>" or "md5:<hex>", "bytes": n}]`; `[]` is legal, and `check` warns on it |
-| `started_utc` | string | ISO 8601, `Z` suffix |
+| `started_utc` | string | when the run started, in UTC: `YYYY-MM-DDTHH:MM:SS`, optional fraction digits, then `Z` |
 
 Optional fields, absent meaning unknown: `tier` (string),
 `ray_tracing` (boolean), `frames_in_flight` (integer),
@@ -230,6 +232,12 @@ optional), `gpu_busy_pct` (`{"start": n, "end": n}`, `peak`
 optional), `gpu_clock_mhz`
 (`{"start": n, "end": n}`), `os` (string), `extra` (object, the
 engine's own).
+
+`started_utc` names a real date and time: year 0001 to 9999, a month
+and day that exist, with 29 February only in a leap year, hour 00 to
+23, minute 00 to 59 and second 00 to 59. A second of 60, a leap
+second, is refused. Any other value is a header breach, so `compare`
+never meets a start it cannot order (DOOM Ants).
 
 A `start` is taken before the engine loads anything or starts GPU
 work, so it measures the machine, not the run; an `end` after the
@@ -3154,6 +3162,20 @@ breaks.
   differs from `compare --baseline`'s, or a bad baseline is found only
   after the new runs have been paid for.
 
+- **INV-102** — `started_utc` names a real date and time.
+  `schema-1.csv` with its `started_utc` set to each of month 13,
+  month 00, day 00, 30 February, 29 February 2025, hour 24, minute 60,
+  second 60 and year 0000: `check` exits 1 with one `header` breach on
+  line 1 naming `started_utc`, and `compare` with that run among its
+  old runs exits 3. With 29 February 2024, year 0001, the last second
+  of year 9999, and twelve fraction digits, `check` exits 0 with no
+  breach.
+  *Test:* `tests/test_check.py::test_started_utc_is_a_real_time`, and
+  beside it `test_real_started_utc_is_read`.
+  *Breaks when:* `check` tests only the digits' shape, so a date that
+  does not exist reaches `compare` and ends it in a traceback with
+  exit 1, the code for a regression; or a real date is refused.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -3202,6 +3224,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0067: INV-96.
 - FLED-0068: INV-97.
 - FLED-0035: INV-98 to INV-101.
+- FLED-0070: INV-102.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3349,6 +3372,7 @@ it on each release they pin.
 | INV-99 | `tests/test_baseline.py::test_bad_baseline_files`, `tests/test_baseline.py::test_flag_setup_errors`, `tests/test_baseline.py::test_smallest_set_is_compares` |
 | INV-100 | `tests/test_baseline.py::test_baseline_warnings` |
 | INV-101 | `tests/test_baseline.py::test_alternate_baseline`, `tests/test_baseline.py::test_alternate_baseline_variants`, `tests/test_baseline.py::test_alternate_bad_baseline_runs_nothing` |
+| INV-102 | `tests/test_check.py::test_started_utc_is_a_real_time`, `tests/test_check.py::test_real_started_utc_is_read` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |
