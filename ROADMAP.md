@@ -1086,7 +1086,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: enhancement.
   Source: vestige-review-2026-10-26.
 
-- 🚧 [FLED-0025] **Survey's table drops the paths' shared directory.**
+- ✅ [FLED-0025] **Survey's table drops the paths' shared directory.**
   DOOM Ants, reviewing 3e7006b on 60+ real runs: with every file under
   one long directory, the left-cut file column spends its width on the
   shared prefix ("…OM_Ants/scratch/fled/g-12.csv"). Name the common
@@ -1099,6 +1099,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   still out. The heading names a directory two or more files share; one
   file keeps its path. Amends docs/specs/FLED-0001-run-file-format.md
   § 4.13, INV-108.
+  2026-11-13: shipped. Vestige, UT Ants and DOOM Ants reviewed it; DOOM
+  Ants' finding (a bare ./ names nothing) is folded at 5d8b2c7, the
+  other two found nothing.
   **Layman:** When every file sits in one folder, the survey table would show each file's own name instead of the folder again and again.
   Kind: ux.
   Source: doom-ants-review-2026-11-04.
