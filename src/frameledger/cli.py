@@ -31,7 +31,7 @@ import selftest
 import survey
 import variants
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 # One ladder for every command (docs/design.md § Exit codes), but bisect's,
 # which are git bisect run's: bisecting.VERDICT_CODES. Whatever on a bisect

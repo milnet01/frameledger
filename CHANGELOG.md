@@ -12,7 +12,18 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
+**Theme:** Variants and baselines.
+
 ### Added
+
+- The release archive, `frameledger-v0.5.0.zip`: `frameledger.pyz`, its
+  launchers `frameledger` and `frameledger.cmd`, `include/frameledger.h`
+  and `LICENSE`. SHA256
+  `0dbe624c4b26bb5d986461973a6df040b3d539412ffcdbb8ec02efa864b09ae3`.
+  `python3 -I scripts/build_release.py OUTDIR v0.5.0`, run on the tag,
+  rebuilds it; the release workflow does so under Python 3.10.22.
 
 - **`compare` and `alternate` take a saved baseline** (FLED-0035)
   `--baseline FILE` names kept runs in a file and takes the place of `--old`, or of `--base` with `--variant`. The file is a first line `# frameledger-baseline {"schema":1}` and then one run file's path per line; a relative path starts at the file's own folder. The kept runs are judged as any old runs, so the same refusals and warnings apply. `alternate --baseline` runs only the new build's command. Since nothing alternates with a baseline, the warning `baseline_not_interleaved` names its commit, the day it was taken and its age; `baseline_driver_differs` and `baseline_os_differs` warn when the driver or the system has changed since. Every `compare` and `alternate` JSON result gains a `baseline` key, null without the flag. A listed run file that is missing is exit 3, naming its line.
