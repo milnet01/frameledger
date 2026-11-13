@@ -1,7 +1,7 @@
 """Surveying many runs (S9, FLED-0012).
 
 Invariants from docs/specs/FLED-0001-run-file-format.md § 5: INV-69 to
-INV-72, the rules of § 4.13. The fixtures are floor's; the other runs
+INV-72 and INV-108, the rules of § 4.13. The fixtures are floor's; the other runs
 are built here.
 """
 
@@ -138,3 +138,46 @@ def test_flag_names_its_frame(capsys, tmp_path):
     table = text[text.index("") + 1:]
     assert all(len(line) <= 100 for line in table), max(table, key=len)
     assert any("…" in line and "e1m2.csv" in line for line in table)
+
+
+def table_of(capsys, paths, *flags) -> tuple[str, list[str]]:
+    """The survey table's heading and the file each row shows: (heading,
+    files). The text table by default; pass --markdown for that one."""
+    cli.main(["survey", *map(str, paths), "--fps", "60", *flags])
+    lines = capsys.readouterr().out.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("Runs, slowest first"))
+    if "--markdown" in flags:
+        rows = [line.split("|")[2].strip() for line in lines[start + 4:] if line.startswith("|")]
+    else:
+        rows = [line.split()[1] for line in lines[start + 2:] if line.strip()]
+    return lines[start], rows
+
+
+def test_table_names_a_shared_directory_once(capsys, tmp_path, monkeypatch):
+    """INV-108: the table names the directory every file is in once, above
+    it, and each row shows the path after it. --json keeps whole paths."""
+    monkeypatch.chdir(tmp_path)
+    for name in ("runs/a.csv", "runs/b.csv", "runs/deep/c.csv", "runs-old/d.csv", "e.csv"):
+        (tmp_path / name).parent.mkdir(exist_ok=True)
+        write(tmp_path, name, steady(200, 10.0))
+
+    for flags in ((), ("--markdown",)):
+        heading, files = table_of(capsys, ["runs/a.csv", "runs/b.csv", "runs/deep/c.csv"], *flags)
+        assert heading == "Runs, slowest first, each file in runs/:"
+        assert sorted(files) == ["a.csv", "b.csv", "deep/c.csv"]
+        # An absolute directory is named whole, however long.
+        shared = f"{tmp_path}/runs/"
+        heading, files = table_of(capsys, [f"{shared}a.csv", f"{shared}b.csv"], *flags)
+        assert heading.replace("\\", "") == f"Runs, slowest first, each file in {shared}:".replace("\\", "")
+        assert sorted(files) == ["a.csv", "b.csv"]
+        # `runs` and `runs-old` share letters, not a directory; nor do a file here and one below.
+        for apart in (["runs/a.csv", "runs-old/d.csv"], ["runs/a.csv", "e.csv"]):
+            heading, files = table_of(capsys, apart, *flags)
+            assert heading == "Runs, slowest first:"
+            assert sorted(files) == sorted(apart)
+        # One file shares its directory with nothing.
+        heading, files = table_of(capsys, ["runs/a.csv"], *flags)
+        assert (heading, files) == ("Runs, slowest first:", ["runs/a.csv"])
+
+    _, out = survey(capsys, ["runs/a.csv", "runs/b.csv"], "--fps", "60")
+    assert sorted(entry["path"] for entry in out["result"]["runs"]) == ["runs/a.csv", "runs/b.csv"]

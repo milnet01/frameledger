@@ -20,6 +20,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **A run from a sanitizer build carries a warning** (FLED-0016)
   The header takes an optional `sanitizers` field: a list of the sanitizers the build was compiled with, such as `["address"]`, and `[]` for none. Where the list names any, every command that gives trust warnings adds `sanitizer_build`, quoting the names. A warning changes no verdict and no exit code. `check` refuses a `sanitizers` that is not a list of strings, or that holds an empty or blank one. No schema change: a file without the field reads as before.
 
+### Changed
+
+- **`survey`'s table names a shared folder once** (FLED-0025)
+  When two or more surveyed files are all in one directory, the table's heading names it, as in "Runs, slowest first, each file in runs/:", and each row shows the path after it. Before, a long shared directory filled the file column and hid the names. The sentences above the table and `--json` still give whole paths.
+
 ### Fixed
 
 - **A huge whole number in the header is refused in a sentence** (FLED-0055)

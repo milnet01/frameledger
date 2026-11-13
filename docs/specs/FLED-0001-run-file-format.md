@@ -37,7 +37,9 @@ machine-state fields, § 4.9's `on_battery` and `throttled` and § 4.10's
 setting and temperature warnings with INV-104 to INV-107 (FLED-0055)
 agreed by the three engines 2026-11-13 before they were built; their
 code reviews of 4a67c02 settled that values are compared whole and a
-list's order does not count.
+list's order does not count. § 4.13's shared directory in the table
+heading with INV-108 (FLED-0025) asked for by DOOM Ants 2026-11-04,
+and sent to the three engines for review once built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1373,7 +1375,12 @@ pass gpu/opaque); floor's per-second check was not run." Then a table
 of every run: rank, file, worst segment, median, p99, frames over
 budget and verdict, within 100 columns. A file name too long for its
 column is cut from the left, keeping its end, and opens with `…` to
-show the cut (Vestige).
+show the cut (Vestige). Where two or more files are all in one
+directory, the heading names it once, "Runs, slowest first, each file
+in runs/:", and each row shows the path after it, so the column is not
+spent on what every row shares (DOOM Ants). The directory is read from
+the paths as given, up to their last shared `/` or `\`; a lone `/` is
+not one. The sentences above the table and `--json` keep whole paths.
 
 **Result.** The verdict is `fail` when a run is flagged;
 `inconclusive` when none is but a run is unjudged or inconclusive;
@@ -3315,6 +3322,18 @@ breaks.
   lacks, a clock below zero differs from itself (DOOM Ants), or a
   warning changes the exit.
 
+- **INV-108** — `survey`'s table names a shared directory once. Over
+  `runs/a.csv`, `runs/b.csv` and `runs/deep/c.csv`, the text and the
+  Markdown heading read "Runs, slowest first, each file in runs/:" and
+  the rows show `a.csv`, `b.csv` and `deep/c.csv`. Over `runs/a.csv`
+  with `runs-old/d.csv`, with `e.csv`, or alone, the heading is "Runs,
+  slowest first:" and each row shows its path whole. `--json` gives
+  `runs/a.csv` whole.
+  *Test:* `tests/test_survey.py::test_table_names_a_shared_directory_once`.
+  *Breaks when:* shared letters are taken for a shared directory, so
+  `runs-old/d.csv` is shown as `-old/d.csv`; one file loses its
+  directory; or `--json` loses it.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -3366,6 +3385,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0070: INV-102.
 - FLED-0016: INV-103.
 - FLED-0055: INV-104 to INV-107.
+- FLED-0025: INV-108.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3519,6 +3539,7 @@ it on each release they pin.
 | INV-105 | `tests/test_machine_state.py::test_battery_and_throttled_runs` |
 | INV-106 | `tests/test_machine_state.py::test_side_values_differ`, `tests/test_machine_state.py::test_side_values_are_shown_short`, `tests/test_machine_state.py::test_side_values_are_compared_whole` |
 | INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
+| INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

@@ -10,6 +10,7 @@ Table, which the text and the Markdown each lay out in their own way
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -452,16 +453,29 @@ def _kind_name(kind: str | None) -> str:
     return kind or "unsegmented"
 
 
+def _shared_directory(paths: list[str]) -> str:
+    """The directory two or more paths are all in, closing separator and
+    all, or "" (§ 4.13). Read from the paths as given, never the disk."""
+    if len(paths) < 2:
+        return ""
+    alike = os.path.commonprefix(paths)  # letter by letter, so `runs` and `runs-old` are alike this far
+    end = max(alike.rfind("/"), alike.rfind("\\")) + 1
+    return alike[:end] if end > 1 else ""  # a bare "/" opens every absolute path, and names nothing
+
+
 def _survey_body(result: dict) -> list[Block]:
-    """Every run, ranked first, within 100 columns in the text (§ 4.13)."""
-    return [Table("Runs, slowest first:",
+    """Every run, ranked first, within 100 columns in the text (§ 4.13).
+    A directory every file is in is named once, in the heading (DOOM Ants)."""
+    runs = result["result"]["runs"]
+    shared = _shared_directory([r["path"] for r in runs])
+    return [Table(f"Runs, slowest first, each file in {shared}:" if shared else "Runs, slowest first:",
                   [Column("rank", 4, True), Column("file", 30, fit=lambda p: _fit_left(p, 30)),
                    Column("worst segment", 14, fit=_fitter(14)), Column("median ms", 10, True),
                    Column("p99 ms", 10, True), Column("over", 6, True), Column("verdict")],
-                  [[str(r["rank"] or "-"), r["path"], r["worst_segment"] or "-",
+                  [[str(r["rank"] or "-"), r["path"][len(shared):], r["worst_segment"] or "-",
                     *(("-", "-") if r["p99_ms"] is None else (f"{r['median_ms']:.3f}", f"{r['p99_ms']:.3f}")),
                     "-" if r["frames_over_budget"] is None else str(r["frames_over_budget"]), r["verdict"]]
-                   for r in result["result"]["runs"]])]
+                   for r in runs])]
 
 
 def _scenes_body(compared: dict) -> list[Block]:
