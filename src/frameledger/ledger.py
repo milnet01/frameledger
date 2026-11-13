@@ -337,7 +337,12 @@ def _is_int(value) -> bool:
 
 
 def _is_number(value) -> bool:
-    return (_is_int(value) or isinstance(value, float)) and math.isfinite(value)
+    if not (_is_int(value) or isinstance(value, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:  # a whole number too large for a float, such as 10**400 (DOOM Ants)
+        return False
 
 
 def _holds_number(value) -> bool:

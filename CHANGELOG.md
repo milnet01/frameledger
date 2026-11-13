@@ -20,6 +20,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **A run from a sanitizer build carries a warning** (FLED-0016)
   The header takes an optional `sanitizers` field: a list of the sanitizers the build was compiled with, such as `["address"]`, and `[]` for none. Where the list names any, every command that gives trust warnings adds `sanitizer_build`, quoting the names. A warning changes no verdict and no exit code. `check` refuses a `sanitizers` that is not a list of strings, or that holds an empty or blank one. No schema change: a file without the field reads as before.
 
+### Fixed
+
+- **A huge whole number in the header is refused in a sentence** (FLED-0055)
+  A header number such as a `gpu_clock_mhz.end` of 1 followed by 400 zeros ended `check` in a traceback. It is now a `header` breach, as any other bad value.
+
 ## [0.5.0] - 2026-11-13
 
 **Theme:** Variants and baselines.

@@ -241,6 +241,7 @@ HEADER_BREACHES = [
     ("short hash", header_with(inputs=[{"name": "a", "hash": "sha256:ab", "bytes": 1}])),
     ("time without Z", header_with(started_utc="2026-10-24T12:00:00")),
     ("load without end", header_with(load={"start": 1.0})),
+    ("a whole number too large for a float", header_with(gpu_clock_mhz={"start": 1, "end": 10 ** 400})),
     ("sanitizers as one string", header_with(sanitizers="address")),
     ("a sanitizer that is no string", header_with(sanitizers=["address", 1])),
     ("a sanitizer with no name", header_with(sanitizers=["address", ""])),

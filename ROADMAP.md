@@ -1115,7 +1115,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 🚧 [FLED-0055] **The header records machine state, and compare warns when it differs.**
+- ✅ [FLED-0055] **The header records machine state, and compare warns when it differs.**
   Optional header fields: CPU governor, turbo on or off, on battery or
   mains, CPU clock, CPU and GPU temperature or throttling. compare warns
   when the two sides differ, as FLED-0030 does for load. A governor or
@@ -1137,6 +1137,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   compare: governor, turbo, power and sanitizers differ; CPU clock by
   5%; temperatures by 10 degrees, on peak when every run has one.
   Amends docs/specs/FLED-0001-run-file-format.md §§ 4.2, 4.9 and 4.10.
+  2026-11-13: built at 4a67c02 and reviewed by the three engines.
+  Folded: setting values compared whole, a list's order ignored, a huge
+  header number a breach and not a traceback, a clock below zero.
   **Layman:** Each run notes things like CPU power mode and temperature, and frameledger warns when the two builds were tested under different conditions.
   Kind: feature.
   Source: competitor-research-2026-11-10.

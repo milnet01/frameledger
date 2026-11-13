@@ -399,7 +399,7 @@ def _differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.No
         old, new = (statistics.median(Decimal(repr(v)) for r, v in zip(runs, values, strict=True)
                                       if r.set == label)
                     for label in ("old", "new"))
-        allowed = limit * old if relative else limit
+        allowed = limit * abs(old) if relative else limit  # abs: a clock below zero is not unlike itself
         if abs(new - old) > allowed:
             shown = f"{(limit * 100).normalize()}% of the {called['old']}" if relative else str(limit)
             found.append(ledger.Notice(code, f"the {called['old']} runs' median {field}.{key} is {old} and "
@@ -415,13 +415,21 @@ def _setting_differ_notices(runs: list[Named], called: dict[str, str]) -> list[l
     for code, field in SETTINGS_DIFFER:
         if any(field not in r.run.header for r in runs):
             continue
-        # As JSON text, so a list can sit in a set, and true is not True.
-        old, new = (sorted({_shown(r.run.header[field]) for r in runs if r.set == label})
+        # Compared whole and as JSON text, so a list can sit in a set and true
+        # is not 1; only the sentence cuts a long string short (Vestige).
+        old, new = (sorted({_whole(r.run.header[field]) for r in runs if r.set == label})
                     for label in ("old", "new"))
         if old != new:
-            found.append(ledger.Notice(code, f"the {called['old']} runs' {field} is {joined(old)} and the "
-                                       f"{called['new']} runs' is {joined(new)}"))
+            shown_old, shown_new = (joined(_shown(json.loads(value)) for value in values) for values in (old, new))
+            found.append(ledger.Notice(code, f"the {called['old']} runs' {field} is {shown_old} and the "
+                                       f"{called['new']} runs' is {shown_new}"))
     return found
+
+
+def _whole(value: object) -> str:
+    """A header value as JSON text; a list sorted, since its order says
+    nothing (Vestige)."""
+    return json.dumps(sorted(value) if isinstance(value, list) else value)
 
 
 def _shown(value: object) -> str:

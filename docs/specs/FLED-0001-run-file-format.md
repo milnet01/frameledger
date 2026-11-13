@@ -35,7 +35,9 @@ Vestige 2026-10-26; the three engines' code reviews of 8e9a970 added
 the refusal of an empty name and the cut of a long one. § 4.2's
 machine-state fields, § 4.9's `on_battery` and `throttled` and § 4.10's
 setting and temperature warnings with INV-104 to INV-107 (FLED-0055)
-agreed by the three engines 2026-11-13 before they were built.
+agreed by the three engines 2026-11-13 before they were built; their
+code reviews of 4a67c02 settled that values are compared whole and a
+list's order does not count.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -887,8 +889,9 @@ weighs one `slower` among them.
 - `governor_differs`, `turbo_differs`, `power_differs` and
   `sanitizers_differs` — the values of `cpu_governor`, `turbo`, `power`
   or `sanitizers` found among the old runs are not those found among
-  the new. The same mix on both sides is no difference. The message
-  gives each side's values as JSON, a long string cut short.
+  the new. The same mix on both sides is no difference, and nor is
+  the order of a `sanitizers` list. Values are compared whole; the
+  message gives each side's as JSON, a long string cut short.
 
 Each warning from `load_differs` on needs its field in every run; a
 run without it gives none. Each message on medians gives both and the
@@ -3257,10 +3260,13 @@ breaks.
   exits 1 with one `header` breach naming the field on `cpu_governor`
   1, `turbo` `"on"`, `power` `"ac"`, a `cpu_clock_mhz` with no `end`, a
   `cpu_temp_c` whose `peak` is `"hot"`, `gpu_temp_c` 55 and `throttled`
-  `"no"`.
-  *Test:* `tests/test_machine_state.py::test_field_shapes`.
+  `"no"`. A `gpu_clock_mhz.end` of 1 followed by 400 zeros, a whole
+  number too large for a float, is one `header` breach too.
+  *Test:* `tests/test_machine_state.py::test_field_shapes`, and
+  `tests/test_check.py::test_header_breaches`.
   *Breaks when:* a field is read in any shape, so a later command meets
-  a value it cannot compare.
+  a value it cannot compare, or a huge whole number ends `check` in a
+  traceback (DOOM Ants).
 
 - **INV-105** — `passing-run.csv` with `power` `"battery"` gives
   `on_battery` under `report` and `floor`, with `throttled` true gives
@@ -3281,15 +3287,20 @@ breaks.
   quoting both values, with exit 0. One new run differing is enough.
   The same value on both sides, the same mix on both sides, or a new
   run lacking the field, gives none. A governor of 5000 characters is
-  quoted cut short, in a message under 200 characters.
+  quoted cut short, in a message under 200 characters. `sanitizers`
+  holding `"address"` then `"undefined"` against the two in the other
+  order gives none; two governors of 31 characters differing in the
+  last give `governor_differs`.
   *Test:* `tests/test_machine_state.py::test_side_values_differ`, and
-  beside it `test_side_values_are_shown_short`.
+  beside it `test_side_values_are_shown_short` and
+  `test_side_values_are_compared_whole`.
   *Breaks when:* a differing setting goes unnamed, a run lacking the
-  field reads as differing, sides holding the same mix warn, or the
-  warning changes the exit.
+  field reads as differing, sides holding the same mix warn, the cut
+  text is what is compared (Vestige), or the warning changes the exit.
 
 - **INV-107** — With old `cpu_clock_mhz.end` 3000, new 2840 gives
-  `cpu_clock_differs` and 2850 none. With old `cpu_temp_c.end` 60 and
+  `cpu_clock_differs` and 2850 none; -3000 on both sides gives none.
+  With old `cpu_temp_c.end` 60 and
   no `peak`, new 71 gives `cpu_temp_differs` naming `cpu_temp_c.end`
   and 70 none. With a `peak` in every run, old 65, a new `peak` of 76
   with the same `end` warns naming `cpu_temp_c.peak`, and a new `peak`
@@ -3301,7 +3312,8 @@ breaks.
   beside it `test_temperature_differs`.
   *Breaks when:* a limit is crossed at or below it, `end` is judged
   though every run has a `peak`, a `peak` is judged that some run
-  lacks, or a warning changes the exit.
+  lacks, a clock below zero differs from itself (DOOM Ants), or a
+  warning changes the exit.
 
 ## 6. Failure modes
 
@@ -3503,9 +3515,9 @@ it on each release they pin.
 | INV-101 | `tests/test_baseline.py::test_alternate_baseline`, `tests/test_baseline.py::test_alternate_baseline_variants`, `tests/test_baseline.py::test_alternate_bad_baseline_runs_nothing` |
 | INV-102 | `tests/test_check.py::test_started_utc_is_a_real_time`, `tests/test_check.py::test_real_started_utc_is_read` |
 | INV-103 | `tests/test_trust.py::test_sanitizer_build`, `tests/test_check.py::test_header_breaches` |
-| INV-104 | `tests/test_machine_state.py::test_field_shapes` |
+| INV-104 | `tests/test_machine_state.py::test_field_shapes`, `tests/test_check.py::test_header_breaches` |
 | INV-105 | `tests/test_machine_state.py::test_battery_and_throttled_runs` |
-| INV-106 | `tests/test_machine_state.py::test_side_values_differ`, `tests/test_machine_state.py::test_side_values_are_shown_short` |
+| INV-106 | `tests/test_machine_state.py::test_side_values_differ`, `tests/test_machine_state.py::test_side_values_are_shown_short`, `tests/test_machine_state.py::test_side_values_are_compared_whole` |
 | INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

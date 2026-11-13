@@ -109,6 +109,15 @@ def test_side_values_are_shown_short(capsys, tmp_path):
     assert "..." in messages["governor_differs"] and len(messages["governor_differs"]) < 200
 
 
+def test_side_values_are_compared_whole(capsys, tmp_path):
+    """INV-106: the order of a list is no difference, and a difference past
+    where the message cuts a string is one (Vestige)."""
+    one_way, other_way = ({"sanitizers": names} for names in (["address", "undefined"], ["undefined", "address"]))
+    assert warned(capsys, tmp_path, [one_way] * 3, [other_way] * 3) == {}
+    long_old, long_new = ({"cpu_governor": "a" * 30 + end} for end in "xy")
+    assert list(warned(capsys, tmp_path, [long_old] * 3, [long_new] * 3)) == ["governor_differs"]
+
+
 def span(field, end, peak=None):
     return {field: {"start": 30, "end": end} | ({} if peak is None else {"peak": peak})}
 
@@ -120,6 +129,9 @@ def test_cpu_clock_differs(capsys, tmp_path):
     assert list(warned(capsys, tmp_path, old, [span("cpu_clock_mhz", 2840)] * 3)) == ["cpu_clock_differs"]
     assert warned(capsys, tmp_path, old, [span("cpu_clock_mhz", 2850)] * 3) == {}
     assert warned(capsys, tmp_path, old, [span("cpu_clock_mhz", 2840), {}, span("cpu_clock_mhz", 2840)]) == {}
+    # A clock below zero is a writer's fault, and still no difference from itself (DOOM Ants).
+    below = [span("cpu_clock_mhz", -3000)] * 3
+    assert warned(capsys, tmp_path, below, below) == {}
 
 
 @pytest.mark.parametrize("field", ["cpu_temp_c", "gpu_temp_c"])
