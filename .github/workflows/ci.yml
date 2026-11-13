@@ -32,7 +32,13 @@ concurrency:
 
 jobs:
   gate:
-    runs-on: ubuntu-latest
+    # The whole gate on Linux and on macOS (FLED-0038, S11). Both finish, so
+    # a red run says which system broke.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     # local-gate.md § 9. A hung job otherwise burns up to six hours. Size this
     # for a COLD build (no cache), or a cache miss reads as a hang.
     timeout-minutes: 30
@@ -66,8 +72,10 @@ jobs:
       # Clang and mingw-w64, and write a run under a comma-decimal locale.
       # Only the 64-bit mingw-w64 compiler: the `mingw-w64` package adds
       # the 32-bit one too, and that doubled download timed this job out
-      # on a slow mirror three times.
+      # on a slow mirror three times. macOS needs neither: it tests with
+      # its own Clang, and has the locale.
       - name: Install the writer's compilers and a German locale
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends clang g++-mingw-w64-x86-64-posix locales

@@ -1037,7 +1037,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: test.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0038] **Runs and is tested on macOS.**
+- 🚧 [FLED-0038] **Runs and is tested on macOS.**
   The analyser and the writer header are built and tested on macOS in
   CI, alongside Linux and Windows (S11).
   **Layman:** Works on Apple computers too.
