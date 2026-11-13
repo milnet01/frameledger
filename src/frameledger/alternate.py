@@ -214,10 +214,12 @@ def _group_alive(process: subprocess.Popen) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        # macOS says this of a group whose processes have ended and are not
-        # yet collected, where Linux accepts the signal; either system says
-        # it of another user's process. Both are waited for (FLED-0038).
-        return True
+        # macOS raises PermissionError for a group whose processes have
+        # ended and are not yet collected, where Linux accepts the signal.
+        # Once the system collects them the answer is ProcessLookupError.
+        # Either system raises it for another user's process. Both are
+        # waited for (FLED-0038).
+        pass
     return True
 
 

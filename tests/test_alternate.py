@@ -237,14 +237,16 @@ def test_a_group_that_refuses_a_signal_is_waited_for(monkeypatch):
     group is waited for as one still ending, and the run goes on."""
     process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
     process.wait()
-    answers = iter([PermissionError, PermissionError, PermissionError, ProcessLookupError])
+    refusals = [PermissionError] * 3  # to the signal itself, then to two looks at the group
+    asked = []
 
-    def killpg(_pid, _signum):
-        raise next(answers)
+    def killpg(_pid, signum):
+        asked.append(signum)
+        raise refusals.pop() if refusals else ProcessLookupError
 
     monkeypatch.setattr(alternate.os, "killpg", killpg)
     assert alternate._end_group(process, signal.SIGTERM, []) == ""
-    assert next(answers, None) is None
+    assert asked == [signal.SIGTERM, 0, 0, 0]  # never the kill: the group ended in time
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="what macOS answers; Linux accepts the signal")
