@@ -224,11 +224,13 @@ def test_engine_text_is_escaped(capsys, tmp_path):
     ("+ d.csv", r"- \+ d.csv"), ("1. e.csv", r"- 1\. e.csv"), ("1) f.csv", r"- 1\) f.csv"),
     ("100.0.csv", "- 100.0.csv"), ("a\nb.csv", "- a b.csv"),
     (" - c.csv", f"- {NBSP}- c.csv"), ("    x.csv", f"- {NBSP * 4}x.csv"),
+    ("\u202e- g.csv", f"- {NBSP}- g.csv"), ("\u200f# h.csv", f"- {NBSP}# h.csv"),  # FLED-0073 (Vestige)
 ])
 def test_line_starts_are_escaped(capsys, tmp_path, monkeypatch, name, opening):
     """INV-88: a sentence opening with a path cannot become a heading, a
     quotation or a list, nor a line break in it end its item; one that
-    would not is left as it is."""
+    would not is left as it is. A direction mark before the path is a
+    leading space."""
     monkeypatch.chdir(tmp_path)
     Path(name).write_text("not a run\n", encoding="utf-8")
     assert cli.main(["check", name, "--markdown"]) == 1

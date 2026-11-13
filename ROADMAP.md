@@ -1197,7 +1197,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: fix.
   Source: doom-ants-review-2026-11-13.
 
-- 🚧 [FLED-0073] **Markdown output cannot reorder or split a line.**
+- ✅ [FLED-0073] **Markdown output cannot reorder or split a line.**
   Split from FLED-0071. `render._escape` makes U+0000 to U+001F and U+007F
   a space, but passes the text-direction marks, U+2028, U+2029 and the
   C1 controls, which `render.visible` shows as escapes in plain text. So
@@ -1209,6 +1209,10 @@ can still use the analyser, and a stranger's writer can prove itself.
   with plain text. Built: `render._CONTROL` is `render._UNPRINTED`'s
   list plus the two-character line break. INV-110 gained the Markdown
   case. In review with the three engines.
+  Reviewed by all three engines, 2026-11-13: no correctness finding.
+  Vestige's review folded as two line-start cases in
+  `tests/test_markdown.py::test_line_starts_are_escaped`; loop-log rows
+  impl-0073-doom-ut and impl-0073-vestige.
   **Layman:** A run file cannot make a report pasted into a pull request read in a different order than it was written.
   Kind: fix.
   Source: engine-reviews-FLED-0071-2026-11-13.
