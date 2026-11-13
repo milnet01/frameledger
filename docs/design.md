@@ -87,7 +87,9 @@ Four parts. The format spec is the only thing the other three share.
   `tests/fixtures/`, and a writer test that compiles the header as C
   (GCC, Clang and mingw-w64 GCC) and as C++17 (G++, Clang++ and
   mingw-w64 G++), each at `-Wall -Wextra -Wpedantic -Werror`, and runs
-  its output through `check`. MSVC cannot run here; Vestige and
+  its output through `check`. CI runs the whole gate on Linux and on
+  macOS, where the writer test uses Apple's Clang alone (S11). MSVC
+  cannot run here; Vestige and
   UT Ants compile the header with it (ADR-0002). They put
   `src/frameledger` on `sys.path`, as the run forms do.
 

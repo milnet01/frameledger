@@ -2184,7 +2184,8 @@ breaks.
   allocation, file I/O or `printf`-family symbol.
   *Test:* `tests/writer/test_compile.sh`, which also builds one C file
   and one C++ file into one program sharing a writer, and runs `nm -u`
-  on each object.
+  on each object. On macOS it builds and runs with Apple's Clang alone
+  (FLED-0038).
   *Breaks when:* the header calls `malloc`, `fopen` or `snprintf`, uses
   syntax one language rejects, defines a function not `static inline`,
   or lacks the `extern "C"` guards.
@@ -2907,7 +2908,7 @@ breaks.
   path and `exit_code` is null. With `exec` before the command and
   new-2's engine killing itself with SIGKILL, the reason is "the
   command was killed by signal 9 (SIGKILL)" and `exit_code` is null.
-  On Linux, with new-2's command `cd . && …` writing its file and
+  On Linux and macOS, with new-2's command `cd . && …` writing its file and
   then waiting: SIGINT to `alternate`'s whole process group, SIGINT to
   `alternate` alone, and SIGTERM to `alternate` alone each give exit
   3, `exit_code` null, the signal named in the reason,
@@ -2916,17 +2917,22 @@ breaks.
   With the shell still running after the engine (`…; exit $?`), the
   reason is "the command exited with code 137, as the shell reports a
   command killed by signal 9 (SIGKILL)" and `exit_code` is 137. On
-  Linux, new-2's command exiting 0 with a child sleeping 30 seconds:
+  Linux and macOS, new-2's command exiting 0 with a child sleeping 30 seconds:
   the reason is "the command left processes running", and the child
   has ended; with a child sleeping 0.3 seconds, every run finishes. A SIGTERM delivered while new-2's command is being started
-  still ends it.
+  still ends it. A process group that refuses a signal is waited for
+  as one still ending: macOS refuses one to a group whose processes
+  have ended and are not yet collected (FLED-0038).
   *Test:* `tests/test_alternate.py::test_failed_run_stops`,
   `tests/test_alternate.py::test_stopped_text_is_its_sentences`,
   `tests/test_alternate.py::test_killed_command_names_its_signal`,
   `tests/test_alternate.py::test_left_processes_fail_the_run`,
   `tests/test_alternate.py::test_brief_leftover_is_waited_for`,
-  `tests/test_alternate.py::test_stop_while_starting`, and
-  `tests/test_alternate.py::test_interrupted_run_stops`. Nothing here
+  `tests/test_alternate.py::test_stop_while_starting`,
+  `tests/test_alternate.py::test_interrupted_run_stops`,
+  `tests/test_alternate.py::test_a_group_that_refuses_a_signal_is_waited_for`, and
+  `tests/test_alternate.py::test_macos_refuses_a_signal_to_an_ended_group`,
+  which asks macOS itself and runs only there. Nothing here
   tests a process that survives SIGKILL.
   *Breaks when:* later runs start, the finished runs are compared,
   their files are removed, the failed run's file is kept, its text
@@ -3670,7 +3676,7 @@ it on each release they pin.
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | INV-78 | `tests/test_alternate.py::test_alternates_and_compares`, `tests/test_alternate.py::test_text_is_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
-| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_stopped_text_is_its_sentences`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_stopped_text_is_its_sentences`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops`, `tests/test_alternate.py::test_a_group_that_refuses_a_signal_is_waited_for`, `tests/test_alternate.py::test_macos_refuses_a_signal_to_an_ended_group` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |

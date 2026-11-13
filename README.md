@@ -32,7 +32,7 @@ check its SHA256 against the one in that release's notes. It holds:
 - `frameledger.pyz` — the analyser. It needs Python 3.10 or newer and
   nothing else.
 - `frameledger` and `frameledger.cmd` — launchers that run it by name,
-  on Linux and on Windows.
+  on Linux and macOS and on Windows.
 - `include/frameledger.h` — the optional writer, one header for C and
   C++.
 - `LICENSE`.
@@ -52,7 +52,7 @@ python3 -m zipfile -e frameledger-v<version>.zip frameledger
 Put the launcher on your PATH, and `frameledger report run.csv` works
 from any folder.
 
-On Linux, make the launcher runnable, then link it into a folder on
+On Linux or macOS, make the launcher runnable, then link it into a folder on
 your PATH. Python's unpacker does not keep the runnable mark, so the
 first line is needed after it:
 
