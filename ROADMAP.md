@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=71 -->
+<!-- ants-roadmap-id-high-water: FLED=72 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1106,7 +1106,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: ux.
   Source: doom-ants-review-2026-11-04.
 
-- 🚧 [FLED-0053] **compare names an outlier run and warns on a noisy run.**
+- ✅ [FLED-0053] **compare names an outlier run.**
   compare's spread is the full range, so one bad run makes a measure
   `noisy`. Flag the run outside quartile fences, and warn when one run's
   own frame-to-frame scatter is high. A warning only; verdicts do not
@@ -1125,6 +1125,10 @@ can still use the analyser, and a stranger's writer can prove itself.
   Held: `noisy_run`, until the engines' real runs give its limit
   (Vestige owes three captures under 3D_E-0970). Amends
   docs/specs/FLED-0001-run-file-format.md § 4.10, INV-109.
+  2026-11-13: shipped at 39dbfc9. Vestige, UT Ants and DOOM Ants
+  reviewed it and their findings are folded: a set under three names
+  none, each named run has its own sentence, and a base run is named
+  once. `noisy_run` is now FLED-0072.
   **Layman:** When one test run went oddly, frameledger says which one, so only that run needs redoing.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -1202,6 +1206,19 @@ the source of truth; all three engines set that condition, 2026-11-10.
   **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
   Kind: feature.
   Source: competitor-research-2026-11-10.
+
+- 📋 [FLED-0072] **compare warns on a run whose own frame times scatter.**
+  FLED-0053's held half. Proposed 2026-11-13: `noisy_run`, per run, when
+  (75th - 25th percentile) / median of frame/wall is above a limit, over
+  segment kinds with at least 100 frames. The three engines agreed the
+  measure and held the number until real runs give it; 0.25 was a guess.
+  DOOM Ants warns that quartiles of one run's frames miss a burst.
+  Waiting on: Vestige's three quiet-machine captures under 3D_E-0970;
+  UT Ants has no ledgers yet. Needs a spec amendment to FLED-0001 § 4.9
+  or § 4.10.
+  **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
+  Kind: feature.
+  Source: split-from-FLED-0053-2026-11-13.
 
 ## 0.8.0 — stable promises (beta)
 
