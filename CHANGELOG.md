@@ -38,6 +38,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - **A long warm-up is shown as given** (FLED-0024)
   `floor`, `budget` and `survey` named a `--warmup-s` of a million seconds or more in rounded exponent form, such as "the 1e+09 s warm-up". Their sentences now give the warm-up in full, "the 999999999 s warm-up". A warm-up with more than six significant digits, such as 12345.678, was rounded the same way, and one under 0.0001 s was in exponent form; both are now given in full too.
 
+- **A run or budget file nested too deep is refused in a sentence** (FLED-0069)
+  A `# frameledger` or `# frameledger-budget` line holding very many nested brackets, such as 200,000 `[`, ended `check`, `budget` and every command that reads a run file in a traceback with exit 1. `check` now reports a breach on that line, "not valid JSON: it is nested too deep to read", and `budget` gives exit 3 with "the header is not one JSON object".
+
 ## [0.4.0] - 2026-11-11
 
 **Theme:** A/B runs you can trust.

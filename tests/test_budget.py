@@ -171,6 +171,8 @@ GOOD = "gpu,x,view,,median,2.000"
     (budget_text("gpu,x,view,," + "median," + "9" * 5000), 3, "limit_ms"),
     (budget_text("gpu,x,view," + "9" * 5000 + ",median,2.000"), 3, "depth"),
     (budget_text(GOOD, header='{"schema":' + "9" * 5000 + "}"), 1, "JSON object"),
+    pytest.param(budget_text(GOOD, header='{"schema":' + "[" * 200_000), 1, "JSON object",
+                 id="nested too deep"),  # FLED-0069, UT Ants
     (budget_text(GOOD, header='{"schema":1,"match":{"inputs":"abc"}}'), 1, "inputs"),
     (budget_text(GOOD, header='{"schema":1,"match":{"inputs":[1,2]}}'), 1, "inputs"),
     (budget_text(GOOD, header='{"schema":1,"match":{"tier":["a"]}}'), 1, "tier"),

@@ -111,7 +111,7 @@ def _header(text: str, path: str) -> dict:
         raise ledger.LedgerError(f"the first line must be '{KEYWORD} {{\"schema\":{SCHEMA}}}'", path, 1)
     try:
         header = json.loads("{" + rest)
-    except ValueError:  # not just JSONDecodeError: a huge integer raises plain ValueError
+    except (ValueError, RecursionError):  # a huge integer is a plain ValueError; deep nesting recurses (UT Ants)
         raise ledger.LedgerError("the header is not one JSON object", path, 1) from None
     schema = header.get("schema") if isinstance(header, dict) else None
     if type(schema) is not int or schema != SCHEMA:  # not True, not 1.0

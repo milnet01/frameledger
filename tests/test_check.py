@@ -174,6 +174,25 @@ def test_too_many_digits_is_a_breach(capsys, tmp_path, template, rule, digits):
     assert digits not in out["result"]["files"][0]["breaches"][0]["message"]
 
 
+@pytest.mark.parametrize(("starts", "rule"), [
+    ("# frameledger ", "header"), ("# frameledger-close ", "close"),
+], ids=["header", "close"])
+def test_json_nested_too_deep_is_a_breach(capsys, tmp_path, starts, rule):
+    """FLED-0069, UT Ants: a line whose JSON nests too deep for the parser
+    is a breach on its line, quoted short; never a traceback."""
+    deep = starts + '{"schema":' + "[" * 200_000
+    lines = (FIXTURES / "schema-1.csv").read_text(encoding="utf-8").splitlines()
+    at = next(i for i, text in enumerate(lines) if text.startswith(starts))
+    lines[at] = deep
+    path = tmp_path / "run.csv"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    code, out = run_check(capsys, path)
+    assert code == 1
+    assert (at + 1, rule) in found(out)
+    message = next(b["message"] for b in out["result"]["files"][0]["breaches"] if b["rule"] == rule)
+    assert "nested too deep" in message and "[[[[" not in message
+
+
 @pytest.mark.parametrize(("row", "rule"), [
     (f"{'r' * 5000},view:1,1,cpu,extra,0,6.000", "run_id"),
     (f"r1,{'s' * 5000},1,cpu,extra,0,6.000", "segment"),

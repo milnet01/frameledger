@@ -165,6 +165,9 @@ class _Reader:
         except ValueError as error:
             self.breach(number, rule, f"not valid JSON: {error}")
             return None
+        except RecursionError:  # brackets nested past what json.loads can follow (UT Ants)
+            self.breach(number, rule, "not valid JSON: it is nested too deep to read")
+            return None
         if not isinstance(value, dict):
             self.breach(number, rule, "must hold one JSON object")
             return None
