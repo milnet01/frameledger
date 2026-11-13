@@ -36,6 +36,11 @@ def warnings(run: ledger.Run, measured: int, cut_frames: set[int] | None = None)
     if header["build_type"].casefold() == "debug":
         warn("debug_build", f"the build type is '{header['build_type']}', so the run timed a "
              "Debug build")
+    sanitizers = header.get("sanitizers")
+    if sanitizers:  # absent is unknown and [] is none: neither warns
+        names = ", ".join(f"'{name}'" for name in sanitizers)
+        warn("sanitizer_build", f"the build has {'sanitizer' if len(sanitizers) == 1 else 'sanitizers'} "
+             f"{names}, so the run timed instrumented code")
     for field in ("renderer", "device"):
         if any(name in header[field].casefold() for name in SOFTWARE_RENDERERS):
             warn("software_renderer", f"the {field} is '{header[field]}', which draws in software, "

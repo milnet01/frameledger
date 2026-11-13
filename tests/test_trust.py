@@ -1,7 +1,7 @@
 """Trust warnings: whether one run's numbers should be trusted (S5).
 
 Invariants from docs/specs/FLED-0001-run-file-format.md § 5: INV-23 to
-INV-27, the rules of § 4.9. Runs are passing-run.csv with its header
+INV-27 and INV-103, the rules of § 4.9. Runs are passing-run.csv with its header
 changed, or built from frame walls by tests/floor_runs.py.
 """
 
@@ -13,7 +13,7 @@ from floor_runs import WARMUP, run_text
 
 FIXTURES = Path(__file__).parent / "fixtures"
 PASSING = (FIXTURES / "passing-run.csv").read_text(encoding="utf-8")
-TRUST = {"debug_build", "software_renderer", "cpu_load", "gpu_load", "settling_short",
+TRUST = {"debug_build", "sanitizer_build", "software_renderer", "cpu_load", "gpu_load", "settling_short",
          "too_few_frames", "cut_in_stretch"}
 
 
@@ -77,6 +77,28 @@ def test_header_warnings(capsys, tmp_path):
             assert trust(run(capsys, tmp_path, command, with_header(PASSING, **changes))) == []
 
 
+# INV-103
+
+def test_sanitizer_build(capsys, tmp_path):
+    for command in ("report", "floor"):
+        plain = run(capsys, tmp_path, command, PASSING)
+        out = run(capsys, tmp_path, command, with_header(PASSING, sanitizers=["address", "undefined"]))
+        warned = trust(out)
+        assert [w["code"] for w in warned] == ["sanitizer_build"]
+        assert "'address', 'undefined'" in warned[0]["message"]
+        assert f"Warning: {warned[0]['message']}." in out["summary"]
+        assert (out["verdict"], out["exit_code"]) == (plain["verdict"], plain["exit_code"])
+        # An empty list says the build has none; that is known, and clean.
+        assert trust(run(capsys, tmp_path, command, with_header(PASSING, sanitizers=[]))) == []
+        # A Debug build with a sanitizer is both, in § 4.9's table order.
+        both = trust(run(capsys, tmp_path, command, with_header(PASSING, build_type="Debug",
+                                                                sanitizers=["thread"])))
+        assert [w["code"] for w in both] == ["debug_build", "sanitizer_build"]
+    checked = run(capsys, tmp_path, "check", with_header(PASSING, sanitizers=["address"]))
+    assert checked["exit_code"] == 0
+    assert trust(checked) == []
+
+
 def test_too_few_frames(capsys, tmp_path):
     def warned(command, walls):
         return [w["code"] for w in trust(run(capsys, tmp_path, command, run_text(walls)))]
@@ -128,7 +150,7 @@ def test_cut_in_stretch(capsys, tmp_path):
 
 def test_absent_fields_and_check(capsys, tmp_path):
     header = json.loads(PASSING.split("\n", 1)[0].removeprefix("# frameledger "))
-    assert not {"settling_frames", "settled_frames", "load", "gpu_busy_pct"} & header.keys()
+    assert not {"settling_frames", "settled_frames", "load", "gpu_busy_pct", "sanitizers"} & header.keys()
     for command in ("report", "floor"):
         assert trust(run(capsys, tmp_path, command, PASSING)) == []
     debug = run(capsys, tmp_path, "check", with_header(PASSING, build_type="Debug",

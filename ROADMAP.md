@@ -1067,7 +1067,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 📋 [FLED-0016] **Warn on a sanitizer build.**
+- 🚧 [FLED-0016] **Warn on a sanitizer build.**
   An optional header field `sanitizers` (an array of strings, such as
   "address") and a `sanitizer_build` trust warning when it is not empty.
   debug_build (FLED-0005) misses a Release build with ASan, which Vestige
@@ -1076,6 +1076,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   it can wait.
   2026-11-13: moved to 0.6.0. The three engines agreed to cut 0.5.0
   without it.
+  2026-11-13: first 0.6.0 item. Vestige and UT Ants agreed the order
+  0016, 0055, 0053, 0025, then 0036 to 0038; DOOM Ants had not answered.
+  Amends docs/specs/FLED-0001-run-file-format.md §§ 4.2 and 4.9.
   **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
   Kind: enhancement.
   Source: vestige-review-2026-10-26.

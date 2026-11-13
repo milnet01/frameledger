@@ -29,7 +29,9 @@ their wording changes. § 4.17 a saved baseline with INV-98 to INV-101
 reviews of e5f2758 settled its paths, duplicates and warnings. § 4.2's
 real-date rule for `started_utc` with INV-102 (FLED-0070) agreed by
 the three engines 2026-11-13 before it was built; their code reviews
-of 736b210 added the limit on fraction digits.
+of 736b210 added the limit on fraction digits. § 4.2's `sanitizers`
+and § 4.9's `sanitizer_build` with INV-103 (FLED-0016) asked for by
+Vestige 2026-10-26, and sent to the three engines for review once built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -231,8 +233,10 @@ frame), `pinned` (object: clocks the run froze),
 as a share of the machine: 0 idle, 1 every logical CPU busy; `peak`
 optional), `gpu_busy_pct` (`{"start": n, "end": n}`, `peak`
 optional), `gpu_clock_mhz`
-(`{"start": n, "end": n}`), `os` (string), `extra` (object, the
-engine's own).
+(`{"start": n, "end": n}`), `os` (string), `sanitizers` (array of
+strings: each sanitizer the build was compiled with, such as
+`"address"`, in the writer's own words; `[]` says it has none), `extra`
+(object, the engine's own).
 
 `started_utc` names a real date and time: year 0001 to 9999, a month
 and day that exist, with 29 February only in a leap year, hour 00 to
@@ -619,6 +623,7 @@ code are the text's.
 | Code | Warns when |
 |---|---|
 | `debug_build` | `build_type` is `debug`, in any case |
+| `sanitizer_build` | `sanitizers` names one or more |
 | `software_renderer` | `renderer` or `device` holds, in any case, `llvmpipe`, `lavapipe`, `softpipe`, `swrast`, `swiftshader`, `software rasterizer`, `gdi generic` or `microsoft basic render driver` |
 | `cpu_load` | `load.start` is above 0.5 |
 | `gpu_load` | `gpu_busy_pct.start` is above 20 |
@@ -630,6 +635,9 @@ code are the text's.
   that holds the floor passes, and says it was a Debug run.
 - **An absent optional field gives no warning**: absent means unknown.
   `settling_short` needs both its fields.
+- **An empty `sanitizers` gives no warning.** It says the build has
+  none. `build_type` cannot say so: a Release build may carry a
+  sanitizer (Vestige). The message quotes every name the list holds.
 - **Each message names what it judged**, and the threshold where there
   is one: `load.start` 0.62, above 0.5.
 - **`check` gives none of these.** It judges the file, not the run.
@@ -3179,6 +3187,19 @@ breaks.
   fraction's length is left to Python's own limit on digits, which
   moves with its settings (DOOM Ants).
 
+- **INV-103** — `passing-run.csv` with `sanitizers` set to `"address"`
+  and `"undefined"` gives `sanitizer_build` alone under `report` and
+  `floor`, quoting both names, with the same verdict and exit code.
+  With `[]` it gives no § 4.9 warning. With `build_type` `"Debug"` and
+  `sanitizers` holding `"thread"` it gives `debug_build` then
+  `sanitizer_build`. `check` gives no warning for the field, and exits
+  1 with one `header` breach when `sanitizers` is a string, or a list
+  holding a number.
+  *Test:* `tests/test_trust.py::test_sanitizer_build`, and
+  `tests/test_check.py::test_header_breaches`.
+  *Breaks when:* a Release build with a sanitizer gives no warning, an
+  empty list warns, or a list that is not all strings is read.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -3228,6 +3249,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0068: INV-97.
 - FLED-0035: INV-98 to INV-101.
 - FLED-0070: INV-102.
+- FLED-0016: INV-103.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3376,6 +3398,7 @@ it on each release they pin.
 | INV-100 | `tests/test_baseline.py::test_baseline_warnings` |
 | INV-101 | `tests/test_baseline.py::test_alternate_baseline`, `tests/test_baseline.py::test_alternate_baseline_variants`, `tests/test_baseline.py::test_alternate_bad_baseline_runs_nothing` |
 | INV-102 | `tests/test_check.py::test_started_utc_is_a_real_time`, `tests/test_check.py::test_real_started_utc_is_read` |
+| INV-103 | `tests/test_trust.py::test_sanitizer_build`, `tests/test_check.py::test_header_breaches` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |
