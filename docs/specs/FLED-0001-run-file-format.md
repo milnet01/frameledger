@@ -31,7 +31,8 @@ real-date rule for `started_utc` with INV-102 (FLED-0070) agreed by
 the three engines 2026-11-13 before it was built; their code reviews
 of 736b210 added the limit on fraction digits. § 4.2's `sanitizers`
 and § 4.9's `sanitizer_build` with INV-103 (FLED-0016) asked for by
-Vestige 2026-10-26, and sent to the three engines for review once built.
+Vestige 2026-10-26; the three engines' code reviews of 8e9a970 added
+the refusal of an empty name and the cut of a long one.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -235,7 +236,8 @@ optional), `gpu_busy_pct` (`{"start": n, "end": n}`, `peak`
 optional), `gpu_clock_mhz`
 (`{"start": n, "end": n}`), `os` (string), `sanitizers` (array of
 strings: each sanitizer the build was compiled with, such as
-`"address"`, in the writer's own words; `[]` says it has none), `extra`
+`"address"`, in the writer's own words, never empty or only spaces;
+`[]` says it has none), `extra`
 (object, the engine's own).
 
 `started_utc` names a real date and time: year 0001 to 9999, a month
@@ -637,7 +639,8 @@ code are the text's.
   `settling_short` needs both its fields.
 - **An empty `sanitizers` gives no warning.** It says the build has
   none. `build_type` cannot say so: a Release build may carry a
-  sanitizer (Vestige). The message quotes every name the list holds.
+  sanitizer (Vestige). The message quotes every name the list holds,
+  a long one cut short.
 - **Each message names what it judged**, and the threshold where there
   is one: `load.start` 0.62, above 0.5.
 - **`check` gives none of these.** It judges the file, not the run.
@@ -3192,13 +3195,16 @@ breaks.
   `floor`, quoting both names, with the same verdict and exit code.
   With `[]` it gives no § 4.9 warning. With `build_type` `"Debug"` and
   `sanitizers` holding `"thread"` it gives `debug_build` then
-  `sanitizer_build`. `check` gives no warning for the field, and exits
+  `sanitizer_build`. A name of 5000 characters is quoted cut short,
+  in a message under 200 characters. `check` gives no warning for the
+  field, and exits
   1 with one `header` breach when `sanitizers` is a string, or a list
-  holding a number.
+  holding a number, an empty string or one of two spaces.
   *Test:* `tests/test_trust.py::test_sanitizer_build`, and
   `tests/test_check.py::test_header_breaches`.
   *Breaks when:* a Release build with a sanitizer gives no warning, an
-  empty list warns, or a list that is not all strings is read.
+  empty list warns, or a list that is not all strings is read, or an
+  empty name is, which warns of a sanitizer it cannot name (Vestige).
 
 ## 6. Failure modes
 

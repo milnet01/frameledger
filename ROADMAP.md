@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=70 -->
+<!-- ants-roadmap-id-high-water: FLED=71 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1067,7 +1067,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 🚧 [FLED-0016] **Warn on a sanitizer build.**
+- ✅ [FLED-0016] **Warn on a sanitizer build.**
   An optional header field `sanitizers` (an array of strings, such as
   "address") and a `sanitizer_build` trust warning when it is not empty.
   debug_build (FLED-0005) misses a Release build with ASan, which Vestige
@@ -1079,6 +1079,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-13: first 0.6.0 item. Vestige and UT Ants agreed the order
   0016, 0055, 0053, 0025, then 0036 to 0038; DOOM Ants had not answered.
   Amends docs/specs/FLED-0001-run-file-format.md §§ 4.2 and 4.9.
+  2026-11-13: built at 8e9a970 and reviewed by the three engines. Folded:
+  an empty or blank name is refused, a long name is cut short. FLED-0071
+  queued from DOOM Ants' review.
   **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
   Kind: enhancement.
   Source: vestige-review-2026-10-26.
@@ -1125,9 +1128,27 @@ can still use the analyser, and a stranger's writer can prove itself.
   when sides differ (FLED-0030 adds load and clock ones).
   2026-11-13: moved to 0.6.0. The three engines agreed to cut 0.5.0
   without it; DOOM Ants would use it most.
+  2026-11-13, engines (FLED-0016 review): the differs-warning also
+  covers `sanitizers`. DOOM Ants: compare passes three clean runs
+  against three ["address"] runs with warnings only.
   **Layman:** Each run notes things like CPU power mode and temperature, and frameledger warns when the two builds were tested under different conditions.
   Kind: feature.
   Source: competitor-research-2026-11-10.
+
+- 📋 [FLED-0071] **A header value cannot forge or flood a warning line.**
+  DOOM Ants, reviewing 8e9a970 (FLED-0016): plain-text output quotes a
+  header string as written, so a `sanitizers` name of "addr\nWarning: fake"
+  prints a forged second Warning line; ESC and NUL pass too. `renderer`
+  has the same hole in `software_renderer`, and `build_type` in
+  `debug_build`. Markdown output is already cleaned by `render._escape`.
+  A list of 5,000 names also gives one very long line, since
+  `ledger.clip` cuts each name and not the count. Not checked here:
+  which other quoted header fields share it. Decide with the engines
+  whether `check` refuses control characters in header strings or the
+  text output cleans them.
+  **Layman:** A run file cannot make frameledger print a fake warning or a huge line.
+  Kind: fix.
+  Source: doom-ants-review-2026-11-13.
 
 ## 0.7.0 — seen, not only read
 

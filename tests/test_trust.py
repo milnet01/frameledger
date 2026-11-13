@@ -85,7 +85,7 @@ def test_sanitizer_build(capsys, tmp_path):
         out = run(capsys, tmp_path, command, with_header(PASSING, sanitizers=["address", "undefined"]))
         warned = trust(out)
         assert [w["code"] for w in warned] == ["sanitizer_build"]
-        assert "'address', 'undefined'" in warned[0]["message"]
+        assert "sanitizers 'address', 'undefined'" in warned[0]["message"]
         assert f"Warning: {warned[0]['message']}." in out["summary"]
         assert (out["verdict"], out["exit_code"]) == (plain["verdict"], plain["exit_code"])
         # An empty list says the build has none; that is known, and clean.
@@ -94,6 +94,10 @@ def test_sanitizer_build(capsys, tmp_path):
         both = trust(run(capsys, tmp_path, command, with_header(PASSING, build_type="Debug",
                                                                 sanitizers=["thread"])))
         assert [w["code"] for w in both] == ["debug_build", "sanitizer_build"]
+        assert "sanitizer 'thread'" in both[1]["message"]
+        # A long name is cut short, as every quoted field is (UT Ants).
+        long = trust(run(capsys, tmp_path, command, with_header(PASSING, sanitizers=["x" * 5000])))
+        assert "..." in long[0]["message"] and len(long[0]["message"]) < 200
     checked = run(capsys, tmp_path, "check", with_header(PASSING, sanitizers=["address"]))
     assert checked["exit_code"] == 0
     assert trust(checked) == []

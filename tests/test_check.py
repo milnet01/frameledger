@@ -243,6 +243,8 @@ HEADER_BREACHES = [
     ("load without end", header_with(load={"start": 1.0})),
     ("sanitizers as one string", header_with(sanitizers="address")),
     ("a sanitizer that is no string", header_with(sanitizers=["address", 1])),
+    ("a sanitizer with no name", header_with(sanitizers=["address", ""])),
+    ("a sanitizer named in spaces", header_with(sanitizers=["  "])),
     ("schema as text", header_with(schema="1")),
     ("schema 0", header_with(schema=0)),
     ("NaN", HEADER.replace('"render_scale":1.0', '"render_scale":NaN')),

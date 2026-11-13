@@ -356,8 +356,10 @@ def _is_string(value) -> bool:
     return isinstance(value, str)
 
 
-def _is_strings(value) -> bool:
-    return isinstance(value, list) and all(_is_string(item) for item in value)
+def _is_names(value) -> bool:
+    """A list of strings, none empty or all spaces: such a name says nothing
+    (Vestige, DOOM Ants)."""
+    return isinstance(value, list) and all(_is_string(item) and item.strip() for item in value)
 
 
 def _is_bool(value) -> bool:
@@ -456,7 +458,7 @@ HEADER_FIELDS = {
                      '{"start": number, "end": number}, and an optional "peak": number'),
     "gpu_clock_mhz": (False, _is_span, '{"start": number, "end": number}'),
     "os": (False, _is_string, "a string"),
-    "sanitizers": (False, _is_strings, "a list of strings"),
+    "sanitizers": (False, _is_names, "a list of strings, none empty or blank"),
     "extra": (False, _is_object, "an object"),
 }
 

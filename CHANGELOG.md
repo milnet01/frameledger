@@ -15,7 +15,7 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 ### Added
 
 - **A run from a sanitizer build carries a warning** (FLED-0016)
-  The header takes an optional `sanitizers` field: a list of the sanitizers the build was compiled with, such as `["address"]`, and `[]` for none. Where the list names any, every command that gives trust warnings adds `sanitizer_build`, quoting the names. A warning changes no verdict and no exit code. `check` refuses a `sanitizers` that is not a list of strings. No schema change: a file without the field reads as before.
+  The header takes an optional `sanitizers` field: a list of the sanitizers the build was compiled with, such as `["address"]`, and `[]` for none. Where the list names any, every command that gives trust warnings adds `sanitizer_build`, quoting the names. A warning changes no verdict and no exit code. `check` refuses a `sanitizers` that is not a list of strings, or that holds an empty or blank one. No schema change: a file without the field reads as before.
 
 ## [0.5.0] - 2026-11-13
 
