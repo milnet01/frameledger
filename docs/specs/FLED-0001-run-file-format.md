@@ -679,7 +679,7 @@ lines are joined, and nowhere else:
 - **A quoted list names its first five entries**, then "and N more",
   N being the count left out. A `sanitizers` name is cut to 20
   characters, a `renderer`, `device`, `driver` or `os` to 60.
-  `--json`'s `message` is cut the same way; the header is not echoed.
+  `--json`'s `message` is cut the same way.
 - **`check` is unchanged**: none of this is a breach. A refusal could
   not reach a path, and each new quoted field would need its own rule.
 - **`--json` and Markdown** carry the sentences uncleaned. JSON
