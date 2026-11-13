@@ -4,7 +4,8 @@
  * argument it also writes test_output_conforms' run there, for the
  * analyser's `check`. Exit 0 when every test passes.
  */
-/* MSVC warns on sprintf and fopen (C4996); the test needs both. */
+/* MSVC warns on fopen (C4996); the test needs it. snprintf, not sprintf:
+ * Apple's headers mark sprintf deprecated (FLED-0038). */
 #define _CRT_SECURE_NO_WARNINGS
 #include <locale.h>
 #include <math.h>
@@ -84,7 +85,7 @@ static void test_drops(void)
     expect(fled_close(&w, 1) == FLED_OK, "test_drops", "close succeeds");
     n = fled_pending(&w, &bytes);
     expect(n <= cap, "test_drops", "the close line fits the buffer");
-    sprintf(close, "# frameledger-close {\"rows_dropped\":%d,\"frames\":1}\n", dropped);
+    snprintf(close, sizeof close, "# frameledger-close {\"rows_dropped\":%d,\"frames\":1}\n", dropped);
     expect(n >= strlen(close) && memcmp(bytes + n - strlen(close), close, strlen(close)) == 0,
            "test_drops", "the close line counts every drop");
 }
@@ -243,7 +244,7 @@ static void test_escape_opens(void)
     n = fled_json_escape(escaped, sizeof escaped, "GPU\x7f\x01\n\"name\"");
     expect(n < sizeof escaped && strcmp(escaped, "GPU\\u007f\\u0001\\n\\\"name\\\"") == 0,
            "test_escape_opens", "DEL and control characters are escaped");
-    sprintf(header, "{\"device\":\"%s\"}", escaped);
+    snprintf(header, sizeof header, "{\"device\":\"%s\"}", escaped);
     expect(fled_open(&w, buf, sizeof buf, "w1", header, NULL) == FLED_OK, "test_escape_opens",
            "an escaped header opens");
     n = fled_pending(&w, &bytes);
