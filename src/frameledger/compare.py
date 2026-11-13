@@ -148,11 +148,11 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
 
     incomplete = _incomplete_sentences(runs)
     loaded = load_sentences(runs, limits)
-    notices += run_notices(runs) + _set_notices(runs, called, baseline)
+    measures, unmatched, absent, outliers = _judge_all(runs, floors, called, named_measures)
+    notices += run_notices(runs) + _set_notices(runs, called, baseline) + outliers
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + loaded + run_report.warning_sentences(shown)
 
-    measures, unmatched, absent = _judge_all(runs, floors, named_measures)
     short = _short_kinds(runs)
     verdict, sentences, reason = _verdict(incomplete, loaded, measures, short, bool(named_measures), unmatched)
     summary += sentences
@@ -460,27 +460,63 @@ def run_values(run: ledger.Run, by_segment: bool = False) -> dict[Measure, int]:
     return values
 
 
-def _judge_all(runs: list[Named], floors: Floors,
-               named_measures: tuple[str, ...] = ()) -> tuple[list[dict], list[dict], list[str]]:
+def _judge_all(runs: list[Named], floors: Floors, called: dict[str, str], named_measures: tuple[str, ...] = ()
+               ) -> tuple[list[dict], list[dict], list[str], list[ledger.Notice]]:
     """Every measure all runs share, judged; those only some runs have;
-    and the names in `named_measures` no run has. With `named_measures`,
-    only the measures it names count, at every depth, kind and statistic,
-    matched exactly."""
+    the names in `named_measures` no run has; and an `outlier_run` warning
+    for each run that stands apart where the frame/wall median is noisy.
+    With `named_measures`, only the measures it names count, at every
+    depth, kind and statistic, matched exactly. `called` is each set's
+    name in a warning."""
     per_run = [run_values(r.run) for r in runs]
     absent = _absent(per_run, named_measures)
     tick = largest_tick(runs)
-    measures, unmatched = [], []
-    for measure in set().union(*per_run):
+    measures, unmatched, outliers = [], [], []
+    # In kind order, which a set does not keep, so the outlier warnings come in it.
+    for measure in sorted(set().union(*per_run), key=lambda m: run_report.kind_order(m.kind)):
         if named_measures and f"{measure.category}/{measure.name}" not in named_measures:
             continue
         present = [r.name for r, values in zip(runs, per_run, strict=True) if measure in values]
         if len(present) < len(runs):
             unmatched.append({**_measure_fields(measure), "present_in": present})
             continue
-        old = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "old"]
-        new = [values[measure] for r, values in zip(runs, per_run, strict=True) if r.set == "new"]
-        measures.append(_judge(measure, old, new, floors, tick))
-    return sorted(measures, key=_rank), sorted(unmatched, key=_rank), absent
+        sets = {label: [(r.name, values[measure]) for r, values in zip(runs, per_run, strict=True)
+                        if r.set == label] for label in ("old", "new")}
+        old, new = ([value for _, value in sets[label]] for label in ("old", "new"))
+        floor = change_floor(measure.category, measure.name, centre(old), floors.minimum(measure.category),
+                             floors.min_pct, tick)
+        judged = _judge(measure, old, new, floor)
+        measures.append(judged)
+        if judged["verdict"] == "noisy" and measure[1:] == ("frame", "wall", 0, "median"):
+            outliers += [_outlier_notice(judged, called[label], sets[label], floor) for label in ("old", "new")]
+    return (sorted(measures, key=_rank), sorted(unmatched, key=_rank), absent,
+            [notice for notice in outliers if notice is not None])
+
+
+def _outlier_notice(wall: dict, called: str, named_values: list[tuple[str, int]],
+                    floor: Fraction) -> ledger.Notice | None:
+    """§ 4.10's `outlier_run` for one set of a noisy frame/wall median, or
+    None: the set's highest or lowest run, when the set's range is at
+    least the floor and under half as wide without that run. `wall` is the
+    judged measure; `named_values` holds each run's name and value, in
+    thousandths.
+
+    No more than one run of a set can be it. The range without the top
+    run and the range without the bottom run together cover the whole
+    range, so they cannot both be under half of it. Nor can it be an end
+    two runs share, since dropping one leaves the other."""
+    ordered = sorted(named_values, key=lambda named: named[1])
+    width = ordered[-1][1] - ordered[0][1]
+    if width == 0 or width < floor:
+        return None
+    for (name, value), others in ((ordered[0], ordered[1:]), (ordered[-1], ordered[:-1])):
+        lowest, highest = others[0][1], others[-1][1]
+        if 2 * (highest - lowest) < width:
+            return ledger.Notice(
+                "outlier_run",
+                f"{name} stands apart from the other {called} runs: its {_label(wall)} is {value / 1000:.3f} ms "
+                f"and theirs lie from {lowest / 1000:.3f} to {highest / 1000:.3f} ms; re-run it")
+    return None
 
 
 def absent_names(runs: list[ledger.Run], named_measures: tuple[str, ...]) -> list[str]:
@@ -494,13 +530,12 @@ def _absent(per_run: list[dict[Measure, int]], named_measures: tuple[str, ...]) 
     return [n for n in named_measures if n not in found]
 
 
-def _judge(measure: Measure, old: list[int], new: list[int], floors: Floors, tick: Fraction) -> dict:
-    """§ 4.10's table, in exact fractions of a thousandth."""
+def _judge(measure: Measure, old: list[int], new: list[int], floor: Fraction) -> dict:
+    """§ 4.10's table, in exact fractions of a thousandth. `floor` is
+    change_floor's for the measure."""
     old_centre, new_centre = centre(old), centre(new)
     spread = spread_of(old, new)
     change = new_centre - old_centre
-    floor = change_floor(measure.category, measure.name, old_centre, floors.minimum(measure.category),
-                         floors.min_pct, tick)
     verdict = change_verdict(change, spread, floor)
     if measure.category == "mem":
         verdict = MEM_VERDICTS.get(verdict, verdict)

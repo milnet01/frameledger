@@ -421,3 +421,39 @@ def test_faster_at_the_floor(capsys, tmp_path):
     """A faster change equal to the floor is faster, as a slower one is slower."""
     code, result = compare(capsys, tmp_path, old([10.0] * 3), new([9.7] * 3))
     assert opaque_verdict(result) == "faster"
+
+
+def test_outlier_run(capsys, tmp_path):
+    """INV-109: where the frame/wall median is noisy, the one run that
+    stands apart in a set is named: its highest or lowest, when the set's
+    range is at least the floor and under half as wide without it."""
+    def outliers(old_walls, new_walls, opaque=(10.0, 10.0, 10.0, 10.0)):
+        def make(walls, side):
+            return side([alike(o, wall=w) for w, o in zip(walls, opaque, strict=False)])
+        code, result = compare(capsys, tmp_path, make(old_walls, old), make(new_walls, new))
+        return code, result, [w["message"] for w in result["warnings"] if w["code"] == "outlier_run"]
+
+    # The old runs' range, 0.2 ms, is under the floor of 3% of 16 ms, so
+    # old-3 is not named though it too stands apart.
+    code, result, found = outliers([16.0, 16.0, 16.2], [16.0, 16.1, 20.0])
+    assert (code, result["verdict"]) == (2, "inconclusive")
+    assert found == ["new-3 stands apart from the other new runs: its frame/wall median in view segments "
+                     "is 20.000 ms and theirs lie from 16.000 to 16.100 ms; re-run it"]
+    assert any(s.startswith("Warning: new-3 stands apart") for s in result["summary"])
+
+    code, _, found = outliers([16.0, 16.0, 16.2], [12.0, 16.0, 16.1])
+    assert code == 2 and [m.split()[0] for m in found] == ["new-1"]  # the lowest run as well as the highest
+    code, _, found = outliers([16.0, 16.1, 20.0], [16.0, 19.9, 20.0])
+    assert code == 2 and [m.split()[0] for m in found] == ["old-3", "new-1"]  # one in each set
+
+    for new_walls in ([16.0, 18.0, 20.0],  # without either end the range is half, not under half
+                      [16.0, 16.0, 20.0, 20.0]):  # each end is shared by two runs
+        code, _, found = outliers([16.0, 16.0, 16.2], new_walls)
+        assert (code, found) == (2, [])
+
+    # A frame/wall that moved is not noisy, so its far run is not named;
+    # nor is a run that stands apart in another measure.
+    code, _, found = outliers([16.0, 16.1, 16.2], [26.0, 26.1, 30.0])
+    assert (code, found) == (1, [])
+    code, result, found = outliers([16.0] * 3, [16.0] * 3, opaque=(10.0, 10.0, 14.0))
+    assert verdicts(result)[("gpu", "opaque", "median")] == "noisy" and (code, found) == (0, [])

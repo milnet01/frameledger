@@ -1106,7 +1106,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: ux.
   Source: doom-ants-review-2026-11-04.
 
-- 📋 [FLED-0053] **compare names an outlier run and warns on a noisy run.**
+- 🚧 [FLED-0053] **compare names an outlier run and warns on a noisy run.**
   compare's spread is the full range, so one bad run makes a measure
   `noisy`. Flag the run outside quartile fences, and warn when one run's
   own frame-to-frame scatter is high. A warning only; verdicts do not
@@ -1118,6 +1118,13 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-10, engines: yes (DOOM Ants, Vestige), later (UT Ants).
   2026-11-13: moved to 0.6.0. The three engines agreed to cut 0.5.0
   without it.
+  2026-11-13: the three engines agreed the design. Built now:
+  `outlier_run`, on the frame/wall median only and only where it is
+  noisy; a set's highest or lowest run is named when the set's range is
+  at least the floor and dropping the run cuts it by more than half.
+  Held: `noisy_run`, until the engines' real runs give its limit
+  (Vestige owes three captures under 3D_E-0970). Amends
+  docs/specs/FLED-0001-run-file-format.md § 4.10, INV-109.
   **Layman:** When one test run went oddly, frameledger says which one, so only that run needs redoing.
   Kind: feature.
   Source: competitor-research-2026-11-10.

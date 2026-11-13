@@ -39,7 +39,9 @@ agreed by the three engines 2026-11-13 before they were built; their
 code reviews of 4a67c02 settled that values are compared whole and a
 list's order does not count. § 4.13's shared directory in the table
 heading with INV-108 (FLED-0025) asked for by DOOM Ants 2026-11-04;
-its code review of 8f04c58 added that `./` names nothing.
+its code review of 8f04c58 added that `./` names nothing. § 4.10's
+`outlier_run` with INV-109 (FLED-0053) agreed by the three engines
+2026-11-13 before it was built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -872,6 +874,18 @@ weighs one `slower` among them.
   before every run of the other, so drift over time reads as a change.
 - `mixed_build` — a set's runs differ in `commit` or `dirty`.
 - `override_unused`, above.
+- `outlier_run` — one run stands apart from the rest of its set
+  (FLED-0053). It is judged on the `frame/wall` median alone, in each
+  segment kind where that measure is `noisy`, since only it makes a
+  compare inconclusive. A set's highest or lowest run is named when
+  the set's range is at least the floor and dropping the run cuts the
+  range by more than half. So no more than one run of a set is named,
+  and never an end that two runs share. The message gives the run, its
+  value and the range of the set's other runs, and says to re-run it.
+  The rule is the same for any number of runs: a set is often three,
+  where quartiles say nothing. In a noisy set of three it names the
+  end further from the middle run, unless the middle is exactly
+  half-way.
 - `load_differs` — the two sets' medians of `load.start` differ by more
   than 0.1.
 - `gpu_busy_differs` — the two sets' medians of `gpu_busy_pct.start`
@@ -3335,6 +3349,25 @@ breaks.
   `runs-old/d.csv` is shown as `-old/d.csv`; one file loses its
   directory; or `--json` loses it.
 
+- **INV-109** — `compare` names a run that stands apart. With the
+  runs' `frame/wall` medians 16.0, 16.0 and 16.2 ms old and 16.0, 16.1
+  and 20.0 new, the one `outlier_run` warning reads "new-3 stands
+  apart from the other new runs: its frame/wall median in view
+  segments is 20.000 ms and theirs lie from 16.000 to 16.100 ms;
+  re-run it", with exit 2. The old runs' range is under the floor, so
+  old-3 is not named. New medians of 12.0, 16.0 and 16.1 name new-1.
+  Old 16.0, 16.1 and 20.0 against new 16.0, 19.9 and 20.0 name old-3,
+  then new-1. New medians of 16.0, 18.0 and 20.0, or of 16.0, 16.0,
+  20.0 and 20.0, name none, with exit 2. Old 16.0, 16.1 and 16.2
+  against new 26.0, 26.1 and 30.0 is `slower`, exit 1, and names none.
+  A `noisy` `gpu/opaque` beside a steady `frame/wall` names none, with
+  exit 0.
+  *Test:* `tests/test_compare.py::test_outlier_run`.
+  *Breaks when:* a run is named where `frame/wall` is not `noisy`, or
+  for another measure; a set narrower than the floor names one; a run
+  is named when dropping it leaves half the range or more; or the
+  lowest run is never named.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -3387,6 +3420,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0016: INV-103.
 - FLED-0055: INV-104 to INV-107.
 - FLED-0025: INV-108.
+- FLED-0053: INV-109.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -3541,6 +3575,7 @@ it on each release they pin.
 | INV-106 | `tests/test_machine_state.py::test_side_values_differ`, `tests/test_machine_state.py::test_side_values_are_shown_short`, `tests/test_machine_state.py::test_side_values_are_compared_whole` |
 | INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
 | INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
+| INV-109 | `tests/test_compare.py::test_outlier_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |
