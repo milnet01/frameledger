@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+import alternate
 from test_compare import alike, run_text
 
 ROOT = Path(__file__).parent.parent
@@ -229,6 +230,41 @@ def engine_ended(pid: int) -> bool:
     return False
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_a_group_that_refuses_a_signal_is_waited_for(monkeypatch):
+    """INV-80: macOS refuses a signal to a group whose processes have ended
+    and are not yet collected, where Linux accepts it (FLED-0038). The
+    group is waited for as one still ending, and the run goes on."""
+    process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+    process.wait()
+    answers = iter([PermissionError, PermissionError, PermissionError, ProcessLookupError])
+
+    def killpg(_pid, _signum):
+        raise next(answers)
+
+    monkeypatch.setattr(alternate.os, "killpg", killpg)
+    assert alternate._end_group(process, signal.SIGTERM, []) == ""
+    assert next(answers, None) is None
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="what macOS answers; Linux accepts the signal")
+def test_macos_refuses_a_signal_to_an_ended_group():
+    """The premise of the test above, asked of macOS itself: a group whose
+    one process has ended and is not yet collected refuses a signal."""
+    process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+    try:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            try:
+                os.killpg(process.pid, 0)
+            except PermissionError:
+                return
+            time.sleep(0.01)
+        pytest.fail("macOS accepted a signal to the ended group for 30 seconds")
+    finally:
+        process.wait()
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="process groups and SIGTERM are POSIX")
 @pytest.mark.parametrize("target, stop", [("group", signal.SIGINT), ("analyser", signal.SIGINT),
                                           ("analyser", signal.SIGTERM)])
@@ -254,8 +290,8 @@ def test_interrupted_run_stops(tmp_path, target, stop):
         os.killpg(process.pid, stop)
     else:
         process.send_signal(stop)
-    stdout, _ = process.communicate(timeout=30)
-    assert process.returncode == 3
+    stdout, stderr = process.communicate(timeout=30)
+    assert process.returncode == 3 and stdout, stderr
     stopped = json.loads(stdout)["result"]["stopped"]
     assert stopped["run"] == "new-2" and stopped["exit_code"] is None
     assert signal.Signals(stop).name in stopped["reason"]
