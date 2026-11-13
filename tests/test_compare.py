@@ -444,8 +444,13 @@ def test_outlier_run(capsys, tmp_path):
 
     code, _, found = outliers([16.0, 16.0, 16.2], [12.0, 16.0, 16.1])
     assert code == 2 and [m.split()[0] for m in found] == ["new-1"]  # the lowest run as well as the highest
-    code, _, found = outliers([16.0, 16.1, 20.0], [16.0, 19.9, 20.0])
+    code, result, found = outliers([16.0, 16.1, 20.0], [16.0, 19.9, 20.0])
     assert code == 2 and [m.split()[0] for m in found] == ["old-3", "new-1"]  # one in each set
+    # Each is told to be re-run, so each has its sentence: none is "1 more like it" (DOOM Ants).
+    assert [s.split()[1] for s in result["summary"] if "stands apart" in s] == ["old-3", "new-1"]
+    # A range exactly at the floor, 3% of the old centre of 16 ms, is wide enough (DOOM Ants).
+    code, _, found = outliers([16.0, 16.0, 16.2], [16.0, 16.0, 16.48])
+    assert code == 2 and [m.split()[0] for m in found] == ["new-3"]
 
     for new_walls in ([16.0, 18.0, 20.0],  # without either end the range is half, not under half
                       [16.0, 16.0, 20.0, 20.0]):  # each end is shared by two runs
@@ -464,3 +469,10 @@ def test_outlier_run(capsys, tmp_path):
     wall = {"category": "frame", "name": "wall", "statistic": "median", "segment_kind": "view"}
     assert comparing._outlier_notice(wall, "new", [("new-1", 16000), ("new-2", 20000)], 480) is None
     assert comparing._outlier_notice(wall, "new", [("new-1", 16000), ("new-2", 16100), ("new-3", 20000)], 480)
+
+    # Each segment kind is judged apart, and named in kind order (DOOM Ants).
+    code, result = compare(capsys, tmp_path, old([alike(10.0, wall=w) for w in (16.0, 16.0, 16.2)], spots=120),
+                           new([alike(10.0, wall=w) for w in (16.0, 16.1, 20.0)], spots=120))
+    assert [w["message"].split(" is ")[0] for w in result["warnings"] if w["code"] == "outlier_run"] == [
+        f"new-3 stands apart from the other new runs: its frame/wall median in {kind} segments"
+        for kind in ("spot", "view")]

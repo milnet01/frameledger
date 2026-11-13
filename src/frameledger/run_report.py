@@ -26,6 +26,9 @@ REMAINDER = {"cpu": "cpu_remainder", "gpu": "gpu_remainder"}
 FRAME_ORDER = ["cpu_span", "gpu_span", "wall", "fence_wait", "present_wait"]
 # § 4.8: dropped rows and an unfinished run open the sentences, before other warnings.
 FIRST_WARNINGS = ("rows_dropped", "unfinished")
+# Warnings that tell the reader to act on the run each names, so every one
+# has its sentence and none is counted as "more like it" (DOOM Ants).
+EACH_SAID = ("outlier_run",)
 
 
 def report(run: ledger.Run) -> dict:
@@ -464,12 +467,16 @@ def _top_pass(rows: dict) -> str | None:
 
 def warning_sentences(notices: list[ledger.Notice]) -> list[str]:
     """One sentence per kind of warning, as `check` gives, without the path
-    or line; dropped rows and an unfinished run first."""
+    or line; dropped rows and an unfinished run first. A kind in EACH_SAID
+    gets one per warning."""
     by_code: dict[str, list[ledger.Notice]] = {}
     for notice in sorted(notices, key=lambda n: n.code not in FIRST_WARNINGS):
         by_code.setdefault(notice.code, []).append(notice)
     sentences = []
-    for group in by_code.values():
+    for code, group in by_code.items():
+        if code in EACH_SAID:
+            sentences += [f"Warning: {notice.message}." for notice in group]
+            continue
         more = f" ({len(group) - 1} more like it)" if len(group) > 1 else ""
         sentences.append(f"Warning: {group[0].message}{more}.")
     return sentences

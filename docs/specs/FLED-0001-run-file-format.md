@@ -42,7 +42,8 @@ heading with INV-108 (FLED-0025) asked for by DOOM Ants 2026-11-04;
 its code review of 8f04c58 added that `./` names nothing. § 4.10's
 `outlier_run` with INV-109 (FLED-0053) agreed by the three engines
 2026-11-13 before it was built; Vestige's code review of 1b8756b
-added that a set of two names no run.
+added that a set of two names no run, and DOOM Ants' that each
+named run has its sentence and a base run is named once.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -877,12 +878,16 @@ weighs one `slower` among them.
 - `override_unused`, above.
 - `outlier_run` — one run stands apart from the rest of its set
   (FLED-0053). It is judged on the `frame/wall` median alone, in each
-  segment kind where that measure is `noisy`, since only it makes a
-  compare inconclusive. A set's highest or lowest run is named when
+  segment kind where that measure is `noisy`, since only it can make
+  a compare inconclusive. A kind too short for step 3 is judged too,
+  so there the warning can come with a `pass` (DOOM Ants). A set's highest or lowest run is named when
   the set's range is at least the floor and dropping the run cuts the
   range by more than half. So no more than one run of a set is named,
   and never an end that two runs share. The message gives the run, its
   value and the range of the set's other runs, and says to re-run it.
+  So each named run has its own sentence, where another warning has
+  one per code, and under § 4.16 a base run is named once, not once
+  per variant (DOOM Ants).
   The rule is the same for any number of runs: a set is often three,
   where quartiles say nothing. In a noisy set of three it names the
   end further from the middle run, unless the middle is exactly
@@ -3364,12 +3369,20 @@ breaks.
   A `noisy` `gpu/opaque` beside a steady `frame/wall` names none, with
   exit 0. Two runs alone, of 16.0 and 20.0, name neither; no command
   judges a set of two, so the test asks `_outlier_notice` itself.
-  *Test:* `tests/test_compare.py::test_outlier_run`.
+  New medians of 16.0, 16.0 and 16.48, a range of exactly the floor,
+  name new-3. Runs holding the same frames in `spot` and `view`
+  segments name new-3 in `spot`, then in `view`. With base medians of
+  16.0, 16.1 and 20.0 and two variants of 16.0, 16.05 and 16.1, the
+  one `outlier_run` warning opens "base-3 stands apart from the other
+  base runs", and one summary sentence says it.
+  *Test:* `tests/test_compare.py::test_outlier_run`, and for the base
+  run `tests/test_compare_variants.py::test_base_outlier_is_named_once`.
   *Breaks when:* a run is named where `frame/wall` is not `noisy`, or
   for another measure; a set narrower than the floor names one; a run
   is named when dropping it leaves half the range or more; the
-  lowest run is never named; or a set of two names its lower run
-  (Vestige).
+  lowest run is never named; a set of two names its lower run
+  (Vestige); a range at the floor names none; the text hides a second
+  named run; or a base run is named once per variant (DOOM Ants).
 
 ## 6. Failure modes
 
@@ -3578,7 +3591,7 @@ it on each release they pin.
 | INV-106 | `tests/test_machine_state.py::test_side_values_differ`, `tests/test_machine_state.py::test_side_values_are_shown_short`, `tests/test_machine_state.py::test_side_values_are_compared_whole` |
 | INV-107 | `tests/test_machine_state.py::test_cpu_clock_differs`, `tests/test_machine_state.py::test_temperature_differs` |
 | INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
-| INV-109 | `tests/test_compare.py::test_outlier_run` |
+| INV-109 | `tests/test_compare.py::test_outlier_run`, `tests/test_compare_variants.py::test_base_outlier_is_named_once` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

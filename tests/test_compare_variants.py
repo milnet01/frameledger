@@ -478,3 +478,20 @@ def test_alternate_variants_bad_file(tmp_path, empty, code):
     assert b["verdict"] == "unjudged" and "b-2.csv" in b["reason"] and b["compare"] is None
     assert variant(out, "a")["verdict"] == "pass"
 
+
+
+def test_base_outlier_is_named_once(capsys, tmp_path):
+    """INV-109: a base run that stands apart is named once, without a
+    variant's name before it, though every variant's compare finds it
+    (DOOM Ants)."""
+    files = Files(tmp_path)
+
+    def walls(*values: float) -> list[str]:
+        return [files.run("atrium", {"view:1": rows(wall=wall)}) for wall in values]
+
+    code, out = against_base(capsys, walls(16.0, 16.1, 20.0),
+                             {"a": walls(16.0, 16.05, 16.1), "b": walls(16.0, 16.05, 16.1)})
+    assert code == 2
+    found = [w["message"] for w in out["warnings"] if w["code"] == "outlier_run"]
+    assert len(found) == 1 and found[0].startswith("base-3 stands apart from the other base runs: ")
+    assert sum("stands apart" in s for s in out["summary"]) == 1

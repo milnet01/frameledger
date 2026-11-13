@@ -78,7 +78,6 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     # repeats these, word for word, since it names the base runs the same way.
     base_named = compare.named_set("old", BASE, base_runs)
     base_notices = compare.run_notices(base_named) + compare.mixed_build_notices(base_named, BASE)
-    base_warnings = run_report.warning_entries(base_notices)
 
     judged_all = [_judge(name, base_runs, paths, overrides, floors, limits, named_measures, unread_is_unjudged,
                          baseline)
@@ -103,6 +102,8 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     rank_measure = _rank_measure(base_runs, named_measures)
     # Text groups the warnings by side, the base's and then each variant's
     # by name (`_summary`); JSON's "warnings" is the same groups, flat.
+    base_notices += _base_outliers(by_name, {r.name for r in base_named})
+    base_warnings = run_report.warning_entries(base_notices)
     notice_groups = [base_notices, *(_own_notices(j, base_warnings) for j in by_name),
                      compare.unused_override_notices(_unused(overrides, judged_all))]
     # A loaded base run makes every variant inconclusive, so it is named first.
@@ -160,6 +161,15 @@ def _judge(name: str, base_runs: list[ledger.Run], paths: list[str], overrides: 
     else:
         entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
     return _Judged(entry, warnings, loaded, unused, set(built["absent"]), lacks_named)
+
+
+def _base_outliers(judged_all: list[_Judged], base_names: set[str]) -> list[ledger.Notice]:
+    """Each `outlier_run` warning that names a base run, once. A variant's
+    compare gives it where that variant's frame/wall is noisy, in the same
+    words whichever variant that is (DOOM Ants)."""
+    found = dict.fromkeys(w["message"] for j in judged_all for w in j.warnings
+                          if w["code"] == "outlier_run" and w["message"].split(" ", 1)[0] in base_names)
+    return [ledger.Notice("outlier_run", message) for message in found]
 
 
 def _own_notices(judged: _Judged, base_warnings: list[dict]) -> list[ledger.Notice]:

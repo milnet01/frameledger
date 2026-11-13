@@ -513,7 +513,7 @@ def _outlier_notice(wall: dict, called: str, named_values: list[tuple[str, int]]
         return None
     ordered = sorted(named_values, key=lambda named: named[1])
     width = ordered[-1][1] - ordered[0][1]
-    if width == 0 or width < floor:
+    if width < floor:
         return None
     for (name, value), others in ((ordered[0], ordered[1:]), (ordered[-1], ordered[:-1])):
         lowest, highest = others[0][1], others[-1][1]
