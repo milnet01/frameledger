@@ -1159,6 +1159,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   which other quoted header fields share it. Decide with the engines
   whether `check` refuses control characters in header strings or the
   text output cleans them.
+  2026-11-13, DOOM Ants (FLED-0025 review): survey's table heading now
+  carries a directory from the paths given, so a control character in a
+  directory name reaches plain-text output there too.
   **Layman:** A run file cannot make frameledger print a fake warning or a huge line.
   Kind: fix.
   Source: doom-ants-review-2026-11-13.

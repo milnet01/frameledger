@@ -171,7 +171,8 @@ def test_table_names_a_shared_directory_once(capsys, tmp_path, monkeypatch):
         assert heading.replace("\\", "") == f"Runs, slowest first, each file in {shared}:".replace("\\", "")
         assert sorted(files) == ["a.csv", "b.csv"]
         # `runs` and `runs-old` share letters, not a directory; nor do a file here and one below.
-        for apart in (["runs/a.csv", "runs-old/d.csv"], ["runs/a.csv", "e.csv"]):
+        # Nor is `./` a directory worth naming (DOOM Ants).
+        for apart in (["runs/a.csv", "runs-old/d.csv"], ["runs/a.csv", "e.csv"], ["./e.csv", "./runs/a.csv"]):
             heading, files = table_of(capsys, apart, *flags)
             assert heading == "Runs, slowest first:"
             assert sorted(files) == sorted(apart)

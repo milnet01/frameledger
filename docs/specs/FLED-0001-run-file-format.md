@@ -38,8 +38,8 @@ setting and temperature warnings with INV-104 to INV-107 (FLED-0055)
 agreed by the three engines 2026-11-13 before they were built; their
 code reviews of 4a67c02 settled that values are compared whole and a
 list's order does not count. § 4.13's shared directory in the table
-heading with INV-108 (FLED-0025) asked for by DOOM Ants 2026-11-04,
-and sent to the three engines for review once built.
+heading with INV-108 (FLED-0025) asked for by DOOM Ants 2026-11-04;
+its code review of 8f04c58 added that `./` names nothing.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1379,8 +1379,8 @@ show the cut (Vestige). Where two or more files are all in one
 directory, the heading names it once, "Runs, slowest first, each file
 in runs/:", and each row shows the path after it, so the column is not
 spent on what every row shares (DOOM Ants). The directory is read from
-the paths as given, up to their last shared `/` or `\`; a lone `/` is
-not one. The sentences above the table and `--json` keep whole paths.
+the paths as given, up to their last shared `/` or `\`; a lone `/` or
+`./` is not one. The sentences above the table and `--json` keep whole paths.
 
 **Result.** The verdict is `fail` when a run is flagged;
 `inconclusive` when none is but a run is unjudged or inconclusive;
@@ -3326,7 +3326,8 @@ breaks.
   `runs/a.csv`, `runs/b.csv` and `runs/deep/c.csv`, the text and the
   Markdown heading read "Runs, slowest first, each file in runs/:" and
   the rows show `a.csv`, `b.csv` and `deep/c.csv`. Over `runs/a.csv`
-  with `runs-old/d.csv`, with `e.csv`, or alone, the heading is "Runs,
+  with `runs-old/d.csv`, with `e.csv`, or alone, or over `./e.csv`
+  with `./runs/a.csv`, the heading is "Runs,
   slowest first:" and each row shows its path whole. `--json` gives
   `runs/a.csv` whole.
   *Test:* `tests/test_survey.py::test_table_names_a_shared_directory_once`.

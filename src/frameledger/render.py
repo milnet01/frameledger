@@ -460,7 +460,9 @@ def _shared_directory(paths: list[str]) -> str:
         return ""
     alike = os.path.commonprefix(paths)  # letter by letter, so `runs` and `runs-old` are alike this far
     end = max(alike.rfind("/"), alike.rfind("\\")) + 1
-    return alike[:end] if end > 1 else ""  # a bare "/" opens every absolute path, and names nothing
+    shared = alike[:end]
+    # A bare "/" opens every absolute path, and "./" says only "here": neither names anything.
+    return "" if shared in ("", "/", "\\", "./", ".\\") else shared
 
 
 def _survey_body(result: dict) -> list[Block]:
