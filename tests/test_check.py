@@ -268,9 +268,11 @@ def edited(tmp_path, edit):
 
 NO_SUCH_TIMES = ["2026-13-01T12:00:00Z", "2026-00-10T12:00:00Z", "2026-01-00T12:00:00Z", "2026-02-30T12:00:00Z",
                  "2025-02-29T12:00:00Z", "2026-10-24T24:00:00Z", "2026-10-24T12:60:00Z", "2026-10-24T23:59:60Z",
-                 "0000-01-01T00:00:00Z"]
+                 "0000-01-01T00:00:00Z",
+                 pytest.param(f"2026-10-24T00:00:00.{'1' * 21}Z", id="21 fraction digits"),
+                 pytest.param(f"2026-10-24T00:00:00.{'1' * 5000}Z", id="5000 fraction digits")]
 REAL_TIMES = ["2024-02-29T23:59:59Z", "0001-01-01T00:00:00Z", "9999-12-31T23:59:59Z",
-              "2026-10-24T00:00:00.123456789012Z"]
+              "2026-10-24T00:00:00.12345678901234567890Z"]
 
 
 def run_started(tmp_path, started):
@@ -280,8 +282,9 @@ def run_started(tmp_path, started):
 @pytest.mark.parametrize("started", NO_SUCH_TIMES)
 def test_started_utc_is_a_real_time(capsys, tmp_path, started):
     """INV-102: a started_utc of the right shape that names no real date
-    and time is a header breach, so a command judging the file stops at 3
-    (DOOM Ants: compare ended in a traceback with exit 1)."""
+    and time, or carries more than 20 fraction digits, is a header breach,
+    so a command judging the file stops at 3 (DOOM Ants: compare ended in
+    a traceback with exit 1)."""
     path = run_started(tmp_path, started)
     code, out = run_check(capsys, path)
     assert (code, found(out)) == (1, [(1, "header")])
@@ -290,12 +293,16 @@ def test_started_utc_is_a_real_time(capsys, tmp_path, started):
     good = str(FIXTURES / "schema-1.csv")
     assert cli.main(["compare", "--json", "--old", str(path), good, good, "--new", good, good, good]) == 3
     assert json.loads(capsys.readouterr().out)["verdict"] == "error"
+    assert cli.main(["compare", "--json", "--old", good, good, good, "--new", good, str(path), good]) == 3
+    assert json.loads(capsys.readouterr().out)["verdict"] == "error"
+    assert cli.main(["report", "--json", str(path)]) == 3
+    assert json.loads(capsys.readouterr().out)["verdict"] == "error"
 
 
 @pytest.mark.parametrize("started", REAL_TIMES)
 def test_real_started_utc_is_read(capsys, tmp_path, started):
-    """INV-102: a leap day, the first and last years and any number of
-    fraction digits are within the format."""
+    """INV-102: a leap day, the first and last years and 20 fraction
+    digits are within the format."""
     code, out = run_check(capsys, run_started(tmp_path, started))
     assert (code, found(out)) == (0, [])
 

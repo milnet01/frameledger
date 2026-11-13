@@ -34,7 +34,7 @@ CATEGORY_RE = re.compile(r"frame|cpu|gpu|mem|event|ext\.[A-Za-z0-9_./-]+")
 VALUE_RE = re.compile(rf"(-?)([0-9]{{1,{DIGITS_MAX}}})\.([0-9]{{3}})")
 COUNT_RE = re.compile(rf"[0-9]{{1,{DIGITS_MAX}}}")
 HASH_RE = re.compile(r"sha256:[0-9A-Fa-f]{64}|md5:[0-9A-Fa-f]{32}")
-UTC_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?Z")
+UTC_RE = re.compile(rf"[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}:[0-9]{{2}}:[0-9]{{2}}(\.[0-9]{{1,{DIGITS_MAX}}})?Z")
 
 
 class LedgerError(Exception):
@@ -386,23 +386,26 @@ def _is_inputs(value) -> bool:
     return isinstance(value, list) and all(_is_input(item) for item in value)
 
 
-def started(utc: str) -> tuple[datetime, Fraction]:
+def start_time(utc: str) -> tuple[datetime, Fraction]:
     """A started_utc as a sortable value: the whole seconds, then the
-    fraction. ValueError when it names no real date and time (§ 4.2), such
-    as month 13 or second 60. Any number of fraction digits, which Python
-    3.10's fromisoformat refuses."""
+    fraction. ValueError when it is not § 4.2's shape or names no real date
+    and time, such as month 13 or second 60.
+
+    UTC_RE must run first: strptime alone accepts "2026-1-1", spaces and
+    non-ASCII digits. Up to DIGITS_MAX fraction digits, which Python 3.10's
+    fromisoformat does not read."""
     if not UTC_RE.fullmatch(utc):
-        raise ValueError(utc)
+        raise ValueError("not the shape YYYY-MM-DDTHH:MM:SS, optional fraction digits, Z")
     whole, _, fraction = utc.rstrip("Z").partition(".")
-    return datetime.strptime(whole, "%Y-%m-%dT%H:%M:%S"), Fraction(f"0.{fraction or 0}")
+    return datetime.strptime(whole, "%Y-%m-%dT%H:%M:%S"), Fraction(f"0.{fraction or 0}")  # no fraction: 0
 
 
 def _is_utc(value) -> bool:
     if not isinstance(value, str):
         return False
     try:
-        started(value)
-    except ValueError:
+        start_time(value)
+    except ValueError:  # start_time raises it for a wrong shape and for an impossible date alike (Vestige)
         return False
     return True
 

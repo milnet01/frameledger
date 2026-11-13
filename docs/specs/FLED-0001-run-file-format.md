@@ -28,7 +28,8 @@ their wording changes. § 4.17 a saved baseline with INV-98 to INV-101
 (FLED-0035) designed with the three engines 2026-11-12, and their code
 reviews of e5f2758 settled its paths, duplicates and warnings. § 4.2's
 real-date rule for `started_utc` with INV-102 (FLED-0070) agreed by
-the three engines 2026-11-13 before it was built.
+the three engines 2026-11-13 before it was built; their code reviews
+of 736b210 added the limit on fraction digits.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -218,7 +219,7 @@ Required fields:
 | `display` | string | `onscreen`, `headless` (a private display) or `offscreen` (no display) |
 | `scene` | string | what was run |
 | `inputs` | array | `[{"name": ..., "hash": "sha256:<hex>" or "md5:<hex>", "bytes": n}]`; `[]` is legal, and `check` warns on it |
-| `started_utc` | string | when the run started, in UTC: `YYYY-MM-DDTHH:MM:SS`, optional fraction digits, then `Z` |
+| `started_utc` | string | when the run started, in UTC: `YYYY-MM-DDTHH:MM:SS`, an optional point and 1 to 20 fraction digits, then `Z` |
 
 Optional fields, absent meaning unknown: `tier` (string),
 `ray_tracing` (boolean), `frames_in_flight` (integer),
@@ -3165,16 +3166,18 @@ breaks.
 - **INV-102** — `started_utc` names a real date and time.
   `schema-1.csv` with its `started_utc` set to each of month 13,
   month 00, day 00, 30 February, 29 February 2025, hour 24, minute 60,
-  second 60 and year 0000: `check` exits 1 with one `header` breach on
-  line 1 naming `started_utc`, and `compare` with that run among its
-  old runs exits 3. With 29 February 2024, year 0001, the last second
-  of year 9999, and twelve fraction digits, `check` exits 0 with no
-  breach.
+  second 60, year 0000, and 21 and 5000 fraction digits: `check` exits 1 with one `header` breach on
+  line 1 naming `started_utc`; `compare` with that run among its old
+  runs, and again among its new, exits 3; and so does `report`. With
+  29 February 2024, year 0001, the last second of year 9999, and 20
+  fraction digits, `check` exits 0 with no breach.
   *Test:* `tests/test_check.py::test_started_utc_is_a_real_time`, and
   beside it `test_real_started_utc_is_read`.
   *Breaks when:* `check` tests only the digits' shape, so a date that
   does not exist reaches `compare` and ends it in a traceback with
-  exit 1, the code for a regression; or a real date is refused.
+  exit 1, the code for a regression; a real date is refused; or the
+  fraction's length is left to Python's own limit on digits, which
+  moves with its settings (DOOM Ants).
 
 ## 6. Failure modes
 

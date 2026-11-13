@@ -316,7 +316,7 @@ def _set_notices(runs: list[Named], called: dict[str, str], baseline: bool = Fal
     """The warnings about a whole set. `called` is each set's name in
     them; `baseline` says the old set is a baseline's runs (§ 4.17)."""
     found = []
-    starts = {label: [ledger.started(r.run.header["started_utc"]) for r in runs if r.set == label]
+    starts = {label: [ledger.start_time(r.run.header["started_utc"]) for r in runs if r.set == label]
               for label in ("old", "new")}
     if baseline and max(starts["old"]) < min(starts["new"]):
         found.append(_baseline_first_notice(runs, called, min(starts["old"]), min(starts["new"])))

@@ -1026,7 +1026,7 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: engine-request-2026-11-12.
 
-- 📋 [FLED-0069] **A header nested too deep ends in a traceback.**
+- ✅ [FLED-0069] **A header nested too deep ends in a traceback.**
   UT Ants, reviewing FLED-0035 at e5f2758: json.loads raises
   RecursionError on a header of very many nested brackets, and the
   readers catch only ValueError. baseline.py was fixed with FLED-0035.
@@ -1037,11 +1037,12 @@ to compare against, and the small fixes they filed.
   2026-11-13: built at 329e62f. ledger.py's JSON reader and budgeting.py's
   header reader catch RecursionError; check reports a breach, budget
   gives exit 3. Code sent to the three engines for review.
+  2026-11-13: the three engines' code reviews found no defect.
   **Layman:** A run file whose first line is damaged in one rare way makes frameledger crash instead of saying what is wrong.
   Kind: fix.
   Source: ut-ants-review-2026-11-12.
 
-- 📋 [FLED-0070] **A started_utc that is no real date crashes compare.**
+- ✅ [FLED-0070] **A started_utc that is no real date crashes compare.**
   DOOM Ants, reviewing FLED-0035 at c962eaa: ledger.UTC_RE checks only
   the digits' shape, so `2026-13-01T12:00:00Z` passes `check`, and
   compare._started then raises ValueError from strptime. Seen
@@ -1056,6 +1057,10 @@ to compare against, and the small fixes they filed.
   each writer formats gmtime fields and cannot break it.
   Spec: docs/specs/FLED-0001-run-file-format.md § 4.2, INV-102.
   2026-11-13: built; code sent to the three engines for review.
+  2026-11-13: the three engines' code reviews found no blocker. Folded: at
+  most 20 fraction digits, stated in § 4.2 (DOOM Ants: a longer one was
+  refused by Python's own digit limit); `ledger.start_time` and its
+  comments.
   **Layman:** A run file with an impossible date, such as month 13, passes the format check and then makes a comparison crash with the code that means "got slower".
   Kind: fix.
   Source: doom-ants-review-2026-11-12.
