@@ -32,7 +32,8 @@ concurrency:
 
 jobs:
   gate:
-    # The whole gate on Linux and on macOS (FLED-0038, S11). Both finish, so
+    # The whole gate on Linux and on macOS (FLED-0038; docs/discovery.md, S11:
+    # the analyser runs on both). Both finish, so
     # a red run says which system broke.
     strategy:
       fail-fast: false

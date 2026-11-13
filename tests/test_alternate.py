@@ -249,6 +249,26 @@ def test_a_group_that_refuses_a_signal_is_waited_for(monkeypatch):
     assert asked == [signal.SIGTERM, 0, 0, 0]  # never the kill: the group ended in time
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="process groups are POSIX")
+def test_a_group_that_always_refuses_is_reported(monkeypatch):
+    """INV-80: a group that refuses every signal is killed after the grace
+    period and then named as one that did not end, so the wait has an end
+    (Vestige)."""
+    process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+    process.wait()
+    asked = []
+
+    def killpg(_pid, signum):
+        asked.append(signum)
+        raise PermissionError
+
+    monkeypatch.setattr(alternate.os, "killpg", killpg)
+    monkeypatch.setattr(alternate._waited, "__defaults__", (0.2,))  # GRACE_S, cut so the test is quick
+    assert alternate._end_group(process, signal.SIGTERM, []) == \
+        f"; process group {process.pid} did not end after being killed"
+    assert signal.SIGKILL in asked
+
+
 @pytest.mark.skipif(sys.platform != "darwin", reason="what macOS answers; Linux accepts the signal")
 def test_macos_refuses_a_signal_to_an_ended_group():
     """The premise of the test above, asked of macOS itself: a group whose
@@ -293,7 +313,8 @@ def test_interrupted_run_stops(tmp_path, target, stop):
     else:
         process.send_signal(stop)
     stdout, stderr = process.communicate(timeout=30)
-    assert process.returncode == 3 and stdout, stderr
+    assert process.returncode == 3, stderr
+    assert stdout, stderr
     stopped = json.loads(stdout)["result"]["stopped"]
     assert stopped["run"] == "new-2" and stopped["exit_code"] is None
     assert signal.Signals(stop).name in stopped["reason"]

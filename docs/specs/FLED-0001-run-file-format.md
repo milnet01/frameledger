@@ -2922,7 +2922,8 @@ breaks.
   has ended; with a child sleeping 0.3 seconds, every run finishes. A SIGTERM delivered while new-2's command is being started
   still ends it. A process group that refuses a signal is waited for
   as one still ending: macOS refuses one to a group whose processes
-  have ended and are not yet collected (FLED-0038).
+  have ended and are not yet collected (FLED-0038). One that refuses
+  through both waits is reported as a group that did not end.
   *Test:* `tests/test_alternate.py::test_failed_run_stops`,
   `tests/test_alternate.py::test_stopped_text_is_its_sentences`,
   `tests/test_alternate.py::test_killed_command_names_its_signal`,
@@ -2930,7 +2931,8 @@ breaks.
   `tests/test_alternate.py::test_brief_leftover_is_waited_for`,
   `tests/test_alternate.py::test_stop_while_starting`,
   `tests/test_alternate.py::test_interrupted_run_stops`,
-  `tests/test_alternate.py::test_a_group_that_refuses_a_signal_is_waited_for`, and
+  `tests/test_alternate.py::test_a_group_that_refuses_a_signal_is_waited_for`,
+  `tests/test_alternate.py::test_a_group_that_always_refuses_is_reported`, and
   `tests/test_alternate.py::test_macos_refuses_a_signal_to_an_ended_group`,
   which asks macOS itself and runs only there. Nothing here
   tests a process that survives SIGKILL.
@@ -3676,7 +3678,7 @@ it on each release they pin.
 | INV-77 | `tests/test_compare_scenes.py::test_judged_count` |
 | INV-78 | `tests/test_alternate.py::test_alternates_and_compares`, `tests/test_alternate.py::test_text_is_compares` |
 | INV-79 | `tests/test_alternate.py::test_setup_errors_run_nothing` |
-| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_stopped_text_is_its_sentences`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops`, `tests/test_alternate.py::test_a_group_that_refuses_a_signal_is_waited_for`, `tests/test_alternate.py::test_macos_refuses_a_signal_to_an_ended_group` |
+| INV-80 | `tests/test_alternate.py::test_failed_run_stops`, `tests/test_alternate.py::test_stopped_text_is_its_sentences`, `tests/test_alternate.py::test_killed_command_names_its_signal`, `tests/test_alternate.py::test_left_processes_fail_the_run`, `tests/test_alternate.py::test_brief_leftover_is_waited_for`, `tests/test_alternate.py::test_stop_while_starting`, `tests/test_alternate.py::test_interrupted_run_stops`, `tests/test_alternate.py::test_a_group_that_refuses_a_signal_is_waited_for`, `tests/test_alternate.py::test_a_group_that_always_refuses_is_reported`, `tests/test_alternate.py::test_macos_refuses_a_signal_to_an_ended_group` |
 | INV-81 | `tests/test_alternate.py::test_engine_output_to_stderr` |
 | INV-82 | `tests/test_compare_load.py::test_peak_is_a_number` |
 | INV-83 | `tests/test_compare_load.py::test_under_load_inconclusive`, `tests/test_compare_load.py::test_load_limit_bounds` |

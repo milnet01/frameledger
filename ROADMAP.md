@@ -1037,9 +1037,19 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: test.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0038] **Runs and is tested on macOS.**
+- ✅ [FLED-0038] **Runs and is tested on macOS.**
   The analyser and the writer header are built and tested on macOS in
   CI, alongside Linux and Windows (S11).
+  Built 2026-11-13: `.github/workflows/ci.yml` runs the whole gate on
+  ubuntu-latest and macos-latest; on macOS
+  `tests/writer/test_compile.sh` uses Apple's Clang alone. The first
+  macOS run found a bug: `alternate` took a refused signal to an ended
+  process group for a failure; it now waits for the group
+  (`alternate._group_alive`). Spec
+  `docs/specs/FLED-0001-run-file-format.md`, INV-14 and INV-80. Reviewed
+  by all three engines, no defect; loop-log rows amend-0038,
+  impl-0038-doom-ut, impl-0038-vestige. Not checked: a real engine on a
+  real Mac; Intel macOS.
   **Layman:** Works on Apple computers too.
   Kind: package.
   Source: engine-answers-2026-11-10.

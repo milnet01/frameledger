@@ -6,7 +6,8 @@
 # writer in one program; and `nm -u` finds no allocation, file I/O, printf
 # or locale symbol in either object. Then test_writer.c runs, built as C
 # and as C++, and its run file goes through the analyser's `check`
-# (INV-16). mingw-w64 builds are compiled and linked, not run: the Windows
+# (INV-16). On macOS the one compiler is Apple's Clang (FLED-0038).
+# mingw-w64 builds are compiled and linked, not run: the Windows
 # runs are Vestige's and UT Ants' (FLED-0007).
 #
 # Usage: tests/writer/test_compile.sh
@@ -37,7 +38,8 @@ no_forbidden() {
 
 # One row per toolchain: C compiler, C++ compiler, nm, and whether its
 # programs run here. macOS has one row: its `gcc` is Apple's Clang under
-# another name, and GCC and mingw-w64 are checked on Linux (FLED-0038).
+# another name, so a GCC row would test Clang twice, and GCC and mingw-w64
+# are checked on Linux by the same CI run (FLED-0038).
 if [[ $(uname -s) == Darwin ]]; then
     toolchains=("clang clang++ nm run")
 else

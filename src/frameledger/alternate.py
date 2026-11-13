@@ -180,7 +180,7 @@ def _signal_group(process: subprocess.Popen, signum: int | None) -> None:
         return
     try:
         os.killpg(process.pid, signum)
-    except (ProcessLookupError, PermissionError):  # none left, or none that can be signalled: see _group_alive
+    except (ProcessLookupError, PermissionError):  # none left, or none this process may signal: see _group_alive
         pass
 
 
@@ -214,11 +214,12 @@ def _group_alive(process: subprocess.Popen) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        # macOS raises PermissionError for a group whose processes have
-        # ended and are not yet collected, where Linux accepts the signal.
-        # Once the system collects them the answer is ProcessLookupError.
-        # Either system raises it for another user's process. Both are
-        # waited for (FLED-0038).
+        # The group still has members, but none this process may signal.
+        # On macOS that includes members that have ended and are not yet
+        # collected, where Linux accepts the signal; once the system
+        # collects them the answer is ProcessLookupError. They are not
+        # gone, so the group is alive; each caller's wait has a deadline,
+        # so this cannot hang (FLED-0038).
         pass
     return True
 
