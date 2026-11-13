@@ -487,7 +487,9 @@ def _judge_all(runs: list[Named], floors: Floors, called: dict[str, str], named_
                              floors.min_pct, tick)
         judged = _judge(measure, old, new, floor)
         measures.append(judged)
-        if judged["verdict"] == "noisy" and measure[1:] == ("frame", "wall", 0, "median"):
+        is_wall_median = (measure.category, measure.name, measure.depth, measure.statistic) == \
+            ("frame", "wall", 0, "median")
+        if is_wall_median and judged["verdict"] == "noisy":
             outliers += [_outlier_notice(judged, called[label], sets[label], floor) for label in ("old", "new")]
     return (sorted(measures, key=_rank), sorted(unmatched, key=_rank), absent,
             [notice for notice in outliers if notice is not None])
@@ -501,10 +503,14 @@ def _outlier_notice(wall: dict, called: str, named_values: list[tuple[str, int]]
     judged measure; `named_values` holds each run's name and value, in
     thousandths.
 
-    No more than one run of a set can be it. The range without the top
-    run and the range without the bottom run together cover the whole
-    range, so they cannot both be under half of it. Nor can it be an end
-    two runs share, since dropping one leaves the other."""
+    In a set of three or more, no more than one run can be it. The range
+    without the top run and the range without the bottom run together
+    cover the whole range, so they cannot both be under half of it. Nor
+    can it be an end two runs share, since dropping one leaves the other."""
+    if len(named_values) < FEWEST_RUNS:
+        # Two runs cannot say which of them stands apart (Vestige). No
+        # command judges so small a set; this holds if one ever does.
+        return None
     ordered = sorted(named_values, key=lambda named: named[1])
     width = ordered[-1][1] - ordered[0][1]
     if width == 0 or width < floor:

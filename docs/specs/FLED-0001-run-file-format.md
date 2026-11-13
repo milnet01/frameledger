@@ -41,7 +41,8 @@ list's order does not count. § 4.13's shared directory in the table
 heading with INV-108 (FLED-0025) asked for by DOOM Ants 2026-11-04;
 its code review of 8f04c58 added that `./` names nothing. § 4.10's
 `outlier_run` with INV-109 (FLED-0053) agreed by the three engines
-2026-11-13 before it was built.
+2026-11-13 before it was built; Vestige's code review of 1b8756b
+added that a set of two names no run.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -3361,12 +3362,14 @@ breaks.
   20.0 and 20.0, name none, with exit 2. Old 16.0, 16.1 and 16.2
   against new 26.0, 26.1 and 30.0 is `slower`, exit 1, and names none.
   A `noisy` `gpu/opaque` beside a steady `frame/wall` names none, with
-  exit 0.
+  exit 0. Two runs alone, of 16.0 and 20.0, name neither; no command
+  judges a set of two, so the test asks `_outlier_notice` itself.
   *Test:* `tests/test_compare.py::test_outlier_run`.
   *Breaks when:* a run is named where `frame/wall` is not `noisy`, or
   for another measure; a set narrower than the floor names one; a run
-  is named when dropping it leaves half the range or more; or the
-  lowest run is never named.
+  is named when dropping it leaves half the range or more; the
+  lowest run is never named; or a set of two names its lower run
+  (Vestige).
 
 ## 6. Failure modes
 

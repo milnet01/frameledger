@@ -11,6 +11,7 @@ import json
 import pytest
 
 import cli
+import compare as comparing
 
 HEADER = {
     "schema": 1, "run_id": "r", "engine": "vestige", "tool": {"name": "bench", "version": "1.0"},
@@ -457,3 +458,9 @@ def test_outlier_run(capsys, tmp_path):
     assert (code, found) == (1, [])
     code, result, found = outliers([16.0] * 3, [16.0] * 3, opaque=(10.0, 10.0, 14.0))
     assert verdicts(result)[("gpu", "opaque", "median")] == "noisy" and (code, found) == (0, [])
+
+    # Two runs cannot say which of them stands apart (Vestige). No command
+    # judges a set of two, so the function is asked directly.
+    wall = {"category": "frame", "name": "wall", "statistic": "median", "segment_kind": "view"}
+    assert comparing._outlier_notice(wall, "new", [("new-1", 16000), ("new-2", 20000)], 480) is None
+    assert comparing._outlier_notice(wall, "new", [("new-1", 16000), ("new-2", 16100), ("new-3", 20000)], 480)
