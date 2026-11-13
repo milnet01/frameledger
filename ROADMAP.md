@@ -798,17 +798,6 @@ to compare against, and the small fixes they filed.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0016] **Warn on a sanitizer build.**
-  An optional header field `sanitizers` (an array of strings, such as
-  "address") and a `sanitizer_build` trust warning when it is not empty.
-  debug_build (FLED-0005) misses a Release build with ASan, which Vestige
-  never counts as a reading. Asked by Vestige in its FLED-0005 review.
-  2026-11-10: planned for 0.5.0. Vestige still wants it; DOOM Ants says
-  it can wait.
-  **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
-  Kind: enhancement.
-  Source: vestige-review-2026-10-26.
-
 - ✅ [FLED-0024] **A long warm-up is shown rounded, in exponent form.**
   album-builder, 2026-11-04: floor --warmup-s 999999999 on
   tests/fixtures/passing-run.csv says "follows the 1e+09 s warm-up",
@@ -824,31 +813,6 @@ to compare against, and the small fixes they filed.
   Kind: fix.
   Source: album-builder-fact-check-2026-11-04.
 
-- 📋 [FLED-0025] **Survey's table drops the paths' shared directory.**
-  DOOM Ants, reviewing 3e7006b on 60+ real runs: with every file under
-  one long directory, the left-cut file column spends its width on the
-  shared prefix ("…OM_Ants/scratch/fled/g-12.csv"). Name the common
-  directory once above the table and show each path after it. Not
-  needed for 0.3.0.
-  2026-11-10: planned for 0.5.0. DOOM Ants, who asked, says it can wait.
-  **Layman:** When every file sits in one folder, the survey table would show each file's own name instead of the folder again and again.
-  Kind: ux.
-  Source: doom-ants-review-2026-11-04.
-
-- 📋 [FLED-0053] **compare names an outlier run and warns on a noisy run.**
-  compare's spread is the full range, so one bad run makes a measure
-  `noisy`. Flag the run outside quartile fences, and warn when one run's
-  own frame-to-frame scatter is high. A warning only; verdicts do not
-  change. Seen in hyperfine's outlier warning, criterion.rs's outlier
-  classes and pyperf check:
-  https://bheisler.github.io/criterion.rs/book/analysis.html
-  https://pyperf.readthedocs.io/en/latest/cli.html
-  Needs the engines' agreement and a spec amendment.
-  2026-11-10, engines: yes (DOOM Ants, Vestige), later (UT Ants).
-  **Layman:** When one test run went oddly, frameledger says which one, so only that run needs redoing.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
 - 💭 [FLED-0054] **A noisy compare says how many more runs would settle it.**
   On exit 2 for a noisy `frame/wall`, estimate the runs a side that
   would settle it; the run helper could keep alternating up to a cap.
@@ -857,21 +821,6 @@ to compare against, and the small fixes they filed.
   Needs FLED-0029, the engines' agreement and a spec amendment.
   2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
   **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 📋 [FLED-0055] **The header records machine state, and compare warns when it differs.**
-  Optional header fields: CPU governor, turbo on or off, on battery or
-  mains, CPU clock, CPU and GPU temperature or throttling. compare warns
-  when the two sides differ, as FLED-0030 does for load. A governor or
-  thermal change mimics a regression. pyperf records and checks these:
-  https://pyperf.readthedocs.io/en/latest/system.html
-  Same shape as FLED-0016. Needs the engines' agreement and a spec
-  amendment.
-  2026-11-10, engines: yes from all three. DOOM Ants asks for the load
-  average; Vestige for governor and temperature; UT Ants for a warning
-  when sides differ (FLED-0030 adds load and clock ones).
-  **Layman:** Each run notes things like CPU power mode and temperature, and frameledger warns when the two builds were tested under different conditions.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
@@ -1115,6 +1064,65 @@ can still use the analyser, and a stranger's writer can prove itself.
   agreement.
   2026-11-10, engines: no from all three.
   **Layman:** Lets frameledger read logs from a popular Linux performance overlay, so games without frameledger's writer can use it.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 📋 [FLED-0016] **Warn on a sanitizer build.**
+  An optional header field `sanitizers` (an array of strings, such as
+  "address") and a `sanitizer_build` trust warning when it is not empty.
+  debug_build (FLED-0005) misses a Release build with ASan, which Vestige
+  never counts as a reading. Asked by Vestige in its FLED-0005 review.
+  2026-11-10: planned for 0.5.0. Vestige still wants it; DOOM Ants says
+  it can wait.
+  2026-11-13: moved to 0.6.0. The three engines agreed to cut 0.5.0
+  without it.
+  **Layman:** Warns when a run came from a build with memory checking switched on, which makes it slow.
+  Kind: enhancement.
+  Source: vestige-review-2026-10-26.
+
+- 📋 [FLED-0025] **Survey's table drops the paths' shared directory.**
+  DOOM Ants, reviewing 3e7006b on 60+ real runs: with every file under
+  one long directory, the left-cut file column spends its width on the
+  shared prefix ("…OM_Ants/scratch/fled/g-12.csv"). Name the common
+  directory once above the table and show each path after it. Not
+  needed for 0.3.0.
+  2026-11-10: planned for 0.5.0. DOOM Ants, who asked, says it can wait.
+  2026-11-13: moved to 0.6.0. The three engines agreed to cut 0.5.0
+  without it.
+  **Layman:** When every file sits in one folder, the survey table would show each file's own name instead of the folder again and again.
+  Kind: ux.
+  Source: doom-ants-review-2026-11-04.
+
+- 📋 [FLED-0053] **compare names an outlier run and warns on a noisy run.**
+  compare's spread is the full range, so one bad run makes a measure
+  `noisy`. Flag the run outside quartile fences, and warn when one run's
+  own frame-to-frame scatter is high. A warning only; verdicts do not
+  change. Seen in hyperfine's outlier warning, criterion.rs's outlier
+  classes and pyperf check:
+  https://bheisler.github.io/criterion.rs/book/analysis.html
+  https://pyperf.readthedocs.io/en/latest/cli.html
+  Needs the engines' agreement and a spec amendment.
+  2026-11-10, engines: yes (DOOM Ants, Vestige), later (UT Ants).
+  2026-11-13: moved to 0.6.0. The three engines agreed to cut 0.5.0
+  without it.
+  **Layman:** When one test run went oddly, frameledger says which one, so only that run needs redoing.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 📋 [FLED-0055] **The header records machine state, and compare warns when it differs.**
+  Optional header fields: CPU governor, turbo on or off, on battery or
+  mains, CPU clock, CPU and GPU temperature or throttling. compare warns
+  when the two sides differ, as FLED-0030 does for load. A governor or
+  thermal change mimics a regression. pyperf records and checks these:
+  https://pyperf.readthedocs.io/en/latest/system.html
+  Same shape as FLED-0016. Needs the engines' agreement and a spec
+  amendment.
+  2026-11-10, engines: yes from all three. DOOM Ants asks for the load
+  average; Vestige for governor and temperature; UT Ants for a warning
+  when sides differ (FLED-0030 adds load and clock ones).
+  2026-11-13: moved to 0.6.0. The three engines agreed to cut 0.5.0
+  without it; DOOM Ants would use it most.
+  **Layman:** Each run notes things like CPU power mode and temperature, and frameledger warns when the two builds were tested under different conditions.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
