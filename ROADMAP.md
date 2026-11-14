@@ -1025,6 +1025,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   accept, so an engine with no writer gets frame times and pacing.
   It has no passes, so pass reports say so. None of the three
   engines need it; it serves engines beyond them.
+  2026-11-14: specified in docs/specs/FLED-0001-run-file-format.md §
+  4.18 and INV-111 to INV-115, from the three engines' answers; drafted
+  for their review before building.
   **Layman:** Use frameledger with a free, widely used frame-timing tool, without changing your game.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -1033,6 +1036,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   Sample engine output and the files it must produce, and a strict
   check that also flags what is legal but unwise, so someone writing
   the format from the spec alone can show their writer is right (S7).
+  2026-11-14: specified in docs/specs/FLED-0001-run-file-format.md §
+  4.19 and INV-116 to INV-118, from the three engines' answers; drafted
+  for their review before building.
   **Layman:** A set of tests anyone can run to prove their game writes the file correctly.
   Kind: test.
   Source: engine-answers-2026-11-10.
