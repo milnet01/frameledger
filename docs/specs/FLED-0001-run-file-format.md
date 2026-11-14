@@ -2117,9 +2117,13 @@ screen buffers a program presents into.
 `MsBetweenPresents` counts from the previous present, so present
 order is what pairs a row with the one before it, and the file holds
 presents in that order. A re-sort could pair the wrong two frames
-(DOOM Ants). **A start value lower than the row before it is exit 3**,
-naming both lines, since then file order is not present order. Without
-a start column, order is not checked, and the summary says so.
+(DOOM Ants). **A start value lower than the row before it is warned
+as `start_out_of_order`**, naming both lines, and the rows stay in file
+order. PresentMon's documentation does not say its rows are in start
+order, so a refusal could leave a real capture with no way through.
+`CPUStartDateTime` values are compared as times, their offsets
+applied, never as text. Without a start column, order is not checked,
+and the summary says so.
 
 | Row | From |
 |---|---|
@@ -2131,8 +2135,10 @@ a start column, order is not checked, and the summary says so.
 - **Values are rounded from their decimal text**, half away from zero,
   to the nearest thousandth: Python's `decimal` rounding
   `ROUND_HALF_UP`. No float is between. So `1.0005` is `1.001` and
-  `-1.0005` is `-1.001`, as § 4.4's rounding of a `double` holding
-  exactly that value gives.
+  `-1.0005` is `-1.001`. A tie in the text can come out one thousandth
+  from what a writer makes of the nearest `double`: `0.5005` imports
+  as `0.501`, where § 4.4's `llround` gives `0.500`, since
+  `0.5005 * 1000.0` is `500.49999999999994` (DOOM Ants).
 - **A frame whose `MsCPUBusy` is not a number is exit 3**, naming the
   capture's line, since every frame needs a `frame/cpu_span`.
 - **A `MsBetweenPresents` of zero or less, or not a number, gives the
@@ -2339,8 +2345,6 @@ judges it. Then the two files match when:
   extra digit, or a field quoted that need not be all differ. § 4.4's
   values have exactly three decimals, so text is the exact comparison.
 - **the close lines hold equal JSON values, or both files lack one.**
-  So `"frames": 3600.0` matches `3600`, on purpose: the close line is
-  JSON, and § 4.5 sets no number form.
 
 The summary names the first difference: a header or static key and
 both values, or a row line with how many times each file holds it.
@@ -2359,12 +2363,12 @@ the warnings below are not given.
 written. *Walls* are the frames that have a `frame/wall`. A *median* is
 the lower middle of the sorted values: the one at index (n − 1) // 2,
 counting from 0. *Over* is strictly greater. A *slow frame* has a wall
-over 1.5 times the median wall.
+over 1.5 times the median of all walls, cut frames included.
 
 | Code | Warns when |
 |---|---|
 | `wall_fixed` | there are 10 or more walls, and every one is the same value: a fixed simulation step, not real time (UT Ants) |
-| `wall_stepped` | there are 10 or more walls of 2 or more values, `vsync` is false, and each wall is within one thousandth per step of a whole number of steps of the smallest wall: a clock that ticks, such as 35 Hz tics (DOOM Ants) |
+| `wall_stepped` | there are 10 or more walls of 2 or more values, `vsync` is false and not listed in `unknown`, the smallest wall is 1 ms or more, and each wall is within one thousandth of a whole number of steps of the smallest wall: a clock that ticks, such as 35 Hz tics (DOOM Ants). A margin that grew with the step count would let every wall fit once the smallest is short |
 | `wall_ceiling` | the largest wall is held by 3 or more frames and by 1% or more of the walls, is at least twice the median wall, and some wall is not a whole millisecond: a clamped clock (Vestige). A clock that counts whole milliseconds is skipped, since its missed-vsync frames all land on one value (DOOM Ants) |
 | `wall_periodic` | leaving out each frame holding an `event/cut` and each segment's first frame, there are 5 or more slow frames; the median gap in frame numbers between one and the next is 3 or more; and 80% or more of the gaps are within 1 of it: the writer's own flush (DOOM Ants) |
 | `span_over_wall` | in a run whose `pipelined` is false and not listed in `unknown`, a frame's `cpu_span` is over its wall by more than 1% of the wall; in any run, the `gpu_span`s of the frames with a wall sum to more than 1.01 times their walls; in a run whose `pipelined` is true or listed, the same for the `cpu_span`s. Either is the wrong clock or wrong units (all three engines). Per frame, a pipelined GPU-bound run's `gpu_span` is over its wall on about half its frames, so only the total is judged (Vestige) |
@@ -3837,9 +3841,13 @@ breaks.
   `event/not_displayed`; the two values are `1.001` and `-1.001`.
   `report`, `floor --fps 60` and `survey --fps 60` read the file and
   exit 0. A `MsBetweenPresents` of 0 leaves the frame before it with no
-  `frame/wall`, and `check` warns `wall_missing`.
+  `frame/wall`, and `check` warns `wall_missing`. A `CPUStartTime`
+  lower than the row before it warns `start_out_of_order`, naming both
+  lines, and the rows stay in file order; `CPUStartDateTime` values of
+  `11:59:00+02:00` then `10:00:00Z`, back as text and forward as
+  times, give no warning.
   *Test:* `tests/test_presentmon.py::test_capture_becomes_a_run`, and
-  beside it `test_zero_between_presents`.
+  beside it `test_zero_between_presents` and `test_start_order`.
   *Breaks when:* a wall comes from its own row, `MsGPUTime` is read,
   values pass through a float, or rows are re-sorted.
 
@@ -3849,8 +3857,7 @@ breaks.
   line with neither set; two processes, the sentence listing both with
   their frame counts, the larger first; a `--process` that matches
   nothing; two swap chains left after `--process`, listed with
-  `--swapchain` named; a `CPUStartTime` lower than the row before it,
-  naming both lines; an `MsCPUBusy` of `NA`, naming its line; an
+  `--swapchain` named; an `MsCPUBusy` of `NA`, naming its line; an
   `MsBetweenPresents` of `1000000000`; no `--started` and a
   `CPUStartDateTime` without a zone; a `--resolution` of `0x1080`. A
   `RUN` that exists is exit 3 and keeps its bytes. With `--process
@@ -3859,8 +3866,7 @@ breaks.
   *Test:* `tests/test_presentmon.py::test_refusals`, and beside it
   `test_picking_a_process_and_swap_chain`.
   *Breaks when:* a refusal leaves a file, several processes are merged,
-  rows out of present order are read, or a missing start is filled
-  from the file's own time.
+  or a missing start is filled from the file's own time.
 
 - **INV-113** — An imported header lists what it does not know.
   Imported with no fact flags, the header's `unknown` lists `commit`,
@@ -3958,7 +3964,9 @@ breaks.
   9 equal walls for `wall_fixed` and `gpu_span_flat`; a ceiling on 2
   frames for `wall_ceiling`; 4 slow frames, and a median gap of 2,
   for `wall_periodic`; a slow frame on every `event/cut` gives none.
-  Walls that are all whole milliseconds give no `wall_ceiling`. A
+  Walls that are all whole milliseconds give no `wall_ceiling`.
+  Walls of 28.571 and 57.143 ms warn `wall_stepped`; the same with one
+  0.050 ms wall, or with `vsync` listed in `unknown`, do not. A
   `cpu_span` 1% over its wall in a run not pipelined gives no
   `span_over_wall`, and one just over 1% does. `gpu_span` over its wall
   on half the frames, its total under the walls', gives none whether
@@ -4201,7 +4209,7 @@ it on each release they pin.
 | INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
 | INV-109 | `tests/test_compare.py::test_outlier_run`, `tests/test_compare_variants.py::test_base_outlier_is_named_once` |
 | INV-110 | `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`, `tests/test_plain_text.py::test_path_text_cannot_forge_a_line`, `tests/test_plain_text.py::test_each_kind_of_unprinted_character_is_shown`, `tests/test_plain_text.py::test_joining_characters_print_as_written`, `tests/test_plain_text.py::test_no_header_string_forges_or_floods`, `tests/test_plain_text.py::test_baseline_warnings_quote_header_strings`, `tests/test_plain_text.py::test_a_baseline_file_cannot_forge_or_flood_standard_error`, `tests/test_plain_text.py::test_a_budget_file_cannot_flood_a_line`, `tests/test_plain_text.py::test_a_scene_name_cannot_flood_a_sentence`, `tests/test_plain_text.py::test_markdown_makes_each_unprinted_character_a_space` |
-| INV-111 | `tests/test_presentmon.py::test_capture_becomes_a_run`, `tests/test_presentmon.py::test_zero_between_presents` |
+| INV-111 | `tests/test_presentmon.py::test_capture_becomes_a_run`, `tests/test_presentmon.py::test_zero_between_presents`, `tests/test_presentmon.py::test_start_order` |
 | INV-112 | `tests/test_presentmon.py::test_refusals`, `tests/test_presentmon.py::test_picking_a_process_and_swap_chain` |
 | INV-113 | `tests/test_presentmon.py::test_header` |
 | INV-114 | `tests/test_unknown_facts.py` |
