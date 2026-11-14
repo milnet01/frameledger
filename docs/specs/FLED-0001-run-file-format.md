@@ -2240,7 +2240,7 @@ field, it shows null in JSON and "unknown" in text. Each reader:
 | § 4.11 `bisect` | a listed `commit` or `dirty` gives the warning a dirty run gives, saying the value is unknown rather than dirty |
 | § 4.12 budgets | a `match` naming a listed field does not match |
 | § 4.14 `compare --by-scene` | a listed `scene` puts the run in no scene, its reason "the header does not know its scene" |
-| § 4.17 baselines | a listed `driver` or `os` counts as differing for `baseline_driver_differs` and `baseline_os_differs`; a listed `dirty` is marked "(dirty unknown)", never "(dirty)" |
+| § 4.17 baselines | a listed `driver` counts as differing for `baseline_driver_differs`; a listed `dirty` is marked "(dirty unknown)", never "(dirty)" |
 | § 4.8 `report` | a listed `pipelined` gives no CPU-bound or GPU-bound share, and the sentence says pipelining is unknown |
 | § 4.19 `check --strict` | `span_over_wall` judges a listed `pipelined` as pipelined |
 
