@@ -46,6 +46,10 @@ added that a set of two names no run, and DOOM Ants' that each
 named run has its sentence and a base run is named once. § 4.8's
 cleaned plain text with INV-110 (FLED-0071) found by DOOM Ants
 2026-11-13 and agreed by the three engines before it was built.
+§ 4.18, § 4.18.1 and § 4.19 with INV-111 to INV-118 (FLED-0036,
+FLED-0037) agreed by the three engines 2026-11-15 before they were
+built; their reviews put the strict codes' thresholds in whole
+thousandths.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -258,7 +262,8 @@ strings: each sanitizer the build was compiled with, such as
 stand-in, § 4.18.1), `extra` (object, the engine's own).
 
 `resolution` is two whole numbers, each 1 or more. `render_scale`
-may be any finite number, 0 included: no reader divides by it.
+may be any finite number, 0 and negatives included: readers only
+compare it.
 
 `started_utc` names a real date and time: year 0001 to 9999, a month
 and day that exist, with 29 February only in a leap year, hour 00 to
@@ -2121,8 +2126,8 @@ presents in that order. A re-sort could pair the wrong two frames
 as `start_out_of_order`**, naming both lines, and the rows stay in file
 order. PresentMon's documentation does not say its rows are in start
 order, so a refusal could leave a real capture with no way through.
-`CPUStartDateTime` values are compared as times, their offsets
-applied, never as text. Without a start column, order is not checked,
+Tick and second values compare as numbers. `CPUStartDateTime`
+values compare as times after conversion to UTC, never as text. Without a start column, order is not checked,
 and the summary says so.
 
 | Row | From |
@@ -2302,8 +2307,9 @@ a writer, shown here as `include/frameledger.h`'s calls (§ 4.6):
   the decimal text round alike. `5.2505` is one: `llround` gives
   `5.251`, where `printf("%.3f")` gives `5.250`.
 - **`frame` is a JSON integer to be read exactly**, never through a
-  `double`, which loses digits past 15. The largest is 19 digits,
-  `9223372036854775807`, since `fled_row` takes a `long long`.
+  `double`, which loses digits past 15. The largest the writer API
+  takes is `9223372036854775807`, 19 digits, since `fled_row` takes a
+  `long long`.
 - **`frame/wall` rows are given as measured**, as any row, so a writer
   that computes them differently fails the case.
 - **A row that arrives after the last frame** is written before the
@@ -2363,23 +2369,24 @@ the warnings below are not given.
 written. *Walls* are the frames that have a `frame/wall`. A *median* is
 the lower middle of the sorted values: the one at index (n − 1) // 2,
 counting from 0. *Over* is strictly greater. A *slow frame* has a wall
-over 1.5 times the median of all walls, cut frames included.
+over 1.5 times the median of all walls, cut frames included. *Whole
+milliseconds* means a value that is a multiple of 1000 thousandths.
 
 | Code | Warns when |
 |---|---|
 | `wall_fixed` | there are 10 or more walls, and every one is the same value: a fixed simulation step, not real time (UT Ants) |
-| `wall_stepped` | there are 10 or more walls of 2 or more values, `vsync` is false and not listed in `unknown`, the smallest wall is 1 ms or more, and each wall is within one thousandth of a whole number of steps of the smallest wall: a clock that ticks, such as 35 Hz tics (DOOM Ants). A margin that grew with the step count would let every wall fit once the smallest is short |
-| `wall_ceiling` | the largest wall is held by 3 or more frames and by 1% or more of the walls, is at least twice the median wall, and some wall is not a whole millisecond: a clamped clock (Vestige). A clock that counts whole milliseconds is skipped, since its missed-vsync frames all land on one value (DOOM Ants) |
-| `wall_periodic` | leaving out each frame holding an `event/cut` and each segment's first frame, there are 5 or more slow frames; the median gap in frame numbers between one and the next is 3 or more; and 80% or more of the gaps are within 1 of it: the writer's own flush (DOOM Ants) |
-| `span_over_wall` | in a run whose `pipelined` is false and not listed in `unknown`, a frame's `cpu_span` is over its wall by more than 1% of the wall; in any run, the `gpu_span`s of the frames with a wall sum to more than 1.01 times their walls; in a run whose `pipelined` is true or listed, the same for the `cpu_span`s. Either is the wrong clock or wrong units (all three engines). Per frame, a pipelined GPU-bound run's `gpu_span` is over its wall on about half its frames, so only the total is judged (Vestige) |
+| `wall_stepped` | there are 10 or more walls of 2 or more values, `vsync` is false and not listed in `unknown`, the smallest wall *s* is 1 ms or more, and for each wall *w*, *w* mod *s* is 1 or less or *s* − (*w* mod *s*) is 1 or less: a clock that ticks, such as 35 Hz tics (DOOM Ants). A margin that grew with the step count would let every wall fit once the smallest is short. A stray short wall stops the warning, which misses a ticking clock rather than accusing a real one |
+| `wall_ceiling` | the largest wall is held by 3 or more frames and by 1% or more of the walls, is at least twice the median wall, and some wall is not whole milliseconds: a clamped clock (Vestige). A run whose walls are all whole milliseconds is skipped, as a clock that counts them, since its missed-vsync frames all land on one value (DOOM Ants) |
+| `wall_periodic` | leaving out each frame holding an `event/cut` and each segment's first frame, there are 5 or more slow frames; the median gap in frame numbers between one and the next is 3 or more; and 5 times the gaps within 1 of it is 4 times all gaps or more. The leaving out chooses only which frames count as slow, never the median wall: the writer's own flush (DOOM Ants) |
+| `span_over_wall` | in a run whose `pipelined` is false and not listed in `unknown`, a frame's `cpu_span` is over its wall by more than 1%: 100 × (span − wall) > wall; in any run, the same holds for the `gpu_span` total against the wall total, over the frames with both a wall and a `gpu_span`; in a run whose `pipelined` is true or listed, the same for the `cpu_span` total. Either is the wrong clock or wrong units (all three engines). Per frame, a GPU-bound run's `gpu_span` is over its wall on about half its frames, since the GPU runs behind the CPU whether or not the engine pipelines, so only the total is judged (Vestige) |
 | `gpu_span_flat` | there are 10 or more `frame/gpu_span` rows, and every one is the same value, zero included: a timestamp query never read back (UT Ants) |
 | `no_gpu_span` | no frame has a `frame/gpu_span` |
-| `passes_over_span` | on a frame, the `cpu` depth-0 rows sum to more than `frame/cpu_span`, or the `gpu` ones to more than `frame/gpu_span`, by more than (N + 1) / 2 thousandths, N being the rows summed. Each row and the span are rounded on their own, so a correct writer's sum can be over by that much (Vestige) |
+| `passes_over_span` | on a frame, the `cpu` depth-0 rows sum to more than `frame/cpu_span`, or the `gpu` ones to more than `frame/gpu_span`, where 2 × (sum − span) > N + 1 in thousandths, N being the rows summed. Each row and the span are rounded on their own, so a correct writer's sum can be over by that much (Vestige) |
 | `depth_gap` | a frame holds a `cpu` or `gpu` row at a depth above 0 and none of that category one depth above it |
 | `no_segments` | no row has a segment |
 | `whole_second_start` | `started_utc` has no fraction, so two runs started in one second cannot be ordered |
 | `no_machine_state` | none of `load`, `gpu_busy_pct`, `gpu_clock_mhz`, `cpu_governor`, `turbo`, `power`, `cpu_clock_mhz`, `cpu_temp_c`, `gpu_temp_c` and `throttled` is given |
-| `says_unknown` | a string field of § 4.2 is `unknown` in any case, and the field `unknown` does not list it (UT Ants) |
+| `says_unknown` | a top-level string field of § 4.2 is `unknown` in any case, and the field `unknown` does not list it (UT Ants). `tool`'s `version` is not judged, so an import without `--presentmon-version` does not give it |
 
 - **Each message names the frames or field it judged**, up to five
   frames, and the threshold where there is one.
@@ -3970,9 +3977,10 @@ breaks.
   `cpu_span` 1% over its wall in a run not pipelined gives no
   `span_over_wall`, and one just over 1% does. `gpu_span` over its wall
   on half the frames, its total under the walls', gives none whether
-  `pipelined` is true, false or listed in `unknown`. A `cpu_span` over
-  its wall on one frame by 5% warns when `pipelined` is false, and not
-  when it is listed. Three depth-0 rows over their span by 2
+  `pipelined` is true, false or listed in `unknown`. In a run of 100
+  frames whose other `cpu_span`s are half their walls, a `cpu_span`
+  over its wall on one frame by 5% warns when `pipelined` is false,
+  and not when it is listed. Three depth-0 rows over their span by 2
   thousandths give no `passes_over_span`, and by 3 they do. A run
   numbered from frame 1000 gives no warning. A plain `frame_missing`
   hole exits 1 under `--strict`.
