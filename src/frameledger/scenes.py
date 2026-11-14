@@ -132,6 +132,8 @@ def _scene_of(path: str) -> tuple[str | None, str | None]:
         run_report.refuse_breaches(run)
     except ledger.LedgerError as error:
         return None, _read_failure(error)
+    if "scene" in run.unknown:
+        return None, "the header does not know its scene"
     if run.header["scene"] == "":
         return None, "the header's scene is empty, so the run belongs to no scene"
     return run.header["scene"], None

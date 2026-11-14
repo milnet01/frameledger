@@ -333,8 +333,14 @@ def _tested_notices(refs: list[_Run], tested_runs: list[_Run], overrides: dict[s
     """§ 4.9's warnings for each tested run, then override_unused and dirty_build."""
     notices = [n for n in compare.run_notices(tested_runs) if n.code not in compare.INCOMPLETE_CODES]
     notices += _unused_overrides(refs + tested_runs, overrides)
-    notices += [ledger.Notice("dirty_build", f"{r.name}: the build had uncommitted changes, so it may "
-                              "not be the commit under test") for r in tested_runs if r.run.header["dirty"]]
+    for r in tested_runs:
+        if r.run.unknown & {"commit", "dirty"}:
+            notices.append(ledger.Notice("dirty_build", f"{r.name}: the header does not know its build's "
+                                         f"{'commit' if 'commit' in r.run.unknown else 'dirty'} value, so it may "
+                                         "not be the commit under test"))
+        elif r.run.header["dirty"]:
+            notices.append(ledger.Notice("dirty_build", f"{r.name}: the build had uncommitted changes, so it "
+                                         "may not be the commit under test"))
     return notices
 
 

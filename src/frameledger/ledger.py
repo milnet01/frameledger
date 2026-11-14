@@ -85,6 +85,12 @@ class Run:
     breaches: list[Breach] = field(default_factory=list)
     notices: list[Notice] = field(default_factory=list)
 
+    @property
+    def unknown(self) -> frozenset[str]:
+        """The fields the header lists in `unknown` (§ 4.18.1): each holds a
+        stand-in, so no reader may compare, match or show its value."""
+        return unknown_fields(self.header)
+
 
 def read(path: str | Path) -> Run:
     """Read one run file. Raises LedgerError only when it cannot be judged."""
@@ -192,6 +198,9 @@ class _Reader:
         for name in sorted(header.keys() - HEADER_FIELDS.keys()):
             self.notice("unknown_field", f"the header has a field this format does not define: "
                         f"'{quoted(name)}'", number)
+        listed = unknown_fields(header)
+        if listed:
+            self.notice("facts_unknown", _facts_unknown_message(listed), number)
         if header.get("inputs") == []:
             self.notice("inputs_empty", "the header lists no inputs, so no compare can tell whether the "
                         "same content was run", number)
@@ -464,6 +473,44 @@ def _is_peaked_span(value) -> bool:
     return _is_span(value) and ("peak" not in value or _is_number(value["peak"]))
 
 
+# § 4.18.1: the required fields a header may list in `unknown`. An optional
+# field is never listed, since leaving it out already says it is unknown.
+UNKNOWABLE = ("commit", "dirty", "build_type", "device", "renderer", "driver", "api", "resolution",
+              "render_scale", "vsync", "pipelined", "display", "scene")
+
+
+def unknown_fields(header: dict | None) -> frozenset[str]:
+    """The fields `header` lists in `unknown`; none when the list is absent
+    or breaks the format, so a bad list never hides a value."""
+    value = (header or {}).get("unknown")
+    return frozenset(value) if _is_unknown(value) else frozenset()
+
+
+def _facts_unknown_message(listed: frozenset[str]) -> str:
+    """facts_unknown's message, naming the § 4.9 warnings trust.py skips
+    on a listed field."""
+    names = [name for name in UNKNOWABLE if name in listed]
+    skipped = ["debug_build"] if "build_type" in listed else []
+    unseen = [field for field in ("renderer", "device") if field in listed]
+    if unseen:
+        skipped.append("software_renderer" + ("" if len(unseen) == 2 else f" on the {unseen[0]}"))
+    message = f"the header does not know its {listed_names(names)}; each holds a stand-in"
+    if skipped:
+        message += f", so {listed_names(skipped)} {'is' if len(skipped) == 1 else 'are'} not judged"
+    return message
+
+
+def listed_names(names: list[str]) -> str:
+    """`a`, `a and b`, `a, b and c`, every name: for names this analyser
+    knows, which need no cut (`listed` is for values from a file)."""
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+def _is_unknown(value) -> bool:
+    return (isinstance(value, list) and all(isinstance(name, str) and name in UNKNOWABLE for name in value)
+            and len(set(value)) == len(value))
+
+
 # Each header field: (required, test, what the test wants), per § 4.2.
 HEADER_FIELDS = {
     "schema": (True, _is_schema, "a whole number, 1 or more"),
@@ -505,6 +552,7 @@ HEADER_FIELDS = {
     "cpu_temp_c": (False, _is_peaked_span, '{"start": number, "end": number}, and an optional "peak": number'),
     "gpu_temp_c": (False, _is_peaked_span, '{"start": number, "end": number}, and an optional "peak": number'),
     "throttled": (False, _is_bool, "true or false"),
+    "unknown": (False, _is_unknown, "a list of field names, none twice, from: " + ", ".join(UNKNOWABLE)),
     "extra": (False, _is_object, "an object"),
 }
 

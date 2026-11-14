@@ -14,6 +14,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Added
 
+- **`import presentmon` turns a PresentMon capture into a run file** (FLED-0036)
+  `import presentmon CAPTURE -o RUN` reads a PresentMon 2 CSV capture of one process and one swap chain, and writes a run that every command reads: `frame/cpu_span` from `MsCPUBusy`, `frame/gpu_span` from `MsGPUBusy`, `frame/wall` from the next present's `MsBetweenPresents`, and `event/not_displayed` on a frame never shown. Values are rounded from their decimal text. A PresentMon 1 capture, a capture of several processes or swap chains, or a run file that already exists is refused, with nothing written. Flags give the facts a capture cannot know, such as `--commit` and `--resolution`; any left out is written as a stand-in and listed in the new header field `unknown`. `report` says an imported run has no passes.
+
+- **A header may list the facts it does not know** (FLED-0036)
+  The optional header field `unknown` names the required fields that hold a stand-in. Every command then warns `facts_unknown`, and none compares, matches or shows a listed value: a listed compare-blocking field refuses a compare until overridden, a listed `build_type` is not judged a debug build, a budget naming a listed field does not match, and a listed `pipelined` gives no CPU-bound share. No schema change.
+
 - **The header records the machine's state, and `compare` warns when the two sides differ** (FLED-0055)
   Seven optional header fields: `cpu_governor` (text, the writer's own words), `turbo` (true or false), `power` (`mains` or `battery`), `cpu_clock_mhz` (`start` and `end`), `cpu_temp_c` and `gpu_temp_c` (`start`, `end` and an optional `peak`, in degrees Celsius) and `throttled` (true or false). A run on battery warns `on_battery`, and a throttled one `throttled`. `compare` warns `governor_differs`, `turbo_differs`, `power_differs` or `sanitizers_differs` when the two sides' values differ; `cpu_clock_differs` when the median clocks differ by more than 5%; and `cpu_temp_differs` or `gpu_temp_differs` when the median temperatures differ by more than 10 degrees, judged on `peak` when every run has one and on `end` otherwise. Each needs the field in every run. A warning changes no verdict and no exit code. No schema change.
 

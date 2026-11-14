@@ -24,6 +24,7 @@ import bisecting
 import budgeting
 import compare
 import ledger
+import presentmon
 import render
 import run_report
 import scenes
@@ -115,7 +116,54 @@ def _parser() -> _Parser:
     survey_cmd.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
                             help="frames over the budget a run may have before it is flagged (default 0)")
     _add_output_flags(survey_cmd)
+    _add_import(commands)
     return parser
+
+
+def _add_import(commands) -> None:
+    """`import presentmon` (§ 4.18): a capture in, a run file out."""
+    importing = commands.add_parser("import", help="turn another tool's capture into a run file")
+    sources = importing.add_subparsers(dest="source", metavar="SOURCE")
+    command = sources.add_parser("presentmon", help="a PresentMon 2 CSV capture")
+    command.add_argument("capture", metavar="CAPTURE")
+    command.add_argument("-o", dest="output", required=True, metavar="RUN", help="the run file to write; "
+                         "it must not exist")
+    command.add_argument("--process", metavar="NAME", help="keep the rows of this Application, in any case")
+    command.add_argument("--pid", metavar="PID", help="keep the rows of this ProcessID")
+    command.add_argument("--swapchain", metavar="ADDR", help="keep the rows of this SwapChainAddress")
+    command.add_argument("--engine", metavar="NAME", help="the header's engine (default: the Application)")
+    command.add_argument("--started", metavar="UTC", help="when the run started, as 2026-10-24T12:00:00Z "
+                         "(default: the first CPUStartDateTime, when it names its zone)")
+    command.add_argument("--presentmon-version", metavar="V", help="the PresentMon version that captured it")
+    for field in ("commit", "build_type", "device", "renderer", "driver", "display", "scene", "tier", "os"):
+        command.add_argument(f"--{field.replace('_', '-')}", dest=f"fact_{field}", metavar="TEXT",
+                             help=f"the header's {field}")
+    command.add_argument("--resolution", dest="fact_resolution", type=_resolution, metavar="WxH",
+                         help="the header's resolution, such as 1920x1080")
+    command.add_argument("--render-scale", dest="fact_render_scale", type=_scale, metavar="S",
+                         help="the header's render_scale, 1.0 for native")
+    for field, yes, no in (("dirty", "--dirty", "--clean"), ("pipelined", "--pipelined", "--not-pipelined")):
+        choice = command.add_mutually_exclusive_group()
+        choice.add_argument(yes, dest=f"fact_{field}", action="store_const", const=True, help=f"{field} is true")
+        choice.add_argument(no, dest=f"fact_{field}", action="store_const", const=False, help=f"{field} is false")
+    _add_output_flags(command)
+
+
+def _resolution(text: str) -> list[int]:
+    width, x, height = text.lower().partition("x")
+    if not (x and width.isdigit() and height.isdigit()):
+        raise argparse.ArgumentTypeError(f"'{text}' is not WIDTHxHEIGHT, such as 1920x1080")
+    return [int(width), int(height)]
+
+
+def _scale(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{text}' is not a number") from None
+    if value != value or value in (float("inf"), float("-inf")):
+        raise argparse.ArgumentTypeError(f"'{text}' is not a finite number")
+    return value
 
 
 def _add_output_flags(parser, default=argparse.SUPPRESS) -> None:
@@ -364,8 +412,10 @@ def _dispatch(args: argparse.Namespace) -> dict:
         return _survey(args)
     if args.command == "alternate":
         return _alternate(args)
+    if args.command == "import":
+        return _import(args)
     raise ledger.LedgerError("name a command (check, report, floor, compare, alternate, bisect, budget, "
-                             "survey) or --selftest; --help lists them")
+                             "survey, import) or --selftest; --help lists them")
 
 
 def _bisect_main(argv: list[str]) -> int:
@@ -760,6 +810,21 @@ def _survey(args: argparse.Namespace) -> dict:
     built = survey.survey(args.files, budget_us, _warmup_us(args.warmup_s), args.allow_frames)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
     return _result("survey", built["verdict"], code, built["summary"], built["warnings"], built["result"])
+
+
+def _import(args: argparse.Namespace) -> dict:
+    """§ 4.18: exit 0 when the run file is written, 3 on any refusal, with
+    nothing written."""
+    if args.source != "presentmon":
+        raise ledger.LedgerError("name what to import: import presentmon CAPTURE -o RUN")
+    facts = {name.removeprefix("fact_"): value for name, value in vars(args).items()
+             if name.startswith("fact_") and value is not None}
+    chosen = presentmon.Chosen(args.process, args.pid, args.swapchain)
+    built = presentmon.import_capture(args.capture, args.output, chosen, facts, args.engine, args.started,
+                                      args.presentmon_version)
+    notices = built["notices"]
+    return _result("import", "none", PASS, run_report.warning_sentences(notices) + built["summary"],
+                   run_report.warning_entries(notices), {"import": built["import"]})
 
 
 def _frame_time_us(fps: Decimal, hint: str = "") -> int:

@@ -270,6 +270,10 @@ def _refuse_mismatch(run: ledger.Run, match: dict) -> None:
     the run leaves out does not match, nor does an empty inputs list."""
     differ = []
     for field, wanted in match.items():
+        if field in run.unknown:  # a stand-in matches nothing (§ 4.18.1)
+            differ.append(f"{field} is {compare.shown(wanted, ledger.LONG_QUOTE)} in the budget file and "
+                          "unknown in the run")
+            continue
         have = run.header.get(field, compare.ABSENT)
         want_key, have_key = compare.match_key(field, wanted), compare.match_key(field, have)
         if want_key is None or have_key is None or want_key != have_key:

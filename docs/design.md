@@ -63,7 +63,7 @@ Four parts. The format spec is the only thing the other three share.
     variant one `compare.py` compare against the base, then ranked.
   - `baseline.py` — reads a baseline file into the run paths it names
     (S24).
-  - `presentmon.py` — turns a PresentMon capture into a `Run` (S25).
+  - `presentmon.py` — turns a PresentMon capture into a run file (S25).
   - `render.py` — turns a result into plain text, JSON or Markdown.
     Plain sentences come first.
   - `picture.py` — turns one run's result into the optional report

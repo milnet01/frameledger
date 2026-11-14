@@ -33,7 +33,9 @@ def warnings(run: ledger.Run, measured: int, cut_frames: set[int] | None = None)
     def warn(code: str, message: str) -> None:
         found.append(ledger.Notice(code, message))
 
-    if header["build_type"].casefold() == "debug":
+    # A field the header lists in `unknown` holds a stand-in, so it is not
+    # judged; facts_unknown says which warnings that skips (§ 4.18.1).
+    if "build_type" not in run.unknown and header["build_type"].casefold() == "debug":
         warn("debug_build", f"the build type is '{header['build_type']}', so the run timed a "
              "Debug build")
     sanitizers = header.get("sanitizers")
@@ -42,7 +44,7 @@ def warnings(run: ledger.Run, measured: int, cut_frames: set[int] | None = None)
         warn("sanitizer_build", f"the build has {'sanitizer' if len(sanitizers) == 1 else 'sanitizers'} "
              f"{names}, so the run timed instrumented code")
     for field in ("renderer", "device"):
-        if any(name in header[field].casefold() for name in SOFTWARE_RENDERERS):
+        if field not in run.unknown and any(name in header[field].casefold() for name in SOFTWARE_RENDERERS):
             warn("software_renderer", f"the {field} is '{ledger.quoted(header[field], ledger.LONG_QUOTE)}', "
                  "which draws in software, "
                  "so the run says nothing about a GPU")

@@ -23,6 +23,7 @@ ALLOWED = {
     "variants": {"compare", "run_report", "trust", "stats", "ledger"},
     "alternate": {"ledger"},
     "baseline": {"ledger"},
+    "presentmon": {"ledger"},
     "render": set(),
     "selftest": MODULES - {"cli", "selftest", "render"},
     "cli": MODULES - {"cli"},

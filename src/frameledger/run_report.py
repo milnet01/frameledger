@@ -36,8 +36,11 @@ def report(run: ledger.Run) -> dict:
     format raises LedgerError naming its first breach: § 6, never skip a row."""
     refuse_breaches(run)
     costs = Costs(run)
+    passes = costs.passes()
+    if imported(run):  # with no passes, a remainder is the whole span (§ 4.18)
+        passes = [entry for entry in passes if entry["name"] not in REMAINDER.values()]
     result = {
-        "passes": costs.passes(),
+        "passes": passes,
         "frame_times": costs.frame_times(),
         "pacing": _pacing(run),
         "bound_by": _bound_by(run),
@@ -54,6 +57,11 @@ def report(run: ledger.Run) -> dict:
         summary.append(f"{message[0].upper()}{message[1:]}.")
     summary += _headline(run, result, costs)
     return {"summary": summary, "warnings": warnings, "result": result}
+
+
+def imported(run: ledger.Run) -> bool:
+    """Whether `import presentmon` wrote the run: its tool is PresentMon."""
+    return run.header["tool"]["name"] == "PresentMon"
 
 
 def missing_gpu_message(count: int) -> str:
@@ -430,8 +438,9 @@ def _is_pacing_pair(before: dict | None, rows: dict) -> bool:
 def _bound_by(run: ledger.Run) -> dict:
     """Over frames with both spans: GPU-bound when gpu_span > cpu_span,
     otherwise CPU-bound. Without pipelining the two never overlap, so a
-    share would mislead (INV-10)."""
-    if not run.header.get("pipelined"):
+    share would mislead (INV-10), and so would one under an unknown
+    pipelined (§ 4.18.1)."""
+    if "pipelined" in run.unknown or not run.header.get("pipelined"):
         return {"cpu": None, "gpu": None, "applies": False}
     both = [(rows[("frame", "cpu_span")].thousandths, rows[("frame", "gpu_span")].thousandths)
             for rows in run.frames.values()
@@ -447,7 +456,9 @@ def _worst_frames(run: ledger.Run) -> list[dict]:
     timed = [(rows[("frame", "wall")].thousandths, frame, rows)
              for frame, rows in run.frames.items() if ("frame", "wall") in rows]
     timed.sort(key=lambda t: (-t[0], t[1]))
-    return [{"frame": frame, "segment": ledger.frame_segment(rows), "wall_ms": _ms(wall), "top_pass": _top_pass(rows)}
+    no_passes = imported(run)  # its remainder would be the whole span, which names no pass
+    return [{"frame": frame, "segment": ledger.frame_segment(rows), "wall_ms": _ms(wall),
+             "top_pass": None if no_passes else _top_pass(rows)}
             for wall, frame, rows in timed[:WORST_FRAMES]]
 
 
@@ -486,6 +497,9 @@ def _headline(run: ledger.Run, result: dict, costs: Costs) -> list[str]:
     kinds = sorted({segment_kind(ledger.frame_segment(rows)) for rows in run.frames.values()}, key=kind_order)
     sentences = [f"The run has {counted(len(run.frames), 'frame')}, in "
                  f"{', '.join(kind_name(k) for k in kinds) or 'no'} segments."]
+    if imported(run):
+        sentences.append("The run was imported from PresentMon, so it has no passes; its CPU and GPU spans "
+                         "are PresentMon's MsCPUBusy and MsGPUBusy, not the engine's own timings.")
     for kind in kinds:
         top = [e for e in result["passes"] if e["segment_kind"] == kind and e["depth"] == 0]
         if not top:
@@ -497,7 +511,10 @@ def _headline(run: ledger.Run, result: dict, costs: Costs) -> list[str]:
         sentences.append(f"In {kind_name(kind)} segments the costliest pass is "
                          f"{best['category']}/{best['name']}: median {best['median_ms']:.3f} ms{share}.")
     bound = result["bound_by"]
-    if not bound["applies"]:
+    if "pipelined" in run.unknown:
+        sentences.append("The header does not know whether the run overlaps CPU and GPU work "
+                         "(pipelined is unknown), so the CPU-bound and GPU-bound share does not apply.")
+    elif not bound["applies"]:
         sentences.append("The run does not overlap CPU and GPU work (pipelined is false), so the "
                          "CPU-bound and GPU-bound share does not apply.")
     elif bound["gpu"] is None:

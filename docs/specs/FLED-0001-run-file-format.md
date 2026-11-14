@@ -2238,7 +2238,7 @@ means unknown (§ 4.2, § 4.9).
 **A field that `unknown` lists is unknown to every reader, never its
 stand-in** (Vestige, DOOM Ants). Every command that reads a run file
 warns `facts_unknown` once per file, naming each listed field: "the
-header does not know its commit, device, resolution; each holds a
+header does not know its commit, device and resolution; each holds a
 stand-in". It is a format warning, as `inputs_empty` is, so `check`,
 `report`, `floor`, `budget`, `survey`, `compare` in every mode,
 `alternate` and `bisect` all give it. Where a result shows a listed
@@ -3903,8 +3903,8 @@ breaks.
   resolution=...`; three unlisted against three unlisted compare. The
   listed `build_type` gives no `debug_build`, and `facts_unknown` says
   it was not judged. A budget whose `match` names `resolution` does
-  not match a listed copy. `report --json` shows the listed `commit` as
-  null. A listed `pipelined` gives no CPU-bound share, and the
+  not match a listed copy. `compare --json` shows a listed `commit` and
+  `dirty` as null in its runs; `report` shows neither field. A listed `pipelined` gives no CPU-bound share, and the
   sentence says pipelining is unknown. A listed `scene` puts the run
   in no scene under `compare --by-scene`, with its reason. A listed
   `dirty` is marked "(dirty unknown)" in `baseline_not_interleaved`,

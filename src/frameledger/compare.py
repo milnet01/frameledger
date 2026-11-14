@@ -192,9 +192,32 @@ def named_set(label: str, called: str, runs: list[ledger.Run]) -> list[Named]:
 def run_entry(named: Named, limits: LoadLimits = DEFAULT_LIMITS) -> dict:
     header, close = named.run.header, named.run.close
     return {"name": named.name, "set": named.set, "path": named.path, "run_id": header["run_id"],
-            "commit": header["commit"], "dirty": header["dirty"], "started_utc": header["started_utc"],
+            "commit": known(named.run, "commit"), "dirty": known(named.run, "dirty"),
+            "started_utc": header["started_utc"],
             "rows_dropped": close["rows_dropped"] if close else None, "finished": close is not None,
             "under_load": [peak for peak, _, _ in limits.under_load(header)]}
+
+
+def known(run: ledger.Run, field: str):
+    """The header's `field`, or None when the header lists it in `unknown`:
+    a stand-in is never shown as a value (§ 4.18.1)."""
+    return None if field in run.unknown else run.header.get(field)
+
+
+def build_of(run: ledger.Run) -> tuple:
+    """What two runs share when they are one build: commit and dirty. A
+    listed one is a fresh object, so it matches no other run's and each
+    such run is a build of its own (§ 4.18.1)."""
+    return tuple(object() if field in run.unknown else run.header[field] for field in ("commit", "dirty"))
+
+
+def build_name(run: ledger.Run) -> str:
+    """A run's build as a sentence names it: the commit, then "(dirty)",
+    or "unknown" and "(dirty unknown)" for what the header does not know."""
+    commit = "unknown" if "commit" in run.unknown else ledger.quoted(run.header["commit"], ledger.LONG_QUOTE)
+    if "dirty" in run.unknown:
+        return f"{commit} (dirty unknown)"
+    return commit + (" (dirty)" if run.header["dirty"] else "")
 
 
 def overrides_sentences(overrides: list[dict]) -> list[str]:
@@ -212,14 +235,15 @@ def refusals(runs: list[Named], overrides: dict[str, str]) -> tuple[list[dict], 
     refused, unused = [], []
     for field in BLOCKING:
         keys = {match_key(field, r.run.header.get(field, ABSENT)) for r in runs}
-        # Two empty input lists are unknown, not equal (§ 4.2).
-        blocked = len(keys) > 1 or (field == "inputs" and None in keys)
+        # Two empty input lists are unknown, not equal (§ 4.2), and so is a
+        # field any run lists in `unknown` (§ 4.18.1).
+        blocked = (len(keys) > 1 or (field == "inputs" and None in keys)
+                   or any(field in r.run.unknown for r in runs))
         if field in overrides:
             if not blocked:
                 unused.append(field)
         elif blocked:
-            refused.append({"field": field, "values": {
-                r.name: r.run.header.get(field) for r in runs}})
+            refused.append({"field": field, "values": {r.name: known(r.run, field) for r in runs}})
     return refused, unused
 
 
@@ -232,7 +256,7 @@ def match_key(field: str, value) -> str | None:
     and its key "absent" matches only another absent field; None is an
     empty inputs list, which refusals treats as matching nothing; and in a
     refusal's values a None is an absent field, since a null one is a
-    breach."""
+    breach, or a listed one, since only a required field can be listed."""
     if value is ABSENT:
         return "absent"
     if field == "inputs":
@@ -266,8 +290,10 @@ def refusal_reason(refused: list[dict]) -> str:
         by_value: dict[str, list[str]] = {}  # the whole value as JSON -> the runs holding it
         cut = {}  # the same key -> the value as the sentence shows it
         for name, value in entry["values"].items():
-            # A blocking field holding null breaks the format, so None is absent.
-            key = "absent" if value is None else json.dumps(value)
+            # A blocking field holding null breaks the format, so None is a
+            # field left out or, for a required field, one listed in `unknown`.
+            key = ("unknown" if entry["field"] in ledger.UNKNOWABLE else "absent") if value is None \
+                else json.dumps(value)
             by_value.setdefault(key, []).append(name)
             cut[key] = key if value is None else shown(value, ledger.LONG_QUOTE)
         if entry["field"] == "inputs" and list(by_value) == ["[]"]:
@@ -344,8 +370,7 @@ def _baseline_first_notice(runs: list[Named], called: dict[str, str], oldest: tu
                            first_new: tuple[datetime, Fraction]) -> ledger.Notice:
     """§ 4.17's stand-in for not_interleaved: what the baseline is, and how
     long before the first new run its oldest run started."""
-    builds = dict.fromkeys((r.run.header["commit"], r.run.header["dirty"]) for r in runs if r.set == "old")
-    commits = [ledger.quoted(commit, ledger.LONG_QUOTE) + (" (dirty)" if dirty else "") for commit, dirty in builds]
+    commits = list(dict.fromkeys(build_name(r.run) for r in runs if r.set == "old"))
     seconds = int((first_new[0] - oldest[0]).total_seconds()) + first_new[1] - oldest[1]
     return ledger.Notice(
         "baseline_not_interleaved",
@@ -369,6 +394,10 @@ def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[
     one the baseline was taken on."""
     found = []
     for field in ("driver", "os"):
+        if any(field in r.run.unknown for r in runs):  # a listed driver counts as differing (§ 4.18.1)
+            found.append(ledger.Notice(f"baseline_{field}_differs", f"the {field} is unknown in some runs, "
+                                       f"so the {called['new']} runs may not be on the baseline's {field}"))
+            continue
         old, new = (sorted({r.run.header.get(field) for r in runs if r.set == label}, key=str)
                     for label in ("old", "new"))
         if old != new and None not in old + new:
@@ -384,7 +413,7 @@ def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[
 def mixed_build_notices(one_set: list[Named], called: str) -> list[ledger.Notice]:
     """The one warning that is about a single set: its runs are not all
     one build. § 4.16 gives the base's once, not once per variant."""
-    if len({(r.run.header["commit"], r.run.header["dirty"]) for r in one_set}) < 2:
+    if len({build_of(r.run) for r in one_set}) < 2:
         return []
     return [ledger.Notice("mixed_build", f"the {called} runs differ in commit or dirty, so they may not be "
                           "one build")]
