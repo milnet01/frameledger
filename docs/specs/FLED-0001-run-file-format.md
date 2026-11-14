@@ -255,7 +255,10 @@ strings: each sanitizer the build was compiled with, such as
 (`{"start": n, "end": n}`), `cpu_temp_c` and `gpu_temp_c`
 (`{"start": n, "end": n}`, degrees Celsius, `peak` optional),
 `throttled` (boolean), `unknown` (array: the fields holding a
-stand-in, § 4.18), `extra` (object, the engine's own).
+stand-in, § 4.18.1), `extra` (object, the engine's own).
+
+`resolution` is two whole numbers, each 1 or more. `render_scale`
+may be any finite number, 0 included: no reader divides by it.
 
 `started_utc` names a real date and time: year 0001 to 9999, a month
 and day that exist, with 29 February only in a leap year, hour 00 to
@@ -2067,8 +2070,8 @@ the three engines needs it. Designed with the three engines
 2026-11-14.
 
 ```
-import presentmon CAPTURE -o RUN [--process NAME|PID] [--swapchain ADDR]
-       [--started UTC] [--presentmon-version V] [the fact flags]
+import presentmon CAPTURE -o RUN [--process NAME] [--pid PID] [--swapchain ADDR]
+       [--engine NAME] [--started UTC] [--presentmon-version V] [the fact flags]
 ```
 
 **It writes a run file**, which every command then reads as any other.
@@ -2079,10 +2082,10 @@ engines).
 capture is UTF-8 CSV, LF or CRLF, a byte-order mark at its start
 skipped, with a column line first. Columns are found by name, so their
 order and any extra columns do not matter. It needs `Application`,
-`ProcessID`, `SwapChainAddress`, `MsBetweenPresents` and `MsCPUBusy`,
-and a start time column: `CPUStartTime`, `CPUStartQPCTime` or
-`CPUStartDateTime`. `MsGPUBusy`, `DisplayedTime`, `PresentRuntime` and
-`SyncInterval` are read when present.
+`ProcessID`, `SwapChainAddress`, `MsBetweenPresents` and `MsCPUBusy`.
+`MsGPUBusy`, `DisplayedTime`, `PresentRuntime`, `SyncInterval` and a
+start column are read when present. The start column is the first
+present of `CPUStartQPCTime`, `CPUStartTime` and `CPUStartDateTime`.
 
 **PresentMon 1, or 2 with `--v1_metrics`, is refused**, exit 3. It is
 told apart by its columns: `msBetweenPresents` or `TimeInSeconds`
@@ -2097,32 +2100,39 @@ refused, naming the needed columns it lacks.
 processes, each with several swap chains. A swap chain is the set of
 screen buffers a program presents into.
 
-- `--process NAME|PID` keeps one program's rows. A value of digits
-  only is a process id; anything else matches `Application` exactly,
-  in any case.
+- `--process NAME` keeps the rows whose `Application` is `NAME`, in
+  any case. `--pid PID` keeps those whose `ProcessID` is `PID`. Both
+  may be given.
 - `--swapchain ADDR` keeps one swap chain's rows, `ADDR` matching
   `SwapChainAddress` as written, in any case (Vestige).
 - **Several left is exit 3.** The sentence lists each, with its frame
   count, most frames first, so the user can pick without opening the
   file: "the capture holds 2 processes: game.exe (pid 4120, 18000
-  frames), obs64.exe (pid 990, 5400 frames); pick one with --process"
-  (UT Ants). Swap chains are listed the same way, with `--swapchain`.
-- A `--process` or `--swapchain` that matches no row is exit 3.
+  frames), obs64.exe (pid 990, 5400 frames); pick one with --process
+  or --pid" (UT Ants). Swap chains are listed the same way, with
+  `--swapchain`.
+- A flag that matches no row is exit 3.
 
-**Frames.** The kept rows are ordered by their start time, file order
-breaking a tie, and numbered from 0. PresentMon's documentation does
-not say its rows are in time order, so the import does not assume it.
+**Frames are the kept rows in file order**, numbered from 0.
+`MsBetweenPresents` counts from the previous present, so present
+order is what pairs a row with the one before it, and the file holds
+presents in that order. A re-sort could pair the wrong two frames
+(DOOM Ants). **A start value lower than the row before it is exit 3**,
+naming both lines, since then file order is not present order. Without
+a start column, order is not checked, and the summary says so.
 
 | Row | From |
 |---|---|
 | `frame/cpu_span` | `MsCPUBusy` |
 | `frame/gpu_span` | `MsGPUBusy`; absent when the column is, or the value is not a number |
-| `frame/wall` | the **next** frame's `MsBetweenPresents`, so the last frame has none, as § 4.4 says |
+| `frame/wall` | the **next** row's `MsBetweenPresents`, so the last frame has none, as § 4.4 says |
 | `event/not_displayed` | `1.000`, on a frame whose `DisplayedTime` is `NA` |
 
-- **Values are rounded from their decimal text** to the nearest
-  thousandth, ties away from zero, as § 4.4 rounds. No float is
-  between.
+- **Values are rounded from their decimal text**, half away from zero,
+  to the nearest thousandth: Python's `decimal` rounding
+  `ROUND_HALF_UP`. No float is between. So `1.0005` is `1.001` and
+  `-1.0005` is `-1.001`, as § 4.4's rounding of a `double` holding
+  exactly that value gives.
 - **A frame whose `MsCPUBusy` is not a number is exit 3**, naming the
   capture's line, since every frame needs a `frame/cpu_span`.
 - **A `MsBetweenPresents` of zero or less, or not a number, gives the
@@ -2133,11 +2143,12 @@ not say its rows are in time order, so the import does not assume it.
 - **`MsGPUBusy`, not `MsGPUTime`.** `MsGPUTime` runs from the frame's
   first GPU work to its last, idle gaps included, so it is not § 4.4's
   span (Vestige).
-- **These are PresentMon's measures, not quite § 4.4's.** `MsCPUBusy`
-  may include waits that `frame/cpu_span` leaves out. `MsGPUBusy` is
-  PresentMon's view of the GPU queue, not the engine's own timestamps,
-  so it can disagree with an engine-written `frame/gpu_span` for the
-  same frames (UT Ants).
+- **These are PresentMon's measures, not quite § 4.4's.**
+  `frame/wall` is the time between two presents, not between two frame
+  starts. `MsCPUBusy` may include waits that `frame/cpu_span` leaves
+  out. `MsGPUBusy` is PresentMon's view of the GPU queue, not the
+  engine's own timestamps, so it can disagree with an engine-written
+  `frame/gpu_span` for the same frames (UT Ants, DOOM Ants).
 - **No passes, segments or `mem` rows.** PresentMon cannot see inside a
   frame. Every row's segment is empty.
 - Without a `DisplayedTime` column, no frame is marked, and the
@@ -2150,11 +2161,11 @@ not say its rows are in time order, so the import does not assume it.
 | `run_id` | `presentmon-` and the first 16 hex digits of the capture's SHA-256, so one capture imported twice gives one id |
 | `engine` | `--engine`, or the kept rows' `Application` |
 | `tool` | `{"name": "PresentMon", "version": V}`, `V` from `--presentmon-version`, or `"unknown"` |
-| `api` | `PresentRuntime`, lower-cased, when every kept row has one value; otherwise `"unknown"` |
-| `vsync` | true when every kept row's `SyncInterval` is above 0, false when every one is 0; otherwise unknown |
-| `started_utc` | `--started`, or the first frame's `CPUStartDateTime` when it ends in `Z` or a UTC offset, turned to UTC |
+| `api` | `PresentRuntime`, lower-cased, when every kept row has one value; otherwise a stand-in |
+| `vsync` | true when every kept row's `SyncInterval` is above 0, false when every one is 0; otherwise, or with no `SyncInterval` column, a stand-in |
+| `started_utc` | `--started`, or the first frame's `CPUStartDateTime` when it reads as `YYYY-MM-DDTHH:MM:SS`, an optional fraction, then `Z` or a UTC offset; turned to UTC, the fraction kept to at most 20 digits as § 4.2 allows |
 | `inputs` | `[]`, which § 4.2 warns on |
-| `unknown` | every field below that was not given |
+| `unknown` | every field that holds a stand-in |
 
 Each other required field has a flag: `--commit`, `--dirty` or
 `--clean`, `--build-type`, `--device`, `--renderer`, `--driver`,
@@ -2163,47 +2174,25 @@ Each other required field has a flag: `--commit`, `--dirty` or
 `--os`. Each value is checked as § 4.2 checks its field; a bad one is
 exit 3.
 
-- **A fact not given is written as a stand-in and listed in
+- **A fact not known is written as a stand-in and listed in
   `unknown`.** A string is `"unknown"`. `dirty` is true, since a clean
   build cannot be vouched for. `resolution` is `[1, 1]`, `render_scale`
   `0`, `pipelined` false, `display` `"onscreen"` and `vsync` false.
   `[0, 0]` is not used: § 4.2 refuses it.
-- **No `--started` and no `CPUStartDateTime` with a zone is exit 3.**
+- **No `--started` and no `CPUStartDateTime` of that shape is exit 3.**
   PresentMon's documentation does not say what zone
   `CPUStartDateTime` is in, and a file's own time is not the run's.
-- **`unknown`** is an optional header field of every run: an array of
-  the names of required § 4.2 fields whose value is a stand-in. Any
-  writer may give it; an engine that cannot read its driver may list
-  `driver`. A name that is not a § 4.2 field, `schema`, `run_id`,
-  `unknown` itself, or a name listed twice is a header breach.
-  `extra` is not used, since it is the engine's own (§ 4.2).
-
-**A field that `unknown` lists is unknown to every reader, never its
-stand-in** (Vestige, DOOM Ants).
-
-- `check` and every report warn `facts_unknown`, once per file, naming
-  each listed field: "the header does not know its commit, device,
-  resolution; each holds a stand-in".
-- Where a result shows the field, it shows null in JSON and "unknown"
-  in text.
-- Where a reader compares or matches the field, it matches nothing,
-  itself included. So § 4.10 refuses two runs whose `resolution` both
-  list it, as it refuses a difference, and its `--override` lets them
-  through. A § 4.12 budget `match` on it does not match. § 4.17's
-  `baseline_driver_differs` and `baseline_os_differs` count it as
-  differing.
-- `pipelined` listed: `report`'s CPU-bound and GPU-bound share does not
-  apply, and its sentence says pipelining is unknown. § 4.19's
-  `span_over_wall` takes the pipelined branch.
-- `scene` listed: the run has the empty scene, for § 4.14.
-- `dirty` listed: § 4.11 warns as it warns on a dirty run.
+- **`check --strict` on an imported run always exits 1**: it warns
+  `inputs_empty`, `no_segments`, and `facts_unknown` unless every fact
+  flag was given. That is expected, not a fault.
 
 **A run whose `tool.name` is `PresentMon`** has one more opening
 sentence in `report`, before the costliest-pass sentence, which it
 replaces: "The run was imported from PresentMon, so it has no passes;
 its CPU and GPU spans are PresentMon's MsCPUBusy and MsGPUBusy, not the
-engine's own timings." The remainders are left out of its pass tables,
-since without passes they are the whole span.
+engine's own timings." Its pass tables leave out the remainders, the
+part of each span its passes do not cover (§ 4.4): with no passes,
+they are the whole span.
 
 **Output.** `-o RUN` names the file written. It is exit 3, before
 anything is written, when `RUN` exists, so a run is never overwritten.
@@ -2214,6 +2203,49 @@ JSON result's `import` holds `path`, `process`, `pid`, `swapchain`,
 refusal or file error, with nothing written. The file is written to
 a temporary name beside `RUN` and renamed, so a failure leaves no half
 file.
+
+#### 4.18.1 Facts a run does not know
+
+**`unknown`** is an optional header field of every run, from any
+writer: an array naming the fields that hold a stand-in, a value
+written only because the field is required. An engine that cannot read
+its driver may list `driver`. Four names are easily confused:
+
+- the field `unknown` lists what a run does not know;
+- the string `"unknown"` is the stand-in for a string field;
+- the warning `unknown_field` (§ 4.8) is a header field this format
+  does not define;
+- the warning `says_unknown` (§ 4.19) is a string field holding
+  `"unknown"` that the field `unknown` does not list.
+
+**It may list only these**: `commit`, `dirty`, `build_type`, `device`,
+`renderer`, `driver`, `api`, `resolution`, `render_scale`, `vsync`,
+`pipelined`, `display`, `scene`. Any other name, or one name twice, is
+a header breach. An optional field needs no listing: absent already
+means unknown (§ 4.2, § 4.9).
+
+**A field that `unknown` lists is unknown to every reader, never its
+stand-in** (Vestige, DOOM Ants). Every command that reads a run file
+warns `facts_unknown` once per file, naming each listed field: "the
+header does not know its commit, device, resolution; each holds a
+stand-in". It is a format warning, as `inputs_empty` is, so `check`,
+`report`, `floor`, `budget`, `survey`, `compare` in every mode,
+`alternate` and `bisect` all give it. Where a result shows a listed
+field, it shows null in JSON and "unknown" in text. Each reader:
+
+| Reader | A listed field |
+|---|---|
+| § 4.9 trust warnings | `debug_build` is not judged on a listed `build_type`, nor `software_renderer` on a listed `renderer` or `device`; `facts_unknown` says so, naming the warning not judged |
+| § 4.10 `compare`, and § 4.14 to § 4.17 | a compare-blocking field listed in any run counts as differing, so the compare is refused as for a difference. `--override FIELD=REASON` lets it through as it lets a difference through; the field stays listed and `facts_unknown` stays. A listed `commit` matches no other run's, so each such run is a build of its own; a listed `dirty` is shown as "dirty unknown" |
+| § 4.11 `bisect` | a listed `commit` or `dirty` gives the warning a dirty run gives, saying the value is unknown rather than dirty |
+| § 4.12 budgets | a `match` naming a listed field does not match |
+| § 4.14 `compare --by-scene` | a listed `scene` puts the run in no scene, its reason "the header does not know its scene" |
+| § 4.17 baselines | a listed `driver` or `os` counts as differing for `baseline_driver_differs` and `baseline_os_differs`; a listed `dirty` is marked "(dirty unknown)", never "(dirty)" |
+| § 4.8 `report` | a listed `pipelined` gives no CPU-bound or GPU-bound share, and the sentence says pipelining is unknown |
+| § 4.19 `check --strict` | `span_over_wall` judges a listed `pipelined` as pipelined |
+
+`survey` (§ 4.13) and `floor` read no other header fact, so they give
+`facts_unknown` and nothing more.
 
 ### 4.19 A kit proves a stranger's writer
 
@@ -2238,41 +2270,58 @@ writing nothing, when `DIR` holds anything. The kit is:
 **A case's JSON** is one object:
 
 ```
-{"header": {...},          the § 4.2 header to write, as given
+{"catches": "...",         the mistake the case catches, in words
+ "warns": ["frame_missing"],   the warning codes NAME.csv gives under check --strict
+ "header": {...},          the § 4.2 header to write, as given
  "static": {...},          the § 4.3 static line; absent for none
  "frames": [{"frame": 0, "segment": "view:1",
              "rows": [{"category": "cpu", "name": "scene", "depth": 0,
                        "value": 5.2505, "arrives": 2, "dropped": false}]}],
- "finished": true}         false: the run ends with no close line
+ "close": {"frames": 3}}   the close line's frame count; null: the run ends with no close line
 ```
+
+A writer ignores `catches` and `warns`. Each part becomes one step of
+a writer, shown here as `include/frameledger.h`'s calls (§ 4.6):
+
+| Part | Becomes |
+|---|---|
+| `header`, `static` | `fled_open`, with the header and the static line as JSON text, in any key order and spacing; no `static`, no static line |
+| each row | `fled_row(segment, frame, category, name, depth, value)`, `segment` and `frame` from the row's frame entry, in the order the rows arrive: by `arrives`, then as listed |
+| `arrives` | optional: the frame during which the value became known, such as a GPU time read back a frame or more late. The row still belongs to its own frame (DOOM Ants). Absent, it is the row's own frame |
+| `dropped: true` | a row the writer could not keep, as when `fled_row` returns `FLED_DROPPED` on a full buffer. It is not written, and it counts in the close line's `rows_dropped` |
+| `close` | `fled_close(frames)`, after every row; null, no call |
 
 - **`value` is a JSON number to be read as a C `double`** and rounded
   as § 4.4 says. The cases' values are chosen so that a `double` and
-  the decimal text round alike.
-- **`arrives`**, optional, is the frame during which the value became
-  known: a GPU time read back a frame or more late. The row still
-  belongs to `frame` (DOOM Ants).
-- **`dropped` true** is a row the writer could not keep. It is not
-  written, and it is counted in the close line's `rows_dropped`.
+  the decimal text round alike. `5.2505` is one: `llround` gives
+  `5.251`, where `printf("%.3f")` gives `5.250`.
+- **`frame` is a JSON integer to be read exactly**, never through a
+  `double`, which loses digits past 15. The largest is 19 digits,
+  `9223372036854775807`, since `fled_row` takes a `long long`.
 - **`frame/wall` rows are given as measured**, as any row, so a writer
   that computes them differently fails the case.
+- **A row that arrives after the last frame** is written before the
+  close line: a finished run's close line follows every row it will
+  write. A writer that cannot wait for such rows counts them in
+  `rows_dropped` instead, which is legal. For that writer, the case
+  marks them `dropped` (README.txt says so).
 
-**The cases** each catch one mistake a writer can make. Each JSON
-names its mistake in a top-level `"catches"` string, which a writer
-ignores. Among them:
+**The cases** each catch one mistake a writer can make. Among them:
 
 - rounding: ties at half a thousandth, either sign, and the largest
   value § 4.4 allows;
 - quoting: a segment id holding a comma or a quote;
 - every length at its limit: name, category, segment kind and id,
   `run_id`;
-- frame numbers of 20 digits, and a hole in them;
+- frame numbers of 19 digits, and a hole in them;
 - negative values, written as measured;
-- a `cpu_span` or `gpu_span` larger than the frame's `frame/wall`, legal
-  in a pipelined run; a writer that clamps one to the other fails (UT
-  Ants);
+- a `gpu_span` larger than the frame's `frame/wall` on some frames of
+  a pipelined run, its total under the run's total wall. A writer that
+  clamps one to the other fails (UT Ants). The case holds no
+  `span_over_wall`, as the table below judges;
 - a hitch among steady frames (UT Ants);
-- GPU rows that arrive late (DOOM Ants);
+- GPU rows that arrive late, and ones that arrive after the last frame
+  (DOOM Ants);
 - dropped rows; a run with no close line;
 - the static line with a `summary`, and a run without one;
 - every optional header field, and none.
@@ -2290,6 +2339,8 @@ judges it. Then the two files match when:
   extra digit, or a field quoted that need not be all differ. § 4.4's
   values have exactly three decimals, so text is the exact comparison.
 - **the close lines hold equal JSON values, or both files lack one.**
+  So `"frames": 3600.0` matches `3600`, on purpose: the close line is
+  JSON, and § 4.5 sets no number form.
 
 The summary names the first difference: a header or static key and
 both values, or a row line with how many times each file holds it.
@@ -2304,24 +2355,30 @@ warnings included, such as `frame_missing` on a hole with no dropped
 rows (UT Ants), `inputs_empty` and `unknown_field`. Without `--strict`,
 the warnings below are not given.
 
+**How they count.** Every value is compared in whole thousandths, as
+written. *Walls* are the frames that have a `frame/wall`. A *median* is
+the lower middle of the sorted values: the one at index (n − 1) // 2,
+counting from 0. *Over* is strictly greater. A *slow frame* has a wall
+over 1.5 times the median wall.
+
 | Code | Warns when |
 |---|---|
-| `wall_fixed` | every `frame/wall` is the same value, over 10 or more: a fixed simulation step, not real time (UT Ants) |
-| `wall_ceiling` | the largest `frame/wall` is held by 3 or more frames and by 1% or more of them, and is at least twice the median: a clamped clock (Vestige) |
-| `wall_periodic` | 5 or more frames have a `frame/wall` over 1.5 times the median, and every gap between them is the same number of frames: the writer's own flush (DOOM Ants) |
-| `span_over_wall` | in a run not pipelined, any frame's `cpu_span` or `gpu_span` is over its `frame/wall`; in a pipelined run, or one whose `pipelined` is unknown, over half the frames with both: the wrong clock or wrong units (all three engines) |
-| `gpu_span_flat` | every `frame/gpu_span` is the same value, zero included, over 10 or more: a timestamp query never read back (UT Ants) |
+| `wall_fixed` | there are 10 or more walls, and every one is the same value: a fixed simulation step, not real time (UT Ants) |
+| `wall_stepped` | there are 10 or more walls of 2 or more values, `vsync` is false, and each wall is within one thousandth per step of a whole number of steps of the smallest wall: a clock that ticks, such as 35 Hz tics (DOOM Ants) |
+| `wall_ceiling` | the largest wall is held by 3 or more frames and by 1% or more of the walls, is at least twice the median wall, and some wall is not a whole millisecond: a clamped clock (Vestige). A clock that counts whole milliseconds is skipped, since its missed-vsync frames all land on one value (DOOM Ants) |
+| `wall_periodic` | leaving out each frame holding an `event/cut` and each segment's first frame, there are 5 or more slow frames; the median gap in frame numbers between one and the next is 3 or more; and 80% or more of the gaps are within 1 of it: the writer's own flush (DOOM Ants) |
+| `span_over_wall` | in a run whose `pipelined` is false and not listed in `unknown`, a frame's `cpu_span` is over its wall by more than 1% of the wall; in any run, the `gpu_span`s of the frames with a wall sum to more than 1.01 times their walls; in a run whose `pipelined` is true or listed, the same for the `cpu_span`s. Either is the wrong clock or wrong units (all three engines). Per frame, a pipelined GPU-bound run's `gpu_span` is over its wall on about half its frames, so only the total is judged (Vestige) |
+| `gpu_span_flat` | there are 10 or more `frame/gpu_span` rows, and every one is the same value, zero included: a timestamp query never read back (UT Ants) |
 | `no_gpu_span` | no frame has a `frame/gpu_span` |
-| `passes_over_span` | on any frame, the `cpu` depth-0 rows sum to more than `frame/cpu_span`, or the `gpu` ones to more than `frame/gpu_span` (Vestige) |
+| `passes_over_span` | on a frame, the `cpu` depth-0 rows sum to more than `frame/cpu_span`, or the `gpu` ones to more than `frame/gpu_span`, by more than (N + 1) / 2 thousandths, N being the rows summed. Each row and the span are rounded on their own, so a correct writer's sum can be over by that much (Vestige) |
 | `depth_gap` | a frame holds a `cpu` or `gpu` row at a depth above 0 and none of that category one depth above it |
 | `no_segments` | no row has a segment |
 | `whole_second_start` | `started_utc` has no fraction, so two runs started in one second cannot be ordered |
 | `no_machine_state` | none of `load`, `gpu_busy_pct`, `gpu_clock_mhz`, `cpu_governor`, `turbo`, `power`, `cpu_clock_mhz`, `cpu_temp_c`, `gpu_temp_c` and `throttled` is given |
-| `says_unknown` | a string field of § 4.2 is `unknown` in any case, and `unknown` does not list it (UT Ants) |
+| `says_unknown` | a string field of § 4.2 is `unknown` in any case, and the field `unknown` does not list it (UT Ants) |
 
 - **Each message names the frames or field it judged**, up to five
   frames, and the threshold where there is one.
-- **A frame with no `frame/wall`** is left out of every `wall_` test.
 - **Frames that do not start at 0 give no warning.** A writer may
   number from the engine's own frame count, after its settling frames
   (DOOM Ants).
@@ -3770,21 +3827,21 @@ breaks.
   exact value.
 
 - **INV-111** — A PresentMon capture becomes a run. A capture of one
-  process and swap chain, its rows out of start-time order, with
-  `MsGPUTime` unlike `MsGPUBusy` on every row, a `DisplayedTime` of `NA`
-  on one frame, an `MsCPUBusy` of `1.0005` and one of `-1.0005`, and
-  extra columns between the needed ones: `import presentmon` writes a
-  file that `check` passes. Its frames are in start-time order; each
-  frame's `frame/wall` is the next frame's `MsBetweenPresents`, and the
-  last has none; `frame/gpu_span` is `MsGPUBusy`; the `NA` frame alone
-  has `event/not_displayed`; the two values are `1.001` and `-1.001`.
+  process and swap chain, with `MsGPUTime` unlike `MsGPUBusy` on every
+  row, a `DisplayedTime` of `NA` on one frame, an `MsCPUBusy` of
+  `1.0005` and one of `-1.0005`, and extra columns between the needed
+  ones: `import presentmon` writes a file that `check` passes. Its
+  frames are the rows in file order; each frame's `frame/wall` is the
+  next row's `MsBetweenPresents`, and the last has none;
+  `frame/gpu_span` is `MsGPUBusy`; the `NA` frame alone has
+  `event/not_displayed`; the two values are `1.001` and `-1.001`.
   `report`, `floor --fps 60` and `survey --fps 60` read the file and
   exit 0. A `MsBetweenPresents` of 0 leaves the frame before it with no
   `frame/wall`, and `check` warns `wall_missing`.
   *Test:* `tests/test_presentmon.py::test_capture_becomes_a_run`, and
   beside it `test_zero_between_presents`.
   *Breaks when:* a wall comes from its own row, `MsGPUTime` is read,
-  values pass through a float, or file order is taken as time order.
+  values pass through a float, or rows are re-sorted.
 
 - **INV-112** — A capture the import cannot read writes nothing. Each
   alone is exit 3, and `RUN` is not created: PresentMon 1's columns,
@@ -3792,44 +3849,59 @@ breaks.
   line with neither set; two processes, the sentence listing both with
   their frame counts, the larger first; a `--process` that matches
   nothing; two swap chains left after `--process`, listed with
-  `--swapchain` named; an `MsCPUBusy` of `NA`, naming its line; an
+  `--swapchain` named; a `CPUStartTime` lower than the row before it,
+  naming both lines; an `MsCPUBusy` of `NA`, naming its line; an
   `MsBetweenPresents` of `1000000000`; no `--started` and a
   `CPUStartDateTime` without a zone; a `--resolution` of `0x1080`. A
   `RUN` that exists is exit 3 and keeps its bytes. With `--process
-  game.exe` or `--process 4120`, and with `--swapchain` picking one of
+  game.exe`, with `--pid 4120`, and with `--swapchain` picking one of
   two, the import exits 0.
   *Test:* `tests/test_presentmon.py::test_refusals`, and beside it
   `test_picking_a_process_and_swap_chain`.
   *Breaks when:* a refusal leaves a file, several processes are merged,
-  or a missing start is filled from the file's own time.
+  rows out of present order are read, or a missing start is filled
+  from the file's own time.
 
 - **INV-113** — An imported header lists what it does not know.
   Imported with no fact flags, the header's `unknown` lists `commit`,
   `dirty`, `build_type`, `device`, `renderer`, `driver`, `resolution`,
   `render_scale`, `pipelined`, `display` and `scene`, and each holds
-  § 4.18's stand-in. Rows with two `PresentRuntime` values add `api`;
-  rows with `SyncInterval` 0 and 1 add `vsync`. With every fact flag
-  given, and one runtime and one sync interval, the header has no
-  `unknown`. One capture imported twice gives one `run_id`.
+  § 4.18's stand-in. Rows with two `PresentRuntime` values add `api`,
+  and so does a capture with no `PresentRuntime` column; rows with
+  `SyncInterval` 0 and 1 add `vsync`, and so does a capture with no
+  `SyncInterval` column. With every fact flag given, and one runtime
+  and one sync interval, the header has no `unknown`. One capture
+  imported twice gives one `run_id`.
   *Test:* `tests/test_presentmon.py::test_header`.
   *Breaks when:* a stand-in is written without being listed, a given
   fact is listed, or `run_id` depends on anything but the capture's
   bytes.
 
 - **INV-114** — A field that `unknown` lists is never read as its
-  stand-in. Over writer-made runs, so the rule is tested apart from
-  the import: `check` and `report` warn `facts_unknown` naming each
-  listed field. Three old and three new runs, all with `resolution`
-  `[1, 1]` and listing it, are refused by `compare` as a `resolution`
-  difference, and compared with `--override resolution=...`; listing
-  it in none, the same runs compare. A budget whose `match` names the
-  field does not match. `report --json` shows a listed `commit` as null.
-  A listed `pipelined` gives no CPU-bound share, and the sentence says
-  pipelining is unknown. A header whose `unknown` holds `schema`,
-  `nosuch`, or `device` twice is a header breach.
+  stand-in. The runs are writer-made, so the rule is tested apart from
+  the import: each is a copy of `tests/fixtures/passing-run.csv` with
+  `resolution` `[1, 1]`, `commit`, `dirty` and `build_type` `debug`
+  listed in `unknown`, against the same copy with nothing listed.
+  `check`, `report`, `floor`, `survey`, `budget`, `bisect`, `compare`
+  and `compare --baseline` each warn `facts_unknown` on the listed
+  copy, naming each field, and not on the other. Three listed copies
+  against three unlisted ones are refused by `compare` as a
+  `resolution` difference, and compared with `--override
+  resolution=...`; three unlisted against three unlisted compare. The
+  listed `build_type` gives no `debug_build`, and `facts_unknown` says
+  it was not judged. A budget whose `match` names `resolution` does
+  not match a listed copy. `report --json` shows the listed `commit` as
+  null. A listed `pipelined` gives no CPU-bound share, and the
+  sentence says pipelining is unknown. A listed `scene` puts the run
+  in no scene under `compare --by-scene`, with its reason. A listed
+  `dirty` is marked "(dirty unknown)" in `baseline_not_interleaved`,
+  and `bisect`'s dirty warning says the value is unknown. A header
+  whose `unknown` holds `schema`, `engine`, `tier`, or `device` twice
+  is a header breach.
   *Test:* `tests/test_unknown_facts.py`.
   *Breaks when:* any reader compares, matches or shows a listed field's
-  stand-in, or a bad `unknown` is accepted.
+  stand-in, a command leaves out `facts_unknown`, or a bad `unknown` is
+  accepted.
 
 - **INV-115** — `report` says a run came from PresentMon. On an
   imported run, the opening sentences hold "imported from PresentMon,
@@ -3842,18 +3914,26 @@ breaks.
 
 - **INV-116** — The kit's expected files are what the shipped writer
   makes. `kit DIR` into a missing directory writes `README.txt` and,
-  for each case, a `NAME.json` and a `NAME.csv`; each `NAME.csv`
-  passes `check --strict` but for the warnings its own `catches` names,
-  and `check --expect` against itself. Each case's JSON, turned into
-  calls on `include/frameledger.h` and built, writes a file that
-  `check --expect NAME.csv` matches. `kit` into a directory holding
+  for each case, a `NAME.json` and a `NAME.csv`. Under `check
+  --strict`, each `NAME.csv` gives exactly the warning codes its
+  `warns` lists, and it matches itself under `check --expect`. Each
+  case's JSON, turned into calls on `include/frameledger.h` by § 4.19's
+  table and built, writes a file that `check --expect NAME.csv`
+  matches. The driver sizes the buffer to hold the opening lines, the
+  close line and one row. It hands the bytes on after each kept row,
+  except the row before a dropped one, so the dropped row's
+  `fled_row` meets a full buffer and returns `FLED_DROPPED`. So a
+  dropped row must follow a kept one. `kit` into a directory holding
   one file is exit 3 and writes nothing. Run from the release `.pyz`,
-  `kit` writes the same files as from the tree.
+  `kit` writes the same files as from the tree. The C leg needs a C
+  compiler. Without one, `tests/writer/test_compile.sh` fails, saying
+  which checks did not run, as it already does for its other checks.
   *Test:* `tests/test_kit.py::test_kit_is_written`, beside it
   `test_kit_refuses_a_full_directory` and `test_kit_from_the_release`,
   and `tests/writer/test_kit.sh`.
-  *Breaks when:* an expected file disagrees with the shipped writer,
-  or the kit is missing from the release.
+  *Breaks when:* an expected file disagrees with the shipped writer, a
+  case's `warns` is not what `check --strict` gives, or the kit is
+  missing from the release.
 
 - **INV-117** — `check --expect` matches content, not layout. An
   expected file and a copy with its header keys reordered, its JSON
@@ -3868,18 +3948,30 @@ breaks.
   *Breaks when:* rows are compared as a set or by parsed number, or
   key order counts.
 
-- **INV-118** — `check --strict` names what is legal but unwise. For
-  each § 4.19 code, a run built to hold that one mistake warns that
-  code, and no other strict code, and exits 1 under `--strict`; the same
-  file without `--strict` gives none of them and exits 0. A run with
-  none of the mistakes exits 0 under `--strict`. A run numbered from
-  frame 1000 gives no warning. One frame's `gpu_span` over its wall
-  warns `span_over_wall` in a run not pipelined, and not in a
-  pipelined one. A plain `frame_missing` hole exits 1 under
-  `--strict`.
+- **INV-118** — `check --strict` names what is legal but unwise. A
+  clean fixture gives no warning of any kind under `--strict` and exits
+  0. It has segments, a fraction in `started_utc`, machine-state
+  fields, inputs, and walls that vary. For each § 4.19 code, that
+  fixture with the one mistake added warns that code and no other, and
+  exits 1 under `--strict`. Without `--strict` it gives none of them
+  and exits 0. At each threshold, one step short gives no warning:
+  9 equal walls for `wall_fixed` and `gpu_span_flat`; a ceiling on 2
+  frames for `wall_ceiling`; 4 slow frames, and a median gap of 2,
+  for `wall_periodic`; a slow frame on every `event/cut` gives none.
+  Walls that are all whole milliseconds give no `wall_ceiling`. A
+  `cpu_span` 1% over its wall in a run not pipelined gives no
+  `span_over_wall`, and one just over 1% does. `gpu_span` over its wall
+  on half the frames, its total under the walls', gives none whether
+  `pipelined` is true, false or listed in `unknown`. A `cpu_span` over
+  its wall on one frame by 5% warns when `pipelined` is false, and not
+  when it is listed. Three depth-0 rows over their span by 2
+  thousandths give no `passes_over_span`, and by 3 they do. A run
+  numbered from frame 1000 gives no warning. A plain `frame_missing`
+  hole exits 1 under `--strict`.
   *Test:* `tests/test_strict.py`.
-  *Breaks when:* a code fires on a run without its mistake, `--strict`
-  leaves a warning at exit 0, or a strict code shows without the flag.
+  *Breaks when:* a code fires on a run without its mistake, a
+  threshold is off by one, `--strict` leaves a warning at exit 0, or a
+  strict code shows without the flag.
 
 ## 6. Failure modes
 
@@ -3962,9 +4054,11 @@ it on each release they pin.
   own form.
 - **Fields left out, or null, for what an imported run does not
   know** (DOOM Ants). Rejected: every reader of every required field
-  would need a case for it, and older analysers would refuse the file.
-  A stand-in listed in `unknown` keeps the format, and § 4.18 makes
-  every reader treat it as unknown (Vestige, UT Ants).
+  would need a case for it. A stand-in listed in `unknown` keeps the
+  format, and § 4.18.1 makes every reader treat it as unknown (Vestige,
+  UT Ants). The cost, accepted: an analyser older than § 4.18.1 reads
+  the stand-ins as real, warning only `unknown_field` on `unknown`,
+  where a left-out field would have been refused loudly (DOOM Ants).
 - **`extra.unknown`** in place of `unknown`. Rejected: `extra` is the
   engine's own, and the analyser reads nothing in it.
 - **Every command reading a capture directly.** Rejected: a second
