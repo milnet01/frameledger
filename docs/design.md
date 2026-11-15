@@ -65,9 +65,12 @@ Four parts. The format spec is the only thing the other three share.
     unwise (S7).
   - `expect.py` — `check --expect`: one run file against an expected
     one, by content, not layout (S7).
+    It compares a JSON boolean only with a boolean, since Python's
+    `True == 1`.
   - `kit.py` — `kit DIR`: writes the kit that proves a stranger's
     writer (S7). Its cases are files in `kit/` beside it, a `NAME.json`
-    and a `NAME.csv` each, with `README.txt`; `kit/` holds no `.py`.
+    and a `NAME.csv` each, with `README.txt`. `kit/` is plain data: no
+    `.py` and no `__init__.py`, so `import kit` still loads `kit.py`.
     `kit.py` reads each with `pkgutil.get_data(__name__, "kit/NAME")`,
     which reads the tree and `frameledger.pyz` alike, as bytes, and
     writes them as bytes. It names each case itself, since a folder
@@ -155,7 +158,8 @@ tool, not by any one part.
 - **`ledger.py` and `stats.py` import no other analyser file.**
   `baseline.py`, `presentmon.py`, `expect.py` and `kit.py` import only
   `ledger.py`; `strict.py` imports `ledger.py` and `stats.py`, whose
-  `median` is § 4.19's lower middle. Only `cli.py` calls them.
+  `median` is § 4.19's lower middle. Only `cli.py` calls them, and
+  `selftest.py` may, as it may import any file but `cli.py`.
 - **Only `__main__.py` and the tests import `cli.py`.** The reports
   return results; they never print and never exit.
 - **Only the Python standard library** (N3), and only what Python 3.10

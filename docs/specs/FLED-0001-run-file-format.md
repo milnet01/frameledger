@@ -2349,7 +2349,8 @@ judges it. Then the two files match when:
 
 - **the header and the static line hold equal JSON values.** Key
   order and spacing are the writer's. A number is equal to another of
-  the same value, so `1` and `1.0` match.
+  the same value, so `1` and `1.0` match. `true` and `false` equal only
+  themselves, never `1` or `0`.
 - **the rows are the same multiset of row lines**, each compared as
   text, without its line ending (Vestige, DOOM Ants). Row order is free
   (§ 4.1). So a repeated row, a missing one of two identical rows, an
@@ -3972,7 +3973,8 @@ breaks.
   place of a `1` match, exit 0. Each alone is exit 1, its difference
   named in the summary: one row written twice; one of two identical
   rows missing; one value `5.251` for `5.250`; a field quoted that
-  holds no comma or quote; a header value changed; the close line
+  holds no comma or quote; a header value changed; a `true` in place
+  of a `1`; the close line
   missing. Two `FILE`s, or an expected file that does not exist, is
   exit 3.
   *Test:* `tests/test_kit.py::test_expect`.
