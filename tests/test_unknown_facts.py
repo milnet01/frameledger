@@ -183,3 +183,65 @@ def test_a_bad_unknown_is_a_breach(capsys, tmp_path, unknown):
     code, out = run(capsys, "check", write(tmp_path, "bad.csv", copy_text("bad", unknown=unknown)))
     assert code == 1
     assert "the header's 'unknown' must be a list of field names" in json.dumps(out)
+
+
+def test_a_field_every_run_lists_is_unknown_in_every_run(capsys, tmp_path):
+    """The refusal does not say a field differs when no run knows it."""
+    old = sets(tmp_path, "old", listed_copy)
+    new = sets(tmp_path, "new", listed_copy, start=1)
+    code, out = run(capsys, "compare", "--old", *old, "--new", *new, "--override", "build_type=a test")
+    assert code == 3
+    summary = " ".join(out["summary"])
+    assert "resolution is unknown in every run (--override" in summary and "differs" not in summary
+
+
+def test_a_listed_build_is_a_build_of_its_own(capsys, tmp_path):
+    """§ 4.18.1: a listed commit or dirty matches no other run's, so the set
+    warns mixed_build, saying the build is not known rather than that it
+    differs."""
+    new = sets(tmp_path, "new", unlisted_copy, start=1)
+    for listed in (["commit"], ["dirty"]):
+        old = [listed_copy(tmp_path / "-".join(listed), f"old-{i}.csv", 2 * i, unknown=listed) for i in range(3)]
+        _, out = run(capsys, "compare", "--old", *old, "--new", *new)
+        assert warnings(out, "mixed_build") == ["the old runs do not all say their commit and dirty, so they may "
+                                                "not be one build"], listed
+    _, out = run(capsys, "compare", "--old", *sets(tmp_path, "plain", unlisted_copy), "--new", *new)
+    assert not warnings(out, "mixed_build")
+
+
+def test_bisect_names_each_listed_build_fact(capsys, tmp_path):
+    """bisect's dirty warning names what the header does not know, and still
+    says a known dirty build had uncommitted changes."""
+    def said(unknown, **header):
+        tested = [listed_copy(tmp_path / "-".join(unknown), f"tested-{i}.csv", 2 * i, unknown=unknown, **header)
+                  for i in range(3)]
+        _, out = run(capsys, "bisect", "--tested", *tested, "--measure", "frame/cpu_span", "--kind", "view",
+                     "--bad-above", "20", "--override", "build_type=a test")
+        return warnings(out, "dirty_build")[0]
+
+    assert said(["dirty"]) == ("tested-1: the header does not know its build's dirty, so it may not be the "
+                               "commit under test")
+    assert said(["commit", "dirty"]).startswith("tested-1: the header does not know its build's commit and dirty,")
+    assert said(["commit"], dirty=True) == ("tested-1: the header does not know its build's commit and the build "
+                                            "had uncommitted changes, so it may not be the commit under test")
+
+
+def test_a_listed_driver_differs_from_the_baseline(capsys, tmp_path):
+    old = sets(tmp_path, "old", unlisted_copy)
+    baseline = write(tmp_path, "baseline.txt", "\n".join(["# frameledger-baseline {\"schema\":1}", *old]) + "\n")
+    new = [listed_copy(tmp_path / "new", f"new-{i}.csv", 2 * i + 1, unknown=["driver"]) for i in range(3)]
+    _, out = run(capsys, "compare", "--baseline", baseline, "--new", *new)
+    assert warnings(out, "baseline_driver_differs") == ["the driver is unknown in some runs, so the new runs may "
+                                                        "not be on the baseline's driver"]
+    _, out = run(capsys, "compare", "--baseline", baseline, "--new", *sets(tmp_path, "plain", unlisted_copy, start=1))
+    assert not warnings(out, "baseline_driver_differs")
+
+
+@pytest.mark.parametrize("field", ["renderer", "device"])
+def test_a_listed_renderer_or_device_is_not_judged(capsys, tmp_path, field):
+    """§ 4.9's software_renderer is not judged on a listed renderer or device."""
+    _, out = run(capsys, "report", unlisted_copy(tmp_path, **{field: "llvmpipe"}))
+    assert warnings(out, "software_renderer")
+    _, out = run(capsys, "report", listed_copy(tmp_path, unknown=[field], **{field: "llvmpipe"}))
+    assert not warnings(out, "software_renderer")
+    assert f"software_renderer on the {field} is not judged" in warnings(out, "facts_unknown")[0]

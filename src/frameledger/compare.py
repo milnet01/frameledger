@@ -207,7 +207,9 @@ def known(run: ledger.Run, field: str):
 def build_of(run: ledger.Run) -> tuple:
     """What two runs share when they are one build: commit and dirty. A
     listed one is a fresh object, so it matches no other run's and each
-    such run is a build of its own (§ 4.18.1)."""
+    such run is a build of its own (§ 4.18.1). The object's identity is
+    the point: a shared marker such as None would make two listed runs
+    one build."""
     return tuple(object() if field in run.unknown else run.header[field] for field in ("commit", "dirty"))
 
 
@@ -252,11 +254,9 @@ def match_key(field: str, value) -> str | None:
     their name and hash pairs in any order, and numbers by value, so
     render_scale 1 matches 1.0 (Vestige).
 
-    Three stand-ins for "missing": ABSENT is a field the header leaves out,
+    Two stand-ins for "missing": ABSENT is a field the header leaves out,
     and its key "absent" matches only another absent field; None is an
-    empty inputs list, which refusals treats as matching nothing; and in a
-    refusal's values a None is an absent field, since a null one is a
-    breach, or a listed one, since only a required field can be listed."""
+    empty inputs list, which refusals treats as matching nothing."""
     if value is ABSENT:
         return "absent"
     if field == "inputs":
@@ -284,20 +284,25 @@ def refusal_sentence(refused: list[dict]) -> str:
 
 def refusal_reason(refused: list[dict]) -> str:
     """Each refusing field with the runs' values, and the override that
-    would allow it."""
+    would allow it.
+
+    A None among the values is never a null in the file, since a null
+    blocking field is a breach. For a field `unknown` may list it is a
+    listed one, and for any other a field left out. The two never meet:
+    every field `unknown` may list is required, so it is never left out."""
     parts = []
     for entry in refused:
         by_value: dict[str, list[str]] = {}  # the whole value as JSON -> the runs holding it
         cut = {}  # the same key -> the value as the sentence shows it
         for name, value in entry["values"].items():
-            # A blocking field holding null breaks the format, so None is a
-            # field left out or, for a required field, one listed in `unknown`.
             key = ("unknown" if entry["field"] in ledger.UNKNOWABLE else "absent") if value is None \
                 else json.dumps(value)
             by_value.setdefault(key, []).append(name)
             cut[key] = key if value is None else shown(value, ledger.LONG_QUOTE)
         if entry["field"] == "inputs" and list(by_value) == ["[]"]:
             what = "inputs is empty in every run, so the inputs are unknown"
+        elif list(by_value) == ["unknown"]:
+            what = f"{entry['field']} is unknown in every run"
         else:
             # Two empty input lists are unknown, not equal (§ 4.2), so say so.
             what = f"{entry['field']} differs: " + "; ".join(
@@ -394,7 +399,9 @@ def _baseline_differ_notices(runs: list[Named], called: dict[str, str]) -> list[
     one the baseline was taken on."""
     found = []
     for field in ("driver", "os"):
-        if any(field in r.run.unknown for r in runs):  # a listed driver counts as differing (§ 4.18.1)
+        # A listed driver counts as differing (§ 4.18.1). `os` is never
+        # listed, being optional, so for it this test is always false.
+        if any(field in r.run.unknown for r in runs):
             found.append(ledger.Notice(f"baseline_{field}_differs", f"the {field} is unknown in some runs, "
                                        f"so the {called['new']} runs may not be on the baseline's {field}"))
             continue
@@ -415,8 +422,12 @@ def mixed_build_notices(one_set: list[Named], called: str) -> list[ledger.Notice
     one build. § 4.16 gives the base's once, not once per variant."""
     if len({build_of(r.run) for r in one_set}) < 2:
         return []
-    return [ledger.Notice("mixed_build", f"the {called} runs differ in commit or dirty, so they may not be "
-                          "one build")]
+    known = [r for r in one_set if not r.run.unknown & {"commit", "dirty"}]
+    if len({build_of(r.run) for r in known}) > 1:
+        said = "differ in commit or dirty"
+    else:  # the known ones agree, so a listed commit or dirty is the cause
+        said = "do not all say their commit and dirty"
+    return [ledger.Notice("mixed_build", f"the {called} runs {said}, so they may not be one build")]
 
 
 def _differ_notices(runs: list[Named], called: dict[str, str]) -> list[ledger.Notice]:

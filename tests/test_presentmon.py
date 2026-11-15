@@ -6,12 +6,15 @@ capture is built here as CSV text.
 """
 
 import json
+import os
+import sys
 from pathlib import Path
 
 import pytest
 
 import cli
 import ledger
+import presentmon
 
 COLUMNS = ["Application", "ProcessID", "SwapChainAddress", "PresentRuntime", "SyncInterval", "MsGPUTime",
            "MsBetweenPresents", "Extra", "MsCPUBusy", "MsGPUBusy", "DisplayedTime", "CPUStartDateTime"]
@@ -90,7 +93,35 @@ def test_capture_becomes_a_run(capsys, tmp_path):
     assert values(run, "cpu_span")[3] == 1_001 and values(run, "cpu_span")[4] == -1_001
     assert out["result"]["import"] == {"path": run_path, "process": "game.exe", "pid": "4120",
                                        "swapchain": "0x1F2E3D", "frames": 6, "not_displayed": 1,
-                                       "unknown": out["result"]["import"]["unknown"]}
+                                       "unknown": run.header["unknown"]}
+    assert run.header["unknown"]  # no fact flags, so the header lists what it lacks
+
+
+def test_a_bom_and_crlf_are_read(capsys, tmp_path):
+    """§ 4.18: a byte-order mark is skipped and CRLF ends a line."""
+    capture = tmp_path / "capture.csv"
+    capture.write_bytes(b"\xef\xbb\xbf" + capture_text(frames(3)).replace("\n", "\r\n").encode())
+    run_path = tmp_path / "run.csv"
+    assert cli.main(["import", "presentmon", str(capture), "-o", str(run_path)]) == 0
+    capsys.readouterr()
+    assert values(ledger.read(run_path), "wall") == {0: 16_100, 1: 16_200}
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows files have no POSIX mode")
+def test_the_run_file_follows_the_umask(capsys, tmp_path):
+    """The run file gets the mode open() would give, not mkstemp's 0600."""
+    mask = os.umask(0o022)
+    try:
+        code, _, _ = imported(capsys, tmp_path, capture_text(frames(2)))
+    finally:
+        os.umask(mask)
+    assert code == 0
+    assert (tmp_path / "run.csv").stat().st_mode & 0o777 == 0o644
+
+
+def test_every_stand_in_is_knowable():
+    """Each field that can hold a stand-in is one `unknown` may list."""
+    assert set(presentmon.STAND_INS) == set(ledger.UNKNOWABLE)
 
 
 def test_commands_read_an_import(capsys, tmp_path):
@@ -126,8 +157,15 @@ def test_start_order(capsys, tmp_path):
     code, out, _ = imported(capsys, tmp_path, capture_text(presents, columns), "--started", "2026-11-15T10:00:00Z")
     assert code == 0
     said = warned(out, "start_out_of_order")
-    assert len(said) == 1 and "line 3's CPUStartTime (10.4) is before line 2's (10.5)" in said[0]
+    assert len(said) == 1 and "line 3's CPUStartTime (10.4) is before line 2's (10.5); the rows" in said[0]
     assert values(ledger.read(tmp_path / "run.csv"), "wall") == {0: 16_100, 1: 16_200}
+
+    presents = frames(5)  # three starts go back: one warning, counting the other two
+    for present, start in zip(presents, ["10.5", "10.4", "10.3", "10.6", "10.1"], strict=True):
+        present["CPUStartTime"] = start
+    code, out, _ = imported(capsys, tmp_path, capture_text(presents, columns), "--started", "2026-11-15T10:00:00Z")
+    said = warned(out, "start_out_of_order")
+    assert len(said) == 1 and "(10.5), and 2 more starts go back;" in said[0]
 
     presents = frames(2)
     presents[0]["CPUStartDateTime"] = "2026-11-15T11:59:00+02:00"  # 09:59 UTC: back as text, forward as times
@@ -152,8 +190,16 @@ def test_start_order(capsys, tmp_path):
      "2 swap chains: 0x1F2E3D (3 frames), 0x2 (2 frames); pick one with --swapchain"),
     (capture_text([row(), row(MsCPUBusy="NA"), row()]), [], "line 3: MsCPUBusy is NA, not a number"),
     (capture_text([row(), row(MsBetweenPresents="1000000000"), row()]), [], "line 3: MsBetweenPresents is 1000000000"),
+    (capture_text([row(), row(MsCPUBusy="1e30"), row()]), [], "line 3: MsCPUBusy is 1e30, and a run holds"),
+    (capture_text([row(), row(MsCPUBusy="1_000"), row()]), [], "line 3: MsCPUBusy is 1_000, not a number"),
     (capture_text(frames(2, CPUStartDateTime="2026-11-15T10:00:00")), [], "which names no time zone"),
+    (capture_text(frames(2), COLUMNS[:-1]), [], "the capture has no CPUStartDateTime, so"),
     (capture_text(frames(2)), ["--resolution", "0x1080"], "the resolution given must be"),
+    (capture_text(frames(2)), ["--pid", "1"], "no row matches --pid 1"),
+    (capture_text(frames(2)), ["--swapchain", "0x9"], "no row matches --swapchain 0x9"),
+    ("", [], "the capture is empty"),
+    (capture_text([]), [], "the capture has no rows"),
+    (capture_text(frames(2)) + "game.exe,4120\n", [], "line 4: the row has 2 fields and the column line 12"),
 ])
 def test_refusals(capsys, tmp_path, text, flags, says):
     code, out, err = imported(capsys, tmp_path, text, *flags)
@@ -169,6 +215,22 @@ def test_an_existing_run_is_kept(capsys, tmp_path):
     code = cli.main(["import", "presentmon", write(tmp_path, capture_text(frames(2))), "-o", str(run_path)])
     assert code == 3 and "never overwrites" in capsys.readouterr().err
     assert run_path.read_bytes() == b"kept"
+
+
+def test_a_run_made_during_the_import_is_kept(capsys, tmp_path, monkeypatch):
+    """A file that appears at RUN after the first look is not overwritten."""
+    run_path = tmp_path / "run.csv"
+    lines = presentmon._run_lines
+
+    def a_file_appears(*args):
+        run_path.write_bytes(b"kept")
+        return lines(*args)
+
+    monkeypatch.setattr(presentmon, "_run_lines", a_file_appears)
+    code = cli.main(["import", "presentmon", write(tmp_path, capture_text(frames(2))), "-o", str(run_path)])
+    assert code == 3 and "never overwrites" in capsys.readouterr().err
+    assert run_path.read_bytes() == b"kept"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["capture.csv", "run.csv"]  # no temporary file left
 
 
 def test_picking_a_process_and_swap_chain(capsys, tmp_path):
@@ -203,6 +265,7 @@ def test_header(capsys, tmp_path):
 
     assert unknown_of(frames(3)) == []
     assert unknown_of([row(), row(PresentRuntime="Vulkan")]) == ["api"]
+    assert unknown_of(frames(2, PresentRuntime="NA")) == ["api"]  # PresentMon's "nothing to say"
     assert unknown_of(frames(2), [c for c in COLUMNS if c != "PresentRuntime"]) == ["api"]
     assert unknown_of([row(SyncInterval="0"), row(SyncInterval="1")]) == ["vsync"]
     assert unknown_of(frames(2), [c for c in COLUMNS if c != "SyncInterval"]) == ["vsync"]
@@ -229,3 +292,4 @@ def test_report_says_imported(capsys, tmp_path):
     _, out = command(capsys, "report", str(run_path))
     assert "imported from PresentMon" not in " ".join(out["summary"])
     assert {entry["name"] for entry in out["result"]["passes"]} == {"cpu_remainder", "gpu_remainder"}
+    assert all(frame["top_pass"] is not None for frame in out["result"]["worst_frames"])  # so None above is the rule

@@ -27,6 +27,10 @@ VERSION_1 = ("msBetweenPresents", "TimeInSeconds")  # PresentMon 1, or 2 with --
 START_COLUMNS = ("CPUStartQPCTime", "CPUStartTime", "CPUStartDateTime")  # the first present is used
 THOUSANDTH = Decimal("0.001")
 TOO_LARGE = Decimal(1_000_000_000)  # § 4.4 holds values below this, in ms
+# A number as a capture writes it. Decimal() alone also takes "1_000",
+# "Infinity" and "NaN".
+NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
+NO_VALUE = ("", "NA")  # what PresentMon writes in a column with nothing to say
 # CPUStartDateTime: a date, a time, an optional fraction, an optional zone.
 DATE_TIME = re.compile(r"([0-9]{4}-[0-9]{2}-[0-9]{2})[T ]([0-9]{2}:[0-9]{2}:[0-9]{2})(?:\.([0-9]+))?"
                        r"(Z|[+-][0-9]{2}:[0-9]{2})?")
@@ -61,7 +65,7 @@ def import_capture(capture: str, run_path: str, chosen: Chosen, facts: dict, eng
     "notices", "import"}; raises LedgerError, with nothing written, on
     any refusal (§ 4.18)."""
     if os.path.lexists(run_path):
-        raise ledger.LedgerError("the file exists, and an import never overwrites a run", run_path)
+        raise _exists(run_path)
     for field, value in facts.items():
         test, wanted = ledger.HEADER_FIELDS[field][1:]
         if not test(value):
@@ -186,23 +190,27 @@ def _start_order(rows: list[_Row], columns: set[str]) -> tuple[list[ledger.Notic
         return [], []
     before, after = back[0]
     more = f", and {len(back) - 1} more starts go back" if len(back) > 1 else ""
-    late, early = (ledger.quoted(row.get(column), ledger.LONG_QUOTE) for row in (after, before))
+    late = ledger.quoted(after.get(column), ledger.LONG_QUOTE)
+    early = ledger.quoted(before.get(column), ledger.LONG_QUOTE)
     return [ledger.Notice("start_out_of_order", f"line {after.line}'s {column} ({late}) is before line "
                           f"{before.line}'s ({early}){more}; the rows are kept in file order")], []
 
 
 def _number(text: str | None) -> Decimal | None:
     """A capture's number, or None when the text is not one, such as NA."""
-    try:
-        value = Decimal(text or "")
-    except InvalidOperation:
+    if text is None or not NUMBER.fullmatch(text):
         return None
-    return value if value.is_finite() else None
+    try:
+        return Decimal(text)
+    except InvalidOperation:  # an exponent past what Decimal holds
+        return None
 
 
 def _date_time(text: str | None) -> tuple[datetime, Fraction] | None:
     """A CPUStartDateTime as a time to compare: in UTC when it names a
-    zone, as written when not. None when it does not read."""
+    zone, as written when not. None when it does not read. A time with a
+    zone and one without are compared as if both were UTC: a capture
+    mixing them is not expected, and the zone flag is not used here."""
     parsed = _parse_date_time(text or "")
     if parsed is None:
         return None
@@ -237,7 +245,7 @@ def _header(rows: list[_Row], columns: set[str], facts: dict, engine: str | None
     stand-in listed in `unknown`."""
     derived = {}
     runtimes = {row.get("PresentRuntime") for row in rows} if "PresentRuntime" in columns else set()
-    if len(runtimes) == 1 and next(iter(runtimes)):
+    if len(runtimes) == 1 and next(iter(runtimes)) not in NO_VALUE:
         derived["api"] = next(iter(runtimes)).lower()
     intervals = [_number(row.get("SyncInterval")) for row in rows] if "SyncInterval" in columns else []
     if intervals and all(value is not None for value in intervals):
@@ -323,16 +331,23 @@ def _value(row: _Row, column: str, capture: str) -> Decimal | None:
     number = _number(row.get(column))
     if number is None:
         return None
-    value = number.quantize(THOUSANDTH, rounding=ROUND_HALF_UP)
-    if abs(value) >= TOO_LARGE:
+    # The size is checked before and after rounding: quantize raises on a
+    # number too long for Decimal's precision, and 999999999.9996 rounds up.
+    value = None if abs(number) >= TOO_LARGE else number.quantize(THOUSANDTH, rounding=ROUND_HALF_UP)
+    if value is None or abs(value) >= TOO_LARGE:
         raise ledger.LedgerError(f"{column} is {ledger.quoted(row.get(column))}, and a run holds values below "
                                  "1000000000 ms", capture, row.line)
     return abs(value) if value == 0 else value  # never -0.000
 
 
+def _exists(path: str) -> ledger.LedgerError:
+    return ledger.LedgerError("the file exists, and an import never overwrites a run", path)
+
+
 def _write_atomically(path: str, text: str) -> None:
     """Write `path` through a temporary file beside it, so a failure leaves
-    no half file."""
+    no half file. The temporary file is linked into place, which fails
+    if `path` appeared meanwhile, where a rename would overwrite it."""
     folder = os.path.dirname(os.path.abspath(path))
     try:
         handle, temporary = tempfile.mkstemp(dir=folder, prefix=".frameledger-import-")
@@ -341,7 +356,29 @@ def _write_atomically(path: str, text: str) -> None:
     try:
         with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
             stream.write(text)
-        os.replace(temporary, path)
+        os.chmod(temporary, 0o666 & ~_umask())  # mkstemp's 0600, made what open() would give
+        _link(temporary, path)
     except OSError as error:
-        os.unlink(temporary)
         raise ledger.LedgerError(error.strerror or "cannot be written", path) from error
+    finally:
+        if os.path.lexists(temporary):
+            os.unlink(temporary)
+
+
+def _link(temporary: str, path: str) -> None:
+    """Put `temporary` at `path`, never over a file there. A file system
+    with no hard links falls back to a rename after one more look."""
+    try:
+        os.link(temporary, path)
+    except FileExistsError:
+        raise _exists(path) from None
+    except OSError:
+        if os.path.lexists(path):
+            raise _exists(path) from None
+        os.replace(temporary, path)
+
+
+def _umask() -> int:
+    mask = os.umask(0)
+    os.umask(mask)
+    return mask

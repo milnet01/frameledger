@@ -334,13 +334,16 @@ def _tested_notices(refs: list[_Run], tested_runs: list[_Run], overrides: dict[s
     notices = [n for n in compare.run_notices(tested_runs) if n.code not in compare.INCOMPLETE_CODES]
     notices += _unused_overrides(refs + tested_runs, overrides)
     for r in tested_runs:
-        if r.run.unknown & {"commit", "dirty"}:
-            notices.append(ledger.Notice("dirty_build", f"{r.name}: the header does not know its build's "
-                                         f"{'commit' if 'commit' in r.run.unknown else 'dirty'} value, so it may "
-                                         "not be the commit under test"))
-        elif r.run.header["dirty"]:
-            notices.append(ledger.Notice("dirty_build", f"{r.name}: the build had uncommitted changes, so it "
-                                         "may not be the commit under test"))
+        listed = [field for field in ("commit", "dirty") if field in r.run.unknown]
+        dirty = "dirty" not in listed and r.run.header["dirty"]
+        said = []
+        if listed:
+            said.append(f"the header does not know its build's {ledger.listed_names(listed)}")
+        if dirty:
+            said.append("the build had uncommitted changes")
+        if said:
+            notices.append(ledger.Notice("dirty_build", f"{r.name}: {' and '.join(said)}, so it may not be the "
+                                         "commit under test"))
     return notices
 
 

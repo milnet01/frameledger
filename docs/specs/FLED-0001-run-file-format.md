@@ -2172,7 +2172,7 @@ and the summary says so.
 | `run_id` | `presentmon-` and the first 16 hex digits of the capture's SHA-256, so one capture imported twice gives one id |
 | `engine` | `--engine`, or the kept rows' `Application` |
 | `tool` | `{"name": "PresentMon", "version": V}`, `V` from `--presentmon-version`, or `"unknown"` |
-| `api` | `PresentRuntime`, lower-cased, when every kept row has one value; otherwise a stand-in |
+| `api` | `PresentRuntime`, lower-cased, when every kept row has one value, not empty or `NA`; otherwise a stand-in |
 | `vsync` | true when every kept row's `SyncInterval` is above 0, false when every one is 0; otherwise, or with no `SyncInterval` column, a stand-in |
 | `started_utc` | `--started`, or the first frame's `CPUStartDateTime` when it reads as `YYYY-MM-DDTHH:MM:SS`, an optional fraction, then `Z` or a UTC offset; turned to UTC, the fraction kept to at most 20 digits as § 4.2 allows |
 | `inputs` | `[]`, which § 4.2 warns on |
@@ -2203,7 +2203,8 @@ replaces: "The run was imported from PresentMon, so it has no passes;
 its CPU and GPU spans are PresentMon's MsCPUBusy and MsGPUBusy, not the
 engine's own timings." Its pass tables leave out the remainders, the
 part of each span its passes do not cover (§ 4.4): with no passes,
-they are the whole span.
+they are the whole span. `budget` and `compare` still measure a
+remainder on an imported run, where it equals the span.
 
 **Output.** `-o RUN` names the file written. It is exit 3, before
 anything is written, when `RUN` exists, so a run is never overwritten.
@@ -2212,8 +2213,9 @@ The summary names what was kept: "Wrote 18000 frames of game.exe (pid
 JSON result's `import` holds `path`, `process`, `pid`, `swapchain`,
 `frames`, `not_displayed` and `unknown`. Exit 0 when written; 3 on any
 refusal or file error, with nothing written. The file is written to
-a temporary name beside `RUN` and renamed, so a failure leaves no half
-file.
+a temporary name beside `RUN` and linked into place, so a failure
+leaves no half file and a file made at `RUN` meanwhile is kept. It
+gets the mode any new file gets under the user's umask.
 
 #### 4.18.1 Facts a run does not know
 
@@ -2247,7 +2249,7 @@ field, it shows null in JSON and "unknown" in text. Each reader:
 | Reader | A listed field |
 |---|---|
 | § 4.9 trust warnings | `debug_build` is not judged on a listed `build_type`, nor `software_renderer` on a listed `renderer` or `device`; `facts_unknown` says so, naming the warning not judged |
-| § 4.10 `compare`, and § 4.14 to § 4.17 | a compare-blocking field listed in any run counts as differing, so the compare is refused as for a difference. `--override FIELD=REASON` lets it through as it lets a difference through; the field stays listed and `facts_unknown` stays. A listed `commit` matches no other run's, so each such run is a build of its own; a listed `dirty` is shown as "dirty unknown" |
+| § 4.10 `compare`, and § 4.14 to § 4.17 | a compare-blocking field listed in any run counts as differing, so the compare is refused as for a difference. `--override FIELD=REASON` lets it through as it lets a difference through; the field stays listed and `facts_unknown` stays. A listed `commit` or `dirty` matches no other run's, so each such run is a build of its own, and `mixed_build` says the build is not known rather than that it differs; a listed `dirty` is shown as "dirty unknown" |
 | § 4.11 `bisect` | a listed `commit` or `dirty` gives the warning a dirty run gives, saying the value is unknown rather than dirty |
 | § 4.12 budgets | a `match` naming a listed field does not match |
 | § 4.14 `compare --by-scene` | a listed `scene` puts the run in no scene, its reason "the header does not know its scene" |
@@ -3852,9 +3854,11 @@ breaks.
   lower than the row before it warns `start_out_of_order`, naming both
   lines, and the rows stay in file order; `CPUStartDateTime` values of
   `11:59:00+02:00` then `10:00:00Z`, back as text and forward as
-  times, give no warning.
+  times, give no warning. A capture with a byte-order mark and CRLF
+  line ends reads as one without.
   *Test:* `tests/test_presentmon.py::test_capture_becomes_a_run`, and
-  beside it `test_zero_between_presents` and `test_start_order`.
+  beside it `test_commands_read_an_import`, `test_zero_between_presents`,
+  `test_start_order` and `test_a_bom_and_crlf_are_read`.
   *Breaks when:* a wall comes from its own row, `MsGPUTime` is read,
   values pass through a float, or rows are re-sorted.
 
@@ -3865,13 +3869,17 @@ breaks.
   their frame counts, the larger first; a `--process` that matches
   nothing; two swap chains left after `--process`, listed with
   `--swapchain` named; an `MsCPUBusy` of `NA`, naming its line; an
-  `MsBetweenPresents` of `1000000000`; no `--started` and a
-  `CPUStartDateTime` without a zone; a `--resolution` of `0x1080`. A
-  `RUN` that exists is exit 3 and keeps its bytes. With `--process
+  `MsBetweenPresents` of `1000000000`; an `MsCPUBusy` of `1e30`, or of
+  `1_000`; no `--started` and a `CPUStartDateTime` without a zone, or
+  no `CPUStartDateTime` column; a `--resolution` of `0x1080`; a `--pid`
+  or `--swapchain` that matches nothing; an empty file, a column line
+  alone, and a row with too few fields. A `RUN` that exists is exit 3
+  and keeps its bytes, and so does one made while the import runs. With `--process
   game.exe`, with `--pid 4120`, and with `--swapchain` picking one of
   two, the import exits 0.
   *Test:* `tests/test_presentmon.py::test_refusals`, and beside it
-  `test_picking_a_process_and_swap_chain`.
+  `test_an_existing_run_is_kept`, `test_a_run_made_during_the_import_is_kept`
+  and `test_picking_a_process_and_swap_chain`.
   *Breaks when:* a refusal leaves a file, several processes are merged,
   or a missing start is filled from the file's own time.
 
@@ -3880,7 +3888,8 @@ breaks.
   `dirty`, `build_type`, `device`, `renderer`, `driver`, `resolution`,
   `render_scale`, `pipelined`, `display` and `scene`, and each holds
   § 4.18's stand-in. Rows with two `PresentRuntime` values add `api`,
-  and so does a capture with no `PresentRuntime` column; rows with
+  and so do a capture with no `PresentRuntime` column and rows whose
+  `PresentRuntime` is `NA`; rows with
   `SyncInterval` 0 and 1 add `vsync`, and so does a capture with no
   `SyncInterval` column. With every fact flag given, and one runtime
   and one sync interval, the header has no `unknown`. One capture
@@ -3904,11 +3913,16 @@ breaks.
   listed `build_type` gives no `debug_build`, and `facts_unknown` says
   it was not judged. A budget whose `match` names `resolution` does
   not match a listed copy. `compare --json` shows a listed `commit` and
-  `dirty` as null in its runs; `report` shows neither field. A listed `pipelined` gives no CPU-bound share, and the
+  `dirty` as null in its runs. A set whose runs list `commit`, or
+  `dirty`, warns `mixed_build`, saying they do not all say their build. A listed `pipelined` gives no CPU-bound share, and the
   sentence says pipelining is unknown. A listed `scene` puts the run
   in no scene under `compare --by-scene`, with its reason. A listed
   `dirty` is marked "(dirty unknown)" in `baseline_not_interleaved`,
-  and `bisect`'s dirty warning says the value is unknown. A header
+  and `bisect`'s dirty warning names each listed value, and still says
+  a known dirty build had uncommitted changes. A listed `driver` warns
+  `baseline_driver_differs`. A listed `renderer` or `device` of
+  `llvmpipe` gives no `software_renderer`. When every run lists
+  `resolution`, the refusal says it is unknown in every run. A header
   whose `unknown` holds `schema`, `engine`, `tier`, or `device` twice
   is a header breach.
   *Test:* `tests/test_unknown_facts.py`.
@@ -4217,8 +4231,8 @@ it on each release they pin.
 | INV-108 | `tests/test_survey.py::test_table_names_a_shared_directory_once` |
 | INV-109 | `tests/test_compare.py::test_outlier_run`, `tests/test_compare_variants.py::test_base_outlier_is_named_once` |
 | INV-110 | `tests/test_plain_text.py::test_header_text_cannot_forge_or_flood_a_line`, `tests/test_plain_text.py::test_path_text_cannot_forge_a_line`, `tests/test_plain_text.py::test_each_kind_of_unprinted_character_is_shown`, `tests/test_plain_text.py::test_joining_characters_print_as_written`, `tests/test_plain_text.py::test_no_header_string_forges_or_floods`, `tests/test_plain_text.py::test_baseline_warnings_quote_header_strings`, `tests/test_plain_text.py::test_a_baseline_file_cannot_forge_or_flood_standard_error`, `tests/test_plain_text.py::test_a_budget_file_cannot_flood_a_line`, `tests/test_plain_text.py::test_a_scene_name_cannot_flood_a_sentence`, `tests/test_plain_text.py::test_markdown_makes_each_unprinted_character_a_space` |
-| INV-111 | `tests/test_presentmon.py::test_capture_becomes_a_run`, `tests/test_presentmon.py::test_zero_between_presents`, `tests/test_presentmon.py::test_start_order` |
-| INV-112 | `tests/test_presentmon.py::test_refusals`, `tests/test_presentmon.py::test_picking_a_process_and_swap_chain` |
+| INV-111 | `tests/test_presentmon.py::test_capture_becomes_a_run`, `tests/test_presentmon.py::test_commands_read_an_import`, `tests/test_presentmon.py::test_zero_between_presents`, `tests/test_presentmon.py::test_start_order`, `tests/test_presentmon.py::test_a_bom_and_crlf_are_read` |
+| INV-112 | `tests/test_presentmon.py::test_refusals`, `tests/test_presentmon.py::test_an_existing_run_is_kept`, `tests/test_presentmon.py::test_a_run_made_during_the_import_is_kept`, `tests/test_presentmon.py::test_picking_a_process_and_swap_chain` |
 | INV-113 | `tests/test_presentmon.py::test_header` |
 | INV-114 | `tests/test_unknown_facts.py` |
 | INV-115 | `tests/test_presentmon.py::test_report_says_imported` |
