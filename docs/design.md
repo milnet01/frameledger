@@ -7,14 +7,11 @@
 agreed — `~/.claude/workflow.md` § 4. The owner delegated this gate to
 the Vestige, UT Ants and DOOM Ants sessions on 2026-10-24.
 
-**Status:** agreed (2026-10-24) by Vestige, UT Ants and DOOM Ants, on the
-owner's delegation. Built from
-[discovery](discovery.md) and the engines'
-[requirements](reviews/2026-10-24-discovery-customer-answers.md).
-The modules for S21 to S27 (`alternate.py`, `variants.py`,
-`baseline.py`, `presentmon.py`, `picture.py`) and the release changes
-were added on 2026-11-10 (FLED-0028), and the three engines agreed
-them that day.
+**Status:** agreed by Vestige, UT Ants and DOOM Ants, on the owner's
+delegation, except the kit and strict-check parts (FLED-0037), drafted
+2026-11-15 for their review. Built from [discovery](discovery.md) and
+the engines' [requirements](reviews/2026-10-24-discovery-customer-answers.md).
+How it grew: [history](history/design.md).
 
 ## The parts
 
@@ -64,6 +61,15 @@ Four parts. The format spec is the only thing the other three share.
   - `baseline.py` — reads a baseline file into the run paths it names
     (S24).
   - `presentmon.py` — turns a PresentMon capture into a run file (S25).
+  - `strict.py` — `check --strict`: the warnings on what is legal but
+    unwise (S7).
+  - `expect.py` — `check --expect`: one run file against an expected
+    one, by content, not layout (S7).
+  - `kit.py` — `kit DIR`: writes the kit that proves a stranger's
+    writer (S7). Its cases are files in `kit/` beside it, a `NAME.json`
+    and a `NAME.csv` each, with `README.txt`. `kit.py` names each case,
+    and reads the files through its own module loader, so the tree and
+    `frameledger.pyz` read them alike.
   - `render.py` — turns a result into plain text, JSON or Markdown.
     Plain sentences come first.
   - `picture.py` — turns one run's result into the optional report
@@ -87,11 +93,21 @@ Four parts. The format spec is the only thing the other three share.
   `tests/fixtures/`, and a writer test that compiles the header as C
   (GCC, Clang and mingw-w64 GCC) and as C++17 (G++, Clang++ and
   mingw-w64 G++), each at `-Wall -Wextra -Wpedantic -Werror`, and runs
-  its output through `check`. CI runs the whole gate on Linux and on
+  its output through `check`. A second writer test,
+  `tests/writer/test_kit.sh`, turns each kit case into calls on the
+  header, builds and runs them, and checks what they write with `check
+  --expect` against the case's `NAME.csv`. CI runs the whole gate on Linux and on
   macOS, where the writer test uses Apple's Clang alone (S11). MSVC
   cannot run here; Vestige and
   UT Ants compile the header with it (ADR-0002). They put
   `src/frameledger` on `sys.path`, as the run forms do.
+
+**The kit's expected files are made by the shipped writer, never by
+hand.** `scripts/make_kit.py` turns each case's JSON into the same calls
+`test_kit.sh` makes, builds them with the header, and writes what they
+print as the case's `NAME.csv`. So a writer change that alters a kit
+file fails `test_kit.sh` until the kit is made again and the change is
+seen in its diff.
 
 S1, a bottleneck found and fixed in each engine, is met by the whole
 tool, not by any one part.
@@ -112,8 +128,8 @@ tool, not by any one part.
   which may import any file but `cli.py`. `render.py` and `picture.py`
   are called only by `cli.py`.
 - **`ledger.py` and `stats.py` import no other analyser file.**
-  `baseline.py` and `presentmon.py` import only `ledger.py`. Only `cli.py`
-  calls `baseline.py` and `presentmon.py`.
+  `baseline.py`, `presentmon.py`, `strict.py`, `expect.py` and `kit.py`
+  import only `ledger.py`. Only `cli.py` calls them.
 - **Only `__main__.py` and the tests import `cli.py`.** The reports
   return results; they never print and never exit.
 - **Only the Python standard library** (N3), and only what Python 3.10
@@ -172,7 +188,9 @@ tool, not by any one part.
 - **Release: a git tag plus one archive attached to the release, with
   its SHA256 in the notes.** The archive holds `frameledger.pyz`, its
   launchers for Linux and Windows, `include/frameledger.h` and
-  `LICENSE`, so one pinned hash covers both parts. Engines pin the archive and its hash (S6). GitHub's own tag
+  `LICENSE`, so one pinned hash covers both parts. The kit is inside
+  `frameledger.pyz`: `scripts/build_release.py` packs the `kit/` files
+  with the modules. Engines pin the archive and its hash (S6). GitHub's own tag
   archives are not used for the pin; their hash is not promised to stay
   the same. `scripts/build_release.py` builds the archive reproducibly.
   `.github/workflows/release.yml` publishes it only when its builds on
@@ -192,6 +210,4 @@ tool, not by any one part.
 
 ## Cold-eyes loop log
 
-| Loop | Date | Lanes | Q1 | Q2 | Q3 | Q4 | Outcome |
-|------|------|-------|----|----|----|----|---------|
-| 1 | 2026-10-24 | 2 | 0 | 3 | 5 | 0 | 8 findings (both lanes held every question; 3 found by both), 8 verified / 0 dismissed, 8 fixed. 0 landed on text an earlier loop of this run added. Run stopped after this loop on the coordinator's word that the owner moved all future reviews to the three engine sessions (2026-10-24); this loop's fixes were read by no lane. Not converged. |
+In [its own file](reviews/design-loop-log.md).
