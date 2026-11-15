@@ -98,9 +98,12 @@ def test_capture_becomes_a_run(capsys, tmp_path):
 
 
 def test_a_bom_and_crlf_are_read(capsys, tmp_path):
-    """§ 4.18: a byte-order mark is skipped and CRLF ends a line."""
+    """§ 4.18: a byte-order mark is skipped, CRLF ends a line, and a quoted
+    field reads as its text."""
     capture = tmp_path / "capture.csv"
-    capture.write_bytes(b"\xef\xbb\xbf" + capture_text(frames(3)).replace("\n", "\r\n").encode())
+    presents = frames(3)
+    presents[0]["Extra"] = '"a, quoted ""field"""'
+    capture.write_bytes(b"\xef\xbb\xbf" + capture_text(presents).replace("\n", "\r\n").encode())
     run_path = tmp_path / "run.csv"
     assert cli.main(["import", "presentmon", str(capture), "-o", str(run_path)]) == 0
     capsys.readouterr()
@@ -158,6 +161,13 @@ def test_start_order(capsys, tmp_path):
     assert code == 0
     said = warned(out, "start_out_of_order")
     assert len(said) == 1 and "line 3's CPUStartTime (10.4) is before line 2's (10.5); the rows" in said[0]
+
+    for name in ("CPUStartQPC", "CPUStartQPCTime"):  # --qpc_time and --qpc_time_ms
+        qpc = [c for c in COLUMNS if c != "CPUStartDateTime"] + [name]
+        for present, start in zip(presents, ["105", "104", "106"], strict=True):
+            present[name] = start
+        _, out, _ = imported(capsys, tmp_path, capture_text(presents, qpc), "--started", "2026-11-15T10:00:00Z")
+        assert f"line 3's {name} (104) is before line 2's (105)" in warned(out, "start_out_of_order")[0], name
     assert values(ledger.read(tmp_path / "run.csv"), "wall") == {0: 16_100, 1: 16_200}
 
     presents = frames(5)  # three starts go back: one warning, counting the other two
@@ -200,6 +210,7 @@ def test_start_order(capsys, tmp_path):
     ("", [], "the capture is empty"),
     (capture_text([]), [], "the capture has no rows"),
     (capture_text(frames(2)) + "game.exe,4120\n", [], "line 4: the row has 2 fields and the column line 12"),
+    (capture_text([row(), row(Extra="x" * 200_000)]), [], "line 3: the row is not CSV the import can read"),
 ])
 def test_refusals(capsys, tmp_path, text, flags, says):
     code, out, err = imported(capsys, tmp_path, text, *flags)
@@ -273,6 +284,8 @@ def test_header(capsys, tmp_path):
     first = ledger.read(tmp_path / "run.csv").header["run_id"]
     imported(capsys, tmp_path, capture_text(frames(2), [c for c in COLUMNS if c != "SyncInterval"]))
     assert ledger.read(tmp_path / "run.csv").header["run_id"] == first  # the capture's bytes alone decide it
+    imported(capsys, tmp_path, capture_text(frames(3), [c for c in COLUMNS if c != "SyncInterval"]))
+    assert ledger.read(tmp_path / "run.csv").header["run_id"] != first  # other bytes, another id
 
 
 # INV-115

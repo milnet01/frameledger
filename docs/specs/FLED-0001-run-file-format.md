@@ -2090,7 +2090,9 @@ order and any extra columns do not matter. It needs `Application`,
 `ProcessID`, `SwapChainAddress`, `MsBetweenPresents` and `MsCPUBusy`.
 `MsGPUBusy`, `DisplayedTime`, `PresentRuntime`, `SyncInterval` and a
 start column are read when present. The start column is the first
-present of `CPUStartQPCTime`, `CPUStartTime` and `CPUStartDateTime`.
+present of `CPUStartQPC`, `CPUStartQPCTime`, `CPUStartTime` and
+`CPUStartDateTime`, the names PresentMon gives it under `--qpc_time`,
+`--qpc_time_ms`, by default and under `--date_time`.
 
 **PresentMon 1, or 2 with `--v1_metrics`, is refused**, exit 3. It is
 told apart by its columns: `msBetweenPresents` or `TimeInSeconds`
@@ -2203,7 +2205,8 @@ replaces: "The run was imported from PresentMon, so it has no passes;
 its CPU and GPU spans are PresentMon's MsCPUBusy and MsGPUBusy, not the
 engine's own timings." Its pass tables leave out the remainders, the
 part of each span its passes do not cover (§ 4.4): with no passes,
-they are the whole span. `budget` and `compare` still measure a
+they are the whole span, and its worst frames name no top pass, for
+the same reason. `budget` and `compare` still measure a
 remainder on an imported run, where it equals the span.
 
 **Output.** `-o RUN` names the file written. It is exit 3, before
@@ -3873,7 +3876,8 @@ breaks.
   `1_000`; no `--started` and a `CPUStartDateTime` without a zone, or
   no `CPUStartDateTime` column; a `--resolution` of `0x1080`; a `--pid`
   or `--swapchain` that matches nothing; an empty file, a column line
-  alone, and a row with too few fields. A `RUN` that exists is exit 3
+  alone, a row with too few fields, and a field longer than Python's
+  `csv` allows. A `RUN` that exists is exit 3
   and keeps its bytes, and so does one made while the import runs. With `--process
   game.exe`, with `--pid 4120`, and with `--swapchain` picking one of
   two, the import exits 0.

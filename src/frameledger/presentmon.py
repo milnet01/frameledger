@@ -24,7 +24,8 @@ import ledger
 
 NEEDED = ("Application", "ProcessID", "SwapChainAddress", "MsBetweenPresents", "MsCPUBusy")
 VERSION_1 = ("msBetweenPresents", "TimeInSeconds")  # PresentMon 1, or 2 with --v1_metrics
-START_COLUMNS = ("CPUStartQPCTime", "CPUStartTime", "CPUStartDateTime")  # the first present is used
+# --qpc_time, --qpc_time_ms, the default, --date_time; the first present is used.
+START_COLUMNS = ("CPUStartQPC", "CPUStartQPCTime", "CPUStartTime", "CPUStartDateTime")
 THOUSANDTH = Decimal("0.001")
 TOO_LARGE = Decimal(1_000_000_000)  # § 4.4 holds values below this, in ms
 # A number as a capture writes it. Decimal() alone also takes "1_000",
@@ -125,13 +126,18 @@ def _read_capture(data: bytes, capture: str) -> tuple[set[str], list[_Row]]:
                                  f"{'column' if len(lacking) == 1 else 'columns'}, which an import needs",
                                  capture)
     rows = []
-    for fields in reader:
-        if not any(field.strip() for field in fields):
-            continue  # a blank line
-        if len(fields) != len(names):
-            raise ledger.LedgerError(f"the row has {len(fields)} fields and the column line {len(names)}",
-                                     capture, reader.line_num)
-        rows.append(_Row(reader.line_num, {name: field.strip() for name, field in zip(names, fields, strict=True)}))
+    try:
+        for fields in reader:
+            if not any(field.strip() for field in fields):
+                continue  # a blank line
+            if len(fields) != len(names):
+                raise ledger.LedgerError(f"the row has {len(fields)} fields and the column line {len(names)}",
+                                         capture, reader.line_num)
+            rows.append(_Row(reader.line_num, {name: field.strip()
+                                               for name, field in zip(names, fields, strict=True)}))
+    except csv.Error as error:  # such as a field longer than csv's limit
+        raise ledger.LedgerError(f"the row is not CSV the import can read ({error})", capture,
+                                 reader.line_num) from None
     if not rows:
         raise ledger.LedgerError("the capture has no rows", capture)
     return columns, rows

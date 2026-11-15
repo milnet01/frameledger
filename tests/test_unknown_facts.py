@@ -245,3 +245,13 @@ def test_a_listed_renderer_or_device_is_not_judged(capsys, tmp_path, field):
     _, out = run(capsys, "report", listed_copy(tmp_path, unknown=[field], **{field: "llvmpipe"}))
     assert not warnings(out, "software_renderer")
     assert f"software_renderer on the {field} is not judged" in warnings(out, "facts_unknown")[0]
+
+
+def test_an_optional_field_left_out_is_absent(capsys, tmp_path):
+    """A blocking field one set leaves out is "absent", never "unknown",
+    since only a required field can be listed."""
+    old = sets(tmp_path, "old", unlisted_copy)
+    new = [unlisted_copy(tmp_path / "new", f"new-{i}.csv", 2 * i + 1, tier="high") for i in range(3)]
+    code, out = run(capsys, "compare", "--old", *old, "--new", *new)
+    assert code == 3
+    assert 'tier differs: absent in old-1, old-2, old-3; "high" in new-1' in " ".join(out["summary"])
