@@ -3,9 +3,9 @@
 ## Where this project is
 
 **State:** 4 — Between items.
-**In flight:** FLED-0036, built, its code reviews folded but Vestige's;
-FLED-0037, design.md's kit and strict-check parts with the three engines
-for review.
+**In flight:** FLED-0036, built, all three code reviews folded;
+FLED-0037, design folded from Vestige and DOOM Ants (UT Ants' review
+pending), to be built.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.
