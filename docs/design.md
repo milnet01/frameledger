@@ -67,9 +67,13 @@ Four parts. The format spec is the only thing the other three share.
     one, by content, not layout (S7).
   - `kit.py` — `kit DIR`: writes the kit that proves a stranger's
     writer (S7). Its cases are files in `kit/` beside it, a `NAME.json`
-    and a `NAME.csv` each, with `README.txt`. `kit.py` names each case,
-    and reads the files through its own module loader, so the tree and
-    `frameledger.pyz` read them alike.
+    and a `NAME.csv` each, with `README.txt`; `kit/` holds no `.py`.
+    `kit.py` reads each with `pkgutil.get_data(__name__, "kit/NAME")`,
+    which reads the tree and `frameledger.pyz` alike, as bytes, and
+    writes them as bytes. It names each case itself, since a folder
+    inside the `.pyz` cannot be listed through the loader; a test
+    checks the names against `kit/`. `.gitattributes` pins `kit/` to LF,
+    so a Windows checkout writes the same bytes as the `.pyz`.
   - `render.py` — turns a result into plain text, JSON or Markdown.
     Plain sentences come first.
   - `picture.py` — turns one run's result into the optional report
@@ -94,20 +98,41 @@ Four parts. The format spec is the only thing the other three share.
   (GCC, Clang and mingw-w64 GCC) and as C++17 (G++, Clang++ and
   mingw-w64 G++), each at `-Wall -Wextra -Wpedantic -Werror`, and runs
   its output through `check`. A second writer test,
-  `tests/writer/test_kit.sh`, turns each kit case into calls on the
-  header, builds and runs them, and checks what they write with `check
-  --expect` against the case's `NAME.csv`. CI runs the whole gate on Linux and on
+  `tests/writer/test_kit.sh`, runs `scripts/make_kit.py` into a
+  scratch folder under each toolchain that runs its programs, then
+  checks each file it wrote with `check --expect` against the case's
+  `NAME.csv`. Both scripts read one toolchain table,
+  `tests/writer/toolchains.sh`, and a toolchain not installed fails
+  the run, naming the checks that did not run. mingw-w64 is build-only
+  here, so it runs no case. On macOS the table has Apple's Clang alone.
+  The local gate and CI run both scripts.
+  `tests/test_kit.py` checks the kit itself: each `NAME.csv` gives under
+  `check --strict` exactly the codes its `warns` lists, and `kit` run
+  from the release `.pyz` writes the same bytes as from the tree.
+  `tests/test_strict.py` checks the strict codes. CI runs the whole gate on Linux and on
   macOS, where the writer test uses Apple's Clang alone (S11). MSVC
   cannot run here; Vestige and
   UT Ants compile the header with it (ADR-0002). They put
   `src/frameledger` on `sys.path`, as the run forms do.
 
 **The kit's expected files are made by the shipped writer, never by
-hand.** `scripts/make_kit.py` turns each case's JSON into the same calls
-`test_kit.sh` makes, builds them with the header, and writes what they
-print as the case's `NAME.csv`. So a writer change that alters a kit
-file fails `test_kit.sh` until the kit is made again and the change is
-seen in its diff.
+hand.** `scripts/make_kit.py` is the one piece of code that turns a
+case into writer calls. For each case it writes a C driver, builds it
+with the header and runs it, keeping what it prints, as bytes, as the
+case's `NAME.csv`. The driver:
+
+- calls `fled_open` with the case's `header` and `static` as JSON text,
+  and the header's `run_id` as its own argument;
+- calls `fled_row` for each row, ordered by `arrives`, then as listed;
+- sizes the buffer to hold the opening lines, the close line and one
+  row, and hands the bytes on after each kept row, except the row
+  before a dropped one, so the dropped row meets a full buffer and
+  `fled_row` returns `FLED_DROPPED`. A dropped row must therefore
+  follow a kept one;
+- calls `fled_close` with `close.frames`, unless `close` is null.
+
+So a writer change that alters a kit file fails `test_kit.sh` until the
+kit is made again and the change shows in its diff.
 
 S1, a bottleneck found and fixed in each engine, is met by the whole
 tool, not by any one part.
@@ -128,8 +153,9 @@ tool, not by any one part.
   which may import any file but `cli.py`. `render.py` and `picture.py`
   are called only by `cli.py`.
 - **`ledger.py` and `stats.py` import no other analyser file.**
-  `baseline.py`, `presentmon.py`, `strict.py`, `expect.py` and `kit.py`
-  import only `ledger.py`. Only `cli.py` calls them.
+  `baseline.py`, `presentmon.py`, `expect.py` and `kit.py` import only
+  `ledger.py`; `strict.py` imports `ledger.py` and `stats.py`, whose
+  `median` is § 4.19's lower middle. Only `cli.py` calls them.
 - **Only `__main__.py` and the tests import `cli.py`.** The reports
   return results; they never print and never exit.
 - **Only the Python standard library** (N3), and only what Python 3.10
@@ -189,8 +215,9 @@ tool, not by any one part.
   its SHA256 in the notes.** The archive holds `frameledger.pyz`, its
   launchers for Linux and Windows, `include/frameledger.h` and
   `LICENSE`, so one pinned hash covers both parts. The kit is inside
-  `frameledger.pyz`: `scripts/build_release.py` packs the `kit/` files
-  with the modules. Engines pin the archive and its hash (S6). GitHub's own tag
+  `frameledger.pyz`: `scripts/build_release.py` packs the tracked
+  `kit/` files under `kit/` with the modules. `kit/` is the one folder
+  its flatness check allows, and only for files that are not `.py`. Engines pin the archive and its hash (S6). GitHub's own tag
   archives are not used for the pin; their hash is not promised to stay
   the same. `scripts/build_release.py` builds the archive reproducibly.
   `.github/workflows/release.yml` publishes it only when its builds on

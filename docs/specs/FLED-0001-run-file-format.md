@@ -3957,8 +3957,8 @@ breaks.
   dropped row must follow a kept one. `kit` into a directory holding
   one file is exit 3 and writes nothing. Run from the release `.pyz`,
   `kit` writes the same files as from the tree. The C leg needs a C
-  compiler. Without one, `tests/writer/test_compile.sh` fails, saying
-  which checks did not run, as it already does for its other checks.
+  compiler. Without one, `tests/writer/test_kit.sh` fails, saying
+  which checks did not run, as `tests/writer/test_compile.sh` does.
   *Test:* `tests/test_kit.py::test_kit_is_written`, beside it
   `test_kit_refuses_a_full_directory` and `test_kit_from_the_release`,
   and `tests/writer/test_kit.sh`.
