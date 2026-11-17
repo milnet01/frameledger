@@ -1337,6 +1337,14 @@ the source of truth; all three engines set that condition, 2026-11-10.
   on another measure is 128. report already gives p99_ms per pass and
   per frame measure, but compares nothing. DOOM Ants' hardware test may
   want the same for GPU time. Put to the three engines 2026-11-17.
+  2026-11-17, UT Ants: yes. (1) Only when asked, per measure
+  (--measure gpu/X:p99 clearest; a compare-wide --statistic also fine):
+  a new default would silently change every verdict on non-wall
+  measures, and UT Ants budgets by median. (2) Over the frames the pass
+  appears in, as its median; print that frame count beside the verdict.
+  (3) frame/wall's p99 noise rule unchanged, and refuse rather than
+  judge where a run has under about 100 frames holding the measure.
+  Vestige's and DOOM Ants' answers owed.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
