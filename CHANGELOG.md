@@ -43,6 +43,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Changed
 
+- **A compare that judged nothing is inconclusive, `--measure` or not** (FLED-0076)
+  When every measure is in only some runs, as with an empty run on one side, `compare` exits 2 saying nothing was judged, instead of passing.
+
 - **`bisect --statistic p99` needs 1000 frames** (FLED-0076)
   A tested run holding the measure in fewer than 1000 of the chosen frames skips, and a reference stops, `frame/wall` included: below that, the 99th percentile is one of a run's ten slowest frames. `compare`'s 99th percentile of a bare `frame/wall` keeps no minimum.
 
@@ -53,6 +56,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   When two or more surveyed files are all in one directory, the table's heading names it, as in "Runs, slowest first, each file in runs/:", and each row shows the path after it. Before, a long shared directory filled the file column and hid the names. The sentences above the table and `--json` still give whole paths.
 
 ### Fixed
+
+- **A run with no frames no longer crashes `floor`, `survey` or `budget`** (FLED-0075)
+  A file holding a header and a close line alone is judged as nothing, as a short run is, instead of ending in a traceback and exit 1.
 
 - **Stopping `alternate` on macOS gives its report** (FLED-0038)
   On macOS a stop sent to `alternate` could end it with exit code 3 and no output: the system refused a signal to the command's process group once its processes had ended, and `alternate` took that for a failure. It now waits for such a group as one still ending; a group that refuses through the whole wait is reported as one that did not end. Found by the first run of the tests on macOS.

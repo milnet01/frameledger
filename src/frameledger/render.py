@@ -295,12 +295,13 @@ def _compare_body(result: dict) -> list[Block]:
         rows = [m for m in changed if m["unit"] == unit]
         if rows:
             blocks.append(Table(
-                f"{title} that moved or are too noisy to judge, old and new as the runs' median:",
+                f"{title} that moved, are too noisy to judge or have too few frames, old and new as the runs' "
+                "centre:",
                 [Column("measure", 40, fit=_fitter(40)), Column(f"old {unit}", 10, True),
                  Column(f"new {unit}", 10, True), Column("change", 10, True), Column("spread", 10, True),
                  Column("verdict")],
                 [[_measure_name(m), f"{m['old_centre']:.3f}", f"{m['new_centre']:.3f}", f"{m['change']:+.3f}",
-                  f"{m['spread']:.3f}", _verdict_cell(m, compared["named_measures"])] for m in rows]))
+                  f"{m['spread']:.3f}", _verdict_cell(m)] for m in rows]))
     unchanged = len(compared["measures"]) - len(changed)
     blocks += [f"{unchanged} of {len(compared['measures'])} measures unchanged.", ""]
     if compared.get("named_measures") and compared["measures"]:
@@ -358,7 +359,7 @@ def _per_run_table(compared: dict) -> Table:
     measures = compared["measures"]
     rows = [[run["name"]] for run in compared["runs"]]  # old-1, old-2, ..., new-1, ...: old + new's order
     for measure in measures:
-        counted = _suffixed_p99(measure, compared["named_measures"])
+        counted = _suffixed_p99(measure)
         frames = measure["old_frames"] + measure["new_frames"]
         for row, value, held in zip(rows, measure["old"] + measure["new"], frames, strict=True):
             row.append(f"{value:.3f} ({held})" if counted else f"{value:.3f}")
@@ -411,17 +412,16 @@ def _per_run_headers(measures: list[dict]) -> list[str]:
     return headers
 
 
-def _suffixed_p99(measure: dict, named_measures: list[str]) -> bool:
+def _suffixed_p99(measure: dict) -> bool:
     """Whether --measure NAME:p99 asked for this entry, so its frames are
     shown beside it (§ 4.10)."""
-    return (measure["statistic"] == "p99"
-            and f"{measure['category']}/{measure['name']}:p99" in named_measures)
+    return measure["statistic"] == "p99" and measure["suffixed"]
 
 
-def _verdict_cell(measure: dict, named_measures: list[str]) -> str:
+def _verdict_cell(measure: dict) -> str:
     """The verdict, and for a :p99 entry the fewest frames any run holds it in."""
     verdict = "too few" if measure["verdict"] == "too_few" else measure["verdict"]
-    if not _suffixed_p99(measure, named_measures):
+    if not _suffixed_p99(measure):
         return verdict
     return f"{verdict}, {min(measure['old_frames'] + measure['new_frames'])} frames"
 

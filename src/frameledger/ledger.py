@@ -84,24 +84,25 @@ class Run:
     frames: dict[int, dict[tuple[str, str], Row]] = field(default_factory=dict)
     breaches: list[Breach] = field(default_factory=list)
     notices: list[Notice] = field(default_factory=list)
-    # § 4.20, set by generated.application_frames: the frame numbers left
-    # out as generated, so they are no hole; the walls of generated frames
-    # before the first one kept; and what keeps that time from being known.
-    generated: frozenset[int] = frozenset()
-    lead_us: int = 0
-    lead_stop: str | None = None
+    # § 4.20, set by generated.application_frames and empty on a run read as
+    # written: the frame numbers left out as generated, so they are no hole;
+    # when the timeline starts, after the generated frames before the first
+    # frame kept; and why that start is unknown, or None.
+    left_out: frozenset[int] = frozenset()
+    start_us: int = 0
+    start_unknown: str | None = None
 
     def after(self, frame: int) -> int:
         """The frame number that follows `frame`, past any left out as generated."""
         following = frame + 1
-        while following in self.generated:
+        while following in self.left_out:
             following += 1
         return following
 
     def before(self, frame: int) -> int:
         """The frame number that comes before `frame`, past any left out as generated."""
         preceding = frame - 1
-        while preceding in self.generated:
+        while preceding in self.left_out:
             preceding -= 1
         return preceding
 

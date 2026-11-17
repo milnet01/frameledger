@@ -1291,6 +1291,15 @@ can still use the analyser, and a stranger's writer can prove itself.
   generated frames is a file error naming --all-frames (crashing was the
   worse answer). Code review to follow. Vestige's and UT Ants' answers
   owed.
+  2026-11-17, code reviews: Vestige, UT Ants, DOOM Ants and ExperiRays
+  (cold). All three engines yes to the all-generated rule. Folded: a
+  missing frame among generated frames now leaves the application frame
+  no wall (all four); a run with no frames no longer crashes
+  (ExperiRays); the leading-frame stop time; application_frames split in
+  three; Run.generated renamed left_out, lead_us start_us; tests for
+  leading frames, pacing, every command's refusal, by-scene and
+  by-variant. Answered, no change: scenes take compare's sentence, which
+  every scene whose runs were read reaches (Vestige 5).
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
@@ -1415,6 +1424,15 @@ the source of truth; all three engines set that condition, 2026-11-10.
   1000-frame p99 rule; no DOOM Ants file or scratch script uses
   --statistic. Code review to follow. Vestige's and UT Ants' answers
   owed.
+  2026-11-17, code reviews: Vestige, UT Ants, DOOM Ants and ExperiRays
+  (cold). All three engines yes to INV-42/48. Folded: frame/cpu_span:p99
+  crashed compare's ranking (UT Ants); an empty ':' suffix was taken as
+  bare and errors quoted a rebuilt name (Vestige, ExperiRays); a starved
+  :p99 now blames frame count only when an entry is too_few, and a
+  compare judging nothing is inconclusive without --measure too (spec §
+  4.10); measures gain suffixed; bisect settles depth before short (§
+  4.11); one home for the 1000-frame clause; tests for pooling, ranking
+  by :p99, refusals.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
@@ -1456,6 +1474,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   frame,gpu_span, judged on report's frame_times figures; frame,wall,
   other frame names and a depth on a frame line are exit 3. Sent to the
   three engines and ExperiRays for code review.
+  2026-11-17, code reviews: Vestige, UT Ants, DOOM Ants and ExperiRays
+  (cold). No bug. Folded: budgeting.py's three meanings of None split
+  (ANY_DEPTH -1, SPAN_DEPTH, FRAME constant); messages built from SPANS;
+  tests for frames holding the span, two depths, warm-up and a
+  named-kind unmatched line.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.

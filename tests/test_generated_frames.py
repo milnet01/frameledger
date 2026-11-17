@@ -9,6 +9,7 @@ Invariants INV-119 to INV-121 from docs/specs/FLED-0001-run-file-format.md
 import json
 
 import cli
+import generated
 import ledger
 from floor_runs import HEADER
 from test_presentmon import COLUMNS, capture_text, imported, row, values
@@ -215,3 +216,98 @@ def test_no_application_frame(capsys, tmp_path):
     assert {u["reason"] for u in out["result"]["unread"]} == {
         "every one of its 300 frames was generated, so there is no application frame to judge; "
         "--all-frames counts them"}
+
+
+def test_a_hole_among_generated_frames(capsys, tmp_path):
+    """Frame 2 is missing between two generated frames, so frame 0's wall,
+    which runs to the next application frame, is not known."""
+    lines = [HEADER, ledger.COLUMNS]
+    for frame, generated_frame in ((0, False), (1, True), (3, True), (4, False), (5, False)):
+        lines.append(f"f1,,{frame},frame,cpu_span,0,1.000")
+        lines.append(f"f1,,{frame},frame,wall,0,5.000")
+        if generated_frame:
+            lines.append(f"f1,,{frame},event,generated,0,1.000")
+    path = tmp_path / "holed.csv"
+    path.write_text("\n".join([*lines, '# frameledger-close {"rows_dropped":0,"frames":6}']) + "\n")
+    run = generated.read(str(path), all_frames=False)
+    assert ("frame", "wall") not in run.frames[0]  # never 10.000 or 15.000
+    assert run.frames[4][("frame", "wall")].thousandths == 5000
+
+
+def leading_run(tmp_path, name: str, missing_wall: int | None = None) -> str:
+    """Ten generated frames of 100 ms, a second before the first
+    application frame, which takes 50 ms; then 16 ms frames."""
+    lines = [HEADER, ledger.COLUMNS]
+    walls = [100.0] * 10 + [50.0] + [16.0] * 200
+    for frame, wall in enumerate(walls):
+        lines.append(f"f1,,{frame},frame,cpu_span,0,1.000")
+        if frame != missing_wall and frame != len(walls) - 1:
+            lines.append(f"f1,,{frame},frame,wall,0,{wall:.3f}")
+        if frame < 10:
+            lines.append(f"f1,,{frame},event,generated,0,1.000")
+    path = tmp_path / name
+    path.write_text("\n".join([*lines, f'# frameledger-close {{"rows_dropped":0,"frames":{len(walls)}}}']) + "\n")
+    return str(path)
+
+
+def test_generated_frames_before_the_first(capsys, tmp_path):
+    # Their second moves the timeline, so the 50 ms frame ends after a 1 s warm-up and is judged.
+    path = leading_run(tmp_path, "leading.csv")
+    code, out = command(capsys, "floor", path, "--fps", "60", "--warmup-s", "1", "--no-windows")
+    assert code == 1 and out["result"]["frames_over_budget"] == 1
+    assert out["summary"][0].startswith("10 of 211 frames were generated")
+    # A wall missing among them leaves the start unknown: the 50 ms frame cannot be placed after the warm-up.
+    code, out = command(capsys, "floor", leading_run(tmp_path, "unknown.csv", missing_wall=3), "--fps", "60",
+                        "--warmup-s", "1", "--no-windows")
+    assert code == 2 and "Frame 3 has no frame/wall row, so the timeline stops there." in out["summary"]
+
+
+def test_generated_rows_are_not_read(capsys, tmp_path):
+    # Pacing pairs application frames across the generated one between them.
+    code, out = command(capsys, "report", write(tmp_path, "marked.csv"))
+    assert [p["pairs"] for p in out["result"]["pacing"]] == [APPLICATION_FRAMES - 2]
+    # A generated frame's segment and events are not read.
+    text = run_text("seg").replace("seg,,1,frame,cpu_span", "seg,load:1,1,frame,cpu_span")
+    path = tmp_path / "seg.csv"
+    path.write_text(text.replace("seg,,1,event,generated",
+                                 "seg,load:1,1,event,cut,0,1.000\nseg,load:1,1,event,generated"))
+    code, out = command(capsys, "report", str(path))
+    assert {f["segment_kind"] for f in out["result"]["frame_times"]} == {None}
+
+
+def test_every_command_refuses_no_application_frame(capsys, tmp_path):
+    lines = [HEADER, ledger.COLUMNS, *(f"f1,,{frame},frame,cpu_span,0,1.000\nf1,,{frame},frame,wall,0,8.000\n"
+                                       f"f1,,{frame},event,generated,0,1.000" for frame in range(300))]
+    path = tmp_path / "all.csv"
+    path.write_text("\n".join([*lines, '# frameledger-close {"rows_dropped":0,"frames":300}']) + "\n")
+    good = [write(tmp_path, f"good{i}.csv") for i in range(1, 4)]
+    budget_file = budgets(tmp_path)
+    for args in (["report", str(path)], ["budget", str(path), "--budgets", budget_file],
+                 ["compare", "--old", str(path), *good[1:], "--new", *good]):
+        code, out = command(capsys, *args)
+        assert code == 3 and "--all-frames counts them" in out["summary"][-1], args
+    code, out = command(capsys, "survey", str(path), "--fps", "60")
+    assert out["result"]["runs"][0]["verdict"] == "unjudged"
+    bisect = ["bisect", "--measure", "frame/cpu_span", "--unsegmented"]
+    assert command(capsys, *bisect, "--tested", str(path), "--bad-above", "1")[0] == 125
+    assert command(capsys, *bisect, "--tested", good[0], "--good", str(path), *good[1:], "--bad", *good)[0] == 128
+
+
+def test_all_frames_by_scene_and_by_variant(capsys, tmp_path):
+    marked, plain = sets(tmp_path)
+    for args in (["--by-scene", "--old", *marked, "--new", *plain], ["--base", *marked, "--variant", "v", *plain]):
+        code, out = command(capsys, "compare", *args, "--measure", "frame/cpu_span")
+        assert any(s.endswith(left_out("base-1" if "--base" in args else "old-1")) for s in out["summary"]), args
+        code, out = command(capsys, "compare", *args, "--measure", "frame/cpu_span", "--all-frames")
+        assert any(s.endswith(counted("base-1" if "--base" in args else "old-1")) for s in out["summary"]), args
+        assert out["result"]["all_frames"] is True
+
+
+def test_an_empty_run(capsys, tmp_path):
+    """A header and a close line with no frame between: judged as nothing, never a crash."""
+    path = tmp_path / "empty.csv"
+    path.write_text("\n".join([HEADER, ledger.COLUMNS, '# frameledger-close {"rows_dropped":0,"frames":0}']) + "\n")
+    for args in (["floor", str(path), "--fps", "60"], ["survey", str(path), "--fps", "60"],
+                 ["budget", str(path), "--budgets", budgets(tmp_path), "--warmup-s", "1"], ["report", str(path)]):
+        code = cli.main([*args, "--json"])
+        assert "Traceback" not in capsys.readouterr().err and code in (0, 2, 3), args

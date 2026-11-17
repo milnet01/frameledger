@@ -195,10 +195,10 @@ def _judge_references(wanted: Wanted, refs: list[_Run], overrides: dict[str, str
         value = _value(wanted, found[r.name], depth)
         if value is None:
             raise _Stop(f"{r.name} has no {wanted.label}, so it cannot be a reference.")
-        held = _too_few(wanted, found[r.name], depth)
+        held = _frames_if_short(wanted, found[r.name], depth)
         if held is not None:
-            raise _Stop(f"{r.name} holds {wanted.label} in only {run_report.counted(held, 'frame')}, fewer than "
-                        f"the {compare.P99_FEWEST_FRAMES} a 99th percentile needs, so it cannot be a reference.")
+            raise _Stop(f"{r.name} holds {wanted.label} in {compare.short_of_p99(held)}, so it cannot be a "
+                        "reference.")
         values[r.name] = value
 
     good = [values[r.name] for r in refs if r.set == "good"]
@@ -253,9 +253,10 @@ def _tested_values(wanted: Wanted, refs: list[_Run], tested_runs: list[_Run], ov
     depth, mixed_sentence = _one_depth(wanted, found, ref_depth if refs else None)
     if mixed_sentence:
         raise _Skip([f"{mixed_sentence}; --depth D judges such a commit at depth D."], "depth")
-    short = [f"{r.name} holds {wanted.label} in only {run_report.counted(held, 'frame')}, fewer than the "
-             f"{compare.P99_FEWEST_FRAMES} a 99th percentile needs; a longer run cures it." for r in tested_runs
-             if (held := _too_few(wanted, found[r.name], depth)) is not None]
+    # After the depth, since the frames are counted at it.
+    short = [f"{r.name} holds {wanted.label} in {compare.short_of_p99(held)}; a longer run cures it."
+             for r in tested_runs
+             if (held := _frames_if_short(wanted, found[r.name], depth)) is not None]
     if short:
         raise _Skip(short, "short")
     return {r.name: _value(wanted, found[r.name], depth) for r in tested_runs}
@@ -331,11 +332,12 @@ def _value(wanted: Wanted, by_depth: dict[int | None, list[int]], depth: int | N
     return stats.percentile(times, stats.RANKS[wanted.statistic])
 
 
-def _too_few(wanted: Wanted, by_depth: dict[int | None, list[int]], depth: int | None) -> int | None:
-    """Under --statistic p99, the frames a run holds the measure in when
-    they are too few to judge its 99th percentile (§ 4.11); otherwise None."""
+def _frames_if_short(wanted: Wanted, by_depth: dict[int | None, list[int]], depth: int | None) -> int | None:
+    """Under --statistic p99, the frames a run holds the measure in at
+    `depth` when they are too few to judge its 99th percentile (§ 4.11);
+    otherwise None."""
     held = len(by_depth.get(depth) or [])
-    return held if wanted.statistic == "p99" and held < compare.P99_FEWEST_FRAMES else None
+    return held if wanted.statistic == "p99" and held < compare.P99_NEEDS_FRAMES else None
 
 
 def _frames_it_has(wanted: Wanted, run: ledger.Run) -> str:

@@ -1,8 +1,9 @@
-"""Pass budgets (S12): judge one run's passes against a budget file.
+"""Pass budgets (S12): judge one run's passes, and its frames' CPU and
+GPU spans (FLED-0077), against a budget file.
 
 The rules are docs/specs/FLED-0001-run-file-format.md § 4.12. A budget's
-value is `report`'s own median or 99th percentile for the pass, per
-segment kind, so the two commands never disagree on a run. Values and
+value is `report`'s own median or 99th percentile for the pass or span,
+per segment kind, so the two commands never disagree on a run. Values and
 limits are exact thousandths; a single frame never breaches.
 """
 
@@ -24,8 +25,13 @@ SCHEMA = 1
 KEYWORD = "# frameledger-budget"
 COLUMNS = "category,name,kind,depth,statistic,limit_ms"
 EVERY_KIND = "*"
-ANY_DEPTH = None  # for _kinds: a pass at whatever depth
-SPANS = tuple(run_report.SPAN.values())  # the frame measures a `frame` line may budget (FLED-0077)
+ANY_DEPTH = -1  # for _kinds: a pass at whatever depth; a row's depth is 0 or more
+FRAME = "frame"  # a span line's category
+SPANS = tuple(run_report.SPAN.values())  # the frame measures a span line may budget (FLED-0077)
+# A span has no depth. _measured keys it at this one, whatever depth its rows
+# carry, so it is looked up as a pass is; the result shows null.
+SPAN_DEPTH = 0
+SPANS_NAMED = " or ".join(f"{FRAME}/{name}" for name in SPANS)
 # Nine whole digits at most, so int() never meets a huge number (Vestige).
 LIMIT_RE = re.compile(r"([0-9]{1,9})(?:\.([0-9]{1,3}))?")
 DEPTH_RE = re.compile(r"[0-9]{1,9}")
@@ -140,14 +146,13 @@ def _budget(text: str, number: int, path: str) -> Budget:
     def bad(message: str) -> ledger.LedgerError:
         return ledger.LedgerError(message, path, number)
 
-    if category not in (*run_report.SPAN, "frame"):
+    if category not in (*run_report.SPAN, FRAME):
         raise bad(f"category '{ledger.clip(category)}' must be cpu or gpu for a pass, or frame for a span")
-    if category == "frame" and name == "wall":
-        raise bad("frame/wall is frame time, which floor judges; a frame line budgets frame/cpu_span or "
-                  "frame/gpu_span")
-    if category == "frame" and name not in SPANS:
-        raise bad(f"a frame line budgets frame/cpu_span or frame/gpu_span, not frame/{ledger.clip(name)}")
-    if category == "frame" and depth:
+    if category == FRAME and name == "wall":
+        raise bad(f"frame/wall is frame time, which floor judges; a frame line budgets {SPANS_NAMED}")
+    if category == FRAME and name not in SPANS:
+        raise bad(f"a frame line budgets {SPANS_NAMED}, not frame/{ledger.clip(name)}")
+    if category == FRAME and depth:
         raise bad(f"a frame span has no depth, so a frame line's depth is empty, not '{ledger.clip(depth)}'")
     if not ledger.NAME_RE.fullmatch(name) or len(name) > ledger.NAME_MAX:
         raise bad(f"name '{ledger.clip(name)}' must be 1 to {ledger.NAME_MAX} ASCII letters, digits and '_ . / -'")
@@ -219,34 +224,33 @@ def judge(run: ledger.Run, budget_file: BudgetFile, warmup_us: int) -> dict:
 
 def _measured(costs: run_report.Costs) -> dict[tuple, list[int]]:
     """Every pass's frame values, keyed (kind, category, name, depth), and
-    each frame span's under category `frame` at depth None, whatever depth
-    its rows carry: a span has no depth (§ 4.12)."""
-    spans = {(kind, "frame", name, None): values for (kind, name), values in costs.frame_values.items()
+    each frame span's, the frames holding it, under FRAME at SPAN_DEPTH
+    (§ 4.12)."""
+    spans = {(kind, FRAME, name, SPAN_DEPTH): values for (kind, name), values in costs.frame_values.items()
              if name in SPANS}
     return {**costs.pass_values, **spans}
 
 
 def _judge_lines(measured: dict[tuple, list[int]], budget_file: BudgetFile) -> Judged:
     """Every budget line judged, from _measured's values. A line naming a
-    kind replaces a `*` line there when both judge one pass: the same
+    kind replaces a `*` line there when both judge one pass or span: the same
     category, name and statistic, at the same depth once an empty depth is
     resolved (UT Ants). So named lines are resolved first."""
     # (category, name, statistic, kind) -> the depths named lines judge there; a
     # pass can run at two depths, each with its own line (DOOM Ants, UT Ants).
-    # A span's one depth is None.
-    taken: dict[tuple, set[int | None]] = {}
+    taken: dict[tuple, set[int]] = {}
     for named in budget_file.budgets:
         if named.kind == EVERY_KIND:
             continue
         depth = _depth(measured, named, [named.kind], budget_file.path)
-        if depth is not None or named.category == "frame":
+        if depth is not None:
             taken.setdefault((named.category, named.name, named.statistic, named.kind), set()).add(depth)
     entries, unmatched, notices = [], [], []
     judged_by: dict[tuple, int] = {}  # (category, name, statistic, kind, depth) -> the line judging it
     for budget in budget_file.budgets:
         everywhere = _kinds(measured, budget, ANY_DEPTH)
         if budget.kind == EVERY_KIND:
-            kinds = [k for k in everywhere if not _taken(taken, budget, k, measured)]
+            kinds = [k for k in everywhere if not _named_line_judges(taken, budget, k, measured)]
         else:
             kinds = [budget.kind] if budget.kind in everywhere else []
         depth = _depth(measured, budget, kinds, budget_file.path)
@@ -275,7 +279,7 @@ def _judge_lines(measured: dict[tuple, list[int]], budget_file: BudgetFile) -> J
     return Judged(entries, unmatched, notices)
 
 
-def _taken(taken: dict, star: Budget, kind: str | None, measured: dict[tuple, list[int]]) -> bool:
+def _named_line_judges(taken: dict, star: Budget, kind: str | None, measured: dict[tuple, list[int]]) -> bool:
     """Whether a named line judges the `*` line's pass in `kind`: one with
     the same category, name and statistic, at the `*` line's depth, or at
     a depth the pass has there when the `*` line's is empty."""
@@ -319,9 +323,11 @@ def _after_warmup(run: ledger.Run, warmup_us: int) -> tuple[set[int] | None, str
 
 def _depth(measured: dict[tuple, list[int]], budget: Budget, kinds: list[str | None], path: str) -> int | None:
     """The depth `budget` judges in `kinds`: its own, or else the one depth
-    the pass has there, or None when it has none, as a span never has. Two
-    is exit 3, naming the pass and both."""
-    if budget.depth is not None or budget.category == "frame":
+    the pass has there, or None when it has none; a span's is SPAN_DEPTH.
+    Two is exit 3, naming the pass and both."""
+    if budget.category == FRAME:
+        return SPAN_DEPTH
+    if budget.depth is not None:
         return budget.depth
     depths = sorted({depth for (kind, category, name, depth) in measured
                      if (category, name) == (budget.category, budget.name) and kind in kinds})
@@ -341,11 +347,12 @@ def _kinds(measured: dict[tuple, list[int]], budget: Budget, depth: int | None) 
 
 
 def _entry(budget: Budget, kind: str | None, depth: int | None, values: list[int]) -> dict:
-    """`depth` is resolved: a kind is judged only where the pass has one. A
-    span's is None."""
+    """`depth` is resolved: a kind is judged only where the pass has one.
+    A span's, SPAN_DEPTH, is shown as null."""
     value = stats.percentile(values, stats.RANKS[budget.statistic])
     return {"line": budget.line, "category": budget.category, "name": budget.name, "segment_kind": kind,
-            "depth": depth, "statistic": budget.statistic, "limit_ms": budget.limit / 1000,
+            "depth": None if budget.category == FRAME else depth, "statistic": budget.statistic,
+            "limit_ms": budget.limit / 1000,
             "value_ms": value / 1000, "over_ms": (value - budget.limit) / 1000, "frames": len(values),
             "over": value > budget.limit}
 
@@ -365,7 +372,7 @@ def _unmatched_sentence(budget: Budget) -> str:
     depth = "" if budget.depth is None else f" at depth {budget.depth}"
     return (f"Line {budget.line}'s {budget.category}/{budget.name}{depth} is in no {frames} judged, "
             f"so its {budget.statistic} budget cannot be judged: the "
-            f"{'span' if budget.category == 'frame' else 'pass'} is in none of those frames, "
+            f"{'span' if budget.category == FRAME else 'pass'} is in none of those frames, "
             "so a re-run gives the same: fix the budget file or the engine.")
 
 

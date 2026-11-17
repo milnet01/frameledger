@@ -288,9 +288,9 @@ def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str |
     before. Generated frames left out are no hole, and those before the
     first frame kept start the timeline late (§ 4.20)."""
     order = sorted(run.frames)
-    timed, cuts, now = [], [], run.lead_us
-    stop, stopped_at = run.lead_stop, 0 if run.lead_stop else None
-    for previous, frame in zip([None, *order[:-1]], order, strict=True):
+    timed, cuts, now = [], [], run.start_us
+    stop, stopped_at = run.start_unknown, run.start_us if run.start_unknown else None
+    for previous, frame in zip([None, *order], order, strict=False):  # (None, first), (first, second), ...
         rows = run.frames[frame]
         if stop is None and previous is not None and frame != run.after(previous):
             stop, stopped_at = f"frame {run.after(previous)} is missing", now

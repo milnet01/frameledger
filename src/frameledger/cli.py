@@ -816,17 +816,18 @@ def _parse_measure(text: str) -> tuple[str, str, str | None]:
         raise ledger.LedgerError(f"--measure {text}: the statistic after ':' must be median or p99")
     if category == "mem" and statistic == "p99":
         raise ledger.LedgerError(f"--measure {text}: a mem measure is judged by its median, so it has no p99")
-    _parse_name(f"{category}/{name}")
+    _parse_name(text.partition(":")[0], text)
     return category, name, statistic
 
 
-def _parse_name(text: str) -> tuple[str, str]:
-    """A measure's category and name, as bisect's --measure gives them."""
-    category, slash, name = text.partition("/")
+def _parse_name(measure: str, given: str) -> tuple[str, str]:
+    """A measure's category and name from `measure`, CATEGORY/NAME; errors
+    quote `given`, the --measure as typed."""
+    category, slash, name = measure.partition("/")
     if not (slash and name) or category not in bisecting.CATEGORIES:
-        raise ledger.LedgerError(f"--measure {text} must be frame/NAME, cpu/NAME, gpu/NAME or mem/NAME")
+        raise ledger.LedgerError(f"--measure {given} must be frame/NAME, cpu/NAME, gpu/NAME or mem/NAME")
     if category == "frame" and name not in bisecting.FRAME_NAMES:
-        raise ledger.LedgerError(f"--measure frame/{name} is not judged; the frame measures are "
+        raise ledger.LedgerError(f"--measure {given} is not judged; the frame measures are "
                                  + ", ".join(f"frame/{n}" for n in bisecting.FRAME_NAMES))
     return category, name
 
@@ -980,7 +981,7 @@ def _wanted(args: argparse.Namespace) -> bisecting.Wanted:
     """The measure and frames, refusing what would skip every commit."""
     if ":" in args.measure:
         raise ledger.LedgerError(f"--measure {args.measure}: bisect takes --statistic, not a ':' suffix")
-    category, name = _parse_name(args.measure)
+    category, name = _parse_name(args.measure, args.measure)
     if args.statistic == "p99" and category == "mem":
         raise ledger.LedgerError("--statistic p99 is not for a mem measure, which is judged by its median")
     if category == "frame" and args.depth is not None:

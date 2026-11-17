@@ -262,7 +262,7 @@ def _rank_sentence(base_runs: list[ledger.Run], rank_measure: compare.Measure | 
     variant's `unmatched`, so none has a rank entry (Vestige)."""
     if rank_measure is None:
         return f"Nothing is ranked: no base run has {named_measures[0] if named_measures else DEFAULT_RANK_MEASURE}."
-    p99_of = frozenset({(rank_measure.category, rank_measure.name)}) if rank_measure.statistic == "p99" else frozenset()
+    p99_of = compare.needing_p99([(rank_measure.category, rank_measure.name, rank_measure.statistic)])
     taken = [compare.run_values(run, p99_of=p99_of) for run in base_runs]
     values = [values[rank_measure].value for values in taken if rank_measure in values]
     fields = {"segment_kind": rank_measure.kind, "category": rank_measure.category, "name": rank_measure.name,

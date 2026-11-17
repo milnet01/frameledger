@@ -1004,11 +1004,14 @@ weighs one `slower` among them.
    every run (§ 4.9's `too_few_frames` bound): re-run with more runs a
    set. A shorter kind, such as a loading stretch, is noisy almost
    every time; the summary names the kinds this step skipped
-   (Vestige). It is also inconclusive when `--measure` kept nothing
-   that was judged, every kept measure being in `unmatched`; the
-   summary names them (UT Ants). And it is inconclusive when a `:p99`
-   measure has no entry judged, each being `too_few` or unmatched: a
-   longer run cures it (FLED-0076). A `too_few` entry beside a judged
+   (Vestige). It is also inconclusive when nothing was judged, every
+   measure being in `unmatched`, with `--measure` or without it; with
+   it, the summary names the kept measures (UT Ants). A compare never
+   passes by judging nothing (ExperiRays). And it is inconclusive when
+   a `:p99` measure has no entry judged, each being `too_few` or
+   unmatched. The summary says which: a `too_few` one is cured by a
+   longer run, an unmatched one, missing from some run, is not
+   (FLED-0076; DOOM Ants, UT Ants, ExperiRays). A `too_few` entry beside a judged
    one, as in a short loading kind, is named in the summary with its
    fewest frames, and does not make the compare inconclusive, as a
    short kind does not for `frame/wall`.
@@ -1116,7 +1119,7 @@ is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `
   "measures": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                 "old": [], "new": [], "old_frames": [], "new_frames": [],
                 "old_centre", "new_centre",
-                "change", "change_pct", "spread", "floor", "verdict"}],
+                "change", "change_pct", "spread", "floor", "verdict", "suffixed"}],
   "unmatched": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                  "present_in": []}],
   "static_diff": [{"key", "values": {}}],
@@ -1127,7 +1130,8 @@ is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `
 `under_load` lists each peak above its limit, `load.peak` and then
 `gpu_busy_pct.peak`, and is empty for a run not under load.
 `named_measures` lists `--measure`'s names in the order given, a
-suffix included, and is empty without it. `old_frames` and
+suffix included, and is empty without it. A measure's `suffixed` is
+true when a `--measure` named its statistic with a suffix (DOOM Ants). `old_frames` and
 `new_frames` give each run's frames holding the measure, in run order.
 `verdict` is the table's, or `too_few`.
 `statistic` is `median` or `p99`; `unit` is `ms` or `MB`, as under
@@ -1298,7 +1302,9 @@ line (docs/design.md: "nor a compare that uses them"); a tested run
 without the measure in the chosen frames; under `--statistic p99`, a
 tested run holding it in fewer than 1000 of them, since a longer run
 cures it (FLED-0076); and tested runs at another
-depth, as above. An empty file, the commonest
+depth, as above. The depth is settled before the frames are counted,
+since they are counted at it, so a commit both short and at two depths
+skips as `depth` (Vestige). An empty file, the commonest
 remains of a crashed benchmark, is one that breaks the format. Each
 such run has its own sentence naming it and why. For a missing
 measure it also names the segment kinds the run has, or with
@@ -1935,7 +1941,7 @@ read when it is judged and let go after.
   `frame/wall` or `frame/gpu_span`, or give no `--measure` (Vestige).
 
 **The rank measure** is the first `--measure` name, or `frame/wall`
-without one, its median. A pass may appear at more than one depth
+without one, its median, or the statistic its suffix names (FLED-0076). A pass may appear at more than one depth
 (§ 4.4: 0 is a top-level pass, 1 a pass inside one); the rank measure
 takes the smallest depth at which the base runs have it (UT Ants).
 Its segment kind is the one with the most frames carrying it at that
@@ -2559,7 +2565,10 @@ not whether 60 reached the screen (Vestige, UT Ants, DOOM Ants).
   application rendered.
 - **If any of those walls is missing, the application frame has
   none.** § 4.4 already warns on the frame that lacks it, and § 4.7's
-  inconclusive rule then holds, so nothing is guessed. The last
+  inconclusive rule then holds, so nothing is guessed. So has it when
+  a frame number is missing after it, before the next application
+  frame: the missing frame may have been generated (Vestige, DOOM
+  Ants, ExperiRays). The last
   application frame is the run's last frame for that rule.
 - **Generated frames before the first application frame** belong to
   none. Their walls still move the timeline, so the warm-up runs from
@@ -4223,12 +4232,23 @@ breaks.
   gives `generated_frames` and `all_frames`. The fixture without
   `event/generated` gives the `--all-frames` answers either way, so
   only the mark changes them.
+  Ten generated frames of 100 ms before the first application frame
+  start the timeline a second late, so a 50 ms first application frame
+  is judged after a 1 s warm-up; with one of their walls missing,
+  `floor` is inconclusive. Pacing pairs application frames across the
+  generated frame between them, and a generated frame's segment and
+  events are not read. `compare --by-scene` and `--variant` say the
+  same sentences and give `all_frames`.
   *Test:* `tests/test_generated_frames.py::test_application_frames_are_judged`,
-  `tests/test_generated_frames.py::test_all_frames_counts_every_frame`.
+  `tests/test_generated_frames.py::test_all_frames_counts_every_frame`,
+  `tests/test_generated_frames.py::test_generated_frames_before_the_first`,
+  `tests/test_generated_frames.py::test_generated_rows_are_not_read`,
+  `tests/test_generated_frames.py::test_all_frames_by_scene_and_by_variant`.
   *Breaks when:* a generated frame is counted by default, its wall is
   dropped rather than added to the application frame before it, which
-  would keep 8.333 ms walls and pass `floor`, or `--all-frames` still
-  leaves it out.
+  would keep 8.333 ms walls and pass `floor`, the walls before the
+  first application frame are dropped, or `--all-frames` still leaves
+  it out.
 
 - **INV-121** — A generated frame's missing wall is not guessed, and
   the mark is `1.000`. An application frame followed by a generated
@@ -4236,14 +4256,19 @@ breaks.
   of its own, so `floor`'s window check is inconclusive. An
   `event/generated` of `2.000` is a `check` breach naming its line. A
   run of 300 frames, every one generated, is exit 3 under `floor`,
-  naming `--all-frames`, and is listed unread under `compare
-  --by-scene`; with `--all-frames`, `floor` judges it.
+  `report`, `budget` and `compare`, naming `--all-frames`; unjudged
+  under `survey`; unread under `compare --by-scene`; a skip as a
+  tested `bisect` run and a stop as a reference. With `--all-frames`,
+  `floor` judges it. Application frame 0, generated 1, frame 2
+  missing, generated 3 and application frame 4: frame 0 has no wall.
   *Test:* `tests/test_generated_frames.py::test_a_missing_generated_wall`,
   `tests/test_generated_frames.py::test_the_mark_is_one`,
-  `tests/test_generated_frames.py::test_no_application_frame`.
-  *Breaks when:* the application frame keeps its own wall alone, any
-  value marks a frame, or a run with no application frame is judged
-  over nothing.
+  `tests/test_generated_frames.py::test_no_application_frame`,
+  `tests/test_generated_frames.py::test_every_command_refuses_no_application_frame`,
+  `tests/test_generated_frames.py::test_a_hole_among_generated_frames`.
+  *Breaks when:* the application frame keeps its own wall alone, or a
+  wall summed across a missing frame, any value marks a frame, or a run
+  with no application frame is judged over nothing.
 
 - **INV-122** — `:p99` judges a measure's 99th percentile. Old and new
   sets of three runs hold `gpu/X` on every other frame of 4000, so 2000
@@ -4251,11 +4276,15 @@ breaks.
   the old runs'. `--measure gpu/X` passes, exit 0, and so does
   `gpu/X:median`; `--measure gpu/X:p99` fails, exit 1, printing 2000
   frames beside it, and JSON's `old_frames` and `new_frames` are 2000
-  for each run. `gpu/X` with `gpu/X:p99` is allowed. `mem/m:p99`,
-  `gpu/X:p95`, and `frame/wall` with `frame/wall:p99` are exit 3, each
-  named.
+  for each run. `gpu/X` with `gpu/X:p99` is allowed, and only the
+  `:p99` entry is `suffixed`. `frame/gpu_span:p99` is judged and ranked
+  after `frame/cpu_span`'s median. `mem/m:p99`, `gpu/X:p95`, `gpu/X:`,
+  `gpu/X:P99`, `frame/wall` with `frame/wall:p99`, `gpu/X` with
+  `gpu/X:median`, and `gpu` are exit 3, each named as typed. With
+  `--variant`, `gpu/X:p99` ranks the variants by its 99th percentile.
   *Test:* `tests/test_measure_p99.py::test_p99_of_a_pass`,
-  `tests/test_measure_p99.py::test_suffix_refusals`.
+  `tests/test_measure_p99.py::test_suffix_refusals`,
+  `tests/test_measure_p99.py::test_variants_rank_by_the_suffix`.
   *Breaks when:* the suffix is ignored, the percentile counts frames
   without the pass, or a bare name changes what it judges.
 
@@ -4263,19 +4292,26 @@ breaks.
   sets with one run holding `gpu/X` in 999 frames give `too_few`, exit
   2, and the summary names the entry with 999 frames; at 1000 the entry
   is judged. Beside a long segment kind, a 50-frame kind's `:p99` entry
-  is `too_few`, named, and the verdict is the long kind's. A bare
-  `frame/wall` over 999 frames still judges its 99th percentile.
-  *Test:* `tests/test_measure_p99.py::test_too_few_frames`.
+  is `too_few`, named, and the verdict is the long kind's, `pass` when
+  it is unchanged. Twenty 120-frame segments holding `gpu/X` in 1200
+  frames are judged. A bare `frame/wall` over 999 frames still judges
+  its 99th percentile. A `:p99` one run lacks is inconclusive without
+  "a longer run" in the summary. With no `--measure`, a compare whose
+  every measure is unmatched is inconclusive.
+  *Test:* `tests/test_measure_p99.py::test_too_few_frames`,
+  `tests/test_measure_p99.py::test_nothing_judged_never_passes`.
   *Breaks when:* the bound is off by one, a short kind beside a long
-  one makes the compare inconclusive, or a bare `frame/wall` gains the
-  bound.
+  one makes the compare inconclusive, segments are counted apart, a
+  bare `frame/wall` gains the bound, or a compare judging nothing
+  passes.
 
 - **INV-124** — `bisect` judges any measure's 99th percentile. With
   INV-122's runs as tested runs, `--measure gpu/X --statistic p99
   --bad-above T`, `T` between the old and new 99th percentiles, exits
   1, and the median exits 0. `--statistic p99` on a `mem` measure is
   128. A tested run holding `gpu/X` in 999 of the chosen frames skips,
-  125, `skip_reason` `short`; a reference with 999 stops, 128.
+  125, `skip_reason` `short`; a reference with 999 stops, 128. A
+  tested run with 999 at another depth skips as `depth`.
   *Test:* `tests/test_measure_p99.py::test_bisect_p99`.
   *Breaks when:* `p99` on a pass is still 128, or a short run is judged.
 
@@ -4293,15 +4329,25 @@ breaks.
   `frame,fence_wait` and `frame,gpu_span` with depth `0` are exit 3,
   each naming its line, and `frame,wall`'s summary names `floor`. The
   same run without `frame/gpu_span` lists the `gpu_span` line in
-  `unmatched`, exit 2.
+  `unmatched`, exit 2, as does a `view` line, its entry's category
+  `frame` and depth null. Without `frame/gpu_span` on 50 view frames,
+  `frames` is 150; on 100, 100 frames do not warn and 99 do. Span
+  rows at depths 0 and 3 are one span. A 1 s warm-up leaves the three
+  slow frames out, so the view p99 holds at 10.000.
   *Test:* `tests/test_budget_spans.py::test_frame_span_budgets`,
-  `tests/test_budget_spans.py::test_frame_span_refusals`.
+  `tests/test_budget_spans.py::test_frame_span_refusals`,
+  `tests/test_budget_spans.py::test_frames_holding_the_span`,
+  `tests/test_budget_spans.py::test_a_span_has_no_depth`,
+  `tests/test_budget_spans.py::test_a_span_after_the_warm_up`.
   *Breaks when:* a `frame` line is refused, `frame/wall` is judged, a
   span's value is not `report`'s, a span's depth is compared with the
   line's, or a span no frame has passes.
 
 ## 6. Failure modes
 
+- **A run with no frames**, a header and a close line alone, is judged
+  as nothing, as each command's rules for a short run say, and never
+  ends in a traceback (ExperiRays).
 - **A malformed row.** `check` lists it with its line. `report` and
   `floor` stop with exit 3 naming the line; they never skip it, since a
   skipped row hides a frame.
@@ -4540,12 +4586,13 @@ it on each release they pin.
 | INV-117 | `tests/test_kit.py::test_expect`, `tests/test_kit.py::test_expect_names_counts_and_values`, `tests/test_kit.py::test_a_file_breaking_the_format_never_matches`, `tests/test_kit.py::test_absent_is_not_null` |
 | INV-118 | `tests/test_strict.py` |
 | INV-119 | `tests/test_generated_frames.py::test_import_marks_generated_frames` |
-| INV-120 | `tests/test_generated_frames.py::test_application_frames_are_judged`, `tests/test_generated_frames.py::test_all_frames_counts_every_frame` |
-| INV-121 | `tests/test_generated_frames.py::test_a_missing_generated_wall`, `tests/test_generated_frames.py::test_the_mark_is_one`, `tests/test_generated_frames.py::test_no_application_frame` |
-| INV-122 | `tests/test_measure_p99.py::test_p99_of_a_pass`, `tests/test_measure_p99.py::test_suffix_refusals` |
-| INV-123 | `tests/test_measure_p99.py::test_too_few_frames` |
+| INV-120 | `tests/test_generated_frames.py::test_application_frames_are_judged`, `tests/test_generated_frames.py::test_all_frames_counts_every_frame`, `tests/test_generated_frames.py::test_generated_frames_before_the_first`, `tests/test_generated_frames.py::test_generated_rows_are_not_read`, `tests/test_generated_frames.py::test_all_frames_by_scene_and_by_variant` |
+| INV-121 | `tests/test_generated_frames.py::test_a_missing_generated_wall`, `tests/test_generated_frames.py::test_the_mark_is_one`, `tests/test_generated_frames.py::test_no_application_frame`, `tests/test_generated_frames.py::test_every_command_refuses_no_application_frame`, `tests/test_generated_frames.py::test_a_hole_among_generated_frames` |
+| INV-122 | `tests/test_measure_p99.py::test_p99_of_a_pass`, `tests/test_measure_p99.py::test_suffix_refusals`, `tests/test_measure_p99.py::test_variants_rank_by_the_suffix` |
+| INV-123 | `tests/test_measure_p99.py::test_too_few_frames`, `tests/test_measure_p99.py::test_nothing_judged_never_passes` |
 | INV-124 | `tests/test_measure_p99.py::test_bisect_p99` |
-| INV-125 | `tests/test_budget_spans.py::test_frame_span_budgets`, `tests/test_budget_spans.py::test_frame_span_refusals` |
+| INV-125 | `tests/test_budget_spans.py::test_frame_span_budgets`, `tests/test_budget_spans.py::test_frame_span_refusals`, `tests/test_budget_spans.py::test_frames_holding_the_span`, `tests/test_budget_spans.py::test_a_span_has_no_depth`, `tests/test_budget_spans.py::test_a_span_after_the_warm_up` |
+| 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

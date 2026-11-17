@@ -17,7 +17,7 @@ import ledger
 import run_report
 import stats
 
-FEWEST_FRAMES = 100  # a kind ranks from this many judged frames, as compare's fewest (§ 4.10)
+FEWEST_FRAMES = 100  # a kind ranks from this many judged frames, as trust.FEWEST_FRAMES makes a kind short (§ 4.10)
 VERDICTS = {"fail": "flagged", "pass": "clean", "inconclusive": "inconclusive"}
 
 

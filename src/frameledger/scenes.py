@@ -201,7 +201,7 @@ def _segment(measure: dict, old: list[ledger.Run], new: list[ledger.Run]) -> str
     if measure["segment_kind"] is None:
         return None
     wanted = (measure["category"], measure["name"], measure["depth"], measure["statistic"])
-    p99_of = frozenset({wanted[:2]} if measure["statistic"] == "p99" else ())
+    p99_of = compare.needing_p99([(measure["category"], measure["name"], measure["statistic"])])
     sides = []
     for runs in (old, new):
         values: dict[str, list[int]] = defaultdict(list)

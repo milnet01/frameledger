@@ -343,7 +343,9 @@ def _run_lines(rows: list[_Row], columns: set[str], header: dict,
             lines.append(f"{run_id},,{frame},event,not_displayed,0,1.000")
             not_displayed += 1
         frame_type = row.get("FrameType")
-        if typed and frame_type != APPLICATION:  # matched as written (FLED-0075)
+        # Matched as written, so a blank or NA FrameType is generated too, unlike
+        # NO_VALUE elsewhere: § 4.18 marks anything but Application (FLED-0075).
+        if typed and frame_type != APPLICATION:
             lines.append(f"{run_id},,{frame},event,generated,0,1.000")
             generated[frame_type] = generated.get(frame_type, 0) + 1
     lines.append(f'# frameledger-close {{"rows_dropped":0,"frames":{len(rows)}}}')
