@@ -1340,6 +1340,11 @@ can still use the analyser, and a stranger's writer can prove itself.
   folded. Asked of the three engines: whether § 4.20's "one opening
   sentence" is amended to say it follows --measure's sentence (A,
   recommended) or the code moves it first (B).
+  2026-11-17: all three engines chose A (Vestige, UT Ants, DOOM
+  Ants). § 4.20 amended in f22cc10: the sentences naming any
+  overrides, then the measures judged, come before the generated-frames
+  sentences; no code changed. Amended text sent to the three engines for
+  review.
   **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
   Kind: test.
   Source: ut-ants-review-2026-11-17.
