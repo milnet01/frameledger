@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=78 -->
+<!-- ants-roadmap-id-high-water: FLED=79 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1450,6 +1450,12 @@ the source of truth; all three engines set that condition, 2026-11-10.
   labelled bands; numbered worst-frame markers; a --fps budget line;
   min-max columns for long runs; generated frames as text; 20 px text.
   The spec section is drafted from their answers.
+  2026-11-17, UT Ants: yes to all ten. Additions: (7) keep the budget
+  line in 0.7.0, the page's most useful part at a fixed 60 fps; (8) tie
+  the column count to the drawn width where cheap, else 1200; (10) lines
+  at least 2 px, markers as large as the text, dark on light with high
+  contrast, units on both axes. (4) A gpu_span overlay filed for later,
+  not built. Vestige's and DOOM Ants' answers owed.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -1754,3 +1760,12 @@ After frameledger does what Vestige, UT Ants and DOOM Ants need (the owner, 2026
   **Layman:** On Windows, stopping a test run also stops programs the game's script started and walked away from.
   Kind: feature.
   Source: engine-review-2026-11-11.
+
+- 💭 [FLED-0079] **The picture report can draw frame/gpu_span over frame/wall.**
+  An option on FLED-0039's page to draw gpu_span as a second line
+  beside wall. UT Ants' frame work is GPU-bound at a 60 fps target, so
+  it would earn its place; FLED-0039 draws wall alone to stay legible.
+  UT Ants, 2026-11-17: file it, don't build it now. Builds on FLED-0039.
+  **Layman:** On the graph page, also draw how long the graphics card took each frame, for games limited by the graphics card.
+  Kind: feature.
+  Source: ut-ants-answer-2026-11-17.
