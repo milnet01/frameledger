@@ -7,8 +7,8 @@
 
 ## Status
 
-0.2.0 compares two builds. The run-file format is agreed
-([spec](docs/specs/FLED-0001-run-file-format.md)). Six commands are
+The run-file format is agreed
+([spec](docs/specs/FLED-0001-run-file-format.md)). These commands are
 built:
 
 - `check` says whether a run file meets the format.
@@ -20,6 +20,15 @@ built:
 - `bisect` gives `git bisect run` a good, bad or skip verdict for one
   commit's runs.
 - `budget` says whether any pass went over its time budget.
+- `alternate` runs an old and a new build in turn, then compares them.
+- `survey` ranks many runs by their slowest frames, and flags those
+  with a frame over budget.
+
+Built since the last release, and in the next:
+
+- `import presentmon` turns a PresentMon capture into a run file.
+- `kit` writes the files that prove a writer made from the spec alone,
+  checked with `check --expect` and `check --strict`.
 
 The [roadmap](ROADMAP.md) lists what comes next.
 
