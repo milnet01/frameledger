@@ -1320,6 +1320,12 @@ can still use the analyser, and a stranger's writer can prove itself.
   marked runs, judged by default and with --all-frames, checking the
   generated-frames sentences and all_frames, under --old/--new and
   --base/--variant. Asked for by UT Ants, 2026-11-17.
+  2026-11-17: built, 6e9db5f: test_alternate in
+  tests/test_generated_frames.py, both forms, default and --all-frames,
+  both engines writing marked runs. Never observed red (the behaviour
+  already shipped); a mutation probe caught all seven ways tried of
+  losing --all-frames on alternate's path. Sent to the three engines
+  for code review.
   **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
   Kind: test.
   Source: ut-ants-review-2026-11-17.
