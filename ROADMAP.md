@@ -1444,6 +1444,12 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17: started after 0.6.0. To be specified as a FLED-0001
   amendment, as every feature here is, and sent to the three engines for
   review before building.
+  2026-11-17: ten design questions put to the three engines, with
+  recommendations: --html PAGE beside the text, overwrite; text's
+  sentences and tables on the page; frame/wall against time; segments as
+  labelled bands; numbered worst-frame markers; a --fps budget line;
+  min-max columns for long runs; generated frames as text; 20 px text.
+  The spec section is drafted from their answers.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
