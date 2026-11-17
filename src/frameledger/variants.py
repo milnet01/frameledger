@@ -207,8 +207,9 @@ def _own_runs_have_named(result: dict) -> bool:
 
 
 def _rank_measure(base_runs: list[ledger.Run], named_measures: tuple[str, ...]) -> compare.Measure | None:
-    """The measure variants rank by: the first --measure name, or
-    frame/wall, its median, at the smallest depth the base runs have it,
+    """The measure variants rank by: the first --measure name, by its
+    suffix's statistic or else its median, or frame/wall's median, at the
+    smallest depth the base runs have it,
     in the segment kind with the most base frames carrying it there; ties
     by kind as text. None when no base run has it.
 
@@ -216,7 +217,7 @@ def _rank_measure(base_runs: list[ledger.Run], named_measures: tuple[str, ...]) 
     compare.FRAME_MEASURES' rows. A named frame row compare does not judge
     is in no run's values, so § 4.16's step 2 has stopped the command
     before `_rank_sentence` looks for this measure's values and finds none."""
-    category, _, name = (named_measures[0] if named_measures else DEFAULT_RANK_MEASURE).partition("/")
+    category, name, statistic = compare.split_named(named_measures[0] if named_measures else DEFAULT_RANK_MEASURE)
     frames: Counter[tuple[int, str | None]] = Counter()  # (depth, kind): frames carrying the measure
     for run in base_runs:
         costs = run_report.Costs(run)
@@ -232,7 +233,7 @@ def _rank_measure(base_runs: list[ledger.Run], named_measures: tuple[str, ...]) 
     depth = min(depth for depth, _ in frames)
     kinds = [kind for kind_depth, kind in frames if kind_depth == depth]
     kind = min(kinds, key=lambda kind: (-frames[(depth, kind)], kind or ""))
-    return compare.Measure(kind, category, name, depth, "median")
+    return compare.Measure(kind, category, name, depth, statistic or "median")
 
 
 def _ranked(entries: list[dict], rank_measure: compare.Measure | None) -> list[dict]:
@@ -261,7 +262,9 @@ def _rank_sentence(base_runs: list[ledger.Run], rank_measure: compare.Measure | 
     variant's `unmatched`, so none has a rank entry (Vestige)."""
     if rank_measure is None:
         return f"Nothing is ranked: no base run has {named_measures[0] if named_measures else DEFAULT_RANK_MEASURE}."
-    values = [values[rank_measure] for values in map(compare.run_values, base_runs) if rank_measure in values]
+    p99_of = frozenset({(rank_measure.category, rank_measure.name)}) if rank_measure.statistic == "p99" else frozenset()
+    taken = [compare.run_values(run, p99_of=p99_of) for run in base_runs]
+    values = [values[rank_measure].value for values in taken if rank_measure in values]
     fields = {"segment_kind": rank_measure.kind, "category": rank_measure.category, "name": rank_measure.name,
               "statistic": rank_measure.statistic}
     if len(values) < len(base_runs):

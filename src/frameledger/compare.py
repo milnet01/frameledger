@@ -32,6 +32,9 @@ FEWEST_RUNS = 3  # a set of two gives too many false changes (§ 4.10's table)
 # The frame measures judged, in § 4.8's frame_times order; the waits are not
 # judged, since a wait moves when the work around it moves.
 FRAME_MEASURES = (("cpu_span", "median"), ("gpu_span", "median"), ("wall", "median"), ("wall", "p99"))
+# Below this many frames holding it in a run, a 99th percentile asked for
+# with :p99 is one of the run's ten slowest frames, so it is not judged (FLED-0076).
+P99_FEWEST_FRAMES = 1000
 CATEGORY_ORDER = {"frame": 0, "cpu": 1, "gpu": 2, "mem": 3}
 MEM_VERDICTS = {"slower": "larger", "faster": "smaller"}  # memory has no speed
 ABSENT = object()  # a run's header field that is absent: it matches only another absent one
@@ -107,6 +110,43 @@ class Measure(NamedTuple):
     statistic: str  # "median" or "p99"
 
 
+class Taken(NamedTuple):
+    """One run's value of a measure, and the frames it is over."""
+    value: int  # thousandths
+    frames: int
+
+
+def split_named(text: str) -> tuple[str, str, str | None]:
+    """A --measure's category, name and the statistic after its `:`, or
+    None for a bare name. cli.py has checked it."""
+    measure, _, statistic = text.partition(":")
+    category, _, name = measure.partition("/")
+    return category, name, statistic or None
+
+
+def statistics_of(category: str, name: str, statistic: str | None) -> tuple[str, ...]:
+    """The statistics a --measure judges: its suffix's, or a bare name's
+    own, which is FRAME_MEASURES' for a frame measure and the median for
+    any other."""
+    if statistic is not None:
+        return (statistic,)
+    if category == "frame":
+        return tuple(judged for frame_name, judged in FRAME_MEASURES if frame_name == name)
+    return ("median",)
+
+
+def wanted_statistics(named_measures: tuple[str, ...]) -> dict[tuple[str, str, str], bool]:
+    """Each (category, name, statistic) the named measures judge, and
+    whether a suffix asked for it: only a suffixed p99 needs
+    P99_FEWEST_FRAMES (§ 4.10)."""
+    wanted = {}
+    for text in named_measures:
+        category, name, statistic = split_named(text)
+        for judged in statistics_of(category, name, statistic):
+            wanted[(category, name, judged)] = statistic is not None
+    return wanted
+
+
 def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors,
             limits: LoadLimits = DEFAULT_LIMITS, named_measures: tuple[str, ...] = (),
             sides: tuple[str, str] = ("old", "new"), baseline: bool = False, all_frames: bool = False) -> dict:
@@ -153,15 +193,17 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
 
     incomplete = _incomplete_sentences(runs)
     loaded = load_sentences(runs, limits)
-    measures, unmatched, absent, outliers = _judge_all(runs, floors, called, named_measures)
+    wanted = wanted_statistics(named_measures)
+    measures, unmatched, absent, outliers = _judge_all(runs, floors, called, named_measures, wanted)
     notices += run_notices(runs) + _set_notices(runs, called, baseline) + outliers
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + loaded + run_report.warning_sentences(shown)
 
     short = _short_kinds(runs)
-    verdict, sentences, reason = _verdict(incomplete, loaded, measures, short, bool(named_measures), unmatched)
-    summary += sentences
-    if short and (not named_measures or "frame/wall" in named_measures):
+    verdict, sentences, reason = _verdict(incomplete, loaded, measures, short, bool(named_measures), unmatched,
+                                          _starved(wanted, measures))
+    summary += sentences + _too_few_sentences(measures)
+    if short and (not named_measures or ("frame", "wall", "median") in wanted):
         # Straight after the verdict, which it explains (Vestige); without
         # frame/wall judged, step 3 skips nothing, so nothing to explain.
         kinds = ", ".join(run_report.kind_name(k) for k in short)
@@ -501,41 +543,51 @@ def shown(value: object, most: int = 20) -> str:
     return json.dumps(ledger.clip(value, most) if isinstance(value, str) else value)
 
 
-def run_values(run: ledger.Run, by_segment: bool = False) -> dict[Measure, int]:
-    """One value per measure for one run, in thousandths: the medians and
-    the wall's 99th percentile, as `report` gives them. A mem measure's
-    value is in MB, the others' in ms. With by_segment, a Measure's kind
-    is the whole segment (`view:3`), and its value is over that segment's
-    frames alone."""
+def run_values(run: ledger.Run, by_segment: bool = False,
+               p99_of: frozenset[tuple[str, str]] = frozenset()) -> dict[Measure, Taken]:
+    """One value per measure for one run, in thousandths, with the frames
+    it is over: the medians and the wall's 99th percentile, as `report`
+    gives them, and the 99th percentile of each (category, name) in
+    `p99_of` (FLED-0076). A mem measure's value is in MB, the others' in
+    ms. With by_segment, a Measure's kind is the whole segment (`view:3`),
+    and its value is over that segment's frames alone."""
     costs = run_report.Costs(run, by_segment)
     values = {}
     for (kind, name), times in costs.frame_values.items():
-        statistics = [statistic for wanted, statistic in FRAME_MEASURES if wanted == name]
+        # dict.fromkeys: frame/wall has its p99 already, so asking again adds nothing.
+        statistics = list(dict.fromkeys([*(judged for wanted, judged in FRAME_MEASURES if wanted == name),
+                                         *(["p99"] if ("frame", name) in p99_of else [])]))
         if not statistics:  # a frame row FRAME_MEASURES does not judge
             continue
         ranks = [stats.RANKS[statistic] for statistic in statistics]
         for statistic, value in zip(statistics, stats.percentiles(times, *ranks), strict=True):
-            values[Measure(kind, "frame", name, 0, statistic)] = value
+            values[Measure(kind, "frame", name, 0, statistic)] = Taken(value, len(times))
     for (kind, category, name, depth), times in (*costs.pass_values.items(), *costs.mem_values.items()):
-        values[Measure(kind, category, name, depth, "median")] = stats.median(times)
+        values[Measure(kind, category, name, depth, "median")] = Taken(stats.median(times), len(times))
+        if (category, name) in p99_of:
+            values[Measure(kind, category, name, depth, "p99")] = Taken(stats.percentile(times, 99), len(times))
     return values
 
 
-def _judge_all(runs: list[Named], floors: Floors, called: dict[str, str], named_measures: tuple[str, ...] = ()
+def _judge_all(runs: list[Named], floors: Floors, called: dict[str, str], named_measures: tuple[str, ...] = (),
+               wanted: dict[tuple[str, str, str], bool] | None = None
                ) -> tuple[list[dict], list[dict], list[str], list[ledger.Notice]]:
     """Every measure all runs share, judged; those only some runs have;
     the names in `named_measures` no run has; and an `outlier_run` warning
     for each run that stands apart where the frame/wall median is noisy.
-    With `named_measures`, only the measures it names count, at every
-    depth, kind and statistic, matched exactly. `called` is each set's
-    name in a warning."""
-    per_run = [run_values(r.run) for r in runs]
+    With `named_measures`, only the statistics `wanted` holds count, at
+    every depth and kind, the names matched exactly. A suffixed p99 any
+    run holds in fewer than P99_FEWEST_FRAMES frames is `too_few`. `called`
+    is each set's name in a warning."""
+    wanted = wanted or {}
+    p99_of = frozenset((category, name) for category, name, statistic in wanted if statistic == "p99")
+    per_run = [run_values(r.run, p99_of=p99_of) for r in runs]
     absent = _absent(per_run, named_measures)
     tick = largest_tick(runs)
     measures, unmatched, outliers = [], [], []
     # In kind order, which a set does not keep, so the outlier warnings come in it.
     for measure in sorted(set().union(*per_run), key=lambda m: run_report.kind_order(m.kind)):
-        if named_measures and f"{measure.category}/{measure.name}" not in named_measures:
+        if named_measures and (measure.category, measure.name, measure.statistic) not in wanted:
             continue
         present = [r.name for r, values in zip(runs, per_run, strict=True) if measure in values]
         if len(present) < len(runs):
@@ -543,15 +595,20 @@ def _judge_all(runs: list[Named], floors: Floors, called: dict[str, str], named_
             continue
         sets = {label: [(r.name, values[measure]) for r, values in zip(runs, per_run, strict=True)
                         if r.set == label] for label in ("old", "new")}
-        old, new = ([value for _, value in sets[label]] for label in ("old", "new"))
+        old, new = ([taken.value for _, taken in sets[label]] for label in ("old", "new"))
+        frames = {label: [taken.frames for _, taken in sets[label]] for label in ("old", "new")}
         floor = change_floor(measure.category, measure.name, centre(old), floors.minimum(measure.category),
                              floors.min_pct, tick)
-        judged = _judge(measure, old, new, floor)
+        judged = _judge(measure, old, new, frames["old"], frames["new"], floor)
+        bounded = wanted.get((measure.category, measure.name, measure.statistic)) and measure.statistic == "p99"
+        if bounded and min(frames["old"] + frames["new"]) < P99_FEWEST_FRAMES:
+            judged["verdict"] = "too_few"
         measures.append(judged)
         is_wall_median = (measure.category, measure.name, measure.depth, measure.statistic) == \
             ("frame", "wall", 0, "median")
         if is_wall_median and judged["verdict"] == "noisy":
-            outliers += [_outlier_notice(judged, called[label], sets[label], floor) for label in ("old", "new")]
+            outliers += [_outlier_notice(judged, called[label], [(name, taken.value) for name, taken in sets[label]],
+                                         floor) for label in ("old", "new")]
     return (sorted(measures, key=_rank), sorted(unmatched, key=_rank), absent,
             [notice for notice in outliers if notice is not None])
 
@@ -592,14 +649,15 @@ def absent_names(runs: list[ledger.Run], named_measures: tuple[str, ...]) -> lis
     return _absent([run_values(run) for run in runs], named_measures)
 
 
-def _absent(per_run: list[dict[Measure, int]], named_measures: tuple[str, ...]) -> list[str]:
-    found = {f"{m.category}/{m.name}" for values in per_run for m in values}
-    return [n for n in named_measures if n not in found]
+def _absent(per_run: list[dict[Measure, Taken]], named_measures: tuple[str, ...]) -> list[str]:
+    found = {(m.category, m.name) for values in per_run for m in values}
+    return [n for n in named_measures if split_named(n)[:2] not in found]
 
 
-def _judge(measure: Measure, old: list[int], new: list[int], floor: Fraction) -> dict:
+def _judge(measure: Measure, old: list[int], new: list[int], old_frames: list[int], new_frames: list[int],
+           floor: Fraction) -> dict:
     """§ 4.10's table, in exact fractions of a thousandth. `floor` is
-    change_floor's for the measure."""
+    change_floor's for the measure; the frames are each run's holding it."""
     old_centre, new_centre = centre(old), centre(new)
     spread = spread_of(old, new)
     change = new_centre - old_centre
@@ -610,6 +668,8 @@ def _judge(measure: Measure, old: list[int], new: list[int], floor: Fraction) ->
         **_measure_fields(measure),
         "old": [v / 1000 for v in old],
         "new": [v / 1000 for v in new],
+        "old_frames": old_frames,
+        "new_frames": new_frames,
         "old_centre": _four_places(old_centre),
         "new_centre": _four_places(new_centre),
         "change": _four_places(change),
@@ -694,11 +754,13 @@ def _short_kinds(runs: list[Named]) -> list[str | None]:
 
 
 def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], short: list,
-             named: bool = False, unmatched: list[dict] | None = None) -> tuple[str, list[str], str | None]:
+             named: bool = False, unmatched: list[dict] | None = None,
+             starved: list[str] | None = None) -> tuple[str, list[str], str | None]:
     """§ 4.10's verdict, first match wins, the sentences saying it, and why
     it is inconclusive, or None. ms and MB never rank against each other,
     so slower passes and larger memory each get a sentence. `named` says
-    --measure was given: then a compare that judged nothing cannot pass."""
+    --measure was given: then a compare that judged nothing cannot pass.
+    `starved` names each :p99 measure with no entry judged (FLED-0076)."""
     moved = {word: [m for m in measures if m["verdict"] == word]
              for word in ("slower", "larger", "faster", "smaller")}
     noisy_walls = [m for m in measures if (m["category"], m["name"], m["statistic"]) ==
@@ -723,6 +785,10 @@ def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], sho
         reason = (f"{_label(wall)} moved {wall['change']:+.3f} ms, within the runs' spread of "
                   f"{wall['spread']:.3f} ms; re-run with more runs a set")
         return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
+    if starved:  # a longer run cures it (FLED-0076)
+        reason = (f"no entry of {joined(starved)} is in {P99_FEWEST_FRAMES} frames of every run, so its 99th "
+                  "percentile is not judged; a longer run cures it")
+        return "inconclusive", [f"The compare is inconclusive: {reason}."], reason
     if named and not measures:  # step 3's second half (UT Ants): never pass by judging nothing
         # Each name once, though unmatched lists it per kind, depth and statistic.
         missing = joined(dict.fromkeys(f"{m['category']}/{m['name']}" for m in unmatched or []))
@@ -737,6 +803,21 @@ def _verdict(incomplete: list[str], loaded: list[str], measures: list[dict], sho
         if moved[word]:
             sentence += f"; {run_report.counted(len(moved[word]), 'measure')} got {word}"
     return "pass", [sentence + "."], None
+
+
+def _starved(wanted: dict[tuple[str, str, str], bool], measures: list[dict]) -> list[str]:
+    """Each --measure NAME:p99 with no entry judged: each is too_few, or
+    in `unmatched` (§ 4.10)."""
+    judged = {(m["category"], m["name"]) for m in measures if m["statistic"] == "p99" and m["verdict"] != "too_few"}
+    return [f"{category}/{name}:p99" for (category, name, statistic), suffixed in wanted.items()
+            if suffixed and statistic == "p99" and (category, name) not in judged]
+
+
+def _too_few_sentences(measures: list[dict]) -> list[str]:
+    """One sentence per too_few entry, with the fewest frames any run holds it in."""
+    return [f"The {_label(m)} is not judged: a run holds it in only "
+            f"{run_report.counted(min(m['old_frames'] + m['new_frames']), 'frame')}, fewer than the "
+            f"{P99_FEWEST_FRAMES} a 99th percentile needs." for m in measures if m["verdict"] == "too_few"]
 
 
 def worst_of(measures: list[dict]) -> dict:

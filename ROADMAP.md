@@ -1400,6 +1400,13 @@ the source of truth; all three engines set that condition, 2026-11-10.
   Ants). DOOM-0617's off-line check needs only old_frames, new_frames
   and too_few (DOOM Ants). No engine script uses bisect --statistic.
   Design agreed by all three engines; to be built.
+  2026-11-17: built: --measure CATEGORY/NAME:median|:p99 on compare,
+  by scene, by variant and alternate; too_few under 1000 frames, shown
+  with its count; old_frames and new_frames for every measure; bisect
+  --statistic p99 on any measure but mem, a short tested run skipping
+  and a short reference stopping. Found while building: INV-42 and
+  INV-48 still held the old frame/wall-only rule; folded to the agreed
+  § 4.11. Sent to the three engines for code review.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.

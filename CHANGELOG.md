@@ -14,6 +14,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Added
 
+- **`compare` and `bisect` judge the 99th percentile of any frame measure or pass** (FLED-0076)
+  `--measure CATEGORY/NAME:p99` judges a measure's 99th percentile, and `:median` its median alone; a bare name judges what it did before, so no verdict changes unless asked. The percentile is over the frames the measure appears in, and that count is shown beside the entry, in each run's values (`12.345 (4210)`) and in JSON as `old_frames` and `new_frames`, now given for every measure. Where any run holds it in fewer than 1000 frames of a segment kind, the entry is `too_few`, shown and named: a longer run cures it. The compare is inconclusive, exit 2, only when no entry of a `:p99` measure is judged. `:p99` on a `mem` measure, any other suffix, and one statistic asked for twice are exit 3. `bisect --statistic p99` now takes any measure but `mem`; a tested run holding it in fewer than 1000 chosen frames skips (125, `skip_reason` `short`), and such a reference stops (128).
+
+- **Frames a driver generated are marked, and left out by default** (FLED-0075)
+  `import presentmon` reads PresentMon's `FrameType` column (`--track_frame_type`): a frame that is not `Application` gets the new row `event/generated`, and the summary and `import.generated` count them by type. `report`, `floor`, `budget`, `survey`, `compare` and `alternate` (by scene and by variant too) and `bisect` then judge the frames the application rendered: a generated frame's rows are left out and its wall is added to the application frame before it. Each says how many frames were generated, and JSON gives `generated_frames` and `all_frames`. `--all-frames` counts every frame. A run whose every frame was generated is refused, naming `--all-frames`. `check` refuses an `event/generated` other than `1.000`. No schema change.
+
 - **A kit proves a writer written from the spec alone, and `check` gains `--strict` and `--expect`** (FLED-0037)
   `kit DIR` writes the writer kit into an empty or missing directory: a `README.txt`, and for each case a `NAME.json`, what an engine measured, and a `NAME.csv`, the run file a correct writer makes from it, made by `include/frameledger.h` itself. Each case catches one mistake: rounding ties, the largest value, quoting, every length at its limit, 19-digit frame numbers, a hole, negative values, a GPU span over its wall whether the run is pipelined or not, CPU and GPU hitches, late GPU rows, across a segment change too, event rows, dropped rows, an unfinished run, a static line with a summary and a long one without, and every header field or none. `check --expect EXPECTED FILE` compares one run file with an expected one by content, not layout: key order, spacing, row order and line endings are free, `1` equals `1.0` but never `true`, and each row is compared as text. The summary names the first difference; `--json` lists up to 20. `check --strict` adds warnings on what is legal but unwise, such as a fixed or ticking `frame/wall`, a clamped clock, a span over its wall, a GPU time never read back, or no segments, and exits 1 on any warning, the format's own included. No schema change.
 
@@ -33,6 +39,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   The header takes an optional `sanitizers` field: a list of the sanitizers the build was compiled with, such as `["address"]`, and `[]` for none. Where the list names any, every command that gives trust warnings adds `sanitizer_build`, quoting the names. A warning changes no verdict and no exit code. `check` refuses a `sanitizers` that is not a list of strings, or that holds an empty or blank one. No schema change: a file without the field reads as before.
 
 ### Changed
+
+- **`bisect --statistic p99` needs 1000 frames** (FLED-0076)
+  A tested run holding the measure in fewer than 1000 of the chosen frames skips, and a reference stops, `frame/wall` included: below that, the 99th percentile is one of a run's ten slowest frames. `compare`'s 99th percentile of a bare `frame/wall` keeps no minimum.
 
 - **Every change is tested on macOS** (FLED-0038)
   The analyser's tests, its self-test and the writer header's tests now run on macOS as well as Linux before a change is accepted. On macOS the header is built and run with Apple's Clang, as C99 and as C++17.

@@ -3024,7 +3024,7 @@ breaks.
   1.0001`; `--bad-above 1000000000`; `--dry-run 1.0001`; neither mode;
   both modes; `--min-ms 1`, `--min-mb 1` or `--min-pct 1` with
   `--bad-above`; `--min-mb 1` on `gpu/opaque`; `--statistic p99` on
-  `gpu/opaque`; `--measure event/cut`; `--measure frame/fence_wait`;
+  `mem/heap`; `--measure event/cut`; `--measure frame/fence_wait`;
   `--depth 1` on `frame/wall`; `--kind view:1`; `--segment view:`;
   none of `--kind`, `--segment` and `--unsegmented`, or two of them;
   no `--tested` and no `--dry-run`; a bare file; `--json` given before
@@ -3112,9 +3112,9 @@ breaks.
   frames: `--segment view:2 --bad-above 12.000` exits 1, `--kind view
   --bad-above 12.000` exits 0, and `--segment view:3` skips with 125.
   With frames of no segment at 8.000 added, `--unsegmented --bad-above
-  9.000` exits 0. A run of 102 `view` frames whose `frame/wall` is
-  16.000 in 99 of them and 40.000 in two, the last frame having none
-  (§ 4.4): `--measure frame/wall
+  9.000` exits 0. A run of 1002 `view` frames whose `frame/wall` is
+  16.000 in 990 of them and 40.000 in eleven, the last frame having
+  none (§ 4.4): `--measure frame/wall
   --statistic p99 --bad-above 30.000` exits 1, and the median exits 0.
   *Test:* `tests/test_bisect.py::test_frames_chosen`.
   *Breaks when:* `--segment` pools its kind, `--unsegmented` takes

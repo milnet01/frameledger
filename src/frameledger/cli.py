@@ -33,6 +33,7 @@ import render
 import run_report
 import scenes
 import selftest
+import stats
 import strict
 import survey
 import variants
@@ -220,9 +221,9 @@ def _add_compare_flags(command) -> None:
     command.add_argument("--max-gpu-busy", type=_share(100), default=compare.DEFAULT_LIMITS.max_gpu_busy,
                          metavar="P", help="a run whose gpu_busy_pct.peak, the GPU percent other programs "
                          f"used, is above this was taken under load (default {compare.DEFAULT_LIMITS.max_gpu_busy})")
-    command.add_argument("--measure", action="append", default=[], metavar="CATEGORY/NAME",
-                         help="judge only this measure, and show each run's value of it; give it once "
-                         "per measure")
+    command.add_argument("--measure", action="append", default=[], metavar="CATEGORY/NAME[:median|:p99]",
+                         help="judge only this measure, and show each run's value of it; :p99 judges its "
+                         "99th percentile; give it once per measure")
     _add_all_frames(command)
     _add_output_flags(command)
 
@@ -789,19 +790,38 @@ def _limits(args: argparse.Namespace) -> compare.LoadLimits:
 
 
 def _named(measures: list[str]) -> tuple[str, ...]:
-    """--measure's names, each checked as bisect checks its one, and none
-    given twice; refused before any file is read or command started."""
+    """--measure's names, each checked as bisect checks its one, and no
+    statistic of a measure asked for twice (FLED-0076); refused before any
+    file is read or command started."""
+    asked: dict[tuple[str, str, str], str] = {}  # (category, name, statistic) -> the --measure asking for it
     for text in measures:
-        _parse_measure(text)
+        category, name, statistic = _parse_measure(text)
+        for judged in compare.statistics_of(category, name, statistic):
+            first = asked.setdefault((category, name, judged), text)
+            if first != text:
+                raise ledger.LedgerError(f"--measure {first} and --measure {text} both judge {category}/{name}'s "
+                                         f"{judged}; give one")
     twice = [text for text, count in Counter(measures).items() if count > 1]
     if twice:
         raise ledger.LedgerError(f"--measure {twice[0]} is given twice")
     return tuple(measures)
 
 
-def _parse_measure(text: str) -> tuple[str, str]:
-    """A --measure's category and name: a frame measure § 4.10 judges, a
-    cpu or gpu pass, or a mem name."""
+def _parse_measure(text: str) -> tuple[str, str, str | None]:
+    """A --measure's category, name and statistic: a frame measure § 4.10
+    judges, a cpu or gpu pass, or a mem name, and after a `:` median or
+    p99, or None for the measure's own (FLED-0076). A name holds no `:`."""
+    category, name, statistic = compare.split_named(text)
+    if statistic is not None and statistic not in stats.RANKS:
+        raise ledger.LedgerError(f"--measure {text}: the statistic after ':' must be median or p99")
+    if category == "mem" and statistic == "p99":
+        raise ledger.LedgerError(f"--measure {text}: a mem measure is judged by its median, so it has no p99")
+    _parse_name(f"{category}/{name}")
+    return category, name, statistic
+
+
+def _parse_name(text: str) -> tuple[str, str]:
+    """A measure's category and name, as bisect's --measure gives them."""
     category, slash, name = text.partition("/")
     if not (slash and name) or category not in bisecting.CATEGORIES:
         raise ledger.LedgerError(f"--measure {text} must be frame/NAME, cpu/NAME, gpu/NAME or mem/NAME")
@@ -958,9 +978,11 @@ def _bisect(args: argparse.Namespace) -> dict:
 
 def _wanted(args: argparse.Namespace) -> bisecting.Wanted:
     """The measure and frames, refusing what would skip every commit."""
-    category, name = _parse_measure(args.measure)
-    if args.statistic == "p99" and (category, name) != ("frame", "wall"):
-        raise ledger.LedgerError("--statistic p99 is for frame/wall only")
+    if ":" in args.measure:
+        raise ledger.LedgerError(f"--measure {args.measure}: bisect takes --statistic, not a ':' suffix")
+    category, name = _parse_name(args.measure)
+    if args.statistic == "p99" and category == "mem":
+        raise ledger.LedgerError("--statistic p99 is not for a mem measure, which is judged by its median")
     if category == "frame" and args.depth is not None:
         raise ledger.LedgerError("--depth picks a pass's depth; a frame measure has none")
     if args.kind is not None and ":" in args.kind:

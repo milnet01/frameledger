@@ -201,14 +201,15 @@ def _segment(measure: dict, old: list[ledger.Run], new: list[ledger.Run]) -> str
     if measure["segment_kind"] is None:
         return None
     wanted = (measure["category"], measure["name"], measure["depth"], measure["statistic"])
+    p99_of = frozenset({wanted[:2]} if measure["statistic"] == "p99" else ())
     sides = []
     for runs in (old, new):
         values: dict[str, list[int]] = defaultdict(list)
         for run in runs:
-            for m, value in compare.run_values(run, by_segment=True).items():
+            for m, taken in compare.run_values(run, by_segment=True, p99_of=p99_of).items():
                 if (m.kind and run_report.segment_kind(m.kind) == measure["segment_kind"]
                         and (m.category, m.name, m.depth, m.statistic) == wanted):
-                    values[m.kind].append(value)
+                    values[m.kind].append(taken.value)
         sides.append(values)
     changes = [(compare.centre(sides[1][s]) - compare.centre(sides[0][s]), s) for s in sides[0] if s in sides[1]]
     if not changes:

@@ -213,7 +213,7 @@ def stop_args(tmp_path, *flags):
     [*OPAQUE, "--bad-above", "10", "--min-ms", "1"],
     [*OPAQUE, "--bad-above", "10", "--min-mb", "1"],
     [*OPAQUE, "--bad-above", "10", "--min-pct", "1"],
-    ["--measure", "gpu/opaque", "--kind", "view", "--statistic", "p99", "--bad-above", "10"],
+    ["--measure", "mem/heap", "--kind", "view", "--statistic", "p99", "--bad-above", "10"],
     ["--measure", "event/cut", "--kind", "view", "--bad-above", "10"],
     ["--measure", "frame/fence_wait", "--kind", "view", "--bad-above", "10"],
     ["--measure", "gpu/opaque", "--bad-above", "10"],
@@ -383,14 +383,15 @@ def test_frames_chosen(capsys, tmp_path):
     mixed = [run_text([("", rows(8.0))] * 50 + views)]
     assert bisect(capsys, tmp_path, mixed, "--measure", "gpu/opaque", "--unsegmented",
                   "--bad-above", "9.000")[0] == 0
-    walls = [("view:1", {**rows(), ("frame", "wall", 0): 16.0})] * 99
-    walls += [("view:1", {**rows(), ("frame", "wall", 0): 40.0})] * 2 + [("view:1", rows())]
+    # Over 1000 walls, as --statistic p99 needs (FLED-0076).
+    walls = [("view:1", {**rows(), ("frame", "wall", 0): 16.0})] * 990
+    walls += [("view:1", {**rows(), ("frame", "wall", 0): 40.0})] * 11 + [("view:1", rows())]
     wall = ["--measure", "frame/wall", "--kind", "view", "--bad-above", "30.000"]
     assert bisect(capsys, tmp_path, [run_text(walls)], *wall, "--statistic", "p99")[0] == 1
     assert bisect(capsys, tmp_path, [run_text(walls)], *wall)[0] == 0
-    # One 40.000 in 100 walls: rank 99 is 16.000, so the p99 is not the slowest frame.
-    one = [("view:1", {**rows(), ("frame", "wall", 0): 16.0})] * 99
-    one += [("view:1", {**rows(), ("frame", "wall", 0): 40.0}), ("view:1", rows())]
+    # Ten 40.000 in 1001 walls: rank 991 is 16.000, so the p99 is not among the slowest frames.
+    one = [("view:1", {**rows(), ("frame", "wall", 0): 16.0})] * 991
+    one += [("view:1", {**rows(), ("frame", "wall", 0): 40.0})] * 10 + [("view:1", rows())]
     assert bisect(capsys, tmp_path, [run_text(one)], *wall, "--statistic", "p99")[0] == 0
     # A run's median is report's nearest rank, the lower middle: 10.000, not 11.000.
     halves = [run_text([("view:1", rows(10.0))] * 60 + [("view:1", rows(12.0))] * 60)]
