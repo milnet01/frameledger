@@ -1397,7 +1397,7 @@ the source of truth; all three engines set that condition, 2026-11-10.
   Kind: feature.
   Source: experirays-request-2026-11-17.
 
-- 💭 [FLED-0077] **budget can judge frame/gpu_span and frame/cpu_span, not only passes.**
+- 📋 [FLED-0077] **budget can judge frame/gpu_span and frame/cpu_span, not only passes.**
   § 4.12's budget file takes category cpu or gpu, a pass name, so a
   frame's whole span has no budget. ExperiRays (EXRAY-0026) holds
   frame/gpu_span's p99 against a fixed target and will read report
@@ -1414,6 +1414,12 @@ the source of truth; all three engines set that condition, 2026-11-10.
   gpu_span p99 limit says whether the GPU alone fits 16.67 ms, which
   floor's wall cannot separate. Changes nothing of Vestige's; it keeps
   no budget file. UT Ants' answer owed.
+  2026-11-17, UT Ants: agree, as recommended; changes no file of its own
+  (its per-step budget lives in ut-bench). Decided by all three: budget
+  accepts frame/cpu_span and frame/gpu_span, median or p99 as for
+  passes; not frame/wall, which floor judges. Vestige and ExperiRays
+  would use it; DOOM Ants does not need it and agrees the shape. To be
+  designed as a FLED-0001 § 4.12 amendment.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.
