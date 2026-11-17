@@ -1287,6 +1287,10 @@ can still use the analyser, and a stranger's writer can prove itself.
   run whose every frame is generated has nothing to judge, so it is a
   file error naming --all-frames. Sent to the three engines for code
   review.
+  2026-11-17, DOOM Ants: yes to the build-time addition: a run of only
+  generated frames is a file error naming --all-frames (crashing was the
+  worse answer). Code review to follow. Vestige's and UT Ants' answers
+  owed.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
@@ -1407,6 +1411,10 @@ the source of truth; all three engines set that condition, 2026-11-10.
   and a short reference stopping. Found while building: INV-42 and
   INV-48 still held the old frame/wall-only rule; folded to the agreed
   § 4.11. Sent to the three engines for code review.
+  2026-11-17, DOOM Ants: yes to folding INV-42 and INV-48 to § 4.11's
+  1000-frame p99 rule; no DOOM Ants file or scratch script uses
+  --statistic. Code review to follow. Vestige's and UT Ants' answers
+  owed.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
