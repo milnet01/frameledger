@@ -1259,6 +1259,11 @@ can still use the analyser, and a stranger's writer can prove itself.
   fails it; dropping loses the presented view, keeping unmarked makes
   the floor wrong in silence. UT Ants' and DOOM Ants' answers still
   owed.
+  2026-11-17, UT Ants: mark, as Vestige. UT Ants budgets the
+  engine's own frame cost, so a generated frame counted as rendered
+  would hide it; dropped, the present cadence a player sees is lost.
+  Marked, a report can show both. A preference, not a blocker: UT Ants
+  does not use frame generation today. DOOM Ants' answer still owed.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
