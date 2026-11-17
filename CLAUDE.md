@@ -7,7 +7,7 @@
 FLED-0037, built, all three code reviews folded; FLED-0075, FLED-0076
 and FLED-0077, built, the three engines' and ExperiRays' code reviews
 folded; FLED-0078, built, the three engines' and ExperiRays' code
-reviews folded, § 4.20's amended wording sent to the engines for review.
+reviews folded, § 4.20's amended wording agreed by all three.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.

@@ -1345,6 +1345,10 @@ can still use the analyser, and a stranger's writer can prove itself.
   overrides, then the measures judged, come before the generated-frames
   sentences; no code changed. Amended text sent to the three engines for
   review.
+  2026-11-17: yes to § 4.20's amended text from Vestige, UT Ants and
+  DOOM Ants, nothing to change. Vestige offered a clearer wording of
+  the order, optional, not taken. Nothing owed by the three engines or
+  ExperiRays on FLED-0078.
   **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
   Kind: test.
   Source: ut-ants-review-2026-11-17.
