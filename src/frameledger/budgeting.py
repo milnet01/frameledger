@@ -25,6 +25,7 @@ KEYWORD = "# frameledger-budget"
 COLUMNS = "category,name,kind,depth,statistic,limit_ms"
 EVERY_KIND = "*"
 ANY_DEPTH = None  # for _kinds: a pass at whatever depth
+SPANS = tuple(run_report.SPAN.values())  # the frame measures a `frame` line may budget (FLED-0077)
 # Nine whole digits at most, so int() never meets a huge number (Vestige).
 LIMIT_RE = re.compile(r"([0-9]{1,9})(?:\.([0-9]{1,3}))?")
 DEPTH_RE = re.compile(r"[0-9]{1,9}")
@@ -33,10 +34,10 @@ DEPTH_RE = re.compile(r"[0-9]{1,9}")
 class Budget(NamedTuple):
     """One line of a budget file."""
     line: int
-    category: str
+    category: str  # cpu or gpu for a pass; frame for a span
     name: str
     kind: str | None  # EVERY_KIND, a segment kind, or None for frames with no segment
-    depth: int | None  # None: the name must be at one depth in the frames judged
+    depth: int | None  # None: the name must be at one depth in the frames judged; a span has none
     statistic: str  # "median" or "p99"
     limit: int  # thousandths of a ms
 
@@ -139,8 +140,15 @@ def _budget(text: str, number: int, path: str) -> Budget:
     def bad(message: str) -> ledger.LedgerError:
         return ledger.LedgerError(message, path, number)
 
-    if category not in run_report.SPAN:
-        raise bad(f"category '{ledger.clip(category)}' must be cpu or gpu")
+    if category not in (*run_report.SPAN, "frame"):
+        raise bad(f"category '{ledger.clip(category)}' must be cpu or gpu for a pass, or frame for a span")
+    if category == "frame" and name == "wall":
+        raise bad("frame/wall is frame time, which floor judges; a frame line budgets frame/cpu_span or "
+                  "frame/gpu_span")
+    if category == "frame" and name not in SPANS:
+        raise bad(f"a frame line budgets frame/cpu_span or frame/gpu_span, not frame/{ledger.clip(name)}")
+    if category == "frame" and depth:
+        raise bad(f"a frame span has no depth, so a frame line's depth is empty, not '{ledger.clip(depth)}'")
     if not ledger.NAME_RE.fullmatch(name) or len(name) > ledger.NAME_MAX:
         raise bad(f"name '{ledger.clip(name)}' must be 1 to {ledger.NAME_MAX} ASCII letters, digits and '_ . / -'")
     if ":" in kind or len(kind.encode()) > ledger.PART_MAX:
@@ -173,7 +181,7 @@ def judge(run: ledger.Run, budget_file: BudgetFile, warmup_us: int) -> dict:
     if costs.missing_gpu:
         notices.append(ledger.Notice("gpu_missing", run_report.missing_gpu_message(costs.missing_gpu)))
 
-    entries, unmatched, few = _judge_lines(costs, budget_file)
+    entries, unmatched, few = _judge_lines(_measured(costs), budget_file)
     notices += few
 
     reasons = _incomplete(run, stop)
@@ -209,31 +217,43 @@ def judge(run: ledger.Run, budget_file: BudgetFile, warmup_us: int) -> dict:
             }}
 
 
-def _judge_lines(costs: run_report.Costs, budget_file: BudgetFile) -> Judged:
-    """Every budget line judged. A line naming a kind replaces a `*` line
-    there when both judge one pass: the same category, name and
-    statistic, at the same depth once an empty depth is resolved (UT Ants).
-    So named lines are resolved first."""
+def _measured(costs: run_report.Costs) -> dict[tuple, list[int]]:
+    """Every pass's frame values, keyed (kind, category, name, depth), and
+    each frame span's under category `frame` at depth None, whatever depth
+    its rows carry: a span has no depth (§ 4.12)."""
+    spans = {(kind, "frame", name, None): values for (kind, name), values in costs.frame_values.items()
+             if name in SPANS}
+    return {**costs.pass_values, **spans}
+
+
+def _judge_lines(measured: dict[tuple, list[int]], budget_file: BudgetFile) -> Judged:
+    """Every budget line judged, from _measured's values. A line naming a
+    kind replaces a `*` line there when both judge one pass: the same
+    category, name and statistic, at the same depth once an empty depth is
+    resolved (UT Ants). So named lines are resolved first."""
     # (category, name, statistic, kind) -> the depths named lines judge there; a
     # pass can run at two depths, each with its own line (DOOM Ants, UT Ants).
-    taken: dict[tuple, set[int]] = {}
+    # A span's one depth is None.
+    taken: dict[tuple, set[int | None]] = {}
     for named in budget_file.budgets:
-        depth = _depth(costs, named, [named.kind], budget_file.path) if named.kind != EVERY_KIND else None
-        if depth is not None:
+        if named.kind == EVERY_KIND:
+            continue
+        depth = _depth(measured, named, [named.kind], budget_file.path)
+        if depth is not None or named.category == "frame":
             taken.setdefault((named.category, named.name, named.statistic, named.kind), set()).add(depth)
     entries, unmatched, notices = [], [], []
     judged_by: dict[tuple, int] = {}  # (category, name, statistic, kind, depth) -> the line judging it
     for budget in budget_file.budgets:
-        everywhere = _kinds(costs, budget, ANY_DEPTH)
+        everywhere = _kinds(measured, budget, ANY_DEPTH)
         if budget.kind == EVERY_KIND:
-            kinds = [k for k in everywhere if not _taken(taken, budget, k, costs)]
+            kinds = [k for k in everywhere if not _taken(taken, budget, k, measured)]
         else:
             kinds = [budget.kind] if budget.kind in everywhere else []
-        depth = _depth(costs, budget, kinds, budget_file.path)
-        judged = [k for k in kinds if k in _kinds(costs, budget, depth)]
+        depth = _depth(measured, budget, kinds, budget_file.path)
+        judged = [k for k in kinds if k in _kinds(measured, budget, depth)]
         if budget.kind == EVERY_KIND:
             # In no frame at all; a `*` line whose every kind a named line took matched.
-            matched = bool(_kinds(costs, budget, ANY_DEPTH if budget.depth is None else budget.depth))
+            matched = bool(_kinds(measured, budget, ANY_DEPTH if budget.depth is None else budget.depth))
         else:
             matched = bool(judged)
         if not matched:
@@ -245,7 +265,7 @@ def _judge_lines(costs: run_report.Costs, budget_file: BudgetFile) -> Judged:
                     f"this line judges {_label(budget.category, budget.name, budget.statistic, kind)} at "
                     f"depth {depth}, as line {judged_by[key]} does", budget_file.path, budget.line)
             judged_by[key] = budget.line
-            values = costs.pass_values[(kind, budget.category, budget.name, depth)]
+            values = measured[(kind, budget.category, budget.name, depth)]
             entries.append(_entry(budget, kind, depth, values))
             if budget.statistic == "p99" and len(values) < trust.FEWEST_FRAMES:
                 notices.append(ledger.Notice("budget_few_frames", (
@@ -255,14 +275,14 @@ def _judge_lines(costs: run_report.Costs, budget_file: BudgetFile) -> Judged:
     return Judged(entries, unmatched, notices)
 
 
-def _taken(taken: dict, star: Budget, kind: str | None, costs: run_report.Costs) -> bool:
+def _taken(taken: dict, star: Budget, kind: str | None, measured: dict[tuple, list[int]]) -> bool:
     """Whether a named line judges the `*` line's pass in `kind`: one with
     the same category, name and statistic, at the `*` line's depth, or at
     a depth the pass has there when the `*` line's is empty."""
     depths = taken.get((star.category, star.name, star.statistic, kind), set())
     if star.depth is not None:
         return star.depth in depths
-    return any(kind in _kinds(costs, star, depth) for depth in depths)
+    return any(kind in _kinds(measured, star, depth) for depth in depths)
 
 
 def _refuse_mismatch(run: ledger.Run, match: dict) -> None:
@@ -297,13 +317,13 @@ def _after_warmup(run: ledger.Run, warmup_us: int) -> tuple[set[int] | None, str
     return {frame for frame, _rows, end, _wall in timed if end >= warmup_us}, stop
 
 
-def _depth(costs: run_report.Costs, budget: Budget, kinds: list[str | None], path: str) -> int | None:
+def _depth(measured: dict[tuple, list[int]], budget: Budget, kinds: list[str | None], path: str) -> int | None:
     """The depth `budget` judges in `kinds`: its own, or else the one depth
-    the pass has there, or None when it has none. Two is exit 3, naming the
-    pass and both."""
-    if budget.depth is not None:
+    the pass has there, or None when it has none, as a span never has. Two
+    is exit 3, naming the pass and both."""
+    if budget.depth is not None or budget.category == "frame":
         return budget.depth
-    depths = sorted({depth for (kind, category, name, depth) in costs.pass_values
+    depths = sorted({depth for (kind, category, name, depth) in measured
                      if (category, name) == (budget.category, budget.name) and kind in kinds})
     if len(depths) > 1:
         raise ledger.LedgerError(
@@ -312,16 +332,17 @@ def _depth(costs: run_report.Costs, budget: Budget, kinds: list[str | None], pat
     return depths[0] if depths else None
 
 
-def _kinds(costs: run_report.Costs, budget: Budget, depth: int | None) -> list[str | None]:
-    """The kinds the pass appears in at `depth`, or at any depth for
-    ANY_DEPTH, in § 4.8's kind order."""
-    return sorted({kind for (kind, category, name, d) in costs.pass_values
+def _kinds(measured: dict[tuple, list[int]], budget: Budget, depth: int | None) -> list[str | None]:
+    """The kinds the pass or span appears in at `depth`, or at any depth
+    for ANY_DEPTH, in § 4.8's kind order."""
+    return sorted({kind for (kind, category, name, d) in measured
                    if (category, name) == (budget.category, budget.name) and depth in (ANY_DEPTH, d)},
                   key=run_report.kind_order)
 
 
-def _entry(budget: Budget, kind: str | None, depth: int, values: list[int]) -> dict:
-    """`depth` is resolved: a kind is judged only where the pass has one."""
+def _entry(budget: Budget, kind: str | None, depth: int | None, values: list[int]) -> dict:
+    """`depth` is resolved: a kind is judged only where the pass has one. A
+    span's is None."""
     value = stats.percentile(values, stats.RANKS[budget.statistic])
     return {"line": budget.line, "category": budget.category, "name": budget.name, "segment_kind": kind,
             "depth": depth, "statistic": budget.statistic, "limit_ms": budget.limit / 1000,
@@ -343,7 +364,8 @@ def _unmatched_sentence(budget: Budget) -> str:
     frames = "frame" if budget.kind == EVERY_KIND else f"{run_report.kind_name(budget.kind)} frame"
     depth = "" if budget.depth is None else f" at depth {budget.depth}"
     return (f"Line {budget.line}'s {budget.category}/{budget.name}{depth} is in no {frames} judged, "
-            f"so its {budget.statistic} budget cannot be judged: the pass is in none of those frames, "
+            f"so its {budget.statistic} budget cannot be judged: the "
+            f"{'span' if budget.category == 'frame' else 'pass'} is in none of those frames, "
             "so a re-run gives the same: fix the budget file or the engine.")
 
 

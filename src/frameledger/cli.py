@@ -115,7 +115,7 @@ def _parser() -> _Parser:
     _add_compare_flags(compare_cmd)
     _add_bisect(commands)
     _add_alternate(commands)
-    budget = commands.add_parser("budget", help="is any pass over its time budget?")
+    budget = commands.add_parser("budget", help="is any pass, or a frame's CPU or GPU span, over its time budget?")
     budget.add_argument("file", metavar="FILE")
     budget.add_argument("--budgets", required=True, metavar="BUDGETS", help="the budget file")
     budget.add_argument("--warmup-s", type=_bounded, default=Decimal(0), metavar="S",

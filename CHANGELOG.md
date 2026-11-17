@@ -14,6 +14,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Added
 
+- **A budget can limit a frame's whole CPU or GPU time** (FLED-0077)
+  A budget file line may name `frame,cpu_span` or `frame,gpu_span`, with `median` or `p99`, as a pass line does: `frame,gpu_span,*,,p99,16.667` says whether the GPU alone fits a 60 FPS frame. Its value is `report`'s figure over the frames holding the span, and every pass rule holds: `*` and named kinds, `--warmup-s`, `budget_few_frames`, and a line no frame matches making the verdict inconclusive. `frame,wall` is refused, naming `floor`, which judges frame time; so is any other frame name and a depth on a frame line.
+
 - **`compare` and `bisect` judge the 99th percentile of any frame measure or pass** (FLED-0076)
   `--measure CATEGORY/NAME:p99` judges a measure's 99th percentile, and `:median` its median alone; a bare name judges what it did before, so no verdict changes unless asked. The percentile is over the frames the measure appears in, and that count is shown beside the entry, in each run's values (`12.345 (4210)`) and in JSON as `old_frames` and `new_frames`, now given for every measure. Where any run holds it in fewer than 1000 frames of a segment kind, the entry is `too_few`, shown and named: a longer run cures it. The compare is inconclusive, exit 2, only when no entry of a `:p99` measure is judged. `:p99` on a `mem` measure, any other suffix, and one statistic asked for twice are exit 3. `bisect --statistic p99` now takes any measure but `mem`; a tested run holding it in fewer than 1000 chosen frames skips (125, `skip_reason` `short`), and such a reference stops (128).
 

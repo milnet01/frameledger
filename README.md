@@ -19,7 +19,8 @@ built:
   build's, measure by measure, memory included.
 - `bisect` gives `git bisect run` a good, bad or skip verdict for one
   commit's runs.
-- `budget` says whether any pass went over its time budget.
+- `budget` says whether any pass, or a frame's whole CPU or GPU span, went
+  over its time budget.
 - `alternate` runs an old and a new build in turn, then compares them.
 - `survey` ranks many runs by their slowest frames, and flags those
   with a frame over budget.

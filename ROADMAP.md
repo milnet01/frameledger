@@ -1444,6 +1444,10 @@ the source of truth; all three engines set that condition, 2026-11-10.
   out unless --all-frames; INV-125 adds depth-0 rows, a named kind
   beside * and a 50-frame p99. Design agreed by all three engines; to
   be built.
+  2026-11-17: built: budget lines take frame,cpu_span and
+  frame,gpu_span, judged on report's frame_times figures; frame,wall,
+  other frame names and a depth on a frame line are exit 3. Sent to the
+  three engines and ExperiRays for code review.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.

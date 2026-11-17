@@ -340,7 +340,7 @@ def _budget_body(result: dict) -> list[Block]:
                   [Column("budget", 40, fit=_fitter(40)), Column("limit ms", 10, True),
                    Column("value ms", 10, True), Column("over ms", 10, True), Column("frames", 8, True),
                    Column("verdict")],
-                  [[f"{_kind_name(b['segment_kind'])}: {'  ' * b['depth']}{b['category']}/{b['name']} "
+                  [[f"{_kind_name(b['segment_kind'])}: {'  ' * (b['depth'] or 0)}{b['category']}/{b['name']} "
                     f"{b['statistic']}", f"{b['limit_ms']:.3f}", f"{b['value_ms']:.3f}", f"{b['over_ms']:+.3f}",
                     str(b["frames"]), "over" if b["over"] else "holds"] for b in budgets["budgets"]])]
 

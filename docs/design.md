@@ -42,7 +42,7 @@ Four parts. The format spec is the only thing the other three share.
   - `run_report.py` — one run: cost ranking, bound-by, worst frames,
     floor check, pacing (S2, S3, S8, S13, S14).
   - `budgeting.py` — pass budgets: reads a budget file and judges one
-    run's passes on `run_report.py`'s figures (S12). It takes the
+    run's passes and frame spans on `run_report.py`'s figures (S12). It takes the
     compare-blocking fields from `compare.py`, which `run_report.py`
     may not import.
   - `compare.py` — labelled sets of runs (S4, S16).
