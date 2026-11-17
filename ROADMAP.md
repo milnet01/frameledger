@@ -1505,6 +1505,8 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17, DOOM Ants: still yes; it would use it in 0.7.0, nothing
   blocks on it. UT Ants: keep it an idea, still later. Vestige's answer
   owed.
+  2026-11-17, Vestige: keep as idea; it would use it, but no gate
+  depends on it. Outcome: stays an idea (two of three).
   **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -1524,6 +1526,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   plan it for 0.7.0 if Vestige's gate still needs it, with k set per
   call, not fixed; it will review the spec amendment. Vestige's answer
   owed.
+  2026-11-17, Vestige: keep as idea. 3D_E-0795's gate shipped on floor's
+  absolute limit (floor --fps 60), so it no longer needs a relative
+  count; wanted later for stutter below 16.667 ms at higher refresh
+  rates. Outcome: stays an idea, since the other two answers were
+  conditional on Vestige's gate. When planned: k set per call (UT Ants).
   **Layman:** Counts sudden stutters: frames much slower than the frames around them.
   Kind: feature.
   Source: competitor-research-2026-11-10.
