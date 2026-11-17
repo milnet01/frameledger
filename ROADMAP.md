@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=76 -->
+<!-- ants-roadmap-id-high-water: FLED=77 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1378,6 +1378,17 @@ the source of truth; all three engines set that condition, 2026-11-10.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
+
+- 💭 [FLED-0077] **budget can judge frame/gpu_span and frame/cpu_span, not only passes.**
+  § 4.12's budget file takes category cpu or gpu, a pass name, so a
+  frame's whole span has no budget. ExperiRays (EXRAY-0026) holds
+  frame/gpu_span's p99 against a fixed target and will read report
+  --json's p99_ms instead; it asks nothing. It notes DOOM-0617's
+  hardware test would meet the same limit if it moved to budget. To be
+  put to the three engines with FLED-0076's design review.
+  **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
+  Kind: feature.
+  Source: experirays-observation-2026-11-17.
 
 ## 0.8.0 — stable promises (beta)
 
