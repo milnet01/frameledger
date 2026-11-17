@@ -1488,6 +1488,9 @@ the source of truth; all three engines set that condition, 2026-11-10.
   clustered marker numbers and contrast against band fills. All three
   engines' answers folded into § 4.21 and INV-126 to INV-130; the diff
   goes back to them before building.
+  2026-11-17: Vestige, UT Ants and DOOM Ants each accepted § 4.21 and
+  INV-126 to INV-130 as folded at 68e0868, with nothing further owed.
+  Ready to build.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
