@@ -1048,6 +1048,8 @@ can still use the analyser, and a stranger's writer can prove itself.
   with Python 3.13.15: the .pyz built at 9b18bf5 on Linux wrote the kit;
   check --expect on basic.csv exit 0, against dropped.csv exit 1; fc /b
   found basic.csv byte-identical to the tree's, so the LF pin holds.
+  2026-11-17: UT Ants' code review folded at 9fad8ad; all three
+  engines' code reviews are now folded.
   **Layman:** A set of tests anyone can run to prove their game writes the file correctly.
   Kind: test.
   Source: engine-answers-2026-11-10.
