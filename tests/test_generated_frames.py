@@ -8,10 +8,13 @@ Invariants INV-119 to INV-121 from docs/specs/FLED-0001-run-file-format.md
 
 import json
 
+import pytest
+
 import cli
 import generated
 import ledger
 from floor_runs import HEADER
+from test_alternate import Bench, analyser, without_added
 from test_presentmon import COLUMNS, capture_text, imported, row, values
 
 APPLICATION_FRAMES = 600  # 10 s at 60 a second, so floor has windows after its 2 s warm-up
@@ -301,6 +304,55 @@ def test_all_frames_by_scene_and_by_variant(capsys, tmp_path):
         code, out = command(capsys, "compare", *args, "--measure", "frame/cpu_span", "--all-frames")
         assert any(s.endswith(counted("base-1" if "--base" in args else "old-1")) for s in out["summary"]), args
         assert out["result"]["all_frames"] is True
+
+
+@pytest.mark.parametrize("all_frames", [False, True])
+@pytest.mark.parametrize("form", ["old and new", "base and variant"])
+def test_alternate(tmp_path, form, all_frames):
+    """FLED-0078: both of alternate's engines write runs holding marked
+    generated frames, and alternate judges them as compare judges the same
+    files: each side's generated frames left out or, with --all-frames,
+    counted. The frames each run gives frame/cpu_span say which."""
+    bench = Bench(tmp_path)
+    for side in ("old", "new"):
+        bench.sources[side].write_text(run_text(side), encoding="utf-8")
+    flags = ["--measure", "frame/cpu_span", *(["--all-frames"] if all_frames else []), "--json"]
+    if form == "old and new":
+        first, second = "old", "new"
+        args = bench.args(*flags)
+    else:
+        first, second = "base", "v"
+        bench.sources |= {"base": bench.sources["old"], "v": bench.sources["new"]}
+        args = ["alternate", "--out", str(bench.out), "--runs", "3", "--base", bench.command("base"),
+                "--variant", "v", bench.command("v"), *flags]
+    done = analyser(args)
+    out = json.loads(done.stdout)
+    assert out["command"] == "alternate" and out["result"]["stopped"] is None
+
+    said = counted if all_frames else left_out
+    for name in (f"{side}-{n}" for side in (first, second) for n in (1, 2, 3)):
+        assert any(s.endswith(said(name)) for s in out["summary"]), (name, out["summary"])
+    assert isinstance(out["result"]["all_frames"], bool) and out["result"]["all_frames"] is all_frames
+
+    if form == "old and new":
+        runs = out["result"]["runs"]
+        measure = next(m for m in out["result"]["measures"]
+                       if (m["category"], m["name"], m["statistic"]) == ("frame", "cpu_span", "median"))
+    else:
+        runs = out["result"]["variants"][0]["compare"]["runs"]
+        measure = out["result"]["variants"][0]["measure"]
+    assert [r["generated_frames"] for r in runs] == [600] * 6
+    frames = 2 * APPLICATION_FRAMES if all_frames else APPLICATION_FRAMES
+    assert measure["old_frames"] == measure["new_frames"] == [frames] * 3
+    assert measure["old_centre"] == measure["new_centre"]
+    assert measure["old_centre"] < 5.0 if all_frames else measure["old_centre"] == 5.0
+
+    paths = {side: [str(bench.out / f"{side}-{n}.csv") for n in (1, 2, 3)] for side in (first, second)}
+    sides = (["--old", *paths["old"], "--new", *paths["new"]] if form == "old and new"
+             else ["--base", *paths["base"], "--variant", "v", *paths["v"]])
+    compared = analyser(["compare", *sides, *flags])
+    assert done.returncode == compared.returncode
+    assert without_added(out) == without_added(json.loads(compared.stdout))
 
 
 def test_an_empty_run(capsys, tmp_path):
