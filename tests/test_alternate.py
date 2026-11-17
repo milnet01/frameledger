@@ -59,9 +59,12 @@ class Bench:
 
 
 def analyser(args: list[str], env: dict | None = None) -> subprocess.CompletedProcess:
+    """The analyser run on `args`. The fake engine's FAKE_ENGINE settings
+    come only from `env`, never from the shell running the tests (Vestige)."""
+    inherited = {k: v for k, v in os.environ.items() if not k.startswith("FAKE_ENGINE")}
     return subprocess.run([sys.executable, "-I", str(ROOT / "src" / "frameledger"), *args],
                           capture_output=True, text=True, stdin=subprocess.DEVNULL,
-                          env={**os.environ, **(env or {})}, check=False)
+                          env={**inherited, **(env or {})}, check=False)
 
 
 def without_added(out: dict) -> dict:

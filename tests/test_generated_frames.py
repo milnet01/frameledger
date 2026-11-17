@@ -316,6 +316,7 @@ def test_all_frames_by_scene_and_by_variant(capsys, tmp_path):
 
 OLD_NEW, BASE_VARIANT = "old and new", "base and variant"  # alternate's two forms
 SIDES = {OLD_NEW: ("old", "new"), BASE_VARIANT: ("base", "v")}  # v: the one variant
+RUNS_A_SIDE = 3  # the --runs that Bench.args and VariantBench.args pass
 
 
 def generated_bench(tmp_path) -> VariantBench:
@@ -348,31 +349,45 @@ def test_alternate_on_generated_frames(tmp_path, form, all_frames):
     """FLED-0078: both of alternate's engines write runs holding marked
     generated frames, and alternate judges them as compare judges the same
     files: each side's generated frames left out or, with --all-frames,
-    counted. The frames each run gives frame/cpu_span say which."""
+    counted, and each timed run's § 4.20 sentence among the summary's
+    opening ones. A
+    warm-up run is never judged, so it gets no sentence.
+
+    alternate hands its files to the code compare runs, so the equality
+    with compare checks only what alternate adds; the frame counts and
+    centres are what catch a break in the code the two share."""
     bench = generated_bench(tmp_path)
     flags = ["--measure", "frame/cpu_span", *(["--all-frames"] if all_frames else []), "--json"]
     first, second = SIDES[form]
-    done = analyser(Bench.args(bench, *flags) if form == OLD_NEW else bench.args(*flags, sides=SIDES[form]))
+    # Bench.args, called past VariantBench's own, gives the old and new form.
+    args = Bench.args(bench, *flags) if form == OLD_NEW else bench.args(*flags, sides=SIDES[form])
+    done = analyser([*args, "--warmup", "1"])
+    assert done.returncode == 0, done.stderr  # both sides run the same frames
     out = json.loads(done.stdout)
     assert out["command"] == "alternate" and out["result"]["stopped"] is None
-    assert done.returncode == 0  # both sides run the same frames
 
     said = counted if all_frames else left_out
-    for name in (f"{side}-{n}" for side in (first, second) for n in (1, 2, 3)):
-        assert out["summary"].count(said(name)) == 1, (name, out["summary"])
+    names = [f"{side}-{n}" for side in (first, second) for n in range(1, RUNS_A_SIDE + 1)]
+    # The sentences open the summary, after only --measure's own.
+    assert out["summary"][0] == "Judging only frame/cpu_span.", out["summary"]
+    opening = out["summary"][1:1 + len(names)]
+    assert sorted(opening) == sorted(said(name) for name in names), out["summary"]
+    assert not any("warmup" in s for s in out["summary"]), out["summary"]
 
     runs, median, all_frames_said = judged(out["result"], form)
     assert all(flag is all_frames for flag in all_frames_said), all_frames_said
-    assert [r["generated_frames"] for r in runs] == [GENERATED_FRAMES] * 6  # three runs a side
+    assert [r["generated_frames"] for r in runs] == [GENERATED_FRAMES] * len(names)
     frames = APPLICATION_FRAMES + GENERATED_FRAMES if all_frames else APPLICATION_FRAMES
-    assert median["old_frames"] == median["new_frames"] == [frames] * 3
+    assert median["old_frames"] == median["new_frames"] == [frames] * RUNS_A_SIDE
     assert median["old_centre"] == median["new_centre"]
     if all_frames:
-        assert median["old_centre"] < APPLICATION_CPU_SPAN  # the generated frames' 0.000 counted
+        # Each run is half 0.000, half APPLICATION_CPU_SPAN: the median takes the lower middle.
+        assert median["old_centre"] < APPLICATION_CPU_SPAN
     else:
         assert median["old_centre"] == APPLICATION_CPU_SPAN
 
-    paths = {side: [str(bench.out / f"{side}-{n}.csv") for n in (1, 2, 3)] for side in (first, second)}
+    paths = {side: [str(bench.out / f"{side}-{n}.csv") for n in range(1, RUNS_A_SIDE + 1)]
+             for side in (first, second)}
     sides = (["--old", *paths["old"], "--new", *paths["new"]] if form == OLD_NEW
              else ["--base", *paths["base"], "--variant", "v", *paths["v"]])
     compared = analyser(["compare", *sides, *flags])
@@ -390,11 +405,11 @@ def test_alternate_variant_of_only_generated_frames(tmp_path, all_frames):
     bench.sources["g"] = tmp_path / "g-source.csv"
     bench.sources["g"].write_text(only_generated_text(), encoding="utf-8")
     done = analyser(bench.args("--json", *(["--all-frames"] if all_frames else []), sides=("base", "v", "g")))
-    out = json.loads(done.stdout)
     if all_frames:
-        assert done.returncode in (0, 1), out["summary"]  # g judged, pass or fail
+        assert done.returncode in (0, 1), done.stdout + done.stderr  # g judged, pass or fail
     else:
-        assert done.returncode == 2, out["summary"]  # 2: a variant unjudged
+        assert done.returncode == 2, done.stdout + done.stderr  # 2: a variant unjudged
+    out = json.loads(done.stdout)
     assert variant(out, "v")["verdict"] == "pass"
     only_generated = variant(out, "g")
     if all_frames:
