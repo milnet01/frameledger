@@ -1435,12 +1435,15 @@ An optional picture of a run. The text report stays the default and
 
 the source of truth; all three engines set that condition, 2026-11-10.
 
-- 📋 [FLED-0039] **An optional picture report.**
+- 🚧 [FLED-0039] **An optional picture report.**
   report --html writes one self-contained page with a frame-time
   graph and the worst frames marked, drawn as SVG with the standard
   library alone. Large text; no meaning carried by colour alone; the
   plain sentences come first, as in text. Text stays the default.
   Agreed by all three engines on those conditions.
+  2026-11-17: started after 0.6.0. To be specified as a FLED-0001
+  amendment, as every feature here is, and sent to the three engines for
+  review before building.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -1499,6 +1502,9 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
   idea; the owner chose it because one engine said yes. Put to the three
   engines: plan it or not.
+  2026-11-17, DOOM Ants: still yes; it would use it in 0.7.0, nothing
+  blocks on it. UT Ants: keep it an idea, still later. Vestige's answer
+  owed.
   **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
   Kind: feature.
   Source: competitor-research-2026-11-10.
@@ -1513,6 +1519,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
   idea; the owner chose it because one engine said yes. Put to the three
   engines: plan it or not.
+  2026-11-17, DOOM Ants: plan it for Vestige; it would use it for
+  DOOM-0359, no date pressure; k as Vestige's gate sets it. UT Ants:
+  plan it for 0.7.0 if Vestige's gate still needs it, with k set per
+  call, not fixed; it will review the spec amendment. Vestige's answer
+  owed.
   **Layman:** Counts sudden stutters: frames much slower than the frames around them.
   Kind: feature.
   Source: competitor-research-2026-11-10.
