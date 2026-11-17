@@ -50,6 +50,11 @@ cleaned plain text with INV-110 (FLED-0071) found by DOOM Ants
 FLED-0037) agreed by the three engines 2026-11-15 before they were
 built; their reviews put the strict codes' thresholds in whole
 thousandths.
+§ 4.20, § 4.10's `:median` and `:p99` and § 4.11's `--statistic p99`
+with INV-119 to INV-124 (FLED-0075, FLED-0076) agreed by the three
+engines 2026-11-17 before they were built; their reviews added that a
+`too_few` entry is shown, a kind's segments are pooled, and leading
+generated frames are counted.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -899,8 +904,9 @@ no verdict changes unless asked (UT Ants).
   `frame/wall` with `frame/wall:p99` gives one statistic twice, exit 3.
 - **Too few frames.** A `:p99` entry is not judged when any run holds
   its measure in fewer than 1000 frames of that segment kind at that
-  depth. Its verdict is `too_few`; its centres, change and spread are
-  still given. Below 1000 frames, the nearest-rank 99th percentile is
+  depth. A kind's frames are all its segments' together, so twenty
+  60-frame views make 1200 (UT Ants). Its verdict is `too_few`; its
+  centres, change and spread are still given. Below 1000 frames, the nearest-rank 99th percentile is
   one of a run's ten slowest frames, so one hitch moves it, and a
   longer run cures it (Vestige, DOOM Ants). This holds for
   `frame/wall:p99` too; the 99th percentile a bare `frame/wall` keeps
@@ -2521,7 +2527,8 @@ not whether 60 reached the screen (Vestige, UT Ants, DOOM Ants).
   application frame is the run's last frame for that rule.
 - **Generated frames before the first application frame** belong to
   none. Their walls still move the timeline, so the warm-up runs from
-  the run's first frame, as § 4.7 says.
+  the run's first frame, as § 4.7 says. They are counted with the
+  rest in the sentence below (Vestige, UT Ants).
 - **Holes are found over every frame number**, generated or not, as
   § 4.4 says.
 

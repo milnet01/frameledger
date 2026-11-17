@@ -1277,6 +1277,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   default. Leading generated frames: already said in § 4.20 (they belong
   to no frame; their walls keep the warm-up's start). It cannot make a
   frame-generation capture: no hardware for it.
+  2026-11-17, UT Ants' and DOOM Ants' design reviews: yes to all eight
+  points; both asked that leading generated frames be counted, now said
+  in § 4.20. Design agreed by all three engines; to be built.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
@@ -1385,6 +1388,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   too_few entry is listed in compare's table as "too few, N frames"; §
   4.10 says the bare frame/wall p99 has no bound on purpose. No Vestige
   script uses --statistic.
+  2026-11-17, UT Ants' and DOOM Ants' design reviews: yes to all eight
+  points. § 4.10 now says a kind's frames are its segments' together (UT
+  Ants). DOOM-0617's off-line check needs only old_frames, new_frames
+  and too_few (DOOM Ants). No engine script uses bisect --statistic.
+  Design agreed by all three engines; to be built.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.

@@ -5,7 +5,7 @@
 **State:** 4 — Between items.
 **In flight:** FLED-0036, built, all three code reviews folded;
 FLED-0037, built, all three code reviews folded; FLED-0075 and
-FLED-0076, designed, the three engines' design reviews awaited.
+FLED-0076, design agreed by the three engines, not yet built.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.
