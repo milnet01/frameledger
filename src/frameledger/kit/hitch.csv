@@ -91,10 +91,10 @@ kit-hitch,view:1,17,frame,wall,0,16.668
 kit-hitch,view:1,17,cpu,scene,0,6.500
 kit-hitch,view:1,17,gpu,geometry,0,7.500
 kit-hitch,view:1,18,frame,cpu_span,0,8.500
-kit-hitch,view:1,18,frame,gpu_span,0,12.000
-kit-hitch,view:1,18,frame,wall,0,16.667
+kit-hitch,view:1,18,frame,gpu_span,0,123.500
+kit-hitch,view:1,18,frame,wall,0,125.000
 kit-hitch,view:1,18,cpu,scene,0,6.500
-kit-hitch,view:1,18,gpu,geometry,0,7.500
+kit-hitch,view:1,18,gpu,geometry,0,118.250
 kit-hitch,view:1,19,frame,cpu_span,0,8.500
 kit-hitch,view:1,19,frame,gpu_span,0,12.125
 kit-hitch,view:1,19,frame,wall,0,16.666

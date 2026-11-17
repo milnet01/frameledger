@@ -16,9 +16,10 @@ The driver:
   and the header's run_id as its own argument;
 - calls fled_row for each row, ordered by `arrives`, then as listed;
 - sizes the buffer to hold the opening lines, the close line and one
-  row. Before each kept row it hands on all but the opening lines'
-  length of pending bytes, and before a dropped row nothing, so the kept
-  row before it still fills the buffer and fled_row returns FLED_DROPPED.
+  row. Before each kept row it hands on the pending bytes but keeps the
+  opening lines' length of them pending, and before a dropped row hands
+  on nothing, so the kept row before it still fills the buffer and
+  fled_row returns FLED_DROPPED.
   So a dropped row must follow a kept one;
 - calls fled_close with close.frames, unless close is null.
 
@@ -59,7 +60,7 @@ struct kit_row {{
 
 static const char run_id[] = {run_id};
 static const char header[] = {header};
-static const char *const static_json = {static};
+{static_text}static const char *const static_json = {static};
 static const struct kit_row rows[] = {{
 {rows}
 }};
@@ -142,6 +143,16 @@ CLOSE = """if (fled_close(&w, {frames}LL) != FLED_OK) {{
     }}"""
 
 
+def c_chars(text: str) -> str:
+    """`text` as a C array initialiser of its UTF-8 bytes and a NUL. An
+    array, not a string literal, so no length limit applies: C99 promises
+    string literals of 4095 bytes only, which -Wpedantic enforces, and a
+    static line can be longer."""
+    chars = [f"'{chr(b)}'" if b < 0x80 and chr(b).isalnum() else f"'\\{b:03o}'" for b in text.encode("utf-8")] + ["0"]
+    lines = [", ".join(chars[i:i + 16]) for i in range(0, len(chars), 16)]
+    return "{\n    " + ",\n    ".join(lines) + "\n}"
+
+
 def c_string(text: str) -> str:
     """`text` as a C string literal of its UTF-8 bytes. Every byte but a
     letter, digit or a few safe marks is a three-digit octal escape, so
@@ -174,9 +185,10 @@ def driver(case: dict) -> str:
         raise ValueError("a case needs at least one row")
     close = case["close"]
     return DRIVER.format(
-        run_id=c_string(case["header"]["run_id"]),
-        header=c_string(header),
-        static="NULL" if static_text is None else c_string(static_text),
+        run_id=c_chars(case["header"]["run_id"]),
+        header=c_chars(header),
+        static_text="" if static_text is None else f"static const char static_text[] = {c_chars(static_text)};\n",
+        static="NULL" if static_text is None else "static_text",
         rows="\n".join(rows),
         # The opening lines take under 100 bytes beyond the JSON; 1024 is room to spare.
         buf_size=f"{len(header.encode()) + len((static_text or '').encode()) + 1024} + FLED_CLOSE_MAX + FLED_ROW_MAX",

@@ -1,5 +1,5 @@
 {
-  "catches": "one 250 ms hitch among steady frames: a writer that clamps, smooths or skips a long frame differs (UT Ants)",
+  "catches": "a 250 ms CPU hitch and a 125 ms GPU hitch among steady frames: a writer that clamps, smooths or skips a long frame differs (UT Ants)",
   "warns": [],
   "header": {
     "schema": 1,
@@ -152,10 +152,10 @@
     ]},
     {"frame": 18, "segment": "view:1", "rows": [
       {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
-      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
-      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 123.5},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 125.0},
       {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
-      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 118.25}
     ]},
     {"frame": 19, "segment": "view:1", "rows": [
       {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},

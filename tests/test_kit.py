@@ -220,3 +220,17 @@ def test_absent_is_not_null(tmp_path):
     (difference,) = expect.compare(str(with_null), str(without))
     assert difference.sentence() == "the static line's 'draws' is null in the expected file and missing in this one"
     assert difference.entry() == {"where": "static.draws", "expected": None, "found": None}
+
+
+def test_a_changed_row_is_shown_beside_its_expected_line(capsys, tmp_path):
+    """A row written wrong is listed beside the expected line of its frame,
+    category and name, and the summary names both; so the writer's own
+    text shows within the first entries, however many rows changed."""
+    expected = run_file(tmp_path / "expected.csv")
+    changed = [row.replace(".000", ".001").replace(".250", ".251") for row in ROWS]
+    found = run_file(tmp_path / "found.csv", rows=changed)
+    out = check(capsys, "--expect", expected, found)[1]
+    differences = out["result"]["expect"]["differences"]
+    assert [d["where"] for d in differences] == [line for pair in zip(ROWS, changed, strict=True) for line in pair]
+    assert f"the expected row '{QUOTED[0]}' is written '{ledger.quoted(changed[0], ledger.LONG_QUOTE)}' " \
+           "in this one" in " ".join(out["summary"])

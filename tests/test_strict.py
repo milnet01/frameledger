@@ -341,3 +341,51 @@ def test_says_unknown_in_any_case(capsys, tmp_path, text):
     and one it may not."""
     assert codes(capsys, write(tmp_path, clean(), renderer=text)) == (1, ["says_unknown"])
     assert codes(capsys, write(tmp_path, clean(), engine=text)) == (1, ["says_unknown"])
+
+
+@pytest.mark.parametrize("pipelined", [True, False])
+@pytest.mark.parametrize("over, warned", [(0, False), (1, True)])
+def test_gpu_span_total_over_the_wall_total(capsys, tmp_path, pipelined, over, warned):
+    """§ 4.19: in any run, a frame/gpu_span total 1% over the wall total
+    gives no span_over_wall, and one thousandth more does. 99 walls of
+    16 ms total 1584 ms, so 1% is 15.840 ms, all put on one frame."""
+    frames = [frame(16000, gpu=16000) for _ in range(100)]
+    frames[0][("frame", "gpu_span", 0)] = 16000 + 15840 + over
+    path = write(tmp_path, frames, pipelined=pipelined)
+    assert ("span_over_wall" in codes(capsys, path)[1]) is warned
+
+
+@pytest.mark.parametrize("gap, warned", [(3, True), (2, False)])
+def test_periodic_gap_from_three(capsys, tmp_path, gap, warned):
+    """INV-118: slow frames 3 apart warn wall_periodic; 2 apart do not."""
+    path = write(tmp_path, periodic(clean(), every=gap, start=5, count=8))
+    assert ("wall_periodic" in codes(capsys, path)[1]) is warned
+
+
+@pytest.mark.parametrize("count, warned", [(5, True), (4, False)])
+def test_periodic_from_five_slow_frames(capsys, tmp_path, count, warned):
+    """INV-118: 5 evenly spaced slow frames warn; 4 do not."""
+    path = write(tmp_path, periodic(clean(), count=count))
+    assert ("wall_periodic" in codes(capsys, path)[1]) is warned
+
+
+@pytest.mark.parametrize("over, warned", [(0, False), (1, True)])
+def test_slow_is_over_one_and_a_half_medians(capsys, tmp_path, over, warned):
+    """§ 4.19: a slow frame's wall is over 1.5 times the median: frames at
+    exactly 1.5 times it are not slow, one thousandth more are."""
+    positions = range(5, 120, 10)
+    frames = set_walls(clean(), dict.fromkeys(positions, 99999))  # above the median, as the slow frames will be
+    if walls_median(frames) % 2:  # so 1.5 times the median is whole thousandths
+        frames = [frame(rows[("frame", "wall", 0)] + 1) for rows in frames]
+    slow = 3 * walls_median(frames) // 2 + over
+    assert 2 * slow == 3 * walls_median(frames) + 2 * over
+    frames = set_walls(frames, dict.fromkeys(positions, slow))
+    assert ("wall_periodic" in codes(capsys, write(tmp_path, frames))[1]) is warned
+
+
+def test_depth_one_without_depth_zero(capsys, tmp_path):
+    """§ 4.19: a depth-1 gpu row on a frame with no gpu depth-0 row warns
+    depth_gap."""
+    rows = {key: value for key, value in frame(16000).items() if key[0] != "gpu"}
+    frames = [*clean(50), {**rows, ("gpu", "child", 1): 100}, *clean(69)]
+    assert codes(capsys, write(tmp_path, frames)) == (1, ["depth_gap"])

@@ -9,6 +9,7 @@ line ending, since § 4.4's values are exact text and row order is free.
 
 from __future__ import annotations
 
+import csv
 import json
 from collections import Counter
 from dataclasses import dataclass, field
@@ -54,17 +55,43 @@ class Difference:
 
 def compare(expected_path: str, path: str) -> list[Difference]:
     """Every difference, in the order a reader meets them: header, static,
-    rows in the expected file's order then the rest, close. Raises
-    LedgerError when either file cannot be read."""
+    rows, close. Rows go in the expected file's order, then the rest, but
+    each with any other of its frame, category and name beside it, so a
+    row written wrong shows the expected line and the written one together.
+    Raises LedgerError when either file cannot be read."""
     expected, found = _read(expected_path), _read(path)
     differences = _json_differences("header", expected.header, found.header)
     differences += _json_differences("static", expected.static, found.static)
+    by_key: dict[tuple, list[Difference]] = {}
     for line in [*expected.order, *(line for line in found.order if line not in expected.rows)]:
         if expected.rows[line] != found.rows[line]:
-            differences.append(Difference("row", line, expected.rows[line], found.rows[line]))
+            by_key.setdefault(_row_key(line), []).append(Difference("row", line, expected.rows[line],
+                                                                    found.rows[line]))
+    differences += [difference for group in by_key.values() for difference in group]
     if not same(expected.close, found.close):
         differences.append(Difference("close", "", expected.close, found.close))
     return differences
+
+
+def first(differences: list[Difference]) -> str:
+    """The first difference, as the summary names it. A row the expected
+    file holds once, beside one this file holds instead for the same
+    frame, category and name, is named as the one written for the other."""
+    head = differences[0]
+    if head.kind == "row" and len(differences) > 1:
+        other = differences[1]
+        if other.kind == "row" and _row_key(other.where) == _row_key(head.where) \
+                and (head.expected, head.found, other.expected, other.found) == (1, 0, 0, 1):
+            return (f"the expected row '{ledger.quoted(head.where, ledger.LONG_QUOTE)}' is written "
+                    f"'{ledger.quoted(other.where, ledger.LONG_QUOTE)}' in this one")
+    return head.sentence()
+
+
+def _row_key(line: str) -> tuple:
+    """A row line's frame, category and name, or the line itself when it
+    does not hold seven fields."""
+    fields = next(csv.reader([line]))
+    return tuple(fields[2:5]) if len(fields) == 7 else (line,)
 
 
 def same(a, b) -> bool:

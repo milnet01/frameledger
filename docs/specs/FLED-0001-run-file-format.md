@@ -3952,11 +3952,12 @@ breaks.
   case's JSON, turned into calls on `include/frameledger.h` by § 4.19's
   table and built, writes a file that `check --expect NAME.csv`
   matches. The driver sizes the buffer to hold the opening lines, the
-  close line and one row. Before each kept row it hands on all but the
-  opening lines' length of pending bytes, and before a dropped row
-  nothing, so the dropped row's `fled_row` meets a full buffer and
-  returns `FLED_DROPPED`. So a dropped row must follow a kept one. `kit` into a directory holding
-  one file is exit 3 and writes nothing. Run from the release `.pyz`,
+  close line and one row. Before each kept row it hands on the pending
+  bytes but keeps the opening lines' length of them pending, and before
+  a dropped row hands on nothing, so the dropped row's `fled_row` meets
+  a full buffer and returns `FLED_DROPPED`. So a dropped row must follow
+  a kept one. `kit` into a directory holding one file is exit 3 and
+  writes nothing. Run from the release `.pyz`,
   `kit` writes the same files as from the tree. The C leg needs a C
   compiler. Without one, `tests/writer/test_kit.sh` fails, saying
   which checks did not run, as `tests/writer/test_compile.sh` does.

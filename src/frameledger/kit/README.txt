@@ -41,9 +41,11 @@ How to use it
      frameledger check --expect NAME.csv mine.csv
 
    Exit 0: your file meets the format and matches. Exit 1: it does
-   not; the first sentence check prints names the first difference,
-   and --json lists up to 20. Exit 3: a file cannot be read, or more
-   than one file follows --expect.
+   not. The sentence beginning "mine.csv differs from NAME.csv" names
+   the first difference; check prints any warnings before it. --json
+   lists up to 20 differences, a changed row beside the line it
+   should be. Exit 3: a file cannot be read, or more than one file
+   follows --expect.
 3. Optionally, also run:
 
      frameledger check --strict mine.csv
@@ -54,9 +56,10 @@ How to use it
 
 --expect matches content, not layout. The header, static and close
 lines may have any key order and spacing; 1 and 1.0 are equal, but
-true is never 1. Rows may come in any order, but each row is compared
-as text, so a value must have exactly the same digits, and a field
-must be quoted only when it holds a comma or a quote.
+true is never 1. Lines may end in LF or CRLF. Rows may come in any
+order, but each row is compared as text, so a value must have exactly
+the same digits, and a field must be quoted only when it holds a comma
+or a quote.
 
 
 A case's JSON
@@ -83,7 +86,8 @@ also hold:
   "dropped"  true: a row your writer could not keep, as when its buffer
              is full. It is not written, and it counts in the close
              line's rows_dropped. A writer whose buffer grows, and so
-             never fills, skips the row and counts it as if full.
+             never fills, needs a way to skip a row and count it as if
+             full, or it cannot pass the cases holding a dropped row.
 
 Hand the rows to your writer in the order they arrive: by "arrives",
 then as listed. So a row from an earlier frame that arrives during
@@ -100,15 +104,23 @@ every row:
   each row         fled_row(w, segment, frame, category, name, depth, value)
   close            fled_close(w, frames)
 
+To make frameledger.h drop a row on cue, give fled_open a size of the
+opening lines' bytes + FLED_CLOSE_MAX + FLED_ROW_MAX. Before each kept
+row, write out the pending bytes but keep the opening lines' length of
+them pending (fled_pending, fled_consume); before a dropped row, write
+out nothing. The kept row then fills the buffer, and fled_row returns
+FLED_DROPPED for the dropped row that follows it.
+
 
 Numbers
 -------
 
 - "value" is a JSON number to be read as a C double, then rounded to
   thousandths as the format says: llround(value * 1000.0), ties away
-  from zero. The cases' values round the same whether you round the
-  double or the decimal text. printf("%.3f") does not round this way:
-  5.2505 must be written 5.251, where printf gives 5.250.
+  from zero. The cases' values are chosen so that this, and rounding
+  the decimal text half away from zero, give the same digits.
+  printf("%.3f") rounds the double's exact binary value instead, half
+  to even: 5.2505 must be written 5.251, where printf gives 5.250.
 - A value that rounds to zero is written 0.000, never -0.000.
 - "frame" is a JSON integer to be read exactly, never through a
   double, which loses digits past 15. The largest is

@@ -1,5 +1,5 @@
 {
-  "catches": "every optional header field, and strings that need JSON escapes: a quote, a backslash and letters beyond ASCII. Any key order and spacing match",
+  "catches": "every optional header field, and strings that need JSON escapes: a quote, a backslash and letters beyond ASCII. Any key order and spacing match. Its \"unknown\" lists scene, so it warns facts_unknown",
   "warns": ["facts_unknown"],
   "header": {
     "schema": 1,

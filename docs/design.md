@@ -127,8 +127,9 @@ case's `NAME.csv`. The driver:
   and the header's `run_id` as its own argument;
 - calls `fled_row` for each row, ordered by `arrives`, then as listed;
 - sizes the buffer to hold the opening lines, the close line and one
-  row. Before each kept row it hands on all but the opening lines'
-  length of pending bytes, and before a dropped row nothing. So the
+  row. Before each kept row it hands on the pending bytes but keeps
+  the opening lines' length of them pending, and before a dropped row
+  hands on nothing. So the
   kept row before a dropped one still fills the buffer, and `fled_row`
   returns `FLED_DROPPED`. Handing on every byte would free the opening
   lines' room too, and one row could not fill it. A dropped row must

@@ -548,7 +548,7 @@ def _check(args: argparse.Namespace) -> dict:
         if differences:
             places = "1 place" if len(differences) == 1 else f"{len(differences)} places"
             summary.append(f"{paths[0]} differs from {args.expect} in {places}; the first: "
-                           f"{differences[0].sentence()}.")
+                           f"{expect.first(differences)}.")
 
     total = len(paths)
     if unreadable:
