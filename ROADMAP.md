@@ -1345,6 +1345,15 @@ the source of truth; all three engines set that condition, 2026-11-10.
   (3) frame/wall's p99 noise rule unchanged, and refuse rather than
   judge where a run has under about 100 frames holding the measure.
   Vestige's and DOOM Ants' answers owed.
+  2026-11-17, Vestige: agree. (1) Only when asked; keep the
+  default. --measure gpu/X:p99 on FLED-0031's --measure; a run-wide
+  --statistic p99, if added, is shorthand for :p99 on every named
+  measure, and a statistic a measure cannot have stays 128. (2) Over the
+  frames the pass appears in; print that count beside the p99. (3) The
+  same noise rule; below a minimum frame count (e.g. 1000 per run for
+  that measure) inconclusive, exit 2. Vestige itself needs nothing new.
+  Split to settle: UT Ants refuses under about 100 frames, Vestige
+  gives exit 2 under about 1000. DOOM Ants' answer owed.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
