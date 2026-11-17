@@ -15,9 +15,12 @@ import generated
 import ledger
 from floor_runs import HEADER
 from test_alternate import Bench, analyser, without_added
+from test_compare_variants import VariantBench, variant
 from test_presentmon import COLUMNS, capture_text, imported, row, values
 
 APPLICATION_FRAMES = 600  # 10 s at 60 a second, so floor has windows after its 2 s warm-up
+GENERATED_FRAMES = APPLICATION_FRAMES  # run_text puts one after each application frame
+APPLICATION_CPU_SPAN = 5.0  # run_text's frame/cpu_span on an application frame
 
 
 def run_text(run_id: str, marked: bool = True, missing_wall: int | None = None, mark: str = "1.000") -> str:
@@ -29,10 +32,10 @@ def run_text(run_id: str, marked: bool = True, missing_wall: int | None = None, 
     `missing_wall`."""
     header = HEADER.replace('"run_id":"f1"', f'"run_id":"{run_id}"')
     lines = [header, ledger.COLUMNS]
-    count = 2 * APPLICATION_FRAMES
+    count = APPLICATION_FRAMES + GENERATED_FRAMES
     for frame in range(count):
         generated = frame % 2 == 1
-        lines.append(f"{run_id},,{frame},frame,cpu_span,0,{'0.000' if generated else '5.000'}")
+        lines.append(f"{run_id},,{frame},frame,cpu_span,0,{0 if generated else APPLICATION_CPU_SPAN:.3f}")
         if frame != count - 1 and frame != missing_wall:
             lines.append(f"{run_id},,{frame},frame,wall,0,8.333")
         if generated and marked:
@@ -63,14 +66,25 @@ def sets(tmp_path) -> tuple[list[str], list[str]]:
 
 def left_out(name: str = "") -> str:
     opening = f"{name}: " if name else ""
-    return (f"{opening}600 of 1200 frames were generated, not rendered by the application, and are left out; "
-            "--all-frames counts them.")
+    return (f"{opening}{GENERATED_FRAMES} of {APPLICATION_FRAMES + GENERATED_FRAMES} frames were generated, "
+            "not rendered by the application, and are left out; --all-frames counts them.")
 
 
 def counted(name: str = "") -> str:
     opening = f"{name}: " if name else ""
-    return (f"{opening}600 of 1200 frames were generated, not rendered by the application, and are counted, "
-            "as --all-frames asks.")
+    return (f"{opening}{GENERATED_FRAMES} of {APPLICATION_FRAMES + GENERATED_FRAMES} frames were generated, "
+            "not rendered by the application, and are counted, as --all-frames asks.")
+
+
+def only_generated_text() -> str:
+    """A run of 300 frames, every one generated: no application frame to judge."""
+    lines = [HEADER, ledger.COLUMNS, *(f"f1,,{frame},frame,cpu_span,0,1.000\nf1,,{frame},frame,wall,0,8.000\n"
+                                       f"f1,,{frame},event,generated,0,1.000" for frame in range(300))]
+    return "\n".join([*lines, '# frameledger-close {"rows_dropped":0,"frames":300}']) + "\n"
+
+
+NO_APPLICATION_FRAME = ("every one of its 300 frames was generated, so there is no application frame to judge; "
+                        "--all-frames counts them")
 
 
 def budgets(tmp_path) -> str:
@@ -207,18 +221,14 @@ def test_the_mark_is_one(capsys, tmp_path):
 
 
 def test_no_application_frame(capsys, tmp_path):
-    lines = [HEADER, ledger.COLUMNS, *(f"f1,,{frame},frame,cpu_span,0,1.000\nf1,,{frame},frame,wall,0,8.000\n"
-                                       f"f1,,{frame},event,generated,0,1.000" for frame in range(300))]
     path = tmp_path / "all.csv"
-    path.write_text("\n".join([*lines, '# frameledger-close {"rows_dropped":0,"frames":300}']) + "\n")
+    path.write_text(only_generated_text())
     code, out = command(capsys, "floor", str(path), "--fps", "60")
     assert code == 3
     assert "every one of its 300 frames was generated" in out["summary"][0]
     assert command(capsys, "floor", str(path), "--fps", "60", "--warmup-s", "0", "--all-frames")[0] == 0
     code, out = command(capsys, "compare", "--by-scene", "--old", *[str(path)] * 3, "--new", *[str(path)] * 3)
-    assert {u["reason"] for u in out["result"]["unread"]} == {
-        "every one of its 300 frames was generated, so there is no application frame to judge; "
-        "--all-frames counts them"}
+    assert {u["reason"] for u in out["result"]["unread"]} == {NO_APPLICATION_FRAME}
 
 
 def test_a_hole_among_generated_frames(capsys, tmp_path):
@@ -279,10 +289,8 @@ def test_generated_rows_are_not_read(capsys, tmp_path):
 
 
 def test_every_command_refuses_no_application_frame(capsys, tmp_path):
-    lines = [HEADER, ledger.COLUMNS, *(f"f1,,{frame},frame,cpu_span,0,1.000\nf1,,{frame},frame,wall,0,8.000\n"
-                                       f"f1,,{frame},event,generated,0,1.000" for frame in range(300))]
     path = tmp_path / "all.csv"
-    path.write_text("\n".join([*lines, '# frameledger-close {"rows_dropped":0,"frames":300}']) + "\n")
+    path.write_text(only_generated_text())
     good = [write(tmp_path, f"good{i}.csv") for i in range(1, 4)]
     budget_file = budgets(tmp_path)
     for args in (["report", str(path)], ["budget", str(path), "--budgets", budget_file],
@@ -306,53 +314,94 @@ def test_all_frames_by_scene_and_by_variant(capsys, tmp_path):
         assert out["result"]["all_frames"] is True
 
 
+OLD_NEW, BASE_VARIANT = "old and new", "base and variant"  # alternate's two forms
+SIDES = {OLD_NEW: ("old", "new"), BASE_VARIANT: ("base", "v")}  # v: the one variant
+
+
+def generated_bench(tmp_path) -> VariantBench:
+    """A bench whose old and new sources both hold marked generated frames,
+    replacing Bench's runs, whose new build is slower. The variant form's
+    sides, base and v, run the same two sources."""
+    bench = VariantBench(tmp_path)
+    for side in ("old", "new"):
+        bench.sources[side].write_text(run_text(side), encoding="utf-8")
+    bench.sources |= {"base": bench.sources["old"], "v": bench.sources["new"]}
+    return bench
+
+
+def judged(result: dict, form: str) -> tuple[list[dict], dict, list[bool]]:
+    """From a result of `form`: its runs, frame/cpu_span's median, and every
+    all_frames it holds (the variant form's own and its variant's compare's)."""
+    if form == OLD_NEW:
+        runs, measures, flags = result["runs"], result["measures"], [result["all_frames"]]
+        median = next((m for m in measures
+                       if (m["category"], m["name"], m["statistic"]) == ("frame", "cpu_span", "median")), None)
+        assert median is not None, measures
+        return runs, median, flags
+    only = result["variants"][0]
+    return only["compare"]["runs"], only["measure"], [result["all_frames"], only["compare"]["all_frames"]]
+
+
 @pytest.mark.parametrize("all_frames", [False, True])
-@pytest.mark.parametrize("form", ["old and new", "base and variant"])
-def test_alternate(tmp_path, form, all_frames):
+@pytest.mark.parametrize("form", [OLD_NEW, BASE_VARIANT])
+def test_alternate_on_generated_frames(tmp_path, form, all_frames):
     """FLED-0078: both of alternate's engines write runs holding marked
     generated frames, and alternate judges them as compare judges the same
     files: each side's generated frames left out or, with --all-frames,
     counted. The frames each run gives frame/cpu_span say which."""
-    bench = Bench(tmp_path)
-    for side in ("old", "new"):
-        bench.sources[side].write_text(run_text(side), encoding="utf-8")
+    bench = generated_bench(tmp_path)
     flags = ["--measure", "frame/cpu_span", *(["--all-frames"] if all_frames else []), "--json"]
-    if form == "old and new":
-        first, second = "old", "new"
-        args = bench.args(*flags)
-    else:
-        first, second = "base", "v"
-        bench.sources |= {"base": bench.sources["old"], "v": bench.sources["new"]}
-        args = ["alternate", "--out", str(bench.out), "--runs", "3", "--base", bench.command("base"),
-                "--variant", "v", bench.command("v"), *flags]
-    done = analyser(args)
+    first, second = SIDES[form]
+    done = analyser(Bench.args(bench, *flags) if form == OLD_NEW else bench.args(*flags, sides=SIDES[form]))
     out = json.loads(done.stdout)
     assert out["command"] == "alternate" and out["result"]["stopped"] is None
+    assert done.returncode == 0  # both sides run the same frames
 
     said = counted if all_frames else left_out
     for name in (f"{side}-{n}" for side in (first, second) for n in (1, 2, 3)):
-        assert any(s.endswith(said(name)) for s in out["summary"]), (name, out["summary"])
-    assert isinstance(out["result"]["all_frames"], bool) and out["result"]["all_frames"] is all_frames
+        assert out["summary"].count(said(name)) == 1, (name, out["summary"])
 
-    if form == "old and new":
-        runs = out["result"]["runs"]
-        measure = next(m for m in out["result"]["measures"]
-                       if (m["category"], m["name"], m["statistic"]) == ("frame", "cpu_span", "median"))
+    runs, median, all_frames_said = judged(out["result"], form)
+    assert all(flag is all_frames for flag in all_frames_said), all_frames_said
+    assert [r["generated_frames"] for r in runs] == [GENERATED_FRAMES] * 6  # three runs a side
+    frames = APPLICATION_FRAMES + GENERATED_FRAMES if all_frames else APPLICATION_FRAMES
+    assert median["old_frames"] == median["new_frames"] == [frames] * 3
+    assert median["old_centre"] == median["new_centre"]
+    if all_frames:
+        assert median["old_centre"] < APPLICATION_CPU_SPAN  # the generated frames' 0.000 counted
     else:
-        runs = out["result"]["variants"][0]["compare"]["runs"]
-        measure = out["result"]["variants"][0]["measure"]
-    assert [r["generated_frames"] for r in runs] == [600] * 6
-    frames = 2 * APPLICATION_FRAMES if all_frames else APPLICATION_FRAMES
-    assert measure["old_frames"] == measure["new_frames"] == [frames] * 3
-    assert measure["old_centre"] == measure["new_centre"]
-    assert measure["old_centre"] < 5.0 if all_frames else measure["old_centre"] == 5.0
+        assert median["old_centre"] == APPLICATION_CPU_SPAN
 
     paths = {side: [str(bench.out / f"{side}-{n}.csv") for n in (1, 2, 3)] for side in (first, second)}
-    sides = (["--old", *paths["old"], "--new", *paths["new"]] if form == "old and new"
+    sides = (["--old", *paths["old"], "--new", *paths["new"]] if form == OLD_NEW
              else ["--base", *paths["base"], "--variant", "v", *paths["v"]])
     compared = analyser(["compare", *sides, *flags])
-    assert done.returncode == compared.returncode
+    assert compared.returncode == 0
     assert without_added(out) == without_added(json.loads(compared.stdout))
+
+
+@pytest.mark.parametrize("all_frames", [False, True])
+def test_alternate_variant_of_only_generated_frames(tmp_path, all_frames):
+    """FLED-0078 (ExperiRays): alternate names its run files itself, so a
+    variant whose every frame is generated is left unjudged with § 4.20's
+    reason, where compare --base stops on a file error; with --all-frames it
+    is judged. Variant v, beside it, is judged either way."""
+    bench = generated_bench(tmp_path)
+    bench.sources["g"] = tmp_path / "g-source.csv"
+    bench.sources["g"].write_text(only_generated_text(), encoding="utf-8")
+    done = analyser(bench.args("--json", *(["--all-frames"] if all_frames else []), sides=("base", "v", "g")))
+    out = json.loads(done.stdout)
+    if all_frames:
+        assert done.returncode in (0, 1), out["summary"]  # g judged, pass or fail
+    else:
+        assert done.returncode == 2, out["summary"]  # 2: a variant unjudged
+    assert variant(out, "v")["verdict"] == "pass"
+    only_generated = variant(out, "g")
+    if all_frames:
+        assert only_generated["verdict"] != "unjudged" and only_generated["reason"] is None, only_generated
+    else:
+        assert only_generated["verdict"] == "unjudged"
+        assert str(only_generated["reason"]).endswith(NO_APPLICATION_FRAME), only_generated["reason"]
 
 
 def test_an_empty_run(capsys, tmp_path):
