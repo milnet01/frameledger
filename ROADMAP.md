@@ -1326,6 +1326,12 @@ can still use the analyser, and a stranger's writer can prove itself.
   already shipped); a mutation probe caught all seven ways tried of
   losing --all-frames on alternate's path. Sent to the three engines
   for code review.
+  2026-11-17, code reviews: DOOM Ants, UT Ants and ExperiRays (cold),
+  folded in 21b90b5. Added: a variant whose every frame is generated,
+  which alternate alone leaves unjudged (ExperiRays); the variant's own
+  all_frames (UT Ants); pinned exits; readability (all three). No
+  change: --baseline, which reaches the same reads. The probe now
+  catches ten of ten breaks. Vestige's review owed.
   **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
   Kind: test.
   Source: ut-ants-review-2026-11-17.
