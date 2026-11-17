@@ -1,5 +1,5 @@
 {
-  "catches": "GPU rows read back two frames late: each row belongs to the frame that submitted the work, never the frame during which it arrived (DOOM Ants)",
+  "catches": "GPU rows read back two frames late (Vestige): each row belongs to the frame that submitted the work, never the frame during which it arrived. The last two frames' GPU results never arrive, so they have no GPU rows, which is legal and is not a dropped row",
   "warns": [],
   "header": {
     "schema": 1,

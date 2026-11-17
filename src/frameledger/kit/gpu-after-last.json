@@ -1,5 +1,5 @@
 {
-  "catches": "GPU rows that arrive after the last frame: a finished run writes them before its close line (DOOM Ants). A writer that cannot wait for them uses gpu-after-last-dropped instead",
+  "catches": "GPU rows read back one frame late, so the last frame's arrive after it: a finished run writes them before its close line (DOOM Ants). A writer that cannot wait for them uses gpu-after-last-dropped instead",
   "warns": [],
   "header": {
     "schema": 1,
@@ -26,30 +26,30 @@
   "frames": [
     {"frame": 0, "segment": "view:1", "rows": [
       {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.25},
-      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125, "arrives": 2},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125, "arrives": 1},
       {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
       {"category": "cpu", "name": "scene", "depth": 0, "value": 5.125},
-      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 2}
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 1}
     ]},
     {"frame": 1, "segment": "view:1", "rows": [
       {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.375},
-      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.375, "arrives": 3},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.375, "arrives": 2},
       {"category": "frame", "name": "wall", "depth": 0, "value": 16.651},
       {"category": "cpu", "name": "scene", "depth": 0, "value": 5.125},
-      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 3}
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 2}
     ]},
     {"frame": 2, "segment": "view:1", "rows": [
       {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
-      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.625, "arrives": 4},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.625, "arrives": 3},
       {"category": "frame", "name": "wall", "depth": 0, "value": 16.702},
       {"category": "cpu", "name": "scene", "depth": 0, "value": 5.125},
-      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 4}
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 3}
     ]},
     {"frame": 3, "segment": "view:1", "rows": [
       {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.625},
-      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.875, "arrives": 5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.875, "arrives": 4},
       {"category": "cpu", "name": "scene", "depth": 0, "value": 5.125},
-      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 5}
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75, "arrives": 4}
     ]}
   ],
   "close": {"frames": 4}

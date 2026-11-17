@@ -16,15 +16,17 @@ from pathlib import Path
 
 import ledger
 
+ABSENT = object()  # a line or key the file does not have, told apart from a JSON null
+
 
 @dataclass
 class Lines:
     """A run file split into its parts. A JSON line that does not parse is
     kept as its text, which equals no object."""
 
-    header: object = None
-    static: object = None
-    close: object = None
+    header: object = ABSENT
+    static: object = ABSENT
+    close: object = ABSENT
     rows: Counter = field(default_factory=Counter)
     order: list[str] = field(default_factory=list)  # each distinct row, first seen first
 
@@ -33,13 +35,14 @@ class Lines:
 class Difference:
     kind: str  # "header", "static", "row" or "close"
     where: str  # a header or static key, a row line, or "" for a whole line
-    expected: object  # a JSON value, or how many times the row is there; None for missing
+    expected: object  # a JSON value, ABSENT, or how many times the row is there
     found: object
 
     def entry(self) -> dict:
-        """§ 4.19's JSON entry: a key is named as `header.KEY`, a whole line by its part."""
+        """§ 4.19's JSON entry: a key is named as `header.KEY`, a whole line
+        by its part. JSON has no absent value, so an absent one is null."""
         where = self.where if self.kind == "row" else f"{self.kind}.{self.where}" if self.where else self.kind
-        return {"where": where, "expected": self.expected, "found": self.found}
+        return {"where": where, "expected": _json_value(self.expected), "found": _json_value(self.found)}
 
     def sentence(self) -> str:
         if self.kind == "row":
@@ -79,8 +82,12 @@ def same(a, b) -> bool:
     return type(a) is type(b) and a == b
 
 
+def _json_value(value):
+    return None if value is ABSENT else value
+
+
 def _shown(value) -> str:
-    return "missing" if value is None else ledger.quoted(json.dumps(value), ledger.LONG_QUOTE)
+    return "missing" if value is ABSENT else ledger.quoted(json.dumps(value), ledger.LONG_QUOTE)
 
 
 def _times(count: int) -> str:
@@ -92,7 +99,7 @@ def _json_differences(part: str, expected, found) -> list[Difference]:
     or line as null. A line that is not an object differs as a whole."""
     if isinstance(expected, dict) and isinstance(found, dict):
         keys = [*expected, *(key for key in found if key not in expected)]
-        return [Difference(part, key, expected.get(key), found.get(key))
+        return [Difference(part, key, expected.get(key, ABSENT), found.get(key, ABSENT))
                 for key in keys if key not in expected or key not in found or not same(expected[key], found[key])]
     return [] if same(expected, found) else [Difference(part, "", expected, found)]
 
@@ -111,7 +118,7 @@ def _read(path: str) -> Lines:
     lines = Lines()
     for line in text.split("\n"):
         line = line.removesuffix("\r")
-        if line.startswith(ledger.HEADER) and lines.header is None:
+        if line.startswith(ledger.HEADER) and lines.header is ABSENT:
             lines.header = _json(line[len(ledger.HEADER):])
         elif line.startswith(ledger.STATIC):
             lines.static = _json(line[len(ledger.STATIC):])

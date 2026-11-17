@@ -4243,7 +4243,7 @@ it on each release they pin.
 | INV-114 | `tests/test_unknown_facts.py` |
 | INV-115 | `tests/test_presentmon.py::test_report_says_imported` |
 | INV-116 | `tests/test_kit.py::test_kit_is_written`, `tests/test_kit.py::test_kit_refuses_a_full_directory`, `tests/test_kit.py::test_kit_from_the_release`, `tests/writer/test_kit.sh` |
-| INV-117 | `tests/test_kit.py::test_expect`, `tests/test_kit.py::test_expect_names_counts_and_values` |
+| INV-117 | `tests/test_kit.py::test_expect`, `tests/test_kit.py::test_expect_names_counts_and_values`, `tests/test_kit.py::test_a_file_breaking_the_format_never_matches`, `tests/test_kit.py::test_absent_is_not_null` |
 | INV-118 | `tests/test_strict.py` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |

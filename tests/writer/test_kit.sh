@@ -3,10 +3,11 @@
 #
 # scripts/make_kit.py turns each case's JSON into calls on
 # include/frameledger.h, builds them and runs them, under each toolchain
-# that runs its programs here. Each file it writes must match the case's
-# NAME.csv under `check --expect`. So a writer change that alters a kit
-# file fails here until the kit is made again and the change shows in its
-# diff. mingw-w64 is build-only here, so it runs no case.
+# that runs its programs here. Each file it writes must be the case's
+# NAME.csv byte for byte; when it is not, `check --expect` names the
+# difference. So a writer change that alters a kit file fails here until
+# the kit is made again and the change shows in its diff. mingw-w64 is
+# build-only here, so it runs no case.
 #
 # Usage: tests/writer/test_kit.sh
 # PYTHON names the interpreter (default python3). A compiler that is not
@@ -32,8 +33,9 @@ for row in "${toolchains[@]}"; do
     "$PYTHON" -I scripts/make_kit.py --cc "$cc" "$made" || { fail "$cc: make_kit.py"; continue; }
     for expected in src/frameledger/kit/*.csv; do
         name=$(basename "$expected")
-        "$PYTHON" -I src/frameledger check --expect "$expected" "$made/$name" >"$out/check.txt" ||
-            { cat "$out/check.txt"; fail "$cc: $name does not match the kit"; }
+        cmp -s "$expected" "$made/$name" && continue
+        "$PYTHON" -I src/frameledger check --expect "$expected" "$made/$name" || true
+        fail "$cc: $name is not the kit's bytes"
     done
 done
 

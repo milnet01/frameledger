@@ -102,6 +102,10 @@ def _wall_periodic(run: ledger.Run, walls: dict[int, int]) -> list[ledger.Notice
     firsts: dict[str, int] = {}
     for frame, rows in sorted(run.frames.items()):
         firsts.setdefault(ledger.frame_segment(rows), frame)
+    # A segment's first frame is its first ever: a re-entry is a camera
+    # jump, which carries an event/cut (§ 4.4), left out above. Frames with
+    # no segment are in no segment, so a run without segments keeps its
+    # first frame; such a run already warns no_segments.
     skipped |= {frame for segment, frame in firsts.items() if segment}
     # Over 1.5 times the median, in whole thousandths: 2 * wall > 3 * median.
     slow = [frame for frame, wall in walls.items() if 2 * wall > 3 * median and frame not in skipped]
@@ -175,11 +179,12 @@ def _passes_over_span(run: ledger.Run) -> list[ledger.Notice]:
         for frame, rows in sorted(run.frames.items()):
             span = rows.get(("frame", f"{category}_span"))
             parts = [row.thousandths for (cat, _), row in rows.items() if cat == category and row.depth == 0]
-            if span and parts and 2 * (sum(parts) - span.thousandths) > len(parts) + 1:
+            if span is not None and parts and 2 * (sum(parts) - span.thousandths) > len(parts) + 1:
                 over.append(frame)
         if over:
             found.append(ledger.Notice("passes_over_span", f"the {category} depth-0 rows sum to more than "
-                                       f"frame/{category}_span, beyond what rounding allows ({_frames(over)})"))
+                                       f"frame/{category}_span by over (N + 1) / 2 thousandths, N the rows "
+                                       f"summed, which is more than rounding allows ({_frames(over)})"))
     return found
 
 
@@ -218,11 +223,17 @@ def _no_machine_state(run: ledger.Run) -> list[ledger.Notice]:
 
 
 def _says_unknown(run: ledger.Run) -> list[ledger.Notice]:
-    """A string field reading `unknown` that `unknown` does not list: it
-    will be compared as a real value. `tool.version` is not top-level, so
-    an import without --presentmon-version is not judged."""
-    fields = [name for name, value in run.header.items()
-              if name in ledger.HEADER_FIELDS and isinstance(value, str) and value.lower() == "unknown"
-              and name not in run.unknown]
-    return [ledger.Notice("says_unknown", f"the header's '{name}' is '{run.header[name]}', but the field "
-                          "'unknown' does not list it, so it is compared as a real value") for name in fields]
+    """A string field reading `unknown`, in any case, that `unknown` does
+    not list: it is compared as a real value. Only § 4.18.1's fields may be
+    listed, so the message suggests it for those alone. `tool.version` is
+    not top-level, so an import without --presentmon-version is not judged."""
+    found = []
+    for name, value in run.header.items():
+        if name not in ledger.HEADER_FIELDS or not isinstance(value, str) or value.lower() != "unknown" \
+                or name in run.unknown:
+            continue
+        remedy = ("; list it in 'unknown' if it holds a stand-in" if name in ledger.UNKNOWABLE
+                  else "; 'unknown' cannot list it, so give the real value")
+        found.append(ledger.Notice("says_unknown", f"the header's '{name}' is '{value}', so it is compared as "
+                                   f"a real value{remedy}"))
+    return found

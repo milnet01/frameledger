@@ -541,7 +541,9 @@ def _check(args: argparse.Namespace) -> dict:
     differences = []
     if args.expect is not None and not unreadable:
         differences = expect.compare(args.expect, paths[0])
-        result["expect"] = {"matches": not differences,
+        # § 4.19: FILE must first meet the format, so a file that breaks it
+        # never matches; its differences are still named.
+        result["expect"] = {"matches": not failed and not differences,
                             "differences": [d.entry() for d in differences[:EXPECT_LISTED]]}
         if differences:
             places = "1 place" if len(differences) == 1 else f"{len(differences)} places"

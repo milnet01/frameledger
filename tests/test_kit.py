@@ -117,17 +117,21 @@ def run_file(path, header=HEADER, rows=ROWS, close=CLOSE, spaced=False, ending="
     return path
 
 
-# Each a copy of the expected file differing in one way: (how it differs, the
-# file's arguments, the `where` its first difference names).
+# Each a copy of the expected file differing in one way: (the file's
+# arguments, the `where` its first difference names, how many differences
+# there are, and the words the summary names it by). A changed row is two
+# differences: the expected line missing, and the new one extra.
+QUOTED = [ledger.quoted(row, ledger.LONG_QUOTE) for row in ROWS]
 DIFFERENT = {
-    "a row written twice": ({"rows": [*ROWS, ROWS[3]]}, ROWS[3]),
-    "one of two identical rows missing": ({"rows": ROWS[:3]}, ROWS[3]),
-    "a value with another last digit": ({"rows": [ROWS[0].replace("5.250", "5.251"), *ROWS[1:]]}, ROWS[0]),
+    "a row written twice": ({"rows": [*ROWS, ROWS[3]]}, ROWS[3], 1, QUOTED[3]),
+    "one of two identical rows missing": ({"rows": ROWS[:3]}, ROWS[3], 1, QUOTED[3]),
+    "a value with another last digit": ({"rows": [ROWS[0].replace("5.250", "5.251"), *ROWS[1:]]}, ROWS[0], 2,
+                                        QUOTED[0]),
     "a field quoted that holds no comma or quote": ({"rows": [ROWS[0].replace("view:1", '"view:1"'), *ROWS[1:]]},
-                                                    ROWS[0]),
-    "a header value changed": ({"header": {**HEADER, "scene": "other"}}, "header.scene"),
-    "true in place of 1": ({"header": {**HEADER, "extra": {"flag": True}}}, "header.extra"),
-    "the close line missing": ({"close": None}, "close"),
+                                                    ROWS[0], 2, QUOTED[0]),
+    "a header value changed": ({"header": {**HEADER, "scene": "other"}}, "header.scene", 1, "line's 'scene'"),
+    "true in place of 1": ({"header": {**HEADER, "extra": {"flag": True}}}, "header.extra", 1, "line's 'extra'"),
+    "the close line missing": ({"close": None}, "close", 1, "the close line is"),
 }
 
 
@@ -144,7 +148,7 @@ def test_expect(capsys, tmp_path):
     assert (code, out["result"]["expect"]) == (0, {"matches": True, "differences": []})
     assert out["summary"][-1] == f"It matches {expected}."
 
-    for how, (options, where) in DIFFERENT.items():
+    for how, (options, where, count, named) in DIFFERENT.items():
         if how == "one of two identical rows missing":  # the expected file holds the row twice
             expected_here = run_file(tmp_path / "twice.csv", rows=[*ROWS, ROWS[3]])
             options = {"rows": ROWS}
@@ -153,11 +157,13 @@ def test_expect(capsys, tmp_path):
         found = run_file(tmp_path / "found.csv", **options)
         code, out = check(capsys, "--expect", expected_here, found)
         assert code == 1, how
-        first = out["result"]["expect"]["differences"][0]
-        assert first["where"] == where, how
-        # A changed row is two differences: the expected line missing, the new one extra.
-        assert any(s.startswith(f"{found} differs from {expected_here} in ") and "; the first: " in s
-                   for s in out["summary"]), how
+        assert out["result"]["expect"]["matches"] is False, how
+        differences = out["result"]["expect"]["differences"]
+        assert (differences[0]["where"], len(differences)) == (where, count), how
+        places = "1 place" if count == 1 else f"{count} places"
+        (sentence,) = [s for s in out["summary"] if s.startswith(f"{found} differs from {expected_here} in ")]
+        assert sentence.startswith(f"{found} differs from {expected_here} in {places}; the first: "), how
+        assert named in sentence, how
 
     assert cli.main(["check", "--expect", str(expected), str(alike), str(alike)]) == 3
     assert "--expect takes exactly one FILE" in capsys.readouterr().err
@@ -189,3 +195,28 @@ def test_json_values_compare_as_json(a, b, same):
     """INV-117: numbers by value, booleans only with booleans."""
     assert expect.same(a, b) is same
     assert expect.same(b, a) is same
+
+
+def test_a_file_breaking_the_format_never_matches(capsys, tmp_path):
+    """§ 4.19: FILE must first meet the format. A file holding one row
+    twice, which breaks it, against itself is exit 1 and does not match,
+    though no difference is found."""
+    twice = run_file(tmp_path / "twice.csv", rows=[*ROWS, ROWS[3]])
+    code, out = check(capsys, "--expect", twice, twice)
+    assert (code, out["result"]["expect"]) == (1, {"matches": False, "differences": []})
+    assert out["result"]["files"][0]["breaches"][0]["rule"] == "duplicate"
+
+
+def test_absent_is_not_null(tmp_path):
+    """INV-117: a key the file lacks reads as missing, a JSON null as null;
+    in JSON, both are null."""
+    expected = run_file(tmp_path / "expected.csv")
+    lines = expected.read_text(encoding="utf-8").splitlines()
+    with_null = tmp_path / "null.csv"
+    with_null.write_text("\n".join([lines[0], '# frameledger-static {"draws": null}', *lines[1:]]) + "\n",
+                         encoding="utf-8")
+    without = tmp_path / "without.csv"
+    without.write_text("\n".join([lines[0], '# frameledger-static {}', *lines[1:]]) + "\n", encoding="utf-8")
+    (difference,) = expect.compare(str(with_null), str(without))
+    assert difference.sentence() == "the static line's 'draws' is null in the expected file and missing in this one"
+    assert difference.entry() == {"where": "static.draws", "expected": None, "found": None}

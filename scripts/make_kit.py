@@ -23,8 +23,10 @@ The driver:
 - calls fled_close with close.frames, unless close is null.
 
 It stops, exit 1, when a fled_ call returns anything but what the case
-expects. Standard library only. Exit 0 on success; 1 when a case cannot
-be built or run; 2 on a usage error.
+expects, or the writer writes past the capacity it was given. OUTDIR is
+written only once every case has run, so a failure leaves it as it was.
+Standard library only. Exit 0 on success; 1 when a case cannot be built
+or run; 2 on a usage error.
 """
 
 from __future__ import annotations
@@ -42,6 +44,7 @@ FLAGS = ["-std=c99", "-O2", "-Wall", "-Wextra", "-Wpedantic", "-Werror"]
 
 DRIVER = """\
 #include <stdio.h>
+#include <string.h>
 #include "frameledger.h"
 
 struct kit_row {{
@@ -61,8 +64,12 @@ static const struct kit_row rows[] = {{
 {rows}
 }};
 static char buf[{buf_size}];
+#define GUARD 0x5a /* fills buf past the capacity; a byte that changes is a write past it */
 
-/* Writes out all but `keep` of the pending bytes. */
+/* Writes out all but `keep` of the pending bytes. Keeping the opening
+   lines' length pending before each kept row leaves exactly one row of
+   room, so the kept row fits and fills it, and a dropped row that
+   follows meets a full buffer. */
 static void hand_on(fled_writer *w, size_t keep)
 {{
     const char *bytes;
@@ -73,10 +80,22 @@ static void hand_on(fled_writer *w, size_t keep)
     }}
 }}
 
+/* 1 when the writer stayed inside its `cap` bytes. */
+static int inside(const fled_writer *w, size_t cap)
+{{
+    size_t i;
+    if (fled_pending(w, NULL) > cap)
+        return 0;
+    for (i = cap; i < sizeof buf; i++)
+        if (buf[i] != GUARD)
+            return 0;
+    return 1;
+}}
+
 int main(void)
 {{
     fled_writer w;
-    size_t opening, i;
+    size_t opening, cap, i;
     int rc;
     /* Measure the opening lines, then open for real with room for them,
        the close line and one row. */
@@ -85,7 +104,9 @@ int main(void)
         return 1;
     }}
     opening = fled_pending(&w, NULL);
-    if (fled_open(&w, buf, opening + FLED_CLOSE_MAX + FLED_ROW_MAX, run_id, header, static_json) != FLED_OK) {{
+    cap = opening + FLED_CLOSE_MAX + FLED_ROW_MAX;
+    memset(buf, GUARD, sizeof buf);
+    if (fled_open(&w, buf, cap, run_id, header, static_json) != FLED_OK) {{
         fprintf(stderr, "fled_open refused the sized buffer\\n");
         return 1;
     }}
@@ -96,11 +117,20 @@ int main(void)
                       rows[i].value);
         if (rc != (rows[i].dropped ? FLED_DROPPED : FLED_OK)) {{
             fprintf(stderr, "row %u: fled_row returned %d%s\\n", (unsigned)i, rc,
-                    rows[i].dropped ? "; a dropped row must follow a kept one" : "");
+                    rows[i].dropped ? "; a dropped row must follow a kept one"
+                    : rc == FLED_DROPPED ? "; the buffer was full for a row meant to be kept" : "");
+            return 1;
+        }}
+        if (!inside(&w, cap)) {{
+            fprintf(stderr, "row %u: the writer wrote past its capacity\\n", (unsigned)i);
             return 1;
         }}
     }}
     {close}
+    if (!inside(&w, cap)) {{
+        fprintf(stderr, "the writer wrote past its capacity\\n");
+        return 1;
+    }}
     hand_on(&w, 0);
     return fflush(stdout) == 0 ? 0 : 1;
 }}
@@ -128,7 +158,8 @@ def ordered_rows(case: dict) -> list[tuple[dict, dict]]:
 
 
 def driver(case: dict) -> str:
-    """The C driver for one case."""
+    """The C driver for one case. Raises ValueError for a case with no
+    rows, which C cannot hold as an empty array."""
     header = json.dumps(case["header"], ensure_ascii=False, separators=(",", ":"))
     static = case.get("static")
     static_text = None if static is None else json.dumps(static, ensure_ascii=False, separators=(",", ":"))
@@ -139,6 +170,8 @@ def driver(case: dict) -> str:
         rows.append(f"    {{{c_string(entry.get('segment', ''))}, {int(entry['frame'])}LL, "
                     f"{c_string(row['category'])}, {c_string(row['name'])}, {int(row['depth'])}, "
                     f"{float(row['value'])!r}, {1 if row.get('dropped') else 0}}},")
+    if not rows:
+        raise ValueError("a case needs at least one row")
     close = case["close"]
     return DRIVER.format(
         run_id=c_string(case["header"]["run_id"]),
@@ -152,7 +185,8 @@ def driver(case: dict) -> str:
 
 
 def make(case_path: Path, outdir: Path, cc: str, scratch: Path) -> None:
-    """Build and run one case's driver; write what it prints to OUTDIR/NAME.csv."""
+    """Build and run one case's driver in `scratch`; write what it prints to
+    `outdir`/NAME.csv."""
     name = case_path.stem
     source, program = scratch / f"{name}.c", scratch / name
     source.write_text(driver(json.loads(case_path.read_text(encoding="utf-8"))), encoding="utf-8")
@@ -172,13 +206,17 @@ def main(argv: list[str]) -> int:
     cases = sorted(KIT.glob("*.json"))
     if not cases:
         sys.exit(f"make_kit: no cases in {KIT}")
-    args.outdir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="make_kit-") as scratch:
+        made = Path(scratch) / "made"
+        made.mkdir()
         for case_path in cases:
             try:
-                make(case_path, args.outdir, args.cc, Path(scratch))
-            except (OSError, subprocess.CalledProcessError) as error:
+                make(case_path, made, args.cc, Path(scratch))
+            except (OSError, ValueError, subprocess.CalledProcessError) as error:
                 sys.exit(f"make_kit: {case_path.stem}: {error}")
+        args.outdir.mkdir(parents=True, exist_ok=True)
+        for csv in sorted(made.iterdir()):
+            (args.outdir / csv.name).write_bytes(csv.read_bytes())
     return 0
 
 

@@ -10,6 +10,7 @@ import json
 import pytest
 
 import cli
+import stats
 
 HEADER = {
     "schema": 1, "run_id": "r", "engine": "vestige", "tool": {"name": "bench", "version": "1.0"},
@@ -43,17 +44,18 @@ def value(thousandths):
     return f"{'-' if thousandths < 0 else ''}{whole}.{part:03d}"
 
 
-def write(tmp_path, frames, first=0, segments=True, skip=(), **header):
+def write(tmp_path, frames, first=0, segments=True, skip=(), every=None, **header):
     """A run file of `frames`, numbered from `first`, the first half in
-    view:1 and the rest in view:2; the last frame has no wall, as in a
-    real run. Frame numbers in `skip` are left out, leaving a hole."""
+    view:1 and the rest in view:2, or with `every`, a new segment each
+    `every` frames; the last frame has no wall, as in a real run. Frame
+    numbers in `skip` are left out, leaving a hole."""
     fields = {**HEADER, **header}
     fields = {key: given for key, given in fields.items() if given is not None}
     lines = [f"# frameledger {json.dumps(fields)}", "run_id,segment,frame,category,name,depth,value"]
     for index, rows in enumerate(frames):
         if first + index in skip:
             continue
-        segment = ("view:1" if index < len(frames) // 2 else "view:2") if segments else ""
+        segment = f"view:{index // (every or (len(frames) + 1) // 2) + 1}" if segments else ""
         for (category, name, depth), thousandths in rows.items():
             if (category, name) == ("frame", "wall") and index == len(frames) - 1:
                 continue
@@ -257,3 +259,85 @@ def test_a_hole_fails_strict(capsys, tmp_path):
     path = write(tmp_path, clean(), skip={60})
     assert codes(capsys, path) == (1, ["frame_missing"])
     assert codes(capsys, path, strict=False) == (0, ["frame_missing"])
+
+
+def slow_at(frames, positions):
+    """Slow frames at `positions`, each wall a little different."""
+    return set_walls(frames, {index: 30000 + index for index in positions})
+
+
+def walls_median(frames):
+    """The median wall the codes judge by: every frame but the last has one."""
+    return stats.median([rows[("frame", "wall", 0)] for rows in frames[:-1]])
+
+
+@pytest.mark.parametrize("held, count, warned", [(3, 120, True), (3, 302, False), (4, 302, True)])
+def test_ceiling_needs_one_percent(capsys, tmp_path, held, count, warned):
+    """§ 4.19: the longest wall must be held by 1% or more of the walls:
+    3 of 119 warn, 3 of 301 do not, 4 of 301 do."""
+    frames = set_walls(clean(count), dict.fromkeys(range(10, 10 + 20 * held, 20), 40000))
+    assert ("wall_ceiling" in codes(capsys, write(tmp_path, frames))[1]) is warned
+
+
+@pytest.mark.parametrize("over, warned", [(0, True), (-1, False)])
+def test_ceiling_needs_twice_the_median(capsys, tmp_path, over, warned):
+    """§ 4.19: a ceiling at twice the median wall warns; one thousandth
+    below it does not."""
+    frames = set_walls(clean(), dict.fromkeys((30, 70, 100), 99999))
+    ceiling = 2 * walls_median(frames) + over
+    frames = set_walls(frames, dict.fromkeys((30, 70, 100), ceiling))
+    assert ("wall_ceiling" in codes(capsys, write(tmp_path, frames))[1]) is warned
+
+
+@pytest.mark.parametrize("gaps, warned", [
+    pytest.param((10, 10, 10, 10, 12), True, id="4 of 5 near"),
+    pytest.param((10, 10, 10, 11, 11), True, id="within 1"),
+    pytest.param((10, 10, 10, 12, 12), False, id="3 of 5 near"),
+])
+def test_periodic_share_and_window(capsys, tmp_path, gaps, warned):
+    """§ 4.19: 5 times the gaps within 1 of the median must be 4 times all
+    gaps or more; a gap 2 from the median is not within it."""
+    positions = [5]
+    for gap in gaps:
+        positions.append(positions[-1] + gap)
+    path = write(tmp_path, slow_at(clean(), positions))
+    assert ("wall_periodic" in codes(capsys, path)[1]) is warned
+
+
+def test_segments_first_frames_are_not_periodic(capsys, tmp_path):
+    """§ 4.19: each segment's first frame is left out of the slow frames: a
+    slow first frame in each of six segments gives none."""
+    frames = slow_at(clean(), range(0, 120, 20))
+    assert codes(capsys, write(tmp_path, frames, every=20)) == (0, [])
+
+
+@pytest.mark.parametrize("count, warned", [(9, False), (10, True)])
+def test_stepped_needs_ten_walls(capsys, tmp_path, count, warned):
+    """§ 4.19: 9 stepped walls give no wall_stepped; 10 do."""
+    path = write(tmp_path, stepped(clean(count + 1)))
+    assert ("wall_stepped" in codes(capsys, path)[1]) is warned
+
+
+@pytest.mark.parametrize("step, warned", [(999, False), (1000, True)])
+def test_stepped_needs_a_one_millisecond_step(capsys, tmp_path, step, warned):
+    """§ 4.19: walls of 1, 2 and 3 steps warn when the step is 1 ms, and
+    not when it is 0.999 ms, below the floor."""
+    frames = [frame(step * (1 + index % 3), cpu=step // 2, gpu=step // 2) for index in range(30)]
+    assert ("wall_stepped" in codes(capsys, write(tmp_path, frames))[1]) is warned
+
+
+@pytest.mark.parametrize("pipelined, unknown", [(True, None), (False, ["pipelined"])])
+def test_cpu_span_total_in_a_pipelined_run(capsys, tmp_path, pipelined, unknown):
+    """§ 4.19: in a run whose `pipelined` is true or listed, the cpu_span
+    total over the wall total by more than 1% warns."""
+    frames = [frame(16000 + index, cpu=(16000 + index) * 102 // 100) for index in range(120)]
+    path = write(tmp_path, frames, pipelined=pipelined, unknown=unknown)
+    assert "span_over_wall" in codes(capsys, path)[1]
+
+
+@pytest.mark.parametrize("text", ["unknown", "UNKNOWN", "Unknown"])
+def test_says_unknown_in_any_case(capsys, tmp_path, text):
+    """§ 4.19: `unknown` in any case warns, for a field `unknown` may list
+    and one it may not."""
+    assert codes(capsys, write(tmp_path, clean(), renderer=text)) == (1, ["says_unknown"])
+    assert codes(capsys, write(tmp_path, clean(), engine=text)) == (1, ["says_unknown"])
