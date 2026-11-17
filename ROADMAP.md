@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=75 -->
+<!-- ants-roadmap-id-high-water: FLED=76 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1327,6 +1327,19 @@ the source of truth; all three engines set that condition, 2026-11-10.
   **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
   Kind: feature.
   Source: vestige-2026-11-13.
+
+- 💭 [FLED-0076] **compare and bisect can judge the 99th percentile of any frame measure or pass.**
+  ExperiRays (EXRAY-0026) picks each quality setting by DOOM-0617
+  § 4.5's rule: the 99th-percentile time against a target. It presents
+  no frames, so its frame/wall is loop time; what it needs judged is
+  frame/gpu_span and gpu/<pass>. Today § 4.10 judges p99 for frame/wall
+  only, every other measure by its median, and § 4.11's --statistic p99
+  on another measure is 128. report already gives p99_ms per pass and
+  per frame measure, but compares nothing. DOOM Ants' hardware test may
+  want the same for GPU time. Put to the three engines 2026-11-17.
+  **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
+  Kind: feature.
+  Source: experirays-request-2026-11-17.
 
 ## 0.8.0 — stable promises (beta)
 
