@@ -1043,6 +1043,11 @@ can still use the analyser, and a stranger's writer can prove itself.
   driver as designed could not make a row after the first drop; it now
   hands on all but the opening lines' length (INV-116 amended). Code
   review, readability included, asked of the three engines.
+  2026-11-17: Vestige's and DOOM Ants' code reviews folded at
+  9b18bf5; UT Ants' awaited. Windows, run by Vestige on Windows 10 22H2
+  with Python 3.13.15: the .pyz built at 9b18bf5 on Linux wrote the kit;
+  check --expect on basic.csv exit 0, against dropped.csv exit 1; fc /b
+  found basic.csv byte-identical to the tree's, so the LF pin holds.
   **Layman:** A set of tests anyone can run to prove their game writes the file correctly.
   Kind: test.
   Source: engine-answers-2026-11-10.
