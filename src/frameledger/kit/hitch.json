@@ -1,0 +1,196 @@
+{
+  "catches": "one 250 ms hitch among steady frames: a writer that clamps, smooths or skips a long frame differs (UT Ants)",
+  "warns": [],
+  "header": {
+    "schema": 1,
+    "run_id": "kit-hitch",
+    "engine": "kit",
+    "tool": {"name": "kit-writer", "version": "1.0"},
+    "build_type": "release",
+    "commit": "0123abc",
+    "dirty": false,
+    "device": "Kit GPU",
+    "renderer": "Kit Renderer",
+    "driver": "Kit Driver 1.0",
+    "api": "vulkan-1.3",
+    "resolution": [1920, 1080],
+    "render_scale": 1.0,
+    "vsync": false,
+    "pipelined": false,
+    "display": "offscreen",
+    "scene": "kit-scene",
+    "inputs": [{"name": "kit.map", "hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "bytes": 1024}],
+    "started_utc": "2026-11-17T12:00:00.250Z",
+    "load": {"start": 0.05, "end": 0.07}
+  },
+  "frames": [
+    {"frame": 0, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 1, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 2, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.668},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 3, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 4, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 5, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.668},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 6, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 7, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 8, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.668},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 9, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 10, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 11, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.668},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 12, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 248.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 250.0},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 246.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 13, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 14, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.668},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 15, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 16, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 17, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.668},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 18, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 19, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 20, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.668},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 21, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.0},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 22, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.666},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]},
+    {"frame": 23, "segment": "view:1", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.25},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 6.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.5}
+    ]}
+  ],
+  "close": {"frames": 24}
+}

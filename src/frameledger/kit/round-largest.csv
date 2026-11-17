@@ -1,0 +1,26 @@
+# frameledger {"schema":1,"run_id":"kit-round-largest","engine":"kit","tool":{"name":"kit-writer","version":"1.0"},"build_type":"release","commit":"0123abc","dirty":false,"device":"Kit GPU","renderer":"Kit Renderer","driver":"Kit Driver 1.0","api":"vulkan-1.3","resolution":[1920,1080],"render_scale":1.0,"vsync":false,"pipelined":false,"display":"offscreen","scene":"kit-scene","inputs":[{"name":"kit.map","hash":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","bytes":1024}],"started_utc":"2026-11-17T12:00:00.250Z","load":{"start":0.05,"end":0.07}}
+run_id,segment,frame,category,name,depth,value
+kit-round-largest,view:1,0,frame,cpu_span,0,8.250
+kit-round-largest,view:1,0,frame,gpu_span,0,12.125
+kit-round-largest,view:1,0,frame,wall,0,16.667
+kit-round-largest,view:1,0,cpu,scene,0,5.125
+kit-round-largest,view:1,0,cpu,ui,0,1.500
+kit-round-largest,view:1,0,gpu,geometry,0,7.750
+kit-round-largest,view:1,0,gpu,shadows,1,2.250
+kit-round-largest,view:1,0,ext.kit,largest,0,999999999.999
+kit-round-largest,view:1,0,ext.kit,most_negative,0,-999999999.999
+kit-round-largest,view:1,0,ext.kit,rounds_to_largest,0,999999999.999
+kit-round-largest,view:1,1,frame,cpu_span,0,8.375
+kit-round-largest,view:1,1,frame,gpu_span,0,12.375
+kit-round-largest,view:1,1,frame,wall,0,16.651
+kit-round-largest,view:1,1,cpu,scene,0,5.125
+kit-round-largest,view:1,1,cpu,ui,0,1.500
+kit-round-largest,view:1,1,gpu,geometry,0,7.750
+kit-round-largest,view:1,1,gpu,shadows,1,2.250
+kit-round-largest,view:1,2,frame,cpu_span,0,8.500
+kit-round-largest,view:1,2,frame,gpu_span,0,12.625
+kit-round-largest,view:1,2,cpu,scene,0,5.125
+kit-round-largest,view:1,2,cpu,ui,0,1.500
+kit-round-largest,view:1,2,gpu,geometry,0,7.750
+kit-round-largest,view:1,2,gpu,shadows,1,2.250
+# frameledger-close {"rows_dropped":0,"frames":3}

@@ -152,6 +152,11 @@ step 'writer'
 # its output goes through `check` under the pinned Python.
 run writer py env PYTHON=python tests/writer/test_compile.sh
 
+step 'kit'
+# Each writer kit case built against include/frameledger.h under each
+# toolchain that runs its programs, and matched against its NAME.csv.
+run kit py env PYTHON=python tests/writer/test_kit.sh
+
 step 'selftest'
 # The analyser's own checks, run the way an engine runs them: isolated,
 # with nothing but the standard library.

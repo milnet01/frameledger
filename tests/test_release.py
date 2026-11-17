@@ -94,8 +94,10 @@ def test_the_pyz_runs_its_selftest(tmp_path):
     pyz = tmp_path / "frameledger.pyz"
     done = subprocess.run([sys.executable, "-I", str(pyz), "--selftest"], capture_output=True, text=True)
     assert done.returncode == 0, done.stdout + done.stderr
+    analyser = ROOT / "src" / "frameledger"
     with zipfile.ZipFile(pyz) as zf:
-        assert sorted(zf.namelist()) == sorted(p.name for p in (ROOT / "src" / "frameledger").glob("*.py"))
+        assert sorted(zf.namelist()) == sorted([*(p.name for p in analyser.glob("*.py")),
+                                                *(f"kit/{p.name}" for p in (analyser / "kit").iterdir())])
 
 
 def test_only_the_linux_launcher_runs_and_the_windows_one_has_crlf(tmp_path):
@@ -198,11 +200,13 @@ def test_notes_must_state_the_built_hash(tmp_path, monkeypatch, capsys):
     assert release_notes.main(["0.2.0", "--sha", HASH_A]) == 2
 
 
-def test_a_module_in_a_subdirectory_stops_the_build(monkeypatch):
-    """The .pyz holds the flat analyser; a nested module would go missing from it."""
+@pytest.mark.parametrize("nested", ["sub/extra.py", "kit/extra.py", "kit/sub/case.json"])
+def test_a_module_in_a_subdirectory_stops_the_build(monkeypatch, nested):
+    """The .pyz holds the flat analyser and kit/'s flat data; a nested
+    module would go missing from it, and kit/ holds no module."""
     build_release = load_script("build_release")
-    listed = b"cli.py\0sub/extra.py\0"
+    listed = f"cli.py\0kit/README.txt\0{nested}\0".encode()
     monkeypatch.setattr(build_release.subprocess, "run",
                         lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout=listed))
-    with pytest.raises(SystemExit, match="sub/extra.py"):
-        build_release.tracked_modules()
+    with pytest.raises(SystemExit, match=nested):
+        build_release.tracked_files()

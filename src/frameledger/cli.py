@@ -1,6 +1,7 @@
 """Commands, flags and exit codes (docs/specs/FLED-0001-run-file-format.md
 § 4.7, § 4.10 and § 4.14 for `compare`, § 4.11 for `bisect`, § 4.12 for `budget`
-§ 4.15 for `alternate`, and § 4.16 for the `--base` and `--variant` form of both).
+§ 4.15 for `alternate`, § 4.16 for the `--base` and `--variant` form of both,
+§ 4.18 for `import`, and § 4.19 for `kit` and `check`'s `--strict` and `--expect`).
 
 The only module that prints or decides an exit code. Every command
 builds one result dict in the shape of § 4.8, and render.py turns it
@@ -23,12 +24,15 @@ import baseline
 import bisecting
 import budgeting
 import compare
+import expect
+import kit
 import ledger
 import presentmon
 import render
 import run_report
 import scenes
 import selftest
+import strict
 import survey
 import variants
 
@@ -39,6 +43,7 @@ VERSION = "0.5.0"
 # command line is not a verdict is STOP.
 PASS, FAIL, INCONCLUSIVE, ERROR = 0, 1, 2, 3
 STOP = bisecting.VERDICT_CODES["stop"]
+EXPECT_LISTED = 20  # § 4.19: check --expect's JSON lists this many differences
 # The references' floor when no flag sets it; the flags default to None, so
 # a floor given with --bad-above can be refused.
 BISECT_FLOORS = compare.Floors(min_ms=Decimal("0.050"), min_mb=Decimal("1.000"), min_pct=Decimal(3))
@@ -60,7 +65,15 @@ def _parser() -> _Parser:
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
     check = commands.add_parser("check", help="say whether each file meets the run-file format")
     check.add_argument("files", nargs="+", metavar="FILE")
+    check.add_argument("--strict", action="store_true", help="also warn on what is legal but unwise, and fail "
+                       "on any warning")
+    check.add_argument("--expect", metavar="EXPECTED", help="also compare the one FILE with this expected run "
+                       "file, by content, not layout")
     _add_output_flags(check)
+    kit_command = commands.add_parser("kit", help="write the kit that proves a writer: what an engine measured, "
+                                      "and the run files a correct writer makes from it")
+    kit_command.add_argument("directory", metavar="DIR", help="where to write it; it must be empty or missing")
+    _add_output_flags(kit_command)
     report = commands.add_parser("report", help="say where one run's frame time went")
     report.add_argument("file", metavar="FILE")
     _add_output_flags(report)
@@ -399,7 +412,9 @@ def _dispatch(args: argparse.Namespace) -> dict:
     if args.selftest:
         return _selftest()
     if args.command == "check":
-        return _check(args.files)
+        return _check(args)
+    if args.command == "kit":
+        return _kit(args.directory)
     if args.command == "report":
         return _report(args.file)
     if args.command == "floor":
@@ -415,7 +430,7 @@ def _dispatch(args: argparse.Namespace) -> dict:
     if args.command == "import":
         return _import(args)
     raise ledger.LedgerError("name a command (check, report, floor, compare, alternate, bisect, budget, "
-                             "survey, import) or --selftest; --help lists them")
+                             "survey, import, kit) or --selftest; --help lists them")
 
 
 def _bisect_main(argv: list[str]) -> int:
@@ -490,9 +505,15 @@ def _result(command: str, verdict: str, exit_code: int, summary: list[str],
     }
 
 
-def _check(paths: list[str]) -> dict:
+def _check(args: argparse.Namespace) -> dict:
+    """§ 4.7, and § 4.19's --strict and --expect: exit 0 when every file
+    conforms, and under --strict has no warning, and under --expect
+    matches; 1 when one does not; 3 when a file cannot be read."""
+    paths = args.files
+    if args.expect is not None and len(paths) != 1:
+        raise ledger.LedgerError(f"--expect takes exactly one FILE; {len(paths)} were given")
     files, warnings, summary = [], [], []
-    failed = unreadable = 0
+    failed = flagged = unreadable = 0
     for path in paths:
         try:
             run = ledger.read(path)
@@ -509,23 +530,49 @@ def _check(paths: list[str]) -> dict:
             places = "1 place" if len(run.breaches) == 1 else f"{len(run.breaches)} places"
             summary.append(f"{path} breaks the run-file format in {places}; "
                            f"the first is line {first.line}: {first.message}.")
-        for notice in run.notices:
+        notices = run.notices + (strict.warnings(run) if args.strict else [])
+        flagged += bool(args.strict and notices)
+        for notice in notices:
             where = path if notice.line is None else f"{path}, line {notice.line}"
             warnings.append({"code": notice.code, "message": f"{where}: {notice.message}"})
-        summary += _notice_sentences(path, run.notices)
+        summary += _notice_sentences(path, notices)
+
+    result: dict = {"files": files}
+    differences = []
+    if args.expect is not None and not unreadable:
+        differences = expect.compare(args.expect, paths[0])
+        result["expect"] = {"matches": not differences,
+                            "differences": [d.entry() for d in differences[:EXPECT_LISTED]]}
+        if differences:
+            places = "1 place" if len(differences) == 1 else f"{len(differences)} places"
+            summary.append(f"{paths[0]} differs from {args.expect} in {places}; the first: "
+                           f"{differences[0].sentence()}.")
 
     total = len(paths)
     if unreadable:
         verdict, code = "error", ERROR
         summary.append(f"{unreadable} of {total} files could not be read, so they were not checked.")
-    elif failed:
+    elif failed or flagged or differences:
         verdict, code = "fail", FAIL
-        summary.append(f"{failed} of {total} files break the run-file format.")
+        if failed:
+            summary.append(f"{failed} of {total} files break the run-file format.")
+        if flagged:
+            summary.append(f"{flagged} of {total} files have warnings, and --strict fails any warning.")
     else:
         verdict, code = "pass", PASS
         summary.append("The file meets the run-file format." if total == 1
                        else f"All {total} files meet the run-file format.")
-    return _result("check", verdict, code, summary, warnings, {"files": files})
+        if args.expect is not None:
+            summary.append(f"It matches {args.expect}.")
+    return _result("check", verdict, code, summary, warnings, result)
+
+
+def _kit(directory: str) -> dict:
+    """§ 4.19: exit 0 when the kit is written; 3, writing nothing, when the
+    directory holds anything."""
+    written = kit.write(directory)
+    return _result("kit", "none", PASS, [f"Wrote the kit to {directory}; its README.txt says how to use it."], [],
+                   {"kit": {"directory": directory, "files": written}})
 
 
 def _report(path: str) -> dict:

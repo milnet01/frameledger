@@ -3952,10 +3952,10 @@ breaks.
   case's JSON, turned into calls on `include/frameledger.h` by § 4.19's
   table and built, writes a file that `check --expect NAME.csv`
   matches. The driver sizes the buffer to hold the opening lines, the
-  close line and one row. It hands the bytes on after each kept row,
-  except the row before a dropped one, so the dropped row's
-  `fled_row` meets a full buffer and returns `FLED_DROPPED`. So a
-  dropped row must follow a kept one. `kit` into a directory holding
+  close line and one row. Before each kept row it hands on all but the
+  opening lines' length of pending bytes, and before a dropped row
+  nothing, so the dropped row's `fled_row` meets a full buffer and
+  returns `FLED_DROPPED`. So a dropped row must follow a kept one. `kit` into a directory holding
   one file is exit 3 and writes nothing. Run from the release `.pyz`,
   `kit` writes the same files as from the tree. The C leg needs a C
   compiler. Without one, `tests/writer/test_kit.sh` fails, saying
@@ -4243,7 +4243,7 @@ it on each release they pin.
 | INV-114 | `tests/test_unknown_facts.py` |
 | INV-115 | `tests/test_presentmon.py::test_report_says_imported` |
 | INV-116 | `tests/test_kit.py::test_kit_is_written`, `tests/test_kit.py::test_kit_refuses_a_full_directory`, `tests/test_kit.py::test_kit_from_the_release`, `tests/writer/test_kit.sh` |
-| INV-117 | `tests/test_kit.py::test_expect` |
+| INV-117 | `tests/test_kit.py::test_expect`, `tests/test_kit.py::test_expect_names_counts_and_values` |
 | INV-118 | `tests/test_strict.py` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
@@ -4252,9 +4252,9 @@ it on each release they pin.
 
 ## 11. Cross-doc impact
 
-- `docs/design.md` — this spec is the format part it names. § 4.19
-  adds parts it does not yet name: the kit's cases and the strict
-  checks. The design gains them before FLED-0037 is built.
+- `docs/design.md` — this spec is the format part it names. § 4.19's
+  parts are its `strict.py`, `expect.py`, `kit.py` and
+  `scripts/make_kit.py`.
 - `README.md` — gains Install and Usage once FLED-0007 ships.
 - `CHANGELOG.md` — each later amendment of this spec is a format change
   the release notes name (S6).

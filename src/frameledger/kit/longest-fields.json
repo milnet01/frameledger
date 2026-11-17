@@ -1,0 +1,57 @@
+{
+  "catches": "every length at its limit: a run_id of 64 bytes, a name of 64, a category of 32, and a segment kind and id of 32 each; a writer that cuts any short differs",
+  "warns": [],
+  "header": {
+    "schema": 1,
+    "run_id": "kit-longest-rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+    "engine": "kit",
+    "tool": {"name": "kit-writer", "version": "1.0"},
+    "build_type": "release",
+    "commit": "0123abc",
+    "dirty": false,
+    "device": "Kit GPU",
+    "renderer": "Kit Renderer",
+    "driver": "Kit Driver 1.0",
+    "api": "vulkan-1.3",
+    "resolution": [1920, 1080],
+    "render_scale": 1.0,
+    "vsync": false,
+    "pipelined": false,
+    "display": "offscreen",
+    "scene": "kit-scene",
+    "inputs": [{"name": "kit.map", "hash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "bytes": 1024}],
+    "started_utc": "2026-11-17T12:00:00.250Z",
+    "load": {"start": 0.05, "end": 0.07}
+  },
+  "frames": [
+    {"frame": 0, "segment": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.25},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.125},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.667},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 5.125},
+      {"category": "cpu", "name": "ui", "depth": 0, "value": 1.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75},
+      {"category": "gpu", "name": "shadows", "depth": 1, "value": 2.25},
+      {"category": "cpu", "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn", "depth": 0, "value": 0.5},
+      {"category": "ext.eeeeeeeeeeeeeeeeeeeeeeeeeeee", "name": "count", "depth": 0, "value": 3.0}
+    ]},
+    {"frame": 1, "segment": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.375},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.375},
+      {"category": "frame", "name": "wall", "depth": 0, "value": 16.651},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 5.125},
+      {"category": "cpu", "name": "ui", "depth": 0, "value": 1.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75},
+      {"category": "gpu", "name": "shadows", "depth": 1, "value": 2.25}
+    ]},
+    {"frame": 2, "segment": "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii", "rows": [
+      {"category": "frame", "name": "cpu_span", "depth": 0, "value": 8.5},
+      {"category": "frame", "name": "gpu_span", "depth": 0, "value": 12.625},
+      {"category": "cpu", "name": "scene", "depth": 0, "value": 5.125},
+      {"category": "cpu", "name": "ui", "depth": 0, "value": 1.5},
+      {"category": "gpu", "name": "geometry", "depth": 0, "value": 7.75},
+      {"category": "gpu", "name": "shadows", "depth": 1, "value": 2.25}
+    ]}
+  ],
+  "close": {"frames": 3}
+}

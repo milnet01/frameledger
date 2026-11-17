@@ -1,3 +1,6 @@
 # cmd needs CRLF for goto to find a label; sh needs LF. Git stores both as LF.
 launcher/frameledger.cmd text eol=crlf
 launcher/frameledger text eol=lf
+# The writer kit's files are bytes to be matched: kit DIR writes them as
+# they are, from the tree or the .pyz, so a Windows checkout must keep LF.
+src/frameledger/kit/** text eol=lf

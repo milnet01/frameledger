@@ -8,8 +8,7 @@ agreed — `~/.claude/workflow.md` § 4. The owner delegated this gate to
 the Vestige, UT Ants and DOOM Ants sessions on 2026-10-24.
 
 **Status:** agreed by Vestige, UT Ants and DOOM Ants, on the owner's
-delegation, except the kit and strict-check parts (FLED-0037), drafted
-2026-11-15 for their review. Built from [discovery](discovery.md) and
+delegation. Built from [discovery](discovery.md) and
 the engines' [requirements](reviews/2026-10-24-discovery-customer-answers.md).
 How it grew: [history](history/design.md).
 
@@ -128,10 +127,12 @@ case's `NAME.csv`. The driver:
   and the header's `run_id` as its own argument;
 - calls `fled_row` for each row, ordered by `arrives`, then as listed;
 - sizes the buffer to hold the opening lines, the close line and one
-  row, and hands the bytes on after each kept row, except the row
-  before a dropped one, so the dropped row meets a full buffer and
-  `fled_row` returns `FLED_DROPPED`. A dropped row must therefore
-  follow a kept one;
+  row. Before each kept row it hands on all but the opening lines'
+  length of pending bytes, and before a dropped row nothing. So the
+  kept row before a dropped one still fills the buffer, and `fled_row`
+  returns `FLED_DROPPED`. Handing on every byte would free the opening
+  lines' room too, and one row could not fill it. A dropped row must
+  therefore follow a kept one;
 - calls `fled_close` with `close.frames`, unless `close` is null.
 
 So a writer change that alters a kit file fails `test_kit.sh` until the

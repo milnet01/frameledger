@@ -203,6 +203,13 @@ def _check_body(result: dict) -> list[Block]:
                                 [[str(b["line"]), b["message"], b["rule"]] for b in entry["breaches"]],
                                 text_layout=lambda t: [f"  line {line}: {message} ({rule})"
                                                 for line, message, rule in t.rows]))
+    differences = result["result"].get("expect", {}).get("differences")
+    if differences:
+        blocks.append(Table("Differences from the expected file:",
+                            [Column("where"), Column("expected"), Column("found")],
+                            [[d["where"], json.dumps(d["expected"]), json.dumps(d["found"])] for d in differences],
+                            text_layout=lambda t: [f"  {where}: expected {expected}, found {found}"
+                                                   for where, expected, found in t.rows]))
     if result["warnings"]:
         blocks.append(Table("Warnings:", [Column("warning"), Column("code")],
                             [[w["message"], w["code"]] for w in result["warnings"]],

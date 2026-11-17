@@ -15,12 +15,13 @@ version can change a byte. Every entry has the same date, whatever the
 checkout's, and one of two modes: the Linux launcher's runs, the rest do
 not. Entries are in sorted order. Only modules git tracks go in. CRLF line
 endings become LF, so a Windows checkout builds the same archive; then the
-Windows launcher alone gets CRLF, which cmd needs. The modules, launchers
-and header are read from the working tree, so build from a clean checkout
-of the tag, as release.yml does.
+Windows launcher alone gets CRLF, which cmd needs. The modules, the writer
+kit's data, the launchers and header are read from the working tree, so
+build from a clean checkout of the tag, as release.yml does.
 
 Standard library only. Exit 0 on success; 1 when a module sits in a
-subdirectory of src/frameledger; 2 on a usage error.
+subdirectory of src/frameledger, or anything in a subdirectory of kit/;
+2 on a usage error.
 """
 
 from __future__ import annotations
@@ -71,26 +72,34 @@ def zip_bytes(entries: dict[str, bytes], prefix: bytes = b"") -> bytes:
     return buffer.getvalue()
 
 
-def tracked_modules() -> list[Path]:
-    """Tracked files only, so a stray module in the checkout never ships.
+def tracked_files() -> list[str]:
+    """The analyser's tracked modules, and the writer kit's tracked data, as
+    paths within src/frameledger. Tracked only, so a stray file in the
+    checkout never ships.
 
     The analyser is flat: its modules import each other by bare name
-    (docs/design.md § The parts). A module in a subdirectory stops the
-    build rather than going missing from the .pyz.
+    (docs/design.md § The parts). Its one folder is kit/, plain data that
+    kit.py reads with pkgutil.get_data, with no module and no folder of
+    its own. Anything else in a subdirectory stops the build rather than
+    going missing from the .pyz.
     """
-    listed = subprocess.run(["git", "ls-files", "-z", "--", "*.py"], cwd=ANALYSER, capture_output=True,
+    listed = subprocess.run(["git", "ls-files", "-z", "--", "*.py", "kit"], cwd=ANALYSER, capture_output=True,
                             check=True).stdout.decode()
     names = [name for name in listed.split("\0") if name]
-    nested = [name for name in names if "/" in name]
+    nested = [name for name in names if "/" in name and not _kit_data(name)]
     if nested:
-        sys.exit(f"build_release: src/frameledger is flat, but git tracks {', '.join(nested)}")
-    return [ANALYSER / name for name in names]
+        sys.exit(f"build_release: src/frameledger is flat but for kit/'s data, and git tracks {', '.join(nested)}")
+    return names
+
+
+def _kit_data(name: str) -> bool:
+    return name.startswith("kit/") and name.count("/") == 1 and not name.endswith(".py")
 
 
 def build_pyz() -> bytes:
-    """The analyser's modules; the zip's __main__.py runs them as the tree does."""
-    modules = {path.name: source_bytes(path) for path in tracked_modules()}
-    return zip_bytes(modules, prefix=SHEBANG)
+    """The analyser's modules and the kit; the zip's __main__.py runs them as the tree does."""
+    files = {name: source_bytes(ANALYSER / name) for name in tracked_files()}
+    return zip_bytes(files, prefix=SHEBANG)
 
 
 def build_archive(pyz: bytes) -> bytes:

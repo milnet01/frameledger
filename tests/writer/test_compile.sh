@@ -36,19 +36,8 @@ no_forbidden() {
     [[ -z $found ]] || fail "$2 references: $found"
 }
 
-# One row per toolchain: C compiler, C++ compiler, nm, and whether its
-# programs run here. macOS has one row: its `gcc` is Apple's Clang under
-# another name, so a GCC row would test Clang twice, and GCC and mingw-w64
-# are checked on Linux by the same CI run (FLED-0038).
-if [[ $(uname -s) == Darwin ]]; then
-    toolchains=("clang clang++ nm run")
-else
-    toolchains=(
-        "gcc g++ nm run"
-        "clang clang++ nm run"
-        "x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ x86_64-w64-mingw32-nm build-only"
-    )
-fi
+# shellcheck source=tests/writer/toolchains.sh
+source tests/writer/toolchains.sh
 
 for row in "${toolchains[@]}"; do
     read -r cc cxx nm mode <<<"$row"
