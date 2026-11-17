@@ -1465,6 +1465,29 @@ the source of truth; all three engines set that condition, 2026-11-10.
   7:1. Drafted as docs/specs/FLED-0001-run-file-format.md § 4.21 and
   INV-126 to INV-130; sent to the three engines for review before
   building.
+  2026-11-17, UT Ants on § 4.21 (d5e991d): yes to A-F; the owner's
+  change breaks nothing for it. D: a column counts drawn frames, not frame
+  numbers. E: SVG user units in a viewBox are exempt from INV-130's em/rem
+  check. G: forbid @import; bands' patterns and the lines' dashes made
+  testable; 2-unit strokes and marker text size into the invariants; a '
+  in INV-129's fixture; contrast read from SVG attributes too. To fold
+  with Vestige's and DOOM Ants' answers.
+  2026-11-17, Vestige on § 4.21 (d5e991d): yes to A-F; the owner's
+  change breaks nothing for it. B: a temporary file in PAGE's directory,
+  then renamed. Contradiction: INV-126's ban on url( and href= also bans
+  the bands' in-page pattern references; ban only targets not starting
+  #. G: patterns and dashes made testable and a ' in INV-129 (as UT
+  Ants); PAGE is FILE by device and inode, tested by symlink, dir/../FILE
+  and hard link; a measurable "too narrow" band; 1201 frames say the
+  columns sentence; SVG user units exempt from em/rem; the graph in its
+  own sideways-scrolling box, tested. To fold with DOOM Ants' answer.
+  2026-11-17, DOOM Ants on § 4.21 (d5e991d): sound; the owner's change
+  breaks nothing for it. Blockers: INV-129's raw U+202E, and "or absent"
+  letting a failure delete PAGE. Asked to settle the ms axis range, band
+  edges, unsegmented and wall-less frames, a repeated --fps, fractional N,
+  clustered marker numbers and contrast against band fills. All three
+  engines' answers folded into § 4.21 and INV-126 to INV-130; the diff
+  goes back to them before building.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
