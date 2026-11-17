@@ -55,8 +55,10 @@ with INV-119 to INV-124 (FLED-0075, FLED-0076) agreed by the three
 engines 2026-11-17 before they were built; their reviews added that a
 `too_few` entry is shown, a kind's segments are pooled, and leading
 generated frames are counted.
-§ 4.12's frame spans with INV-125 (FLED-0077) decided by the three
-engines 2026-11-17; the design is with them for review.
+§ 4.12's frame spans with INV-125 (FLED-0077) agreed by the three
+engines 2026-11-17 before they were built; their reviews added that a
+span has no depth to match and that its frame count is the frames
+holding it.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1405,12 +1407,21 @@ frame,gpu_span,*,,p99,16.667
   `frame,gpu_span` judge a frame's whole CPU or GPU span: its median or
   99th percentile over the frames of its kind that have it, as § 4.8's
   `frame_times` gives them, less any warm-up. Every rule here holds for
-  a span as for a pass. A `gpu_span` p99 limit of 16.667 says whether
+  a span as for a pass, generated frames left out unless
+  `--all-frames` (§ 4.20). A `gpu_span` p99 limit of 16.667 says whether
   the GPU alone fits a 60 FPS frame, which `floor`'s `frame/wall`
   cannot separate (Vestige). A span is not frame time either: `floor`
   judges that. So `frame,wall` is exit 3, naming `floor`, as is any
-  other `frame` name, and a depth on a `frame` line, since a span has
-  none (Vestige, UT Ants, DOOM Ants).
+  other `frame` name, and a depth on a `frame` line (Vestige, UT Ants,
+  DOOM Ants).
+- **A span has no depth.** A `frame` line matches the run's
+  `frame/cpu_span` or `frame/gpu_span` rows whatever depth they carry,
+  so the empty-depth rule below has nothing to resolve (Vestige, DOOM
+  Ants). `frames` counts the frames holding the span, which for
+  `gpu_span` can be fewer than hold `cpu_span`, and
+  `budget_few_frames` counts the same (Vestige). The sentence names a
+  span as `report` does: "frame/gpu_span p99 in view segments is
+  17.100 ms, over its 16.667 ms budget." (DOOM Ants)
 - **`*` takes every kind**, a warm-up kind too. A run with one names
   its kinds instead of using `*` (DOOM Ants).
 - **A named kind replaces `*`** for that kind, on a line with the same
@@ -4269,11 +4280,15 @@ breaks.
   *Breaks when:* `p99` on a pass is still 128, or a short run is judged.
 
 - **INV-125** — `budget` judges a frame's CPU and GPU spans. A run of
-  200 frames whose `frame/gpu_span` is 10.000 ms but 20.000 ms on its
-  three slowest has a p99 of 20.000 and a median of 10.000.
-  `frame,gpu_span,*,,p99,16.667` is over, exit 1;
-  `frame,gpu_span,*,,median,16.667` and `frame,gpu_span,*,,p99,20.000`
-  hold, exit 0; each value is `report`'s `frame_times` figure.
+  200 `view` frames whose `frame/gpu_span` is 10.000 ms but 20.000 ms
+  on its three slowest, and 50 `load` frames at 30.000 ms, every row
+  at depth 0, has a view p99 of 20.000 and a view median of 10.000.
+  `frame,gpu_span,view,,p99,16.667` is over, exit 1;
+  `frame,gpu_span,view,,median,16.667` and
+  `frame,gpu_span,view,,p99,20.000` hold, exit 0; each value is
+  `report`'s `frame_times` figure. `frame,gpu_span,*,,p99,20.000` with
+  `frame,gpu_span,load,,p99,40.000` holds: the named line replaces `*`
+  for load, and its entry, over 50 frames, warns `budget_few_frames`.
   `frame,cpu_span` is judged the same way. `frame,wall`,
   `frame,fence_wait` and `frame,gpu_span` with depth `0` are exit 3,
   each naming its line, and `frame,wall`'s summary names `floor`. The
@@ -4282,7 +4297,8 @@ breaks.
   *Test:* `tests/test_budget_spans.py::test_frame_span_budgets`,
   `tests/test_budget_spans.py::test_frame_span_refusals`.
   *Breaks when:* a `frame` line is refused, `frame/wall` is judged, a
-  span's value is not `report`'s, or a span no frame has passes.
+  span's value is not `report`'s, a span's depth is compared with the
+  line's, or a span no frame has passes.
 
 ## 6. Failure modes
 

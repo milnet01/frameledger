@@ -1430,6 +1430,13 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17: designed in docs/specs/FLED-0001-run-file-format.md §
   4.12 and INV-125; sent to the three engines for review before
   building.
+  2026-11-17, design reviews: Vestige, UT Ants and DOOM Ants, yes to
+  all five points. Folded: a frame line matches span rows at any depth;
+  frames and budget_few_frames count the frames holding the span; the
+  sentence names frame/gpu_span as report does; generated frames left
+  out unless --all-frames; INV-125 adds depth-0 rows, a named kind
+  beside * and a 50-frame p99. Design agreed by all three engines; to
+  be built.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.
