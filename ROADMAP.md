@@ -1409,6 +1409,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   to move it to budget. If built, the shape reads right: frame/cpu_span
   and frame/gpu_span, median or p99, not wall. Vestige's and UT Ants'
   answers owed.
+  2026-11-17, Vestige: yes, as recommended: frame/cpu_span and
+  frame/gpu_span, median or p99, not wall. Vestige would use it: a
+  gpu_span p99 limit says whether the GPU alone fits 16.67 ms, which
+  floor's wall cannot separate. Changes nothing of Vestige's; it keeps
+  no budget file. UT Ants' answer owed.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.
