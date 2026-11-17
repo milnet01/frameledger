@@ -1420,6 +1420,9 @@ the source of truth; all three engines set that condition, 2026-11-10.
   passes; not frame/wall, which floor judges. Vestige and ExperiRays
   would use it; DOOM Ants does not need it and agrees the shape. To be
   designed as a FLED-0001 § 4.12 amendment.
+  2026-11-17: designed in docs/specs/FLED-0001-run-file-format.md §
+  4.12 and INV-125; sent to the three engines for review before
+  building.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.

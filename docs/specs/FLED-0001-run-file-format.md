@@ -55,6 +55,8 @@ with INV-119 to INV-124 (FLED-0075, FLED-0076) agreed by the three
 engines 2026-11-17 before they were built; their reviews added that a
 `too_few` entry is shown, a kind's segments are pooled, and leading
 generated frames are counted.
+§ 4.12's frame spans with INV-125 (FLED-0077) decided by the three
+engines 2026-11-17; the design is with them for review.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -211,6 +213,13 @@ settles.
   the compare is inconclusive only when no entry of it is judged;
   `bisect --statistic p99` on any measure but `mem`, a short tested run
   skipping and a short reference stopping (§ 4.11).
+- For FLED-0077, agreed by the three engines 2026-11-17: `budget`
+  judges `frame/cpu_span` and `frame/gpu_span`, by median or p99 as a
+  pass, and never `frame/wall`, which `floor` judges (§ 4.12).
+  Vestige and ExperiRays would use it; DOOM Ants does not need it.
+  *Proposed here:* the category is `frame`; a depth on a `frame` line
+  is exit 3; every other pass rule, `*` and named kinds included, holds
+  for a span.
 
 ## 4. Design
 
@@ -1350,7 +1359,8 @@ counts this field (Vestige).
 ### 4.12 Pass budgets
 
 FLED-0010 builds this (S12). Reviewed by the three engines 2026-10-29;
-their changes are folded in.
+their changes are folded in. FLED-0077 adds a frame's CPU and GPU
+spans.
 
 ```
 budget FILE --budgets BUDGETS [--warmup-s S] [--all-frames]
@@ -1368,15 +1378,16 @@ decimal point, fields quoted CSV-style. A blank line is skipped
 category,name,kind,depth,statistic,limit_ms           column line, required
 gpu,ssao,view,0,p99,2.000                             one budget per line
 cpu,cpu_remainder,*,,median,1.500
+frame,gpu_span,*,,p99,16.667
 # any later line beginning # is a comment
 ```
 
 | Column | Rule |
 |---|---|
-| `category` | `cpu` or `gpu` |
-| `name` | a pass name, as § 4.4's; `cpu_remainder` and `gpu_remainder` included |
+| `category` | `cpu` or `gpu` for a pass; `frame` for a frame span |
+| `name` | a pass name, as § 4.4's, `cpu_remainder` and `gpu_remainder` included; under `frame`, `cpu_span` or `gpu_span` |
 | `kind` | a segment kind; `*` for every kind in the run, frames with no segment included, each judged apart; empty for frames with no segment |
-| `depth` | an integer from 0, at most nine digits, or empty |
+| `depth` | an integer from 0, at most nine digits, or empty; empty under `frame` |
 | `statistic` | `median` or `p99` |
 | `limit_ms` | 0.001 to 999999999.999, at most three places |
 
@@ -1390,6 +1401,16 @@ cpu,cpu_remainder,*,,median,1.500
 - **A pass budget is not a frame-time budget.** With frames in
   flight, two frames' passes overlap, so a frame's pass limits need not
   add up to its frame time. `floor` judges frame time (DOOM Ants).
+- **A frame span's budget** (FLED-0077). `frame,cpu_span` and
+  `frame,gpu_span` judge a frame's whole CPU or GPU span: its median or
+  99th percentile over the frames of its kind that have it, as § 4.8's
+  `frame_times` gives them, less any warm-up. Every rule here holds for
+  a span as for a pass. A `gpu_span` p99 limit of 16.667 says whether
+  the GPU alone fits a 60 FPS frame, which `floor`'s `frame/wall`
+  cannot separate (Vestige). A span is not frame time either: `floor`
+  judges that. So `frame,wall` is exit 3, naming `floor`, as is any
+  other `frame` name, and a depth on a `frame` line, since a span has
+  none (Vestige, UT Ants, DOOM Ants).
 - **`*` takes every kind**, a warm-up kind too. A run with one names
   its kinds instead of using `*` (DOOM Ants).
 - **A named kind replaces `*`** for that kind, on a line with the same
@@ -1424,7 +1445,8 @@ cpu,cpu_remainder,*,,median,1.500
   and both depths (Vestige).
 - **A budget nothing matches** is never a pass: a renamed pass would
   otherwise hold its budget forever. A `kind` not in the run, a pass
-  in no frame of its kind, or a `*` pass in no frame at all is listed
+  or span in no frame of its kind, or a `*` line's in no frame at all,
+  such as `frame,gpu_span` on a capture without `MsGPUBusy`, is listed
   in `unmatched` and named in a sentence. It makes the verdict
   inconclusive; it is not a warning. The pass is in none of those
   frames, so a re-run gives the same: the fix is in the budget file or
@@ -1440,7 +1462,9 @@ cpu,cpu_remainder,*,,median,1.500
 - **Exit 3** for the budget file: no header or a `schema` other than
   1, a `match` key that is not a compare-blocking field or a value
   breaking § 4.2's rule for that field (Vestige), a different
-  column line, a value breaking its column's rule, no budget line, or
+  column line, a value breaking its column's rule, a `frame` line
+  naming anything but `cpu_span` or `gpu_span` or giving a depth, no
+  budget line, or
   two lines with the same `category`, `name`, `kind`, `depth` and `statistic`. The
   summary names the budget file's line. For the run file, as
   `report`'s.
@@ -1465,6 +1489,7 @@ budget judged.
 
 `over_ms` is `value_ms` minus `limit_ms`, exactly; negative when the
 budget holds (DOOM Ants, UT Ants). The sentences rank by it.
+`category` is `frame` for a span, whose `depth` is null.
 `segment_kind` in `unmatched` is the line's `kind`: `*`, a kind, or
 null for an empty one.
 
@@ -4233,6 +4258,22 @@ breaks.
   *Test:* `tests/test_measure_p99.py::test_bisect_p99`.
   *Breaks when:* `p99` on a pass is still 128, or a short run is judged.
 
+- **INV-125** — `budget` judges a frame's CPU and GPU spans. A run of
+  200 frames whose `frame/gpu_span` is 10.000 ms but 20.000 ms on its
+  three slowest has a p99 of 20.000 and a median of 10.000.
+  `frame,gpu_span,*,,p99,16.667` is over, exit 1;
+  `frame,gpu_span,*,,median,16.667` and `frame,gpu_span,*,,p99,20.000`
+  hold, exit 0; each value is `report`'s `frame_times` figure.
+  `frame,cpu_span` is judged the same way. `frame,wall`,
+  `frame,fence_wait` and `frame,gpu_span` with depth `0` are exit 3,
+  each naming its line, and `frame,wall`'s summary names `floor`. The
+  same run without `frame/gpu_span` lists the `gpu_span` line in
+  `unmatched`, exit 2.
+  *Test:* `tests/test_budget_spans.py::test_frame_span_budgets`,
+  `tests/test_budget_spans.py::test_frame_span_refusals`.
+  *Breaks when:* a `frame` line is refused, `frame/wall` is judged, a
+  span's value is not `report`'s, or a span no frame has passes.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -4291,6 +4332,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0037: INV-116 to INV-118.
 - FLED-0075: INV-119 to INV-121.
 - FLED-0076: INV-122 to INV-124.
+- FLED-0077: INV-125.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -4477,6 +4519,7 @@ it on each release they pin.
 | INV-122 | `tests/test_measure_p99.py::test_p99_of_a_pass`, `tests/test_measure_p99.py::test_suffix_refusals` |
 | INV-123 | `tests/test_measure_p99.py::test_too_few_frames` |
 | INV-124 | `tests/test_measure_p99.py::test_bisect_p99` |
+| INV-125 | `tests/test_budget_spans.py::test_frame_span_budgets`, `tests/test_budget_spans.py::test_frame_span_refusals` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |
