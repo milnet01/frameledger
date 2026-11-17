@@ -813,53 +813,6 @@ to compare against, and the small fixes they filed.
   Kind: fix.
   Source: album-builder-fact-check-2026-11-04.
 
-- 💭 [FLED-0054] **A noisy compare says how many more runs would settle it.**
-  On exit 2 for a noisy `frame/wall`, estimate the runs a side that
-  would settle it; the run helper could keep alternating up to a cap.
-  Chromium's bisect returned "need more data" and grew its sample:
-  https://codereview.chromium.org/1702013004
-  Needs FLED-0029, the engines' agreement and a spec amendment.
-  2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
-  **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 💭 [FLED-0056] **report gives a 0.1% low and lows as the mean of the slowest frames.**
-  Today report gives p99 and a 1% low from p99. Add a 0.1% low, and
-  the x% low as the mean of the slowest x% of frames, a common
-  industry definition. A 0.1% figure needs at least 1000 frames, so it
-  needs a too-few-frames warning like § 4.9's. Rare hitches such as
-  shader compiles hide below p99. Seen in MangoHud's summary:
-  https://github.com/flightlessmango/MangoHud
-  Needs the engines' agreement and a spec amendment.
-  2026-11-10, engines: later from all three.
-  **Layman:** Shows how bad the rarest stutters are, not only the usual slow frames.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 💭 [FLED-0057] **Time-weighted figures: the share of time spent in slow frames.**
-  The share of the run's time spent in frames over budget, and a
-  percentile weighted by time rather than by frame count. A count-based
-  p99 understates long frames, since a slow frame fills more of the
-  player's time. Seen in CapFrameX's metrics:
-  https://www.capframex.com/blog/post/Explanation%20of%20different%20performance%20metrics
-  Sits beside floor and budget. Needs the engines' agreement.
-  2026-11-10, engines: later from all three.
-  **Layman:** Measures how much of the playing time felt slow, which counts long stutters fairly.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 💭 [FLED-0058] **report counts hitches against the local median.**
-  Count frames longer than k times the rolling median of nearby frames,
-  per segment kind. One number for judder that pacing (S14) and the
-  worst-10 list do not give. A common practice; no authoritative
-  source for the multiplier was found, so k is the engines' call.
-  2026-11-10, engines: yes (Vestige, for 3D_E-0795's frame-time gate),
-  later (DOOM Ants, UT Ants).
-  **Layman:** Counts sudden stutters: frames much slower than the frames around them.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
 - ✅ [FLED-0063] **alternate stops a Windows command's whole process tree.**
   On Linux and macOS, alternate runs each command in its own process
   group and passes Ctrl-C and SIGTERM on to all of it (FLED-0029,
@@ -918,18 +871,6 @@ to compare against, and the small fixes they filed.
   **Layman:** Write down why each roadmap milestone gets its own 0.x number, and what would make frameledger 1.0.
   Kind: doc.
   Source: cut-release-0.4.0-2026-11-11.
-
-- 💭 [FLED-0066] **On Windows, alternate ends processes a command left detached.**
-  FLED-0063's taskkill /T finds only processes whose parent still
-  runs, so cmd's `start`, or a launcher that spawns and exits, leaves
-  processes behind (§ 4.15 says so). UT Ants' review of 299499a: a
-  Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE catches every
-  descendant that does not break away, and would also let Windows check
-  for leftovers after a command exits, as Linux does. Not needed by any
-  engine yet; considered until one is.
-  **Layman:** On Windows, stopping a test run also stops programs the game's script started and walked away from.
-  Kind: feature.
-  Source: engine-review-2026-11-11.
 
 - ✅ [FLED-0067] **The writer header says which release it came from.**
   include/frameledger.h has no version macro, so a vendored copy is
@@ -1020,7 +961,7 @@ The first steps beyond the three engines: an engine with no writer
 
 can still use the analyser, and a stranger's writer can prove itself.
 
-- 📋 [FLED-0036] **Import a PresentMon capture.**
+- ✅ [FLED-0036] **Import a PresentMon capture.**
   Turn a PresentMon CSV into a run that report, floor and survey
   accept, so an engine with no writer gets frame times and pacing.
   It has no passes, so pass reports say so. None of the three
@@ -1028,11 +969,12 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-14: specified in docs/specs/FLED-0001-run-file-format.md §
   4.18 and INV-111 to INV-115, from the three engines' answers; drafted
   for their review before building.
+  2026-11-17: shipped in 0.6.0, every code review folded.
   **Layman:** Use frameledger with a free, widely used frame-timing tool, without changing your game.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0037] **A kit proves a stranger's writer.**
+- ✅ [FLED-0037] **A kit proves a stranger's writer.**
   Sample engine output and the files it must produce, and a strict
   check that also flags what is legal but unwise, so someone writing
   the format from the spec alone can show their writer is right (S7).
@@ -1050,6 +992,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   found basic.csv byte-identical to the tree's, so the LF pin holds.
   2026-11-17: UT Ants' code review folded at 9fad8ad; all three
   engines' code reviews are now folded.
+  2026-11-17: shipped in 0.6.0, every code review folded.
   **Layman:** A set of tests anyone can run to prove their game writes the file correctly.
   Kind: test.
   Source: engine-answers-2026-11-10.
@@ -1244,7 +1187,7 @@ can still use the analyser, and a stranger's writer can prove itself.
   Kind: fix.
   Source: engine-reviews-FLED-0071-2026-11-13.
 
-- 📋 [FLED-0075] **Decide what an import does with generated frames.**
+- ✅ [FLED-0075] **Decide what an import does with generated frames.**
   PresentMon's --track_frame_type adds a FrameType column: whether
   a frame was rendered by the application or generated by a driver or
   SDK (README-ConsoleApplication.md, read 2026-11-15). § 4.18 reads
@@ -1308,11 +1251,12 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-17: UT Ants yes to F; Vestige accepts F as built (survey's
   empty run inconclusive). All answers in: nothing owed by the three
   engines or ExperiRays on FLED-0075 to FLED-0077.
+  2026-11-17: shipped in 0.6.0, every code review folded.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
 
-- 📋 [FLED-0078] **Test alternate end to end on runs holding generated frames.**
+- ✅ [FLED-0078] **Test alternate end to end on runs holding generated frames.**
   FLED-0075's --all-frames reaches alternate through cli._compare_paths
   and _compare_variants, but no test runs alternate on commands that
   write runs with event/generated. Every review of 09e27a1 named it
@@ -1349,71 +1293,12 @@ can still use the analyser, and a stranger's writer can prove itself.
   DOOM Ants, nothing to change. Vestige offered a clearer wording of
   the order, optional, not taken. Nothing owed by the three engines or
   ExperiRays on FLED-0078.
+  2026-11-17: shipped in 0.6.0, every code review folded.
   **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
   Kind: test.
   Source: ut-ants-review-2026-11-17.
 
-## 0.7.0 — seen, not only read
-
-An optional picture of a run. The text report stays the default and
-
-the source of truth; all three engines set that condition, 2026-11-10.
-
-- 📋 [FLED-0039] **An optional picture report.**
-  report --html writes one self-contained page with a frame-time
-  graph and the worst frames marked, drawn as SVG with the standard
-  library alone. Large text; no meaning carried by colour alone; the
-  plain sentences come first, as in text. Text stays the default.
-  Agreed by all three engines on those conditions.
-  **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
-  Kind: feature.
-  Source: engine-answers-2026-11-10.
-
-- 💭 [FLED-0061] **The picture report can show two sets' frame-time curves.**
-  Percentile curves of old and new runs on one graph. Shows whether a
-  regression is a shifted median or a fatter tail. Log viewers for
-  MangoHud and Tracy's comparison mode do this. S26 covers one run
-  only, so the engines must agree to widen S26 first; otherwise after
-  1.0. Builds on FLED-0039.
-  2026-11-10, engines: later from all three.
-  **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 📋 [FLED-0072] **compare warns on a run whose own frame times scatter.**
-  FLED-0053's held half. Proposed 2026-11-13: `noisy_run`, per run, when
-  (75th - 25th percentile) / median of frame/wall is above a limit, over
-  segment kinds with at least 100 frames. The three engines agreed the
-  measure and held the number until real runs give it; 0.25 was a guess.
-  DOOM Ants warns that quartiles of one run's frames miss a burst.
-  Waiting on: Vestige's three quiet-machine captures under 3D_E-0970;
-  UT Ants has no ledgers yet. Needs a spec amendment to FLED-0001 § 4.9
-  or § 4.10.
-  2026-11-13, Vestige's figures (message 1974; commit 0508b49, Release,
-  RX 6600, 1920x1080, meadow-flythrough, no vsync, about 2490 frames a
-  run, warm-up included). Five quiet runs: (p75 - p25) / median of
-  frame/wall is 0.105 to 0.115; their medians span 1.06%. One run under
-  load, taken right after a build: 0.2194, p99 81.663 ms against about
-  14.5. So for this scene a limit between 0.12 and 0.21 separates them;
-  one loaded sample, so the upper end is soft. Vestige's caution: the
-  camera moves, so much of the 0.11 is the path, not noise, and a still
-  scene would read lower. Still waiting on: UT Ants and DOOM Ants runs.
-  **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
-  Kind: feature.
-  Source: split-from-FLED-0053-2026-11-13.
-
-- 💭 [FLED-0074] **Read a gzip-compressed run file.**
-  Vestige, 2026-11-13: `check run.csv.gz` reads the gzip bytes as a run
-  with no close line ("unfinished") rather than refusing it as not a run
-  file. Five of its runs are 29 MB, 2.2 MB gzipped, so a baseline's runs
-  are too big to commit. Two parts: say plainly that a .gz is not a run
-  file, and perhaps read one. Low priority by Vestige's word. Not
-  checked here: the message `check` gives.
-  **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
-  Kind: feature.
-  Source: vestige-2026-11-13.
-
-- 📋 [FLED-0076] **compare and bisect can judge the 99th percentile of any frame measure or pass.**
+- ✅ [FLED-0076] **compare and bisect can judge the 99th percentile of any frame measure or pass.**
   ExperiRays (EXRAY-0026) picks each quality setting by DOOM-0617
   § 4.5's rule: the 99th-percentile time against a target. It presents
   no frames, so its frame/wall is loop time; what it needs judged is
@@ -1488,11 +1373,13 @@ the source of truth; all three engines set that condition, 2026-11-10.
   4's spec change and bug 5's answer. ExperiRays re-ran H1 and T1 on a
   clone: both hold. UT Ants' answer owed.
   2026-11-17: UT Ants yes to C, D and E. Agreed by all three engines.
+  2026-11-17: shipped in 0.6.0, every code review folded; moved here
+  from 0.7.0, where it was filed before it was built.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
 
-- 📋 [FLED-0077] **budget can judge frame/gpu_span and frame/cpu_span, not only passes.**
+- ✅ [FLED-0077] **budget can judge frame/gpu_span and frame/cpu_span, not only passes.**
   § 4.12's budget file takes category cpu or gpu, a pass name, so a
   frame's whole span has no budget. ExperiRays (EXRAY-0026) holds
   frame/gpu_span's p99 against a fixed target and will read report
@@ -1534,9 +1421,99 @@ the source of truth; all three engines set that condition, 2026-11-10.
   (ANY_DEPTH -1, SPAN_DEPTH, FRAME constant); messages built from SPANS;
   tests for frames holding the span, two depths, warm-up and a
   named-kind unmatched line.
+  2026-11-17: shipped in 0.6.0, every code review folded; moved here
+  from 0.7.0, where it was filed before it was built.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.
+
+## 0.7.0 — seen, not only read
+
+An optional picture of a run. The text report stays the default and
+
+the source of truth; all three engines set that condition, 2026-11-10.
+
+- 📋 [FLED-0039] **An optional picture report.**
+  report --html writes one self-contained page with a frame-time
+  graph and the worst frames marked, drawn as SVG with the standard
+  library alone. Large text; no meaning carried by colour alone; the
+  plain sentences come first, as in text. Text stays the default.
+  Agreed by all three engines on those conditions.
+  **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
+  Kind: feature.
+  Source: engine-answers-2026-11-10.
+
+- 💭 [FLED-0061] **The picture report can show two sets' frame-time curves.**
+  Percentile curves of old and new runs on one graph. Shows whether a
+  regression is a shifted median or a fatter tail. Log viewers for
+  MangoHud and Tracy's comparison mode do this. S26 covers one run
+  only, so the engines must agree to widen S26 first; otherwise after
+  1.0. Builds on FLED-0039.
+  2026-11-10, engines: later from all three.
+  **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 📋 [FLED-0072] **compare warns on a run whose own frame times scatter.**
+  FLED-0053's held half. Proposed 2026-11-13: `noisy_run`, per run, when
+  (75th - 25th percentile) / median of frame/wall is above a limit, over
+  segment kinds with at least 100 frames. The three engines agreed the
+  measure and held the number until real runs give it; 0.25 was a guess.
+  DOOM Ants warns that quartiles of one run's frames miss a burst.
+  Waiting on: Vestige's three quiet-machine captures under 3D_E-0970;
+  UT Ants has no ledgers yet. Needs a spec amendment to FLED-0001 § 4.9
+  or § 4.10.
+  2026-11-13, Vestige's figures (message 1974; commit 0508b49, Release,
+  RX 6600, 1920x1080, meadow-flythrough, no vsync, about 2490 frames a
+  run, warm-up included). Five quiet runs: (p75 - p25) / median of
+  frame/wall is 0.105 to 0.115; their medians span 1.06%. One run under
+  load, taken right after a build: 0.2194, p99 81.663 ms against about
+  14.5. So for this scene a limit between 0.12 and 0.21 separates them;
+  one loaded sample, so the upper end is soft. Vestige's caution: the
+  camera moves, so much of the 0.11 is the path, not noise, and a still
+  scene would read lower. Still waiting on: UT Ants and DOOM Ants runs.
+  **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
+  Kind: feature.
+  Source: split-from-FLED-0053-2026-11-13.
+
+- 💭 [FLED-0074] **Read a gzip-compressed run file.**
+  Vestige, 2026-11-13: `check run.csv.gz` reads the gzip bytes as a run
+  with no close line ("unfinished") rather than refusing it as not a run
+  file. Five of its runs are 29 MB, 2.2 MB gzipped, so a baseline's runs
+  are too big to commit. Two parts: say plainly that a .gz is not a run
+  file, and perhaps read one. Low priority by Vestige's word. Not
+  checked here: the message `check` gives.
+  **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
+  Kind: feature.
+  Source: vestige-2026-11-13.
+
+- 💭 [FLED-0054] **A noisy compare says how many more runs would settle it.**
+  On exit 2 for a noisy `frame/wall`, estimate the runs a side that
+  would settle it; the run helper could keep alternating up to a cap.
+  Chromium's bisect returned "need more data" and grew its sample:
+  https://codereview.chromium.org/1702013004
+  Needs FLED-0029, the engines' agreement and a spec amendment.
+  2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
+  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
+  idea; the owner chose it because one engine said yes. Put to the three
+  engines: plan it or not.
+  **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0058] **report counts hitches against the local median.**
+  Count frames longer than k times the rolling median of nearby frames,
+  per segment kind. One number for judder that pacing (S14) and the
+  worst-10 list do not give. A common practice; no authoritative
+  source for the multiplier was found, so k is the engines' call.
+  2026-11-10, engines: yes (Vestige, for 3D_E-0795's frame-time gate),
+  later (DOOM Ants, UT Ants).
+  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
+  idea; the owner chose it because one engine said yes. Put to the three
+  engines: plan it or not.
+  **Layman:** Counts sudden stutters: frames much slower than the frames around them.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
 
 ## 0.8.0 — stable promises (beta)
 
@@ -1708,3 +1685,46 @@ After frameledger does what Vestige, UT Ants and DOOM Ants need (the owner, 2026
   **Layman:** Adds a figure for how strongly the new build differs, alongside the existing verdict.
   Kind: feature.
   Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0056] **report gives a 0.1% low and lows as the mean of the slowest frames.**
+  Today report gives p99 and a 1% low from p99. Add a 0.1% low, and
+  the x% low as the mean of the slowest x% of frames, a common
+  industry definition. A 0.1% figure needs at least 1000 frames, so it
+  needs a too-few-frames warning like § 4.9's. Rare hitches such as
+  shader compiles hide below p99. Seen in MangoHud's summary:
+  https://github.com/flightlessmango/MangoHud
+  Needs the engines' agreement and a spec amendment.
+  2026-11-10, engines: later from all three.
+  2026-11-17: moved from 0.5.0, which shipped without it, to After 1.0;
+  no engine needs it now (owner).
+  **Layman:** Shows how bad the rarest stutters are, not only the usual slow frames.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0057] **Time-weighted figures: the share of time spent in slow frames.**
+  The share of the run's time spent in frames over budget, and a
+  percentile weighted by time rather than by frame count. A count-based
+  p99 understates long frames, since a slow frame fills more of the
+  player's time. Seen in CapFrameX's metrics:
+  https://www.capframex.com/blog/post/Explanation%20of%20different%20performance%20metrics
+  Sits beside floor and budget. Needs the engines' agreement.
+  2026-11-10, engines: later from all three.
+  2026-11-17: moved from 0.5.0, which shipped without it, to After 1.0;
+  no engine needs it now (owner).
+  **Layman:** Measures how much of the playing time felt slow, which counts long stutters fairly.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0066] **On Windows, alternate ends processes a command left detached.**
+  FLED-0063's taskkill /T finds only processes whose parent still
+  runs, so cmd's `start`, or a launcher that spawns and exits, leaves
+  processes behind (§ 4.15 says so). UT Ants' review of 299499a: a
+  Job Object with JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE catches every
+  descendant that does not break away, and would also let Windows check
+  for leftovers after a command exits, as Linux does. Not needed by any
+  engine yet; considered until one is.
+  2026-11-17: moved from 0.5.0, which shipped without it, to After 1.0;
+  no engine needs it now (owner).
+  **Layman:** On Windows, stopping a test run also stops programs the game's script started and walked away from.
+  Kind: feature.
+  Source: engine-review-2026-11-11.
