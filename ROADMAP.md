@@ -1039,6 +1039,10 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-14: specified in docs/specs/FLED-0001-run-file-format.md §
   4.19 and INV-116 to INV-118, from the three engines' answers; drafted
   for their review before building.
+  2026-11-17: built at 02a78da. Found while building: the kit
+  driver as designed could not make a row after the first drop; it now
+  hands on all but the opening lines' length (INV-116 amended). Code
+  review, readability included, asked of the three engines.
   **Layman:** A set of tests anyone can run to prove their game writes the file correctly.
   Kind: test.
   Source: engine-answers-2026-11-10.
