@@ -1294,6 +1294,8 @@ can still use the analyser, and a stranger's writer can prove itself.
   the order, optional, not taken. Nothing owed by the three engines or
   ExperiRays on FLED-0078.
   2026-11-17: shipped in 0.6.0, every code review folded.
+  Release note (2026-11-17): no CHANGELOG entry. A test-only change;
+  FLED-0075's entry already names alternate and --all-frames.
   **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
   Kind: test.
   Source: ut-ants-review-2026-11-17.

@@ -12,7 +12,18 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-17
+
+**Theme:** Other people's data.
+
 ### Added
+
+- The release archive, `frameledger-v0.6.0.zip`: `frameledger.pyz`, its
+  launchers `frameledger` and `frameledger.cmd`, `include/frameledger.h`
+  and `LICENSE`. SHA256
+  `4406f1701c9ef565b70bf270c067aa41197c75ccedd252151b5454e91eabe67a`.
+  `python3 -I scripts/build_release.py OUTDIR v0.6.0`, run on the tag,
+  rebuilds it; the release workflow does so under Python 3.10.22.
 
 - **A budget can limit a frame's whole CPU or GPU time** (FLED-0077)
   A budget file line may name `frame,cpu_span` or `frame,gpu_span`, with `median` or `p99`, as a pass line does: `frame,gpu_span,*,,p99,16.667` says whether the GPU alone fits a 60 FPS frame. Its value is `report`'s figure over the frames holding the span, and every pass rule holds: `*` and named kinds, `--warmup-s`, `budget_few_frames`, and a line no frame matches making the verdict inconclusive. `frame,wall` is refused, naming `floor`, which judges frame time; so is any other frame name and a depth on a frame line.
