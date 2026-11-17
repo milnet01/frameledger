@@ -1332,6 +1332,14 @@ can still use the analyser, and a stranger's writer can prove itself.
   all_frames (UT Ants); pinned exits; readability (all three). No
   change: --baseline, which reaches the same reads. The probe now
   catches ten of ten breaks. Vestige's review owed.
+  2026-11-17, Vestige's code review: folded in 61272ff. Added: the
+  sentences open the summary, after --measure's own; a warm-up run gets
+  none; analyser no longer passes a shell's FAKE_ENGINE settings on;
+  readability. No change: a run without generated frames and the wall
+  fold, decided in shared code the compare tests cover. All four reviews
+  folded. Asked of the three engines: whether § 4.20's "one opening
+  sentence" is amended to say it follows --measure's sentence (A,
+  recommended) or the code moves it first (B).
   **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
   Kind: test.
   Source: ut-ants-review-2026-11-17.

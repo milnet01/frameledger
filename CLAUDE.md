@@ -6,8 +6,8 @@
 **In flight:** FLED-0036, built, all three code reviews folded;
 FLED-0037, built, all three code reviews folded; FLED-0075, FLED-0076
 and FLED-0077, built, the three engines' and ExperiRays' code reviews
-folded; FLED-0078, built, sent to the three engines and ExperiRays for
-code review.
+folded; FLED-0078, built, the three engines' and ExperiRays' code
+reviews folded, the engines asked about § 4.20's "opening sentence".
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.
