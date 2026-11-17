@@ -2586,8 +2586,10 @@ not whether 60 reached the screen (Vestige, UT Ants, DOOM Ants).
 included. On a run with no `event/generated`, both readings are the
 same, and nothing below is said.
 
-**What is said.** For each run holding generated frames, one opening
-sentence, with the run's name where the command names runs: "new-2:
+**What is said.** For each run holding generated frames, one sentence,
+with the run's name where the command names runs. These sentences open
+the summary: only the sentences naming any overrides, then the
+measures judged, come before them. One reads: "new-2:
 9000 of 18000 frames were generated, not rendered by the application,
 and are left out; --all-frames counts them." Under `--all-frames` it
 ends "and are counted, as --all-frames asks." In JSON, each run's
