@@ -154,8 +154,8 @@ analyser reads their runs.
   says the run has none rather than failing.
 - **S26** — An optional report page shows one run's frame times as a
   graph, with the worst frames marked. It is one self-contained file,
-  drawn with the standard library alone, in large text, with no
-  meaning carried by colour alone. Its plain sentences come first.
+  drawn with the standard library alone, for normal vision with a
+  switch to larger text, and with no meaning carried by colour alone. Its plain sentences come first.
 - **S27** — Three promises are written down: what may change in a
   later format version, what never will, and how long older versions
   keep analysing; a schema for every command's JSON result, which the

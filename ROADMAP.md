@@ -1459,6 +1459,12 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17, DOOM Ants: yes to all ten. Axis units (s); one --fps (its floors are 60 rasterised, 30 traced); nothing lighter than mid-grey for data; lines at least 2 px; markers whose number reads at 20 px; band labels never over the line; no tooltip-only information.
   2026-11-17, Vestige: yes to all ten. (1) refuse, exit 3, when PAGE resolves to the input FILE; (5) a segment too narrow for its label is named in a list under the graph; (8) one sentence on the page when columns are merged; (10) contrast at least 7:1 for text, lines and markers; no thin pale grid; sizes in em/rem so zoom scales the labels; SVG labels as real text; role="img" with a one-sentence label stating the finding; patterns and marker shapes distinct in greyscale. It would later want FLED-0079.
   All three engines have answered; the spec section is drafted from them.
+  2026-11-17, the owner: the page is for normal vision first, with
+  accessibility as an option. So the default is browser-sized text and
+  WCAG AA contrast; a "Larger text and lines" switch gives 20 px text and
+  7:1. Drafted as docs/specs/FLED-0001-run-file-format.md § 4.21 and
+  INV-126 to INV-130; sent to the three engines for review before
+  building.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.

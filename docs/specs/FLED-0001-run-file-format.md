@@ -522,7 +522,7 @@ instead of text, and `--markdown`, printing the text as Markdown
 | Command | Does | Exit |
 |---|---|---|
 | `check FILE…` | says whether each file meets this spec | 0 all conform; 1 any breach; 3 unreadable |
-| `report FILE [--all-frames]` | cost ranking per pass and segment kind, bound-by share, worst frames | 0; 3 file error |
+| `report FILE [--html PAGE [--fps N]] [--all-frames]` | cost ranking per pass and segment kind, bound-by share, worst frames; a page with a graph (§ 4.21) | 0; 3 file error |
 | `floor FILE --fps N [--warmup-s S] [--budget-ms B] [--no-windows] [--no-frames] [--allow-frames K] [--all-frames]` | S8's two checks | 0 pass; 1 fail; 2 inconclusive; 3 error |
 | `--selftest` | the analyser's own checks on built-in samples | 0 pass; 1 fail |
 | `--version` | prints the version | 0 |
@@ -2599,6 +2599,106 @@ the count, and the result gains `all_frames`, true or false.
 **`check` is unchanged**: it checks the format, so it reads every
 frame. `kit` and `import` take no `--all-frames`.
 
+### 4.21 The picture report
+
+FLED-0039 builds this. `report` can also write one web page showing
+the run as a graph. Designed with the three engines 2026-11-17.
+
+```
+report FILE [--html PAGE [--fps N]] [--all-frames]
+```
+
+**The page is written beside the usual output.** Standard output is
+what `report` prints without `--html`: text, `--json` or
+`--markdown`. Nothing in the JSON names the page.
+
+- **PAGE is overwritten** if it exists.
+- **It is written whole or not at all.** A report that ends in exit 3,
+  or a page that cannot be written, leaves PAGE as it was. A page that
+  cannot be written is an error naming PAGE, reported as § 4.11's
+  errors are: on standard error alone.
+- **Exit 3, before anything is read:** PAGE resolving to FILE, through
+  any path or link (Vestige); `--fps` without `--html`; a `--fps` whose
+  1000/N ms § 4.7 refuses for `floor`'s window check.
+- **The page is self-contained.** No script, and nothing fetched: no
+  file, font, style sheet or address outside the page. It opens from
+  disk with no network.
+
+**What the page holds, in order:**
+
+1. The opening sentences, as the text gives them, § 4.20's included.
+2. The graph, and under it the sentences and lists the graph needs.
+3. The text's tables, each an HTML table under its title, number
+   columns aligned right.
+
+**The page's text is the plain text's**, cleaned as § 4.8 says, then
+escaped for HTML: `&`, `<`, `>`, `"` and `'`. So a segment, a static
+value or a header string cannot add markup to the page.
+
+**The graph** draws `frame/wall` in ms against the run's timeline in s
+(§ 4.7). Both axes name their unit. Each frame is a point at its end,
+joined by a line. § 4.20 decides which frames are read: by default
+an application frame with its generated frames' walls added, and every
+frame under `--all-frames`.
+
+- **The graph stops where the timeline does**: before the first frame,
+  other than the last, with no `frame/wall`, or the first hole in the
+  frame numbers (§ 6). Nothing after it is guessed. A sentence under
+  the graph says where: "The graph stops after frame 69: the timeline
+  cannot be built past frame 70." A worst frame past it has no marker;
+  the table still lists it.
+- **Segments are bands** behind the line, one per stretch of frames
+  sharing a segment, labelled with the segment as written (`view:3`).
+  Neighbouring bands differ in pattern, not only in shade. A label sits
+  above the plot, never over the line (DOOM Ants). A band too narrow
+  for its label is listed under the graph by segment and its start and
+  end in s (Vestige). A frame's segment is § 4.8's.
+- **The worst frames are numbered markers**: `worst_frames`' entries,
+  numbered as the worst-frames table lists them, each at its frame's
+  own point. The number is text at the page's text size.
+- **`--fps N` adds one budget line** at 1000/N ms rounded up to three
+  places, as `floor`'s window check uses (§ 4.7). It is dashed and
+  labelled in text: "60 fps budget: 16.667 ms". Without `--fps` there
+  is none.
+- **Long runs are drawn in columns.** The graph draws at most 1200
+  columns (UT Ants). A run drawing N frames, N over 1200, is split
+  into 1200 columns of consecutive frames: column i, from 0, holds the
+  drawn frames from position ⌊i·N/1200⌋ up to, not including,
+  ⌊(i+1)·N/1200⌋.
+  Each column is drawn from its fastest to its slowest wall, so one
+  slow frame stays as tall as it was. A sentence under the graph says
+  so: "6000 frames are drawn as 1200 columns; each shows its fastest
+  and slowest frame." (Vestige). Each marker stays at its own frame's
+  end and wall.
+- **Nothing is said by colour alone, or by hovering.** Every label is
+  SVG text, not a picture of text. The line, the budget line, the
+  markers and the bands differ in shape or pattern, and read apart in
+  greyscale (Vestige). No fact is in a tooltip alone (DOOM Ants).
+- **The graph has `role="img"`** and a label of one sentence giving
+  the median wall of the frames drawn and the slowest of them: "Frame time against time: median wall 16.000 ms;
+  slowest frame 100.000 ms, frame 50, at 0.900 s." (Vestige).
+- **A run with no frame to draw**, none with a `frame/wall`, has the
+  sentence "No frame has a wall, so there is no graph." in the graph's
+  place.
+
+**The page is for normal vision first** (the owner, 2026-11-17),
+replacing the 20 px default the engines had agreed.
+
+- **By default**, text is the browser's own size, and the data line
+  and markers are at least 2 px (UT Ants, DOOM Ants). Contrast against
+  the background is at least 4.5:1 for text and 3:1 for the line, the
+  budget line, the markers and the band edges (WCAG 2.2 AA). Grid lines
+  may be lighter, since they carry no data.
+- **Every size is in `em` or `rem`, the graph's width included**, so
+  the browser's zoom grows the graph and its labels together (Vestige).
+  At the usual 16 px browser default the graph is 1200 px wide; a narrower
+  window scrolls the graph sideways, never the page's text.
+- **A "Larger text and lines" switch** sits at the top of the page. It
+  works without script. Turned on, text is 1.25 times the browser's
+  size, 20 px at 16 px; lines and markers grow with it; every
+  contrast named above is at least 7:1, grid lines at least 3:1. The
+  same applies when the browser asks for more contrast.
+
 ## 5. Invariants
 
 Each clause names its fixture under `tests/fixtures/` and the one rule that fixture
@@ -4345,6 +4445,85 @@ breaks.
   span's value is not `report`'s, a span's depth is compared with the
   line's, or a span no frame has passes.
 
+- **INV-126** — `report --html PAGE` writes a page beside the usual
+  output. Standard output is byte for byte `report`'s without `--html`,
+  as text, `--json` and `--markdown`. The page holds the opening
+  sentences before its graph and the tables after, and no `<script`,
+  `src=`, `href=` or `url(`. A second run overwrites it. With PAGE
+  holding "old": PAGE a link to FILE, `--fps 60` without `--html`, and
+  `--fps 2000000` each exit 3 with nothing on standard output; a FILE
+  with a breach exits 3 with `report`'s error output; PAGE in a
+  missing directory exits 3 naming PAGE on standard error alone. Each
+  leaves PAGE holding "old", or absent.
+  *Test:* `tests/test_html.py::test_page_beside_the_output`,
+  `tests/test_html.py::test_page_refusals`.
+  *Breaks when:* `--html` changes standard output, the page fetches or
+  runs anything, a refused or failed report touches PAGE, or FILE is
+  overwritten.
+
+- **INV-127** — The graph draws the run. A run of 100 frames with
+  16.000 ms walls, frame 50's 100.000 ms, frames 0 to 29 in `menu:1`,
+  30 to 98 in `view:1` and 99 in `load:1`, has axes naming s and ms,
+  `menu:1` and `view:1` as band labels in SVG text, and `load:1` listed
+  under the graph from 1.668 s to 1.684 s. Marker 1 is at frame 50's
+  point, and markers 1 to 10 follow `worst_frames`. The graph's label
+  is "Frame time against time: median wall 16.000 ms; slowest frame
+  100.000 ms, frame 50, at 0.900 s." `--fps 60` adds a line labelled
+  "60 fps budget: 16.667 ms"; without it no budget line is drawn.
+  Removing frame 70's `frame/wall` draws frames 0 to 69 and says "The
+  graph stops after frame 69: the timeline cannot be built past frame
+  70."; removing frame 70 instead says the same. Marking
+  frame 61 `event/generated` draws frame 60 at 32.000 ms and no point
+  for frame 61; with `--all-frames`, both are drawn at 16.000 ms. The
+  run with no `frame/wall` row says "No frame has a wall, so there is
+  no graph." and draws none.
+  *Test:* `tests/test_html.py::test_graph_of_a_run`,
+  `tests/test_html.py::test_budget_line`,
+  `tests/test_html.py::test_a_missing_wall_stops_the_graph`,
+  `tests/test_html.py::test_generated_frames_on_the_graph`,
+  `tests/test_html.py::test_no_graph_without_walls`.
+  *Breaks when:* a band, marker or axis carries its meaning only in
+  colour or a picture, a narrow band is neither labelled nor listed,
+  frames past a missing wall are drawn, or the graph reads frames
+  § 4.20 leaves out.
+
+- **INV-128** — A long run keeps its slow frames. 6000 frames at
+  16.000 ms, frame 3001's 200.000 ms, draw 1200 columns; column 600
+  holds frames 3000 to 3004 and reaches from 16.000 to 200.000 ms.
+  The sentence "6000 frames are drawn as 1200 columns; each shows its
+  fastest and slowest frame." is under the graph, and marker 1 is at
+  frame 3001's point. 1200 frames draw 1200 points and no such
+  sentence; 1201 frames draw 1200 columns, the last holding two
+  frames.
+  *Test:* `tests/test_html.py::test_long_runs_in_columns`.
+  *Breaks when:* a column averages its frames, so frame 3001 shows as
+  52.800 ms, the bound is off by one, or the sentence is missing or
+  said of an unmerged run.
+
+- **INV-129** — Outside text cannot add markup. A run whose static
+  line holds `</table><script>x</script> & "q"` and a value with
+  U+202E gives a page holding `&lt;/table&gt;&lt;script&gt;`, `&amp;`,
+  `&quot;q&quot;` and `‮`, and no `<script`.
+  *Test:* `tests/test_html.py::test_outside_text_is_escaped`.
+  *Breaks when:* any of `&`, `<`, `>`, `"` or `'` reaches the page
+  unescaped, or the page skips § 4.8's cleaning.
+
+- **INV-130** — The page is for normal vision first. By default its
+  style sheet leaves the text at the browser's size, and every length
+  in it and in the graph is in `em` or `rem`. A "Larger text and lines"
+  checkbox with its label is first in the page. Its checked state, and
+  `prefers-contrast: more`, set the text to 1.25rem. Contrast, by WCAG
+  2.2's formula over the page's own colours: by default at least 4.5:1
+  for text and 3:1 for the line, the budget line, the markers and the
+  band edges; switched on, at least 7:1 for each and 3:1 for grid
+  lines.
+  *Test:* `tests/test_html.py::test_normal_vision_first`,
+  `tests/test_html.py::test_larger_text_and_lines`,
+  `tests/test_html.py::test_contrast`.
+  *Breaks when:* the default text is set larger, the switch needs
+  script, a length in `px` escapes the browser's zoom, or a colour
+  falls under its contrast.
+
 ## 6. Failure modes
 
 - **A run with no frames**, a header and a close line alone, is judged
@@ -4410,6 +4589,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0075: INV-119 to INV-121.
 - FLED-0076: INV-122 to INV-124.
 - FLED-0077: INV-125.
+- FLED-0039: INV-126 to INV-130.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -4456,7 +4636,8 @@ it on each release they pin.
   per-effect table: not yet queued (the three engines, 2026-11-04).
 - Warnings on a single run's timing finer than `gpu_tick_ns`;
   `compare` only raises its floor to it (§ 4.10). Not yet queued.
-- Charts or HTML — deferred; not yet queued (discovery, *not yet*).
+- A page for any command but `report`: not yet queued. Drawing
+  `frame/gpu_span` over `frame/wall` is FLED-0079, an idea.
 - `alternate`'s prepare command (none of the three engines needs
   one), a time limit per run (UT Ants: low priority), and
   `--by-scene`: not yet queued.
@@ -4597,6 +4778,12 @@ it on each release they pin.
 | INV-123 | `tests/test_measure_p99.py::test_too_few_frames`, `tests/test_measure_p99.py::test_nothing_judged_never_passes` |
 | INV-124 | `tests/test_measure_p99.py::test_bisect_p99` |
 | INV-125 | `tests/test_budget_spans.py::test_frame_span_budgets`, `tests/test_budget_spans.py::test_frame_span_refusals`, `tests/test_budget_spans.py::test_frames_holding_the_span`, `tests/test_budget_spans.py::test_a_span_has_no_depth`, `tests/test_budget_spans.py::test_a_span_after_the_warm_up` |
+| INV-126 | `tests/test_html.py::test_page_beside_the_output`, `tests/test_html.py::test_page_refusals` |
+| INV-127 | `tests/test_html.py::test_graph_of_a_run`, `tests/test_html.py::test_budget_line`, `tests/test_html.py::test_a_missing_wall_stops_the_graph`, `tests/test_html.py::test_generated_frames_on_the_graph`, `tests/test_html.py::test_no_graph_without_walls` |
+| INV-128 | `tests/test_html.py::test_long_runs_in_columns` |
+| INV-129 | `tests/test_html.py::test_outside_text_is_escaped` |
+| INV-130 | `tests/test_html.py::test_normal_vision_first`, `tests/test_html.py::test_larger_text_and_lines`, `tests/test_html.py::test_contrast` |
+| 4.21, how the page looks in a browser: zoom, the switch, greyscale | **`Partial:`** opened by hand in Firefox and Chromium before release; nothing here |
 | 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
