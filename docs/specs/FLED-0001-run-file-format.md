@@ -904,7 +904,8 @@ no verdict changes unless asked (UT Ants).
   one of a run's ten slowest frames, so one hitch moves it, and a
   longer run cures it (Vestige, DOOM Ants). This holds for
   `frame/wall:p99` too; the 99th percentile a bare `frame/wall` keeps
-  has no minimum, as before.
+  has no minimum, as before, so no default verdict changes. The
+  difference is on purpose (Vestige).
 - **The frames counted** are printed beside each `:p99` entry, as the
   fewest any run holds, and in each run's values below. JSON gives
   them for every measure, as `old_frames` and `new_frames`.
@@ -1079,7 +1080,9 @@ row per run, in the order old-1, old-2, …, new-1, …, and one column
 per kept measure that was judged. Each cell is the run's value, as in
 `old` and `new`, to three places. A `:p99` cell adds the run's frames
 holding the measure: `12.345 (4210)`. A `too_few` entry has a column
-too. A column is headed
+too. It is listed in the table of measures not `unchanged`, its
+verdict shown with the fewest frames any run holds, "too few, 412
+frames", so a skipped entry is seen, never absent (Vestige). A column is headed
 `category/name`, then ` p99` for a 99th percentile, the segment kind
 when the judged named measures span more than one (UT Ants), and the depth when the name has more
 than one. Columns that do not fit in 100 characters go into a further

@@ -1271,6 +1271,12 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-17: designed in docs/specs/FLED-0001-run-file-format.md §
   4.20, § 4.4's event/generated, § 4.18's FrameType and INV-119 to
   INV-121; sent to the three engines for review before building.
+  2026-11-17, Vestige's design review: yes to the mark as a row any
+  writer may use, FrameType counted not kept per row, the wall folded
+  into the application frame before it, and every reader following the
+  default. Leading generated frames: already said in § 4.20 (they belong
+  to no frame; their walls keep the warm-up's start). It cannot make a
+  frame-generation capture: no hardware for it.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
@@ -1375,6 +1381,10 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17: designed in docs/specs/FLED-0001-run-file-format.md §
   4.10's :median and :p99, § 4.11's --statistic p99 and INV-122 to
   INV-124; sent to the three engines for review before building.
+  2026-11-17, Vestige's design review: yes to all five points. Folded: a
+  too_few entry is listed in compare's table as "too few, N frames"; §
+  4.10 says the bare frame/wall p99 has no bound on purpose. No Vestige
+  script uses --statistic.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
