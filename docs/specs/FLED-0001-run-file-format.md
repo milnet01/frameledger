@@ -184,6 +184,28 @@ settles.
   included (UT Ants); a further table repeats the run column, and a
   scene whose kept measures are all unmatched is inconclusive
   (Vestige).
+- For FLED-0075, agreed by the three engines 2026-11-17: an import
+  keeps frames a driver or SDK generated and marks them; `floor`,
+  `compare` and `survey` judge the application's frames by default,
+  and a flag counts every frame (§ 4.20). Frame generation can pass a
+  floor on presented frames while input latency fails it (Vestige),
+  and a generated frame counted as rendered hides the engine's own
+  cost (UT Ants). *Proposed here:* the mark is the row
+  `event/generated`, which any writer may use; the FrameType names are
+  counted in the import's summary rather than kept per row, since a
+  row's value is a number; an application frame's `frame/wall` runs to
+  the next application frame; `report`, `budget`, `alternate` and
+  `bisect` follow the same default, so one file gives one answer.
+- For FLED-0076, agreed by the three engines 2026-11-17, from
+  ExperiRays' request: `--measure CATEGORY/NAME:p99` judges a
+  measure's 99th percentile, only when asked; it is over the frames the
+  measure appears in, and that count is printed; the verdict is
+  `frame/wall`'s; under 1000 frames per run holding it is
+  inconclusive, exit 2 (§ 4.10). *Proposed here:* `:median` too; a
+  `:p99` entry in a segment kind too short is skipped and named, and
+  the compare is inconclusive only when no entry of it is judged;
+  `bisect --statistic p99` on any measure but `mem`, a short tested run
+  skipping and a short reference stopping (§ 4.11).
 
 ## 4. Design
 
@@ -387,7 +409,10 @@ present ones is a hole: not a breach, but `check` and every report warn
 
 **Events.** `event/cut` on a frame where the camera jumped or a level
 loaded; `event/tic` on a frame where the simulation stepped, its value
-the number of steps (`2.000` when it caught up two). One row per frame
+the number of steps (`2.000` when it caught up two); `event/generated`
+on a frame the application did not render, such as one made by a
+driver's or an SDK's frame generation, its value `1.000`, any other
+value a breach (§ 4.20). One row per frame
 and event name. Other event names are allowed. A planned cut sits on
 the first frame of its new segment, not a frame before or after, or
 § 4.9 warns `cut_in_stretch`.
@@ -481,8 +506,8 @@ instead of text, and `--markdown`, printing the text as Markdown
 | Command | Does | Exit |
 |---|---|---|
 | `check FILE…` | says whether each file meets this spec | 0 all conform; 1 any breach; 3 unreadable |
-| `report FILE` | cost ranking per pass and segment kind, bound-by share, worst frames | 0; 3 file error |
-| `floor FILE --fps N [--warmup-s S] [--budget-ms B] [--no-windows] [--no-frames] [--allow-frames K]` | S8's two checks | 0 pass; 1 fail; 2 inconclusive; 3 error |
+| `report FILE [--all-frames]` | cost ranking per pass and segment kind, bound-by share, worst frames | 0; 3 file error |
+| `floor FILE --fps N [--warmup-s S] [--budget-ms B] [--no-windows] [--no-frames] [--allow-frames K] [--all-frames]` | S8's two checks | 0 pass; 1 fail; 2 inconclusive; 3 error |
 | `--selftest` | the analyser's own checks on built-in samples | 0 pass; 1 fail |
 | `--version` | prints the version | 0 |
 
@@ -770,7 +795,7 @@ FLED-0008 builds this (S4, S5's refusal half, S16). Reviewed by the
 three engines 2026-10-26; their changes are folded in.
 
 ```
-compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
+compare --old FILE… --new FILE… [--by-scene] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME[:median|:p99]]… [--all-frames]
 ```
 
 `--by-scene` judges each scene apart, § 4.14. `--base` and
@@ -856,7 +881,36 @@ measure above is judged.
   `gpu/taau` (UT Ants).
 - It keeps the name at every depth and in every segment kind, with
   each statistic judged: `frame/wall` keeps its median and its 99th
-  percentile.
+  percentile. A suffix keeps one statistic, below.
+
+**A measure's 99th percentile** (FLED-0076). `--measure
+CATEGORY/NAME:p99` judges the measure's 99th percentile, and
+`:median` its median alone. A bare name keeps what it kept before, so
+no verdict changes unless asked (UT Ants).
+
+- A run's value is the nearest-rank 99th percentile over the frames
+  the measure appears in, in the entry's segment kind and at its depth,
+  as `report`'s `p99_ms` is.
+- `:p99` on a `mem` name is exit 3, naming it: FLED-0076 asks for
+  frame measures and passes, and a `mem` measure is judged by its
+  median. So is any other suffix, such as `:p95`. Names hold no `:` (§ 4.4), so the
+  suffix is never part of a name.
+- `gpu/X` and `gpu/X:p99` are two measures, so both may be given.
+  `frame/wall` with `frame/wall:p99` gives one statistic twice, exit 3.
+- **Too few frames.** A `:p99` entry is not judged when any run holds
+  its measure in fewer than 1000 frames of that segment kind at that
+  depth. Its verdict is `too_few`; its centres, change and spread are
+  still given. Below 1000 frames, the nearest-rank 99th percentile is
+  one of a run's ten slowest frames, so one hitch moves it, and a
+  longer run cures it (Vestige, DOOM Ants). This holds for
+  `frame/wall:p99` too; the 99th percentile a bare `frame/wall` keeps
+  has no minimum, as before.
+- **The frames counted** are printed beside each `:p99` entry, as the
+  fewest any run holds, and in each run's values below. JSON gives
+  them for every measure, as `old_frames` and `new_frames`.
+- **A judged `:p99` entry's verdict** is the table's below, as for
+  `frame/wall`'s 99th percentile. A `noisy` one is reported and does
+  not make the compare inconclusive (UT Ants, Vestige, DOOM Ants).
 - A named measure that no run has is exit 3, naming it, so a misspelt
   name never passes by judging nothing. One that only some runs have
   goes into `unmatched`, as above.
@@ -934,7 +988,12 @@ weighs one `slower` among them.
    every time; the summary names the kinds this step skipped
    (Vestige). It is also inconclusive when `--measure` kept nothing
    that was judged, every kept measure being in `unmatched`; the
-   summary names them (UT Ants).
+   summary names them (UT Ants). And it is inconclusive when a `:p99`
+   measure has no entry judged, each being `too_few` or unmatched: a
+   longer run cures it (FLED-0076). A `too_few` entry beside a judged
+   one, as in a short loading kind, is named in the summary with its
+   fewest frames, and does not make the compare inconclusive, as a
+   short kind does not for `frame/wall`.
 4. `pass` (exit 0) otherwise. A `faster` or `smaller` measure is
    reported, and does not change the verdict. A `noisy` `mem` measure
    is reported too, and only `frame/wall` makes step 3 inconclusive.
@@ -1018,7 +1077,9 @@ every such `mem` measure in MB, a count of those that are, with
 **Each run's values** (FLED-0031). With `--measure`, a table gives one
 row per run, in the order old-1, old-2, …, new-1, …, and one column
 per kept measure that was judged. Each cell is the run's value, as in
-`old` and `new`, to three places. A column is headed
+`old` and `new`, to three places. A `:p99` cell adds the run's frames
+holding the measure: `12.345 (4210)`. A `too_few` entry has a column
+too. A column is headed
 `category/name`, then ` p99` for a 99th percentile, the segment kind
 when the judged named measures span more than one (UT Ants), and the depth when the name has more
 than one. Columns that do not fit in 100 characters go into a further
@@ -1033,7 +1094,8 @@ is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `
             "rows_dropped", "finished", "under_load"}],
   "min_ms", "min_mb", "min_pct", "max_load", "max_gpu_busy", "named_measures",
   "measures": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
-                "old": [], "new": [], "old_centre", "new_centre",
+                "old": [], "new": [], "old_frames": [], "new_frames": [],
+                "old_centre", "new_centre",
                 "change", "change_pct", "spread", "floor", "verdict"}],
   "unmatched": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                  "present_in": []}],
@@ -1044,8 +1106,10 @@ is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `
 
 `under_load` lists each peak above its limit, `load.peak` and then
 `gpu_busy_pct.peak`, and is empty for a run not under load.
-`named_measures` lists `--measure`'s names in the order given, and is
-empty without it.
+`named_measures` lists `--measure`'s names in the order given, a
+suffix included, and is empty without it. `old_frames` and
+`new_frames` give each run's frames holding the measure, in run order.
+`verdict` is the table's, or `too_few`.
 `statistic` is `median` or `p99`; `unit` is `ms` or `MB`, as under
 § 4.11; `old` and `new` list the runs' values in run order; `change_pct` is the change over the old centre,
 in percent to two places, or null when the old centre is 0; `values`
@@ -1062,7 +1126,7 @@ their changes are folded in.
 
 ```
 bisect --tested FILE… --measure CATEGORY/NAME (--kind KIND | --segment KIND:ID | --unsegmented)
-       [--statistic median|p99] [--depth D] [--override FIELD=REASON]… [--skip-straddle]
+       [--statistic median|p99] [--depth D] [--override FIELD=REASON]… [--skip-straddle] [--all-frames]
        (--bad-above X | --good FILE… --bad FILE… [--min-ms M | --min-mb M] [--min-pct P])
 bisect --dry-run VALUE   with the same measure and mode flags, and no --tested
 ```
@@ -1123,8 +1187,9 @@ git bisect run sh -c 'make || exit 125; rm -f t1.csv t2.csv t3.csv; for i in 1 2
   Ants); `--unsegmented`, frames with no segment. A frame's segment is
   § 4.8's. A `KIND` holding `:`, or a `--segment` without both parts,
   is 128, since it would skip every commit (Vestige, DOOM Ants).
-- `--statistic` is `median`, the default, or `p99` for `frame/wall`
-  only, as § 4.10 judges them. `p99` on another measure is 128.
+- `--statistic` is `median`, the default, or `p99`, as § 4.10's
+  `:median` and `:p99` judge them (FLED-0076). `p99` on a `mem` measure
+  is 128.
 - `--depth D` picks the measure's depth; on a frame measure, which has
   no depth to pick, it is 128 (Vestige, UT Ants). Without it, the
   references must have the name at one and the same depth, or 128,
@@ -1135,8 +1200,8 @@ git bisect run sh -c 'make || exit 125; rm -f t1.csv t2.csv t3.csv; for i in 1 2
   other, skips (125): one restructured commit must not end the search
   (FLED-0020, UT Ants). A pass is never judged against itself at
   another depth either way.
-- **A run's value** is § 4.10's: the measure's median, or `frame/wall`'s
-  99th percentile, over the chosen frames that have it. A `mem`
+- **A run's value** is § 4.10's: the measure's median, or its 99th
+  percentile, over the chosen frames that have it. A `mem`
   measure's value is the median of its rows in the chosen frames. That
   median is `report`'s nearest rank, the lower middle of an even count,
   not a set's centre below.
@@ -1173,6 +1238,8 @@ midpoint or below. Before any tested run is read, each of these is 128:
   be read ("a broken reference file", docs/design.md), named as
   `good-2` and with its reason, not its path;
 - a reference without the measure;
+- under `--statistic p99`, a reference holding the measure in fewer
+  than 1000 of the chosen frames, as § 4.10's `too_few`;
 - a bad centre that is not **slower** than the good one, as § 4.10
   judges a measure, with the good runs as old: above the spread and at
   least the floor. A bad centre below the good one is reported as
@@ -1208,7 +1275,9 @@ an engine that prefers a visible skip to a silent wrong turn
 whatever its value: a tested file that is missing, cannot be read or
 breaks the format (UT Ants); a tested run with dropped rows or no close
 line (docs/design.md: "nor a compare that uses them"); a tested run
-without the measure in the chosen frames; and tested runs at another
+without the measure in the chosen frames; under `--statistic p99`, a
+tested run holding it in fewer than 1000 of them, since a longer run
+cures it (FLED-0076); and tested runs at another
 depth, as above. An empty file, the commonest
 remains of a crashed benchmark, is one that breaks the format. Each
 such run has its own sentence naming it and why. For a missing
@@ -1254,7 +1323,7 @@ between the good runs' 10.000 ms and the bad runs' 12.300 ms: bad
   "value", "bad_above",
   "references": {"good_centre", "bad_centre", "spread", "floor"},
   "refused": [{"field", "values": {}}],
-  "skip_reason": "unreadable | incomplete | missing | depth | straddle"
+  "skip_reason": "unreadable | incomplete | missing | short | depth | straddle"
 }
 ```
 
@@ -1275,7 +1344,7 @@ FLED-0010 builds this (S12). Reviewed by the three engines 2026-10-29;
 their changes are folded in.
 
 ```
-budget FILE --budgets BUDGETS [--warmup-s S]
+budget FILE --budgets BUDGETS [--warmup-s S] [--all-frames]
 ```
 
 Exit codes are § 4.7's ladder: 0 every budget holds; 1 a pass is over
@@ -1401,7 +1470,7 @@ FLED-0012 builds this (S9, S19). The design was agreed with the three
 engines 2026-11-04.
 
 ```
-survey FILE… (--fps N | --budget-ms B) [--warmup-s S] [--allow-frames K]
+survey FILE… (--fps N | --budget-ms B) [--warmup-s S] [--allow-frames K] [--all-frames]
 ```
 
 Exit 0 when every run is judged and none is flagged; 1 when a run is
@@ -1506,7 +1575,7 @@ FLED-0013 builds this (S15). The design was agreed with the three
 engines 2026-11-04.
 
 ```
-compare --by-scene --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
+compare --by-scene --old FILE… --new FILE… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME[:median|:p99]]… [--all-frames]
 ```
 
 The flags are § 4.10's, with its defaults and bounds.
@@ -1620,7 +1689,7 @@ writes each run file; this command only starts the engine's command
 for each run, in turn, and then compares what they wrote.
 
 ```
-alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
+alternate --old CMD --new CMD --out DIR [--runs N] [--warmup W] [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME[:median|:p99]]… [--all-frames]
 ```
 
 The compare flags are § 4.10's, with its defaults and bounds.
@@ -1765,7 +1834,7 @@ turn. Each variant is judged against the base as § 4.10 judges new
 against old (UT Ants' UTA-0436, each effect's cost).
 
 ```
-compare --base FILE… --variant NAME FILE… [--variant NAME FILE…]… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME]…
+compare --base FILE… --variant NAME FILE… [--variant NAME FILE…]… [--override FIELD=REASON]… [--min-ms M] [--min-mb M] [--min-pct P] [--max-load L] [--max-gpu-busy P] [--measure CATEGORY/NAME[:median|:p99]]… [--all-frames]
 alternate --base CMD --variant NAME CMD [--variant NAME CMD]… --out DIR [--runs N] [--warmup W] [the same compare flags]
 ```
 
@@ -2088,8 +2157,8 @@ capture is UTF-8 CSV, LF or CRLF, a byte-order mark at its start
 skipped, with a column line first. Columns are found by name, so their
 order and any extra columns do not matter. It needs `Application`,
 `ProcessID`, `SwapChainAddress`, `MsBetweenPresents` and `MsCPUBusy`.
-`MsGPUBusy`, `DisplayedTime`, `PresentRuntime`, `SyncInterval` and a
-start column are read when present. The start column is the first
+`MsGPUBusy`, `DisplayedTime`, `PresentRuntime`, `SyncInterval`,
+`FrameType` and a start column are read when present. The start column is the first
 present of `CPUStartQPC`, `CPUStartQPCTime`, `CPUStartTime` and
 `CPUStartDateTime`, the names PresentMon gives it under `--qpc_time`,
 `--qpc_time_ms`, by default and under `--date_time`.
@@ -2138,6 +2207,7 @@ and the summary says so.
 | `frame/gpu_span` | `MsGPUBusy`; absent when the column is, or the value is not a number |
 | `frame/wall` | the **next** row's `MsBetweenPresents`, so the last frame has none, as § 4.4 says |
 | `event/not_displayed` | `1.000`, on a frame whose `DisplayedTime` is `NA` |
+| `event/generated` | `1.000`, on a frame whose `FrameType` is anything but `Application` |
 
 - **Values are rounded from their decimal text**, half away from zero,
   to the nearest thousandth: Python's `decimal` rounding
@@ -2166,6 +2236,19 @@ and the summary says so.
   frame. Every row's segment is empty.
 - Without a `DisplayedTime` column, no frame is marked, and the
   import's summary says so.
+- **Generated frames** (FLED-0075). PresentMon writes `FrameType`
+  only under `--track_frame_type`. Its values are `Application`,
+  `Intel XeSS-FG`, `AMD AFMF`, `AMD FSR-FG` and `Unknown`
+  (`FrameTypeToString` in PresentMon's `PresentMon/CsvOutput.cpp`, read
+  2026-11-17). A frame is generated when its `FrameType` is anything
+  but `Application`, matched as written, so a name PresentMon adds
+  later is generated too. Each generated frame keeps every row the
+  table gives it. PresentMon writes `MsCPUBusy` as 0 where a frame has
+  none, so a generated frame's `frame/cpu_span` is often `0.000`.
+- **Without a `FrameType` column, no frame is marked generated**, and
+  the summary says every frame is read as the application's. A capture
+  of a game using frame generation without `--track_frame_type` mixes
+  the two, and nothing in the capture shows it.
 
 **The header.**
 
@@ -2212,9 +2295,13 @@ remainder on an imported run, where it equals the span.
 **Output.** `-o RUN` names the file written. It is exit 3, before
 anything is written, when `RUN` exists, so a run is never overwritten.
 The summary names what was kept: "Wrote 18000 frames of game.exe (pid
-4120, swap chain 0x1f2e3d) to run.csv; 1210 were not displayed." The
+4120, swap chain 0x1f2e3d) to run.csv; 1210 were not displayed." A
+capture with generated frames adds their count by `FrameType`, most
+first: "9000 were generated (AMD AFMF 9000)." The
 JSON result's `import` holds `path`, `process`, `pid`, `swapchain`,
-`frames`, `not_displayed` and `unknown`. Exit 0 when written; 3 on any
+`frames`, `not_displayed`, `generated` and `unknown`. `generated` maps
+each `FrameType` other than `Application` to its frame count; it is
+empty when none is, and null without a `FrameType` column. Exit 0 when written; 3 on any
 refusal or file error, with nothing written. The file is written to
 a temporary name beside `RUN` and linked into place, so a failure
 leaves no half file and a file made at `RUN` meanwhile is kept. It
@@ -2400,6 +2487,55 @@ milliseconds* means a value that is a multiple of 1000 thousandths.
   number from the engine's own frame count, after its settling frames
   (DOOM Ants).
 - **`--strict` and `--expect` may be given together.**
+
+### 4.20 Generated frames
+
+FLED-0075 builds this. A frame carrying `event/generated` (§ 4.4) was
+not rendered by the application: a driver or an SDK made it between
+two rendered frames. It reaches the screen, but the engine did no work
+for it. Designed with the three engines
+2026-11-17.
+
+```
+report, floor, budget, survey, compare, alternate, bisect: [--all-frames]
+```
+
+**By default, every command that judges or reports frame times reads
+the application's frames**: every frame without `event/generated`.
+So `floor` at 60 asks whether the game rendered 60 frames a second,
+not whether 60 reached the screen (Vestige, UT Ants, DOOM Ants).
+
+- **A generated frame's rows are not read**: its spans, passes,
+  `mem` rows, events and segment are left out.
+- **An application frame's `frame/wall`** is its own plus that of each
+  generated frame after it, up to the next application frame. So it
+  runs from its start to the next application frame's start, and
+  § 4.7's timeline keeps its length. A window's `fps` is the rate the
+  application rendered.
+- **If any of those walls is missing, the application frame has
+  none.** § 4.4 already warns on the frame that lacks it, and § 4.7's
+  inconclusive rule then holds, so nothing is guessed. The last
+  application frame is the run's last frame for that rule.
+- **Generated frames before the first application frame** belong to
+  none. Their walls still move the timeline, so the warm-up runs from
+  the run's first frame, as § 4.7 says.
+- **Holes are found over every frame number**, generated or not, as
+  § 4.4 says.
+
+**`--all-frames`** reads every frame as written, generated ones
+included. On a run with no `event/generated`, both readings are the
+same, and nothing below is said.
+
+**What is said.** For each run holding generated frames, one opening
+sentence, with the run's name where the command names runs: "new-2:
+9000 of 18000 frames were generated, not rendered by the application,
+and are left out; --all-frames counts them." Under `--all-frames` it
+ends "and are counted, as --all-frames asks." In JSON, each run's
+entry, or the result for a one-run command, gains `generated_frames`,
+the count, and the result gains `all_frames`, true or false.
+
+**`check` is unchanged**: it checks the format, so it reads every
+frame. `kit` and `import` take no `--all-frames`.
 
 ## 5. Invariants
 
@@ -4010,6 +4146,83 @@ breaks.
   threshold is off by one, `--strict` leaves a warning at exit 0, or a
   strict code shows without the flag.
 
+- **INV-119** — An import marks generated frames. A capture whose
+  `FrameType` alternates `Application` and `AMD AFMF` imports with
+  `event/generated` `1.000` on each `AMD AFMF` frame and on no
+  `Application` frame. Its summary says how many were generated, and
+  `import.generated` is `{"AMD AFMF": N}`. A `FrameType` of `Something
+  New` is marked too. The same capture without the `FrameType` column
+  marks no frame, `generated` is null, and the summary says every frame
+  is read as the application's.
+  *Test:* `tests/test_generated_frames.py::test_import_marks_generated_frames`.
+  *Breaks when:* a value other than `Application` is read as the
+  application's, a generated row is dropped, or a missing column passes
+  in silence.
+
+- **INV-120** — By default, the application's frames are judged. A run
+  rendering every 16.666 ms, with a generated frame half-way, has walls
+  of 8.333 ms throughout, `frame/cpu_span` 5.000 on its application
+  frames and 0.000 on its generated ones. `floor --fps 100` fails its
+  window check, since the application renders 60 a second, and `survey
+  --budget-ms 10` flags it. With `--all-frames`, both pass. Three such
+  runs against three without `event/generated` but the same rows judge
+  `frame/cpu_span`'s median 5.000 on one side and a lower one on the
+  other; with `--all-frames` both sides agree. Each command's opening
+  sentences say how many frames were generated and left out, and JSON
+  gives `generated_frames` and `all_frames`. The fixture without
+  `event/generated` gives the `--all-frames` answers either way, so
+  only the mark changes them.
+  *Test:* `tests/test_generated_frames.py::test_application_frames_are_judged`,
+  `tests/test_generated_frames.py::test_all_frames_counts_every_frame`.
+  *Breaks when:* a generated frame is counted by default, its wall is
+  dropped rather than added to the application frame before it, which
+  would keep 8.333 ms walls and pass `floor`, or `--all-frames` still
+  leaves it out.
+
+- **INV-121** — A generated frame's missing wall is not guessed, and
+  the mark is `1.000`. An application frame followed by a generated
+  frame with no `frame/wall`, not the run's last, has no `frame/wall`
+  of its own, so `floor`'s window check is inconclusive. An
+  `event/generated` of `2.000` is a `check` breach naming its line.
+  *Test:* `tests/test_generated_frames.py::test_a_missing_generated_wall`,
+  `tests/test_generated_frames.py::test_the_mark_is_one`.
+  *Breaks when:* the application frame keeps its own wall alone, or any
+  value marks a frame.
+
+- **INV-122** — `:p99` judges a measure's 99th percentile. Old and new
+  sets of three runs hold `gpu/X` on every other frame of 4000, so 2000
+  frames each, with equal medians and the new runs' slowest 2% twice
+  the old runs'. `--measure gpu/X` passes, exit 0, and so does
+  `gpu/X:median`; `--measure gpu/X:p99` fails, exit 1, printing 2000
+  frames beside it, and JSON's `old_frames` and `new_frames` are 2000
+  for each run. `gpu/X` with `gpu/X:p99` is allowed. `mem/m:p99`,
+  `gpu/X:p95`, and `frame/wall` with `frame/wall:p99` are exit 3, each
+  named.
+  *Test:* `tests/test_measure_p99.py::test_p99_of_a_pass`,
+  `tests/test_measure_p99.py::test_suffix_refusals`.
+  *Breaks when:* the suffix is ignored, the percentile counts frames
+  without the pass, or a bare name changes what it judges.
+
+- **INV-123** — Under 1000 frames, a `:p99` is `too_few`. INV-122's
+  sets with one run holding `gpu/X` in 999 frames give `too_few`, exit
+  2, and the summary names the entry with 999 frames; at 1000 the entry
+  is judged. Beside a long segment kind, a 50-frame kind's `:p99` entry
+  is `too_few`, named, and the verdict is the long kind's. A bare
+  `frame/wall` over 999 frames still judges its 99th percentile.
+  *Test:* `tests/test_measure_p99.py::test_too_few_frames`.
+  *Breaks when:* the bound is off by one, a short kind beside a long
+  one makes the compare inconclusive, or a bare `frame/wall` gains the
+  bound.
+
+- **INV-124** — `bisect` judges any measure's 99th percentile. With
+  INV-122's runs as tested runs, `--measure gpu/X --statistic p99
+  --bad-above T`, `T` between the old and new 99th percentiles, exits
+  1, and the median exits 0. `--statistic p99` on a `mem` measure is
+  128. A tested run holding `gpu/X` in 999 of the chosen frames skips,
+  125, `skip_reason` `short`; a reference with 999 stops, 128.
+  *Test:* `tests/test_measure_p99.py::test_bisect_p99`.
+  *Breaks when:* `p99` on a pass is still 128, or a short run is judged.
+
 ## 6. Failure modes
 
 - **A malformed row.** `check` lists it with its line. `report` and
@@ -4066,6 +4279,8 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0071 and FLED-0073: INV-110.
 - FLED-0036: INV-111 to INV-115.
 - FLED-0037: INV-116 to INV-118.
+- FLED-0075: INV-119 to INV-121.
+- FLED-0076: INV-122 to INV-124.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -4246,6 +4461,12 @@ it on each release they pin.
 | INV-116 | `tests/test_kit.py::test_kit_is_written`, `tests/test_kit.py::test_kit_refuses_a_full_directory`, `tests/test_kit.py::test_kit_from_the_release`, `tests/writer/test_kit.sh` |
 | INV-117 | `tests/test_kit.py::test_expect`, `tests/test_kit.py::test_expect_names_counts_and_values`, `tests/test_kit.py::test_a_file_breaking_the_format_never_matches`, `tests/test_kit.py::test_absent_is_not_null` |
 | INV-118 | `tests/test_strict.py` |
+| INV-119 | `tests/test_generated_frames.py::test_import_marks_generated_frames` |
+| INV-120 | `tests/test_generated_frames.py::test_application_frames_are_judged`, `tests/test_generated_frames.py::test_all_frames_counts_every_frame` |
+| INV-121 | `tests/test_generated_frames.py::test_a_missing_generated_wall`, `tests/test_generated_frames.py::test_the_mark_is_one` |
+| INV-122 | `tests/test_measure_p99.py::test_p99_of_a_pass`, `tests/test_measure_p99.py::test_suffix_refusals` |
+| INV-123 | `tests/test_measure_p99.py::test_too_few_frames` |
+| INV-124 | `tests/test_measure_p99.py::test_bisect_p99` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |

@@ -1268,6 +1268,9 @@ can still use the analyser, and a stranger's writer can prove itself.
   three: import generated frames tagged with their FrameType; floor,
   compare and survey judge application frames by default, with a flag to
   count every frame. To be designed.
+  2026-11-17: designed in docs/specs/FLED-0001-run-file-format.md §
+  4.20, § 4.4's event/generated, § 4.18's FrameType and INV-119 to
+  INV-121; sent to the three engines for review before building.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
@@ -1369,6 +1372,9 @@ the source of truth; all three engines set that condition, 2026-11-10.
   inconclusive, exit 2. A run-wide --statistic p99, if added, is
   shorthand for :p99 on every named measure; a statistic a measure
   cannot have stays 128 under bisect. To be designed.
+  2026-11-17: designed in docs/specs/FLED-0001-run-file-format.md §
+  4.10's :median and :p99, § 4.11's --statistic p99 and INV-122 to
+  INV-124; sent to the three engines for review before building.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
