@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=77 -->
+<!-- ants-roadmap-id-high-water: FLED=78 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1305,9 +1305,24 @@ can still use the analyser, and a stranger's writer can prove itself.
   They already exit 2; test_an_empty_run now pins each command's exit,
   and § 6 says floor, budget and survey are inconclusive, report exit 0.
   UT Ants' answer owed.
+  2026-11-17: UT Ants yes to F; Vestige accepts F as built (survey's
+  empty run inconclusive). All answers in: nothing owed by the three
+  engines or ExperiRays on FLED-0075 to FLED-0077.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
+
+- 📋 [FLED-0078] **Test alternate end to end on runs holding generated frames.**
+  FLED-0075's --all-frames reaches alternate through cli._compare_paths
+  and _compare_variants, but no test runs alternate on commands that
+  write runs with event/generated. Every review of 09e27a1 named it
+  unchecked. The test: alternate with old and new commands writing
+  marked runs, judged by default and with --all-frames, checking the
+  generated-frames sentences and all_frames, under --old/--new and
+  --base/--variant. Asked for by UT Ants, 2026-11-17.
+  **Layman:** Check that the command which runs two builds in turn also leaves out driver-generated frames, and counts them under --all-frames.
+  Kind: test.
+  Source: ut-ants-review-2026-11-17.
 
 ## 0.7.0 — seen, not only read
 
@@ -1443,6 +1458,7 @@ the source of truth; all three engines set that condition, 2026-11-10.
   rank by the suffix): DOOM Ants and Vestige yes; Vestige accepts bug
   4's spec change and bug 5's answer. ExperiRays re-ran H1 and T1 on a
   clone: both hold. UT Ants' answer owed.
+  2026-11-17: UT Ants yes to C, D and E. Agreed by all three engines.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
