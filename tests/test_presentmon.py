@@ -93,7 +93,7 @@ def test_capture_becomes_a_run(capsys, tmp_path):
     assert values(run, "cpu_span")[3] == 1_001 and values(run, "cpu_span")[4] == -1_001
     assert out["result"]["import"] == {"path": run_path, "process": "game.exe", "pid": "4120",
                                        "swapchain": "0x1F2E3D", "frames": 6, "not_displayed": 1,
-                                       "unknown": run.header["unknown"]}
+                                       "generated": None, "unknown": run.header["unknown"]}
     assert run.header["unknown"]  # no fact flags, so the header lists what it lacks
 
 

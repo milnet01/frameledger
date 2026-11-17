@@ -2556,6 +2556,11 @@ not whether 60 reached the screen (Vestige, UT Ants, DOOM Ants).
   rest in the sentence below (Vestige, UT Ants).
 - **Holes are found over every frame number**, generated or not, as
   § 4.4 says.
+- **A run whose every frame is generated** has no application frame
+  to judge. It is a file error, as an unreadable file is, and the
+  sentence names `--all-frames`: exit 3 where the command has it;
+  `survey` and `compare --by-scene` list the run unjudged or unread;
+  `bisect` skips on a tested run and stops on a reference.
 
 **`--all-frames`** reads every frame as written, generated ones
 included. On a run with no `event/generated`, both readings are the
@@ -4218,11 +4223,16 @@ breaks.
   the mark is `1.000`. An application frame followed by a generated
   frame with no `frame/wall`, not the run's last, has no `frame/wall`
   of its own, so `floor`'s window check is inconclusive. An
-  `event/generated` of `2.000` is a `check` breach naming its line.
+  `event/generated` of `2.000` is a `check` breach naming its line. A
+  run of 300 frames, every one generated, is exit 3 under `floor`,
+  naming `--all-frames`, and is listed unread under `compare
+  --by-scene`; with `--all-frames`, `floor` judges it.
   *Test:* `tests/test_generated_frames.py::test_a_missing_generated_wall`,
-  `tests/test_generated_frames.py::test_the_mark_is_one`.
-  *Breaks when:* the application frame keeps its own wall alone, or any
-  value marks a frame.
+  `tests/test_generated_frames.py::test_the_mark_is_one`,
+  `tests/test_generated_frames.py::test_no_application_frame`.
+  *Breaks when:* the application frame keeps its own wall alone, any
+  value marks a frame, or a run with no application frame is judged
+  over nothing.
 
 - **INV-122** — `:p99` judges a measure's 99th percentile. Old and new
   sets of three runs hold `gpu/X` on every other frame of 4000, so 2000
@@ -4515,7 +4525,7 @@ it on each release they pin.
 | INV-118 | `tests/test_strict.py` |
 | INV-119 | `tests/test_generated_frames.py::test_import_marks_generated_frames` |
 | INV-120 | `tests/test_generated_frames.py::test_application_frames_are_judged`, `tests/test_generated_frames.py::test_all_frames_counts_every_frame` |
-| INV-121 | `tests/test_generated_frames.py::test_a_missing_generated_wall`, `tests/test_generated_frames.py::test_the_mark_is_one` |
+| INV-121 | `tests/test_generated_frames.py::test_a_missing_generated_wall`, `tests/test_generated_frames.py::test_the_mark_is_one`, `tests/test_generated_frames.py::test_no_application_frame` |
 | INV-122 | `tests/test_measure_p99.py::test_p99_of_a_pass`, `tests/test_measure_p99.py::test_suffix_refusals` |
 | INV-123 | `tests/test_measure_p99.py::test_too_few_frames` |
 | INV-124 | `tests/test_measure_p99.py::test_bisect_p99` |

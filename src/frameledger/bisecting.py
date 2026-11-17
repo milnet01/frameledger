@@ -100,11 +100,12 @@ class _Skip(Exception):
 
 def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[Loaded],
            overrides: dict[str, str], floors: compare.Floors, bad_above: Decimal | None = None,
-           dry_value: Decimal | None = None, skip_straddle: bool = False) -> dict:
+           dry_value: Decimal | None = None, skip_straddle: bool = False, all_frames: bool = False) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for one
     commit. Reference mode when `good` and `bad` are given, threshold mode
     with `bad_above`; `dry_value` stands in for the tested runs. cli.py has
-    checked the flags."""
+    checked the flags. `all_frames` says the runs were read with their
+    generated frames (§ 4.20)."""
     refs = _named("good", good) + _named("bad", bad)
     tested_runs = _named("tested", tested)
     override_list = [{"field": f, "reason": r} for f, r in overrides.items()]
@@ -156,8 +157,11 @@ def bisect(wanted: Wanted, tested: list[Loaded], good: list[Loaded], bad: list[L
             "spread": _number(references.spread), "floor": _number(references.floor)},
         "refused": refused,
         "skip_reason": skip_reason,
+        "all_frames": all_frames,
     }
-    return {"verdict": verdict, "summary": compare.overrides_sentences(override_list) + sentences,
+    read = [r for r in refs + tested_runs if r.run is not None]
+    said = compare.generated_sentences(read, all_frames)
+    return {"verdict": verdict, "summary": compare.overrides_sentences(override_list) + said + sentences,
             "warnings": run_report.warning_entries(notices), "overrides": override_list, "result": result}
 
 
@@ -382,7 +386,7 @@ def _entry(r: _Run, value: int | None) -> dict:
     format, may have no header, so it gives only its name, set and path."""
     if r.run is None or r.run.breaches:
         entry = {"name": r.name, "set": r.set, "path": r.path, "run_id": None, "commit": None,
-                 "dirty": None, "rows_dropped": None, "finished": None}
+                 "dirty": None, "rows_dropped": None, "finished": None, "generated_frames": None}
     else:
         entry = {key: item for key, item in compare.run_entry(r).items() if key != "started_utc"}
     return {**entry, "value": None if value is None else _number(value)}

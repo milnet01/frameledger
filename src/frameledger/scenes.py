@@ -15,21 +15,23 @@ from __future__ import annotations
 from collections import defaultdict
 
 import compare
+import generated
 import ledger
 import run_report
 
 
 def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
              limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
-             named_measures: tuple[str, ...] = (), baseline: bool = False) -> dict:
+             named_measures: tuple[str, ...] = (), baseline: bool = False, all_frames: bool = False) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for the
     files at `old` and `new`, each scene judged apart. `named_measures` is
     --measure's list, kept in every scene; a name no judged scene has is
-    an error. `baseline` says `old` came from a baseline file (§ 4.17)."""
+    an error. `baseline` says `old` came from a baseline file (§ 4.17).
+    `all_frames` counts generated frames (§ 4.20)."""
     unread, paths = [], {"old": defaultdict(list), "new": defaultdict(list)}
     for label, group in (("old", old), ("new", new)):
         for path in group:
-            scene, reason = _scene_of(path)
+            scene, reason = _scene_of(path, all_frames)
             if reason is None:
                 paths[label][scene].append(path)
             else:
@@ -39,7 +41,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     all_read = not unread  # whether every run's names were seen, for the absent sentence
     for name in sorted(set(paths["old"]) | set(paths["new"])):
         entry, scene_unused, scene_absent = _judge(name, paths["old"][name], paths["new"][name], overrides,
-                                                   floors, limits, named_measures, baseline)
+                                                   floors, limits, named_measures, baseline, all_frames)
         scenes.append(entry)
         if scene_unused is not None:  # the scene's runs were read
             unused &= scene_unused
@@ -63,6 +65,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
     # and JSON's "warnings" is one flat list.
     scene_notices = [[ledger.Notice(w["code"], f"{_named(e)}: {w['message']}") for w in e.pop("warnings")]
                      for e in scenes]
+    said = [f"{_named(e)}: {sentence}" for e in scenes for sentence in e.pop("generated")]
     unused_notices = compare.unused_override_notices([f for f in overrides if f in unused])
     notices = [n for group in scene_notices for n in group] + unused_notices
     measures = sum(len(e["compare"]["measures"]) for e in judged)
@@ -73,7 +76,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
                 "warnings": [], "overrides": override_list,
                 "result": {"named_measures": list(named_measures)}}
     verdict = _verdict(scenes, unread, lacking) if judged else "error"
-    summary = _summary(override_list, scenes, unread, failing, len(judged), measures,
+    summary = _summary(override_list, said, scenes, unread, failing, len(judged), measures,
                        [*scene_notices, unused_notices])
     result = {
         "scenes": scenes,
@@ -83,6 +86,7 @@ def by_scene(old: list[str], new: list[str], overrides: dict[str, str], floors: 
         "min_mb": float(floors.min_mb),
         "min_pct": float(floors.min_pct),
         "overrides": override_list,
+        "all_frames": all_frames,
     }
     return {"verdict": verdict, "summary": summary, "warnings": run_report.warning_entries(notices),
             "overrides": override_list, "result": result}
@@ -95,11 +99,12 @@ def _named(entry: dict) -> str:
     return ledger.clip(entry["scene"], ledger.LONG_QUOTE)
 
 
-def _summary(override_list: list[dict], scenes: list[dict], unread: list[dict], failing: list[dict],
+def _summary(override_list: list[dict], said: list[str], scenes: list[dict], unread: list[dict], failing: list[dict],
              judged_count: int, measures: int, notice_groups: list[list[ledger.Notice]]) -> list[str]:
-    """§ 4.14's text sentences, in its order. Each scene's warnings are
+    """§ 4.14's text sentences, in its order. `said` holds § 4.20's
+    sentences on generated frames. Each scene's warnings are
     grouped apart, so two scenes with the same warning both say so."""
-    summary = compare.overrides_sentences(override_list)
+    summary = compare.overrides_sentences(override_list) + said
     if judged_count:
         summary += [_fail_sentence(e) for e in failing]
         summary += [f"{_named(e)} is inconclusive: {e['reason']}." for e in scenes if e["verdict"] == "inconclusive"]
@@ -123,12 +128,12 @@ def _read_failure(error: ledger.LedgerError) -> str:
     return error.reason if error.line is None else f"{error.reason} (line {error.line})"
 
 
-def _scene_of(path: str) -> tuple[str | None, str | None]:
+def _scene_of(path: str, all_frames: bool) -> tuple[str | None, str | None]:
     """The file's scene, or why it is unread. The whole file is read and
     let go, so a breach anywhere in it is found before any scene is
     judged; the scene's own read comes later, one scene at a time."""
     try:
-        run = ledger.read(path)
+        run = generated.read(path, all_frames)  # a run of generated frames alone is unread here, not later
         run_report.refuse_breaches(run)
     except ledger.LedgerError as error:
         return None, _read_failure(error)
@@ -140,15 +145,15 @@ def _scene_of(path: str) -> tuple[str | None, str | None]:
 
 
 def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str], floors: compare.Floors,
-           limits: compare.LoadLimits, named_measures: tuple[str, ...],
-           baseline: bool) -> tuple[dict, set[str] | None, set[str] | None]:
+           limits: compare.LoadLimits, named_measures: tuple[str, ...], baseline: bool,
+           all_frames: bool) -> tuple[dict, set[str] | None, set[str] | None]:
     """One scene's entry; the overridden fields that differed in none of
     its runs, None when its runs were not read; and the names in
     `named_measures` none of its runs has: every name for a scene left
     out for lacking them all, and None for any other unjudged scene,
     which says nothing of which names it has."""
     entry = {"scene": name, "verdict": "unjudged", "reason": None, "rank": None, "measure": None,
-             "segment": None, "compare": None, "warnings": []}
+             "segment": None, "compare": None, "warnings": [], "generated": []}
     missing = [label for label, paths in (("old", old), ("new", new)) if not paths]
     short = [f"the {label} side has {run_report.counted(len(paths), 'run')}"
              for label, paths in (("old", old), ("new", new)) if 0 < len(paths) < compare.FEWEST_RUNS]
@@ -160,16 +165,19 @@ def _judge(name: str, old: list[str], new: list[str], overrides: dict[str, str],
         return entry, None, None
 
     try:
-        old_runs, new_runs = [ledger.read(p) for p in old], [ledger.read(p) for p in new]
+        old_runs = [generated.read(p, all_frames) for p in old]
+        new_runs = [generated.read(p, all_frames) for p in new]
         for run in old_runs + new_runs:
             run_report.refuse_breaches(run)  # a file broken since may have no header to check
             if run.header["scene"] != name:
                 raise ledger.LedgerError(f"its scene is now {_named(run.header)!r}", run.path)
-        built = compare.compare(old_runs, new_runs, overrides, floors, limits, named_measures, baseline=baseline)
+        built = compare.compare(old_runs, new_runs, overrides, floors, limits, named_measures, baseline=baseline,
+                                all_frames=all_frames)
     except ledger.LedgerError as error:  # the file changed since it was first read
         entry["reason"] = f"{error.path} changed since it was first read: {_read_failure(error)}"
         return entry, None, None
     unused, absent = set(built["unused"]), set(built["absent"])
+    entry["generated"] = built["generated"]
     if named_measures and absent == set(named_measures):  # judges nothing here, by the caller's choice
         entry["compare"], entry["reason"] = built["result"], compare.LACKS_NAMED
         return entry, unused, absent

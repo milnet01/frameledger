@@ -17,6 +17,7 @@ from collections import Counter
 from typing import NamedTuple
 
 import compare
+import generated
 import ledger
 import run_report
 
@@ -56,12 +57,13 @@ class _Judged(NamedTuple):
     # included unless it was refused; None when its runs were not read.
     absent: set[str] | None
     lacks_named: bool  # unjudged because none of its own runs has a named measure
+    generated: tuple[str, ...] = ()  # § 4.20's sentence for each of its own runs holding generated frames
 
 
 def against_base(base: list[str], variants: dict[str, list[str]], overrides: dict[str, str],
                  floors: compare.Floors, limits: compare.LoadLimits = compare.DEFAULT_LIMITS,
                  named_measures: tuple[str, ...] = (), unread_is_unjudged: bool = False,
-                 baseline: bool = False) -> dict:
+                 baseline: bool = False, all_frames: bool = False) -> dict:
     """{"verdict", "summary", "warnings", "overrides", "result"} for the
     base's files and each variant's, name to files in the order given.
     `named_measures` is --measure's list, kept in every variant; a name no
@@ -70,8 +72,9 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     A file that cannot be read, or breaks the format, raises LedgerError.
     With `unread_is_unjudged`, `alternate`'s case, only a base file does:
     a variant with such a file is unjudged, and the others go on.
-    `baseline` says the base's files came from a baseline file (§ 4.17)."""
-    base_runs = [ledger.read(path) for path in base]
+    `baseline` says the base's files came from a baseline file (§ 4.17).
+    `all_frames` counts generated frames (§ 4.20)."""
+    base_runs = [generated.read(path, all_frames) for path in base]
     for run in base_runs:
         run_report.refuse_breaches(run)
     # What is about the base alone, said once. Every variant's compare
@@ -80,7 +83,7 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     base_notices = compare.run_notices(base_named) + compare.mixed_build_notices(base_named, BASE)
 
     judged_all = [_judge(name, base_runs, paths, overrides, floors, limits, named_measures, unread_is_unjudged,
-                         baseline)
+                         baseline, all_frames)
                   for name, paths in variants.items()]
     by_name = sorted(judged_all, key=lambda j: j.entry["name"])
     entries = [j.entry for j in judged_all]
@@ -123,9 +126,12 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
         "max_gpu_busy": float(limits.max_gpu_busy),
         "named_measures": list(named_measures),
         "overrides": override_list,
+        "all_frames": all_frames,
     }
-    summary = _summary(override_list, named_measures, entries, len(judged), measures, loaded, notice_groups,
-                       _rank_sentence(base_runs, rank_measure, named_measures))
+    # The base runs' once, then each variant's own, by name, as the warnings go.
+    said = compare.generated_sentences(base_named, all_frames) + [s for j in by_name for s in j.generated]
+    summary = _summary(override_list, named_measures, said, entries, len(judged), measures, loaded,
+                       notice_groups, _rank_sentence(base_runs, rank_measure, named_measures))
     return {"verdict": _verdict(entries, lacking) if judged else "error", "summary": summary,
             "warnings": run_report.warning_entries([n for group in notice_groups for n in group]),
             "overrides": override_list, "result": result}
@@ -133,15 +139,15 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
 
 def _judge(name: str, base_runs: list[ledger.Run], paths: list[str], overrides: dict[str, str],
            floors: compare.Floors, limits: compare.LoadLimits, named_measures: tuple[str, ...],
-           unread_is_unjudged: bool, baseline: bool) -> _Judged:
+           unread_is_unjudged: bool, baseline: bool, all_frames: bool) -> _Judged:
     """One variant against the base. The variant's runs are let go when
     this returns."""
     entry = {"name": name, "verdict": "unjudged", "reason": None, "rank": None, "measure": None,
              "compare": None}
     try:
-        runs = [ledger.read(path) for path in paths]
+        runs = [generated.read(path, all_frames) for path in paths]
         built = compare.compare(base_runs, runs, overrides, floors, limits, named_measures, sides=(BASE, name),
-                                baseline=baseline)
+                                baseline=baseline, all_frames=all_frames)
     except ledger.LedgerError as error:  # cannot be read, or breaks the format
         if not unread_is_unjudged:
             raise
@@ -149,9 +155,10 @@ def _judge(name: str, base_runs: list[ledger.Run], paths: list[str], overrides: 
         return _Judged(entry, [], [], None, None, False)
     entry["compare"] = built["result"]
     unused = set(built["unused"])
+    said = tuple(compare.generated_sentences(compare.named_set("new", name, runs), all_frames))
     if built["verdict"] == "error":  # refused, so its compare looked for no measure
         entry["reason"] = built["reason"]
-        return _Judged(entry, [], [], unused, set(compare.absent_names(runs, named_measures)), False)
+        return _Judged(entry, [], [], unused, set(compare.absent_names(runs, named_measures)), False, said)
     # override_unused is the command's to give, once: `_unused`.
     warnings = [w for w in built["warnings"] if w["code"] != "override_unused"]
     loaded = compare.load_sentences(compare.named_set("new", name, runs), limits)
@@ -160,7 +167,7 @@ def _judge(name: str, base_runs: list[ledger.Run], paths: list[str], overrides: 
         entry["reason"] = compare.LACKS_NAMED
     else:
         entry["verdict"], entry["reason"] = built["verdict"], built["reason"]
-    return _Judged(entry, warnings, loaded, unused, set(built["absent"]), lacks_named)
+    return _Judged(entry, warnings, loaded, unused, set(built["absent"]), lacks_named, said)
 
 
 def _base_outliers(judged_all: list[_Judged], base_names: set[str]) -> list[ledger.Notice]:
@@ -276,16 +283,18 @@ def _verdict(entries: list[dict], lacking: set[str]) -> str:
     return "pass"
 
 
-def _summary(override_list: list[dict], named_measures: tuple[str, ...], entries: list[dict],
+def _summary(override_list: list[dict], named_measures: tuple[str, ...], said: list[str], entries: list[dict],
              judged_count: int, measures: int, loaded: list[str],
              notice_groups: list[list[ledger.Notice]], rank_sentence: str) -> list[str]:
-    """§ 4.16's text sentences, in its order. `loaded` names each run
+    """§ 4.16's text sentences, in its order. `said` holds § 4.20's
+    sentences on generated frames. `loaded` names each run
     taken under load. `notice_groups` holds the
     base runs' warnings and each variant's apart, so two variants with
     the same warning both say so."""
     summary = compare.overrides_sentences(override_list)
     if named_measures:
         summary.append(f"Judging only {compare.joined(named_measures)}.")
+    summary += said
     by_name = sorted(entries, key=lambda e: e["name"])
     if judged_count:
         summary += [compare.rose_sentence(e["name"], compare.worse_measure(e["compare"]["measures"]))

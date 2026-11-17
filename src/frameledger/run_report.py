@@ -285,13 +285,15 @@ def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str |
     missing frame number or a frame other than the last with no wall, or
     None; and the time it stops. Past a stop the ends are too early by the
     missing time: they still place a frame after the warm-up, never
-    before."""
+    before. Generated frames left out are no hole, and those before the
+    first frame kept start the timeline late (§ 4.20)."""
     order = sorted(run.frames)
-    timed, cuts, now, stop, stopped_at = [], [], 0, None, None
+    timed, cuts, now = [], [], run.lead_us
+    stop, stopped_at = run.lead_stop, 0 if run.lead_stop else None
     for previous, frame in zip([None, *order[:-1]], order, strict=True):
         rows = run.frames[frame]
-        if stop is None and previous is not None and frame != previous + 1:
-            stop, stopped_at = f"frame {previous + 1} is missing", now
+        if stop is None and previous is not None and frame != run.after(previous):
+            stop, stopped_at = f"frame {run.after(previous)} is missing", now
         wall = rows.get(("frame", "wall"))
         if wall is None:
             if stop is None and frame != order[-1]:
@@ -415,7 +417,7 @@ def _pacing(run: ledger.Run) -> list[dict]:
     """The frame-to-frame change in frame/wall per segment kind (S14)."""
     changes: dict[str | None, list[int]] = defaultdict(list)
     for number, rows in run.frames.items():
-        before = run.frames.get(number - 1)
+        before = run.frames.get(run.before(number))
         if _is_pacing_pair(before, rows):
             change = abs(rows[("frame", "wall")].thousandths - before[("frame", "wall")].thousandths)
             changes[segment_kind(ledger.frame_segment(rows))].append(change)
@@ -428,7 +430,8 @@ def _pacing(run: ledger.Run) -> list[dict]:
 
 
 def _is_pacing_pair(before: dict | None, rows: dict) -> bool:
-    """Whether a frame and the one numbered before it are a pacing pair:
+    """Whether a frame and the one before it, past any generated frame left
+    out, are a pacing pair:
     both have a wall, share one segment, and neither carries event/cut.
     A change across a hole, a segment change or a load is not judder."""
     return (before is not None and ledger.frame_segment(before) == ledger.frame_segment(rows)

@@ -32,6 +32,9 @@ TOO_LARGE = Decimal(1_000_000_000)  # § 4.4 holds values below this, in ms
 # "Infinity" and "NaN".
 NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 NO_VALUE = ("", "NA")  # what PresentMon writes in a column with nothing to say
+# --track_frame_type's FrameType for a frame the application rendered; any
+# other value, one PresentMon adds later included, is a generated frame (§ 4.18).
+APPLICATION = "Application"
 # CPUStartDateTime: a date, a time, an optional fraction, an optional zone.
 DATE_TIME = re.compile(r"([0-9]{4}-[0-9]{2}-[0-9]{2})[T ]([0-9]{2}:[0-9]{2}:[0-9]{2})(?:\.([0-9]+))?"
                        r"(Z|[+-][0-9]{2}:[0-9]{2})?")
@@ -80,7 +83,7 @@ def import_capture(capture: str, run_path: str, chosen: Chosen, facts: dict, eng
     rows = _choose(rows, chosen, capture)
     notices, said = _start_order(rows, columns)
     header = _header(rows, columns, facts, engine, started, version, data, capture)
-    lines, not_displayed = _run_lines(rows, columns, header, capture)
+    lines, not_displayed, generated = _run_lines(rows, columns, header, capture)
     _write_atomically(run_path, "\n".join(lines) + "\n")
 
     first = rows[0]
@@ -89,15 +92,22 @@ def import_capture(capture: str, run_path: str, chosen: Chosen, facts: dict, eng
         f"; {not_displayed} {'was' if not_displayed == 1 else 'were'} not displayed"
     summary = [f"Wrote {len(rows)} {'frame' if len(rows) == 1 else 'frames'} of {ledger.quoted(process)} (pid "
                f"{ledger.quoted(pid)}, swap chain {ledger.quoted(swapchain)}) to {run_path}{shown}.", *said]
+    if generated:
+        total = sum(generated.values())
+        kinds = ", ".join(f"{ledger.quoted(name)} {count}" for name, count in generated.items())
+        summary.append(f"{total} {'was' if total == 1 else 'were'} generated ({kinds}).")
     if not_displayed is None:
         summary.append("The capture has no DisplayedTime column, so no frame is marked not displayed.")
+    if generated is None:
+        summary.append("The capture has no FrameType column, so every frame is read as the application's.")
     unknown = header.get("unknown", [])
     if unknown:
         summary.append(f"The header does not know its {ledger.listed_names(unknown)}; the fact flags "
                        "can give them.")
     return {"summary": summary, "notices": notices,
             "import": {"path": run_path, "process": process, "pid": pid, "swapchain": swapchain,
-                       "frames": len(rows), "not_displayed": not_displayed, "unknown": unknown}}
+                       "frames": len(rows), "not_displayed": not_displayed, "generated": generated,
+                       "unknown": unknown}}
 
 
 def _read_capture(data: bytes, capture: str) -> tuple[set[str], list[_Row]]:
@@ -303,14 +313,19 @@ def _started(rows: list[_Row], columns: set[str], started: str | None, capture: 
     return f"{moment:%Y-%m-%dT%H:%M:%S}{'.' + fraction if fraction else ''}Z"
 
 
-def _run_lines(rows: list[_Row], columns: set[str], header: dict, capture: str) -> tuple[list[str], int | None]:
-    """The run file's lines, and how many frames were not displayed (None
-    without a DisplayedTime column). Frame i's wall is row i + 1's
-    MsBetweenPresents, which counts from the present before it."""
+def _run_lines(rows: list[_Row], columns: set[str], header: dict,
+               capture: str) -> tuple[list[str], int | None, dict[str, int] | None]:
+    """The run file's lines; how many frames were not displayed (None
+    without a DisplayedTime column); and each FrameType other than
+    Application with its frame count, most first (None without a
+    FrameType column). Frame i's wall is row i + 1's MsBetweenPresents,
+    which counts from the present before it."""
     run_id = header["run_id"]
     lines = [f"# frameledger {json.dumps(header, separators=(',', ':'))}", ledger.COLUMNS]
     displayed = "DisplayedTime" in columns
+    typed = "FrameType" in columns
     not_displayed = 0
+    generated: dict[str, int] = {}
     for frame, row in enumerate(rows):
         cpu = _value(row, "MsCPUBusy", capture)
         if cpu is None:
@@ -327,8 +342,13 @@ def _run_lines(rows: list[_Row], columns: set[str], header: dict, capture: str) 
         if displayed and row.get("DisplayedTime") == "NA":
             lines.append(f"{run_id},,{frame},event,not_displayed,0,1.000")
             not_displayed += 1
+        frame_type = row.get("FrameType")
+        if typed and frame_type != APPLICATION:  # matched as written (FLED-0075)
+            lines.append(f"{run_id},,{frame},event,generated,0,1.000")
+            generated[frame_type] = generated.get(frame_type, 0) + 1
     lines.append(f'# frameledger-close {{"rows_dropped":0,"frames":{len(rows)}}}')
-    return lines, not_displayed if displayed else None
+    by_count = dict(sorted(generated.items(), key=lambda item: (-item[1], item[0])))
+    return lines, not_displayed if displayed else None, by_count if typed else None
 
 
 def _value(row: _Row, column: str, capture: str) -> Decimal | None:

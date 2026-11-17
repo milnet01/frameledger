@@ -150,7 +150,8 @@ def test_unjudged_scenes(capsys, tmp_path, monkeypatch):
     # A file whose scene changed after the first read leaves its scene unjudged, never judged under the old name.
     moved = files.run("z", {"view:1": alike(10.0)})
     first_read = scenes._scene_of
-    monkeypatch.setattr(scenes, "_scene_of", lambda path: ("a", None) if path == moved else first_read(path))
+    monkeypatch.setattr(scenes, "_scene_of",
+                        lambda path, *rest: ("a", None) if path == moved else first_read(path, *rest))
     code, out = by_scene(capsys, [*files.runs("a", [10.0] * 2), moved], files.runs("a", [10.0] * 3))
     assert (code, scene(out, "a")["verdict"], scene(out, "a")["compare"]) == (3, "unjudged", None)
     assert scene(out, "a")["reason"] == f"{moved} changed since it was first read: its scene is now 'z'"
@@ -158,7 +159,8 @@ def test_unjudged_scenes(capsys, tmp_path, monkeypatch):
     # A file broken after the first read (here, emptied, so it has no header) leaves its scene unjudged too.
     emptied = tmp_path / "emptied.csv"
     emptied.write_text("")
-    monkeypatch.setattr(scenes, "_scene_of", lambda path: ("a", None) if path == str(emptied) else first_read(path))
+    monkeypatch.setattr(scenes, "_scene_of",
+                        lambda path, *rest: ("a", None) if path == str(emptied) else first_read(path, *rest))
     code, out = by_scene(capsys, [*files.runs("a", [10.0] * 2), str(emptied)], files.runs("a", [10.0] * 3))
     assert (code, scene(out, "a")["verdict"], scene(out, "a")["compare"]) == (3, "unjudged", None)
     assert scene(out, "a")["reason"].startswith(f"{emptied} changed since it was first read: ")

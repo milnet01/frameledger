@@ -84,6 +84,26 @@ class Run:
     frames: dict[int, dict[tuple[str, str], Row]] = field(default_factory=dict)
     breaches: list[Breach] = field(default_factory=list)
     notices: list[Notice] = field(default_factory=list)
+    # § 4.20, set by generated.application_frames: the frame numbers left
+    # out as generated, so they are no hole; the walls of generated frames
+    # before the first one kept; and what keeps that time from being known.
+    generated: frozenset[int] = frozenset()
+    lead_us: int = 0
+    lead_stop: str | None = None
+
+    def after(self, frame: int) -> int:
+        """The frame number that follows `frame`, past any left out as generated."""
+        following = frame + 1
+        while following in self.generated:
+            following += 1
+        return following
+
+    def before(self, frame: int) -> int:
+        """The frame number that comes before `frame`, past any left out as generated."""
+        preceding = frame - 1
+        while preceding in self.generated:
+            preceding -= 1
+        return preceding
 
     @property
     def unknown(self) -> frozenset[str]:
@@ -254,6 +274,8 @@ class _Reader:
                         "defines", number)
         if category == "frame" and name == "wall" and row.thousandths <= 0:
             self.breach(number, "wall", "frame/wall must be above zero; the timeline cannot be built from it")
+        elif (category, name) == ("event", "generated") and row.thousandths != 1000:
+            self.breach(number, "generated", f"event/generated must be 1.000, not {value}")
         elif category in SIGNED_CATEGORIES and row.thousandths < 0:
             self.notice("negative_value", f"{category}/{name} is negative ({value}) on frame {row.frame}, "
                         "which points to a clock fault", number)

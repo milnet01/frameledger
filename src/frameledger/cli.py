@@ -25,6 +25,7 @@ import bisecting
 import budgeting
 import compare
 import expect
+import generated
 import kit
 import ledger
 import presentmon
@@ -76,6 +77,7 @@ def _parser() -> _Parser:
     _add_output_flags(kit_command)
     report = commands.add_parser("report", help="say where one run's frame time went")
     report.add_argument("file", metavar="FILE")
+    _add_all_frames(report)
     _add_output_flags(report)
     floor = commands.add_parser("floor", help="did the run hold a frame rate every second, "
                                 "and did any single frame take too long?")
@@ -89,6 +91,7 @@ def _parser() -> _Parser:
     floor.add_argument("--no-frames", action="store_true", help="skip the single-frame check")
     floor.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
                        help="frames over the budget to tolerate (default 0)")
+    _add_all_frames(floor)
     _add_output_flags(floor)
     compare_cmd = commands.add_parser("compare", help="did the new runs get slower than the old, "
                                       "measure by measure?")
@@ -116,6 +119,7 @@ def _parser() -> _Parser:
     budget.add_argument("--budgets", required=True, metavar="BUDGETS", help="the budget file")
     budget.add_argument("--warmup-s", type=_bounded, default=Decimal(0), metavar="S",
                         help="seconds at the start that are not judged, as floor's (default 0)")
+    _add_all_frames(budget)
     _add_output_flags(budget)
     survey_cmd = commands.add_parser("survey", help="rank many runs by their slowest frames, and flag "
                                      "those floor's single-frame check fails")
@@ -128,6 +132,7 @@ def _parser() -> _Parser:
                             help="seconds at the start that are not judged, as floor's (default 2)")
     survey_cmd.add_argument("--allow-frames", type=_whole, default=0, metavar="K",
                             help="frames over the budget a run may have before it is flagged (default 0)")
+    _add_all_frames(survey_cmd)
     _add_output_flags(survey_cmd)
     _add_import(commands)
     return parser
@@ -218,7 +223,14 @@ def _add_compare_flags(command) -> None:
     command.add_argument("--measure", action="append", default=[], metavar="CATEGORY/NAME",
                          help="judge only this measure, and show each run's value of it; give it once "
                          "per measure")
+    _add_all_frames(command)
     _add_output_flags(command)
+
+
+def _add_all_frames(command) -> None:
+    """§ 4.20: without the flag, frames marked event/generated are left out."""
+    command.add_argument("--all-frames", action="store_true",
+                         help="also count the frames a driver generated, which are left out by default")
 
 
 def _add_alternate(commands) -> None:
@@ -277,6 +289,7 @@ def _add_bisect(commands) -> None:
                         help="skip a commit whose runs fall on both sides of the line")
     bisect.add_argument("--dry-run", type=_value, metavar="VALUE",
                         help="judge VALUE instead of run files, and exit with its code")
+    _add_all_frames(bisect)
     _add_output_flags(bisect)
 
 
@@ -416,7 +429,7 @@ def _dispatch(args: argparse.Namespace) -> dict:
     if args.command == "kit":
         return _kit(args.directory)
     if args.command == "report":
-        return _report(args.file)
+        return _report(args)
     if args.command == "floor":
         return _floor(args)
     if args.command == "compare":
@@ -577,14 +590,23 @@ def _kit(directory: str) -> dict:
                    {"kit": {"directory": directory, "files": written}})
 
 
-def _report(path: str) -> dict:
+def _report(args: argparse.Namespace) -> dict:
     """§ 4.7: exit 0, or 3 when the file cannot be read or breaks the format."""
     try:
-        built = run_report.report(ledger.read(path))
+        run = generated.read(args.file, args.all_frames)
+        built = _say_generated(run_report.report(run), run, args.all_frames)
     except ledger.LedgerError as error:
         return _result("report", "error", ERROR, [f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {})
     return _result("report", "none", PASS, built["summary"], built["warnings"], built["result"])
+
+
+def _say_generated(built: dict, run: ledger.Run, all_frames: bool) -> dict:
+    """§ 4.20 for a command judging one run: its opening sentence on
+    generated frames, and the result's generated_frames and all_frames."""
+    said = generated.sentence(run, all_frames)
+    return {**built, "summary": ([said] if said else []) + built["summary"],
+            "result": {**built["result"], "generated_frames": generated.count(run), "all_frames": all_frames}}
 
 
 def _floor(args: argparse.Namespace) -> dict:
@@ -598,9 +620,10 @@ def _floor(args: argparse.Namespace) -> dict:
                 if args.budget_ms is None or not args.no_windows else None)
     budget_us = frame_us if args.budget_ms is None else _budget_us(args.budget_ms)
     try:
-        built = run_report.floor(ledger.read(args.file), args.fps, _warmup_us(args.warmup_s),
-                                 budget_us, windows=not args.no_windows,
-                                 frames=not args.no_frames, allowed=args.allow_frames)
+        run = generated.read(args.file, args.all_frames)
+        built = _say_generated(run_report.floor(run, args.fps, _warmup_us(args.warmup_s), budget_us,
+                                                windows=not args.no_windows, frames=not args.no_frames,
+                                                allowed=args.allow_frames), run, args.all_frames)
     except ledger.LedgerError as error:
         return _result("floor", "error", ERROR, [f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {})
@@ -678,8 +701,9 @@ def _compare_paths(command: str, old: list[str], new: list[str], overrides: dict
     """§ 4.10's compare of the files at `old` and `new`; `from_baseline` says
     `old` came from a baseline file."""
     try:
-        built = compare.compare([ledger.read(p) for p in old], [ledger.read(p) for p in new],
-                                overrides, _floors(args), _limits(args), named, baseline=from_baseline)
+        built = compare.compare([generated.read(p, args.all_frames) for p in old],
+                                [generated.read(p, args.all_frames) for p in new], overrides, _floors(args),
+                                _limits(args), named, baseline=from_baseline, all_frames=args.all_frames)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -745,7 +769,8 @@ def _compare_variants(command: str, sides: dict[str, list[str]], overrides: dict
     paths = dict(sides)
     try:
         built = variants.against_base(paths.pop(variants.BASE), paths, overrides, _floors(args), _limits(args),
-                                      named, unread_is_unjudged=unread_is_unjudged, baseline=from_baseline)
+                                      named, unread_is_unjudged=unread_is_unjudged, baseline=from_baseline,
+                                      all_frames=args.all_frames)
     except ledger.LedgerError as error:  # S5: the overrides are named even here
         listed = _listed(overrides)
         return _result(command, "error", ERROR, [*compare.overrides_sentences(listed), f"{error}."],
@@ -831,7 +856,7 @@ def _compare_scenes(args: argparse.Namespace, old: list[str], named: tuple[str, 
     inconclusive or unjudged or a file unread, 3 a bad flag or no scene
     judged. The run counts are checked per scene, not here."""
     built = scenes.by_scene(old, args.new, _overrides(args.override), _floors(args), _limits(args),
-                            named, baseline=from_baseline)
+                            named, baseline=from_baseline, all_frames=args.all_frames)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE, "error": ERROR}[built["verdict"]]
     return _result("compare", built["verdict"], code, built["summary"], built["warnings"],
                    built["result"], built["overrides"])
@@ -842,8 +867,9 @@ def _budget(args: argparse.Namespace) -> dict:
     inconclusive, 3 when either file cannot be read or is wrong, or the run
     does not have the budget file's settings."""
     try:
-        built = budgeting.judge(ledger.read(args.file), budgeting.read(args.budgets),
-                                _warmup_us(args.warmup_s))
+        run = generated.read(args.file, args.all_frames)
+        built = _say_generated(budgeting.judge(run, budgeting.read(args.budgets), _warmup_us(args.warmup_s)),
+                               run, args.all_frames)
     except ledger.LedgerError as error:
         return _result("budget", "error", ERROR, [f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {})
@@ -856,7 +882,7 @@ def _survey(args: argparse.Namespace) -> dict:
     none flagged but a run unjudged or inconclusive, 3 a bad flag. A file
     that cannot be read is one of the runs, not an error."""
     budget_us = _frame_time_us(args.fps) if args.budget_ms is None else _budget_us(args.budget_ms)
-    built = survey.survey(args.files, budget_us, _warmup_us(args.warmup_s), args.allow_frames)
+    built = survey.survey(args.files, budget_us, _warmup_us(args.warmup_s), args.allow_frames, args.all_frames)
     code = {"pass": PASS, "fail": FAIL, "inconclusive": INCONCLUSIVE}[built["verdict"]]
     return _result("survey", built["verdict"], code, built["summary"], built["warnings"], built["result"])
 
@@ -923,9 +949,9 @@ def _bisect(args: argparse.Namespace) -> dict:
         min_ms=BISECT_FLOORS.min_ms if args.min_ms is None else args.min_ms,
         min_mb=BISECT_FLOORS.min_mb if args.min_mb is None else args.min_mb,
         min_pct=BISECT_FLOORS.min_pct if args.min_pct is None else args.min_pct)
-    built = bisecting.bisect(wanted, _load(args.tested), _load(args.good), _load(args.bad), overrides,
-                             floors, bad_above=args.bad_above, dry_value=args.dry_run,
-                             skip_straddle=args.skip_straddle)
+    tested, good, bad = (_load(paths, args.all_frames) for paths in (args.tested, args.good, args.bad))
+    built = bisecting.bisect(wanted, tested, good, bad, overrides, floors, bad_above=args.bad_above,
+                             dry_value=args.dry_run, skip_straddle=args.skip_straddle, all_frames=args.all_frames)
     return _result("bisect", built["verdict"], bisecting.VERDICT_CODES[built["verdict"]], built["summary"],
                    built["warnings"], built["result"], built["overrides"])
 
@@ -972,13 +998,13 @@ def _check_bisect_flags(args: argparse.Namespace, wanted: bisecting.Wanted) -> N
         raise ledger.LedgerError("give --tested FILE... for the commit under test, or --dry-run VALUE")
 
 
-def _load(paths: list[str] | None) -> list[bisecting.Loaded]:
+def _load(paths: list[str] | None, all_frames: bool) -> list[bisecting.Loaded]:
     """Each file's Run, or why it could not be read. bisecting.py decides what
     that means: a tested file skips the commit (UT Ants), a reference stops."""
     loaded = []
     for path in paths or []:
         try:
-            loaded.append(bisecting.Loaded(path, ledger.read(path), None))
+            loaded.append(bisecting.Loaded(path, generated.read(path, all_frames), None))
         except ledger.LedgerError as error:
             loaded.append(bisecting.Loaded(path, None, error.reason))
     return loaded

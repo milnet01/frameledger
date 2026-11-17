@@ -60,6 +60,9 @@ Four parts. The format spec is the only thing the other three share.
   - `baseline.py` — reads a baseline file into the run paths it names
     (S24).
   - `presentmon.py` — turns a PresentMon capture into a run file (S25).
+  - `generated.py` — reads a run as its application rendered it: frames
+    marked `event/generated` left out, unless `--all-frames` keeps them
+    (FLED-0001 § 4.20).
   - `strict.py` — `check --strict`: the warnings on what is legal but
     unwise (S7).
   - `expect.py` — `check --expect`: one run file against an expected
@@ -162,6 +165,9 @@ tool, not by any one part.
   `ledger.py`; `strict.py` imports `ledger.py` and `stats.py`, whose
   `median` is § 4.19's lower middle. Only `cli.py` calls them, and
   `selftest.py` may, as it may import any file but `cli.py`.
+- **`generated.py` imports only `ledger.py`.** `compare.py`,
+  `survey.py`, `scenes.py`, `variants.py` and `cli.py` import it, so
+  every command reads a run the same way.
 - **Only `__main__.py` and the tests import `cli.py`.** The reports
   return results; they never print and never exit.
 - **Only the Python standard library** (N3), and only what Python 3.10

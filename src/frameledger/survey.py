@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+import generated
 import ledger
 import run_report
 import stats
@@ -20,11 +21,13 @@ FEWEST_FRAMES = 100  # a kind ranks from this many judged frames, as compare's f
 VERDICTS = {"fail": "flagged", "pass": "clean", "inconclusive": "inconclusive"}
 
 
-def survey(paths: list[str], budget_us: int, warmup_us: int, allowed: int) -> dict:
+def survey(paths: list[str], budget_us: int, warmup_us: int, allowed: int, all_frames: bool = False) -> dict:
     """{"verdict", "summary", "warnings", "result"} for the runs at
     `paths`, each read and judged on its own: a file that cannot be
-    judged is listed, and the others go on."""
-    entries = [_entry(path, budget_us, warmup_us, allowed) for path in paths]
+    judged is listed, and the others go on. `all_frames` counts generated
+    frames (§ 4.20)."""
+    read = [_entry(path, budget_us, warmup_us, allowed, all_frames) for path in paths]
+    entries = [entry for entry, _ in read]
     # Slowest first; ties by median, then the order given.
     ranked = [e for _key, e in sorted(((-e["p99_ms"], -e["median_ms"], i), e)
                                       for i, e in enumerate(entries) if e["p99_ms"] is not None)]
@@ -33,7 +36,8 @@ def survey(paths: list[str], budget_us: int, warmup_us: int, allowed: int) -> di
     runs = ranked + [e for e in entries if e["p99_ms"] is None]
 
     warmup = f"{run_report.seconds(warmup_us)} s warm-up"
-    summary = [_flag_sentence(e, warmup, budget_us, allowed) for e in runs if e["verdict"] == "flagged"]
+    summary = [said for _, said in read if said]
+    summary += [_flag_sentence(e, warmup, budget_us, allowed) for e in runs if e["verdict"] == "flagged"]
     summary += [_unjudged_sentence(e, warmup) for e in runs if e["verdict"] in ("inconclusive", "unjudged")]
     warnings = [w for e in runs for w in e["warnings"]]
     summary += [f"Warning: {w['message']}." for w in warnings]
@@ -52,22 +56,25 @@ def survey(paths: list[str], budget_us: int, warmup_us: int, allowed: int) -> di
         summary.append(f"The survey passes: none of the {run_report.counted(len(runs), 'run')} is "
                        "flagged by floor's single-frame check; its per-second check was not run.")
     result = {"runs": runs, "budget_ms": budget_us / 1000, "warmup_s": warmup_us / run_report.SECOND,
-              "allowed": allowed}
+              "allowed": allowed, "all_frames": all_frames}
     return {"verdict": verdict, "summary": summary, "warnings": warnings, "result": result}
 
 
-def _entry(path: str, budget_us: int, warmup_us: int, allowed: int) -> dict:
-    """One run's line of the result."""
+def _entry(path: str, budget_us: int, warmup_us: int, allowed: int, all_frames: bool) -> tuple[dict, str | None]:
+    """One run's line of the result, and § 4.20's sentence on its generated
+    frames, or None."""
     entry = {"path": path, "run_id": None, "verdict": "unjudged", "reason": None, "rank": None,
              "worst_kind": None, "worst_segment": None, "median_ms": None, "p99_ms": None,
-             "frames_over_budget": None, "slowest_over": None, "kinds": [], "warnings": []}
+             "frames_over_budget": None, "slowest_over": None, "kinds": [], "warnings": [],
+             "generated_frames": None}
     try:
-        run = ledger.read(path)
+        run = generated.read(path, all_frames)
         check = run_report.frame_check(run, warmup_us, budget_us, allowed)
     except ledger.LedgerError as error:
         entry["reason"] = error.reason if error.line is None else f"{error.reason} (line {error.line})"
-        return entry
+        return entry, None
     entry["run_id"] = run.header.get("run_id")
+    entry["generated_frames"] = generated.count(run)
     entry["verdict"] = VERDICTS[check.state]
     if check.state == "inconclusive":
         entry["reason"] = " ".join(check.reasons) or None
@@ -80,7 +87,7 @@ def _entry(path: str, budget_us: int, warmup_us: int, allowed: int) -> dict:
     notices = run_report.judged_notices(run, check.judged)
     entry["warnings"] = [{"code": n.code, "message": f"{path}: {n.message}"}
                          for n in notices if n.code not in run_report.FLOOR_REASONS]
-    return entry
+    return entry, generated.sentence(run, all_frames, path)
 
 
 def _kinds(judged: list[tuple]) -> tuple[list[dict], dict | None]:

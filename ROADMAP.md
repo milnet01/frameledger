@@ -1280,6 +1280,13 @@ can still use the analyser, and a stranger's writer can prove itself.
   2026-11-17, UT Ants' and DOOM Ants' design reviews: yes to all eight
   points; both asked that leading generated frames be counted, now said
   in § 4.20. Design agreed by all three engines; to be built.
+  2026-11-17: built: generated.py reads a run's application frames for
+  report, floor, budget, survey, compare (by scene and by variant
+  too), alternate and bisect; --all-frames on each; import marks
+  FrameType. Found while building and added to § 4.20 and INV-121: a
+  run whose every frame is generated has nothing to judge, so it is a
+  file error naming --all-frames. Sent to the three engines for code
+  review.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.

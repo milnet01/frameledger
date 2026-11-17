@@ -19,6 +19,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import NamedTuple
 
+import generated
 import ledger
 import run_report
 import stats
@@ -108,9 +109,9 @@ class Measure(NamedTuple):
 
 def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, str], floors: Floors,
             limits: LoadLimits = DEFAULT_LIMITS, named_measures: tuple[str, ...] = (),
-            sides: tuple[str, str] = ("old", "new"), baseline: bool = False) -> dict:
+            sides: tuple[str, str] = ("old", "new"), baseline: bool = False, all_frames: bool = False) -> dict:
     """{"verdict", "reason", "summary", "warnings", "overrides", "unused",
-    "absent", "result"} for two sets of runs that meet the format. `reason`
+    "absent", "generated", "result"} for two sets of runs that meet the format. `reason`
     says, in a clause, why the compare is refused or inconclusive, and is
     None otherwise. `unused` lists the overridden fields that differ in no
     run. `named_measures` is --measure's CATEGORY/NAME list: when given,
@@ -123,10 +124,11 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     § 4.16 the old set is `base` and the new set the variant, so the runs
     are base-1, no_bloom-1. Each run's `set` stays "old" or "new".
     `baseline` says the old set came from a baseline file, which has
-    warnings of its own (§ 4.17).
+    warnings of its own (§ 4.17). `all_frames` says the runs were read with
+    their generated frames (§ 4.20); `generated` holds the sentences saying so.
 
     The opening sentences follow § 4.10's order: the overrides; the named
-    measures; a refusal, which ends the compare; each incomplete run; one
+    measures; the generated frames; a refusal, which ends the compare; each incomplete run; one
     per kind of warning; the verdict; the short kinds; the frame time per
     segment kind."""
     called = dict(zip(("old", "new"), sides, strict=True))
@@ -137,6 +139,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     summary = overrides_sentences(override_list)
     if named_measures:
         summary.append(f"Judging only {joined(named_measures)}.")
+    said = generated_sentences(runs, all_frames)
+    summary += said
     refused, unused = refusals(runs, overrides)
     notices = unused_override_notices(unused)
     run_list = [run_entry(r, limits) for r in runs]
@@ -144,7 +148,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         summary += [refusal_sentence(refused), *run_report.warning_sentences(notices)]
         return {"verdict": "error", "reason": refusal_reason(refused), "summary": summary,
                 "warnings": run_report.warning_entries(notices), "overrides": override_list,
-                "unused": unused, "absent": [], "result": {"runs": run_list, "refused": refused}}
+                "unused": unused, "absent": [], "generated": said,
+                "result": {"runs": run_list, "refused": refused, "all_frames": all_frames}}
 
     incomplete = _incomplete_sentences(runs)
     loaded = load_sentences(runs, limits)
@@ -176,10 +181,16 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
         "unmatched": unmatched,
         "static_diff": _static_diff(runs),
         "refused": [],
+        "all_frames": all_frames,
     }
     return {"verdict": verdict, "reason": reason, "summary": summary,
             "warnings": run_report.warning_entries(notices), "overrides": override_list, "unused": unused,
-            "absent": absent, "result": result}
+            "absent": absent, "generated": said, "result": result}
+
+
+def generated_sentences(runs: list[Named], all_frames: bool) -> list[str]:
+    """§ 4.20's sentence for each run holding generated frames."""
+    return [said for r in runs if (said := generated.sentence(r.run, all_frames, r.name))]
 
 
 def named_set(label: str, called: str, runs: list[ledger.Run]) -> list[Named]:
@@ -195,7 +206,8 @@ def run_entry(named: Named, limits: LoadLimits = DEFAULT_LIMITS) -> dict:
             "commit": known(named.run, "commit"), "dirty": known(named.run, "dirty"),
             "started_utc": header["started_utc"],
             "rows_dropped": close["rows_dropped"] if close else None, "finished": close is not None,
-            "under_load": [peak for peak, _, _ in limits.under_load(header)]}
+            "under_load": [peak for peak, _, _ in limits.under_load(header)],
+            "generated_frames": generated.count(named.run)}
 
 
 def known(run: ledger.Run, field: str):
