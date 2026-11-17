@@ -1404,6 +1404,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   --json's p99_ms instead; it asks nothing. It notes DOOM-0617's
   hardware test would meet the same limit if it moved to budget. To be
   put to the three engines with FLED-0076's design review.
+  2026-11-17, DOOM Ants: not needed. DOOM-0617's hardware test decides
+  inside the game, with no frameledger in the loop, and there is no plan
+  to move it to budget. If built, the shape reads right: frame/cpu_span
+  and frame/gpu_span, median or p99, not wall. Vestige's and UT Ants'
+  answers owed.
   **Layman:** Let a budget file set a limit on a frame's whole CPU or GPU time, not only on single passes.
   Kind: feature.
   Source: experirays-observation-2026-11-17.
