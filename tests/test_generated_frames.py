@@ -304,10 +304,15 @@ def test_all_frames_by_scene_and_by_variant(capsys, tmp_path):
 
 
 def test_an_empty_run(capsys, tmp_path):
-    """A header and a close line with no frame between: judged as nothing, never a crash."""
+    """A header and a close line with no frame between: judged as nothing,
+    never a crash, and never a pass that a frame rate or budget held."""
     path = tmp_path / "empty.csv"
     path.write_text("\n".join([HEADER, ledger.COLUMNS, '# frameledger-close {"rows_dropped":0,"frames":0}']) + "\n")
-    for args in (["floor", str(path), "--fps", "60"], ["survey", str(path), "--fps", "60"],
-                 ["budget", str(path), "--budgets", budgets(tmp_path), "--warmup-s", "1"], ["report", str(path)]):
+    for args, exit_code in ((["floor", str(path), "--fps", "60"], 2),
+                            (["floor", str(path), "--fps", "60", "--warmup-s", "0", "--no-windows"], 2),
+                            (["survey", str(path), "--fps", "60"], 2),
+                            (["budget", str(path), "--budgets", budgets(tmp_path)], 2),
+                            (["budget", str(path), "--budgets", budgets(tmp_path), "--warmup-s", "1"], 2),
+                            (["report", str(path)], 0)):
         code = cli.main([*args, "--json"])
-        assert "Traceback" not in capsys.readouterr().err and code in (0, 2, 3), args
+        assert "Traceback" not in capsys.readouterr().err and code == exit_code, args

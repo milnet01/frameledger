@@ -4347,7 +4347,10 @@ breaks.
 
 - **A run with no frames**, a header and a close line alone, is judged
   as nothing, as each command's rules for a short run say, and never
-  ends in a traceback (ExperiRays).
+  ends in a traceback (ExperiRays). So `floor`, `budget` and `survey`
+  are inconclusive, exit 2, never a pass: a log that recorded nothing
+  never holds a frame rate or a budget (Vestige). `report` reports it,
+  exit 0.
 - **A malformed row.** `check` lists it with its line. `report` and
   `floor` stop with exit 3 naming the line; they never skip it, since a
   skipped row hides a frame.

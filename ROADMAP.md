@@ -1300,6 +1300,11 @@ can still use the analyser, and a stranger's writer can prove itself.
   leading frames, pacing, every command's refusal, by-scene and
   by-variant. Answered, no change: scenes take compare's sentence, which
   every scene whose runs were read reaches (Vestige 5).
+  2026-11-17: F (a run with no frames is judged as nothing): DOOM Ants
+  yes; Vestige yes on condition floor and budget never pass such a run.
+  They already exit 2; test_an_empty_run now pins each command's exit,
+  and § 6 says floor, budget and survey are inconclusive, report exit 0.
+  UT Ants' answer owed.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
@@ -1433,6 +1438,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   4.10); measures gain suffixed; bisect settles depth before short (§
   4.11); one home for the 1000-frame clause; tests for pooling, ranking
   by :p99, refusals.
+  2026-11-17: the folds' spec changes, C (a compare judging nothing is
+  inconclusive without --measure), D (suffixed in JSON), E (variants
+  rank by the suffix): DOOM Ants and Vestige yes; Vestige accepts bug
+  4's spec change and bug 5's answer. ExperiRays re-ran H1 and T1 on a
+  clone: both hold. UT Ants' answer owed.
   **Layman:** Let a comparison judge the slowest 1% of GPU times, not only the typical time, for any measure.
   Kind: feature.
   Source: experirays-request-2026-11-17.
