@@ -1241,6 +1241,13 @@ can still use the analyser, and a stranger's writer can prove itself.
   mix the two. Not fixed with FLED-0036: it needs the three engines'
   decision (keep, drop, or mark generated frames), and none of them
   captures with it today.
+  2026-11-15, Vestige: mark. Import generated frames, tag each row
+  with its FrameType; floor, compare and survey judge application
+  frames only by default, with a flag to count every frame. Why: frame
+  generation can pass a floor on presented frames while input latency
+  fails it; dropping loses the presented view, keeping unmarked makes
+  the floor wrong in silence. UT Ants' and DOOM Ants' answers still
+  owed.
   **Layman:** Decide how frameledger treats frames a graphics driver invents, such as frame generation, when it reads a PresentMon capture.
   Kind: investigate.
   Source: vestige-review-2026-11-15.
