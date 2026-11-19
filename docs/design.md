@@ -81,8 +81,8 @@ Four parts. The format spec is the only thing the other three share.
     so a Windows checkout writes the same bytes as the `.pyz`.
   - `render.py` — turns a result into plain text, JSON or Markdown.
     Plain sentences come first.
-  - `picture.py` — turns one run's result into the optional report
-    page, its graph drawn as SVG (S26).
+  - `picture.py` — turns one run and its result into the optional
+    report page, its graph drawn as SVG from the run's timeline (S26).
   - `cli.py` and `__main__.py` — commands, flags and exit codes.
   - `selftest.py` — `--selftest`: the analyser's own checks on built-in
     sample files, no GPU, no network.
@@ -159,7 +159,9 @@ tool, not by any one part.
   `scenes.py`, `alternate.py` and `variants.py`.
   `cli.py` imports `selftest.py`,
   which may import any file but `cli.py`. `render.py` and `picture.py`
-  are called only by `cli.py`.
+  are called only by `cli.py`. `render.py` imports no other analyser
+  file; `picture.py` imports `render.py`, for the text's sentences and
+  tables, and `run_report.py`, `stats.py` and `ledger.py`.
 - **`ledger.py` and `stats.py` import no other analyser file.**
   `baseline.py`, `presentmon.py`, `expect.py` and `kit.py` import only
   `ledger.py`; `strict.py` imports `ledger.py` and `stats.py`, whose

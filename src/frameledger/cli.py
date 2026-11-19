@@ -28,6 +28,7 @@ import expect
 import generated
 import kit
 import ledger
+import picture
 import presentmon
 import render
 import run_report
@@ -78,6 +79,10 @@ def _parser() -> _Parser:
     _add_output_flags(kit_command)
     report = commands.add_parser("report", help="say where one run's frame time went")
     report.add_argument("file", metavar="FILE")
+    report.add_argument("--html", metavar="PAGE", help="also write one web page showing the run as a graph; "
+                        "PAGE is overwritten")
+    report.add_argument("--fps", action="append", type=_as_typed, metavar="N",
+                        help="with --html: draw a budget line at 1000/N ms")
     _add_all_frames(report)
     _add_output_flags(report)
     floor = commands.add_parser("floor", help="did the run hold a frame rate every second, "
@@ -314,6 +319,12 @@ def _positive(text: str) -> Decimal:
     if value <= 0:
         raise argparse.ArgumentTypeError(f"'{text}' must be above zero")
     return value
+
+
+def _as_typed(text: str) -> tuple[str, Decimal]:
+    """A number above zero, with the text that gave it: the picture report
+    shows --fps as it was typed (§ 4.21)."""
+    return text, _positive(text)
 
 
 def _non_negative(text: str) -> Decimal:
@@ -592,14 +603,48 @@ def _kit(directory: str) -> dict:
 
 
 def _report(args: argparse.Namespace) -> dict:
-    """§ 4.7: exit 0, or 3 when the file cannot be read or breaks the format."""
+    """§ 4.7: exit 0, or 3 when the file cannot be read or breaks the format.
+    § 4.21: with --html the page is written first, whole or not at all, so
+    a page that cannot be written is exit 3 with nothing printed."""
+    budget = _page_budget(args)
+    if args.html is not None:
+        _refuse_page_over_file(args.html, args.file)
     try:
         run = generated.read(args.file, args.all_frames)
         built = _say_generated(run_report.report(run), run, args.all_frames)
     except ledger.LedgerError as error:
         return _result("report", "error", ERROR, [f"{error}."],
                        [{"code": "file_error", "message": str(error)}], {})
-    return _result("report", "none", PASS, built["summary"], built["warnings"], built["result"])
+    result = _result("report", "none", PASS, built["summary"], built["warnings"], built["result"])
+    if args.html is not None:
+        presentmon.write_atomically(args.html, picture.page(result, run, budget), place=os.replace)
+    return result
+
+
+def _page_budget(args: argparse.Namespace) -> picture.Budget | None:
+    """The page's budget line, from --fps, or None without it. Refuses,
+    before anything is read, --fps without --html, --fps twice, and an N
+    whose 1000/N ms floor's window check would refuse (§ 4.21)."""
+    given = args.fps or []
+    if given and args.html is None:
+        raise ledger.LedgerError("--fps draws the budget line on --html's page, so it needs --html PAGE")
+    if len(given) > 1:
+        raise ledger.LedgerError("give --fps once: the page draws one budget line")
+    if not given:
+        return None
+    typed, fps = given[0]
+    return picture.Budget(typed, _frame_time_us(fps))
+
+
+def _refuse_page_over_file(page: str, file: str) -> None:
+    """PAGE must not be the run file, by any path to it: a link, or
+    another spelling (§ 4.21). os.path.samefile compares device and inode."""
+    try:
+        same = os.path.samefile(page, file)
+    except OSError:  # PAGE is new, or FILE is missing, which reading it will say
+        return
+    if same:
+        raise ledger.LedgerError("--html names the run file, which the page would overwrite", page)
 
 
 def _say_generated(built: dict, run: ledger.Run, all_frames: bool) -> dict:

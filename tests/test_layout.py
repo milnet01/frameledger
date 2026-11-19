@@ -29,7 +29,8 @@ ALLOWED = {
     "kit": {"ledger"},
     "strict": {"ledger", "stats"},
     "render": set(),
-    "selftest": MODULES - {"cli", "selftest", "render"},
+    "picture": {"render", "run_report", "stats", "ledger"},
+    "selftest": MODULES - {"cli", "selftest", "render", "picture"},
     "cli": MODULES - {"cli"},
 }
 

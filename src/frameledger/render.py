@@ -80,7 +80,7 @@ def to_text(result: dict) -> str:
     """§ 4.8's plain text. Every line passes through `visible` here, the
     one place the text's lines are joined."""
     lines = list(result["summary"])
-    body = _text_lines(_body(result))
+    body = _text_lines(body_blocks(result))
     if body:
         lines += ["", *body]
     return "\n".join(map(visible, lines)) + "\n"
@@ -89,11 +89,12 @@ def to_text(result: dict) -> str:
 def to_markdown(result: dict) -> str:
     """§ 4.8's Markdown: the sentences as a list, then each block apart."""
     sentences = "\n".join(f"- {_line_start(_escape(s))}" for s in result["summary"])
-    parts = [sentences, *(_markdown_block(block) for block in _body(result))]
+    parts = [sentences, *(_markdown_block(block) for block in body_blocks(result))]
     return "\n\n".join(part for part in parts if part) + "\n"
 
 
-def _body(result: dict) -> list[Block]:
+def body_blocks(result: dict) -> list[Block]:
+    """What follows a result's opening sentences: its command's lines and tables."""
     return _BODIES.get(result["command"], _no_body)(result)
 
 
@@ -166,10 +167,8 @@ def _markdown_block(block: Block) -> str:
 
 
 def _pipe_table(table: Table) -> list[str]:
-    """Padded so the pipes line up unrendered. Nothing is cut. A column
-    the text keeps only to line up with another table, empty in every
-    row, is left out."""
-    kept = [i for i, c in enumerate(table.columns) if c.header or any(row[i] for row in table.rows)]
+    """Padded so the pipes line up unrendered. Nothing is cut."""
+    kept = shown_columns(table)
     right = [table.columns[i].right for i in kept]
     header = [_cell(table.columns[i].header) for i in kept]
     rows = [[_cell(row[i]) for i in kept] for row in table.rows]
@@ -180,6 +179,13 @@ def _pipe_table(table: Table) -> list[str]:
                                  for cell, w, r in zip(cells, widths, right, strict=True)) + " |"
     rule = "| " + " | ".join("-" * (w - 1) + ":" if r else "-" * w for w, r in zip(widths, right, strict=True)) + " |"
     return [line(header), rule, *map(line, rows)]
+
+
+def shown_columns(table: Table) -> list[int]:
+    """The columns to show where nothing needs lining up, by position: all
+    but one the text keeps only to line up with another table, which has
+    no header and is empty in every row."""
+    return [i for i, c in enumerate(table.columns) if c.header or any(row[i] for row in table.rows)]
 
 
 def _cell(text: str) -> str:

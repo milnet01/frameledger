@@ -15,6 +15,7 @@ import json
 import os
 import re
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -84,7 +85,7 @@ def import_capture(capture: str, run_path: str, chosen: Chosen, facts: dict, eng
     notices, said = _start_order(rows, columns)
     header = _header(rows, columns, facts, engine, started, version, data, capture)
     lines, not_displayed, generated = _run_lines(rows, columns, header, capture)
-    _write_atomically(run_path, "\n".join(lines) + "\n")
+    write_atomically(run_path, "\n".join(lines) + "\n")
 
     first = rows[0]
     process, pid, swapchain = (first.get(c) for c in ("Application", "ProcessID", "SwapChainAddress"))
@@ -372,20 +373,22 @@ def _exists(path: str) -> ledger.LedgerError:
     return ledger.LedgerError("the file exists, and an import never overwrites a run", path)
 
 
-def _write_atomically(path: str, text: str) -> None:
+def write_atomically(path: str, text: str, place: Callable[[str, str], None] | None = None) -> None:
     """Write `path` through a temporary file beside it, so a failure leaves
-    no half file. The temporary file is linked into place, which fails
-    if `path` appeared meanwhile, where a rename would overwrite it."""
+    no half file, and `path` as it was. `place` puts the temporary file at
+    `path`. An import leaves it out and the file is linked, which fails if
+    `path` appeared meanwhile, where a rename would overwrite it; the
+    picture report's page passes os.replace, since it overwrites (§ 4.21)."""
     folder = os.path.dirname(os.path.abspath(path))
     try:
-        handle, temporary = tempfile.mkstemp(dir=folder, prefix=".frameledger-import-")
+        handle, temporary = tempfile.mkstemp(dir=folder, prefix=".frameledger-")
     except OSError as error:
         raise ledger.LedgerError(error.strerror or "cannot be written", path) from error
     try:
         with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
             stream.write(text)
         os.chmod(temporary, 0o666 & ~_umask())  # mkstemp's 0600, made what open() would give
-        _link(temporary, path)
+        (place or _link)(temporary, path)
     except OSError as error:
         raise ledger.LedgerError(error.strerror or "cannot be written", path) from error
     finally:

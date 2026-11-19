@@ -13,7 +13,8 @@ built:
 
 - `check` says whether a run file meets the format.
 - `report` says where one run's frame time went, and how evenly its
-  frames were paced.
+  frames were paced. `--html PAGE` also writes one web page showing the
+  run as a graph, with its slowest frames marked.
 - `floor` says whether a run held a set frame rate.
 - `compare` says whether a new build's runs got slower than an old
   build's, measure by measure, memory included.
@@ -109,6 +110,7 @@ An engine that vendors only the header must still fetch them.
 ```sh
 frameledger check run.csv
 frameledger report run.csv
+frameledger report run.csv --html run.html --fps 60
 frameledger floor run.csv --fps 60
 frameledger compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
 frameledger alternate --old './old/engine --frame-log={run}' --new './new/engine --frame-log={run}' --out ab

@@ -306,6 +306,12 @@ def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str |
     return timed, cuts, stop, now if stopped_at is None else stopped_at
 
 
+def stop_frame(stop: str) -> int:
+    """The frame number a timeline() stop names: the first frame it could
+    not place. Every stop, there and in generated.py, opens "frame N"."""
+    return int(stop.split()[1])
+
+
 def _windows(ends: list[int], walls: list[int], cuts: list[tuple[int, int]], warmup_us: int,
              end: int) -> tuple[list[Window], int]:
     """The full one-second windows, and how many shorter ones were
