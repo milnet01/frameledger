@@ -21,6 +21,8 @@ import run_report
 import stats
 
 COLUMNS = 1200  # § 4.21: a run of more frames than this is drawn as this many columns
+BANDS = 1200  # § 4.21: a run of more bands than this draws none
+LISTED = 100  # § 4.21: the list under the graph holds this many bands, then counts the rest
 EM = 16  # units to the page's 1rem
 CHARACTER = 0.7 * EM  # § 4.21: the width a label is given for each of its characters
 VIEW_WIDTH = 1200
@@ -144,12 +146,13 @@ def _graph(run: ledger.Run, worst: list[dict], budget: Budget | None) -> list[st
     svg = [f'<div class="graph"><svg role="img" aria-label="{_escaped(label)}" '
            f'viewBox="0 0 {VIEW_WIDTH} {_n(height)}" width="{VIEW_WIDTH // EM}rem" height="{_n(height / EM)}rem" '
            f'font-size="{EM}">',
-           _PATTERNS, *_band_shapes(plot, bands), *_axes(plot), *_data(plot, frames)]
+           _PATTERNS, *(_band_shapes(plot, bands) if len(bands) <= BANDS else []), *_axes(plot),
+           *_data(plot, frames)]
     if budget:
         svg += _budget_line(plot, budget)
     svg += _markers(plot, marked, baselines)
-    sentences = [f"<p>{sentence}</p>" for sentence in _said(frames, past, marked, budget)]
-    return ["\n".join(svg) + "\n</svg></div>", *sentences, *_unlabelled(plot, bands)]
+    sentences = [f"<p>{sentence}</p>" for sentence in _said(frames, past, len(bands), marked, budget)]
+    return ["\n".join(svg) + "\n</svg></div>", *sentences, *_band_list(bands)]
 
 
 def _plot_and_numbers(end: int, wall_top: float, marked: list[tuple[str, Frame]]) -> tuple[_Plot, list[float]]:
@@ -165,18 +168,21 @@ def _plot_and_numbers(end: int, wall_top: float, marked: list[tuple[str, Frame]]
     return _Plot(end, wall_top, y_top), [y_top + baseline for baseline in baselines]
 
 
-def _said(frames: list[Frame], past: int | None, marked: list[tuple[str, Frame]],
+def _said(frames: list[Frame], past: int | None, bands: int, marked: list[tuple[str, Frame]],
           budget: Budget | None) -> list[str]:
     """The sentences under the graph, each ready for the page: where it
-    stops, that it is drawn as columns, what its numbered markers are, and
-    the budget, which is otherwise only inside the graph, where a screen
-    reader or a search of the page does not look (§ 4.21)."""
+    stops, that it is drawn as columns, that its `bands` bands are too many
+    to draw, what its numbered markers are, and the budget, which is
+    otherwise only inside the graph, where a screen reader or a search of
+    the page does not look (§ 4.21)."""
     said = []
     if past is not None:
         said.append(f"The graph stops after frame {frames[-1].number}: the timeline cannot be built "
                     f"past frame {past}.")
     if len(frames) > COLUMNS:
         said.append(f"{len(frames)} frames are drawn as {COLUMNS} columns; each shows its fastest and slowest frame.")
+    if bands > BANDS:
+        said.append(f"The run has {bands} segment bands; the graph draws at most {BANDS}, so it draws none.")
     if marked:
         said.append("Each numbered marker is one of the worst frames, numbered in the order the worst-frames "
                     "table below lists them.")
@@ -227,13 +233,18 @@ def _band_shapes(plot: _Plot, bands: list[Band]) -> list[str]:
     return shapes
 
 
-def _unlabelled(plot: _Plot, bands: list[Band]) -> list[str]:
-    """Under the graph: the bands too narrow for a label, by segment."""
-    narrow = [f"<li>{_escaped(band.segment)}, from {_s(band.start)} s to {_s(band.end)} s</li>"
-              for band in bands if not _fits(plot, band)]
-    if not narrow:
+def _band_list(bands: list[Band]) -> list[str]:
+    """Under the graph: the run's first bands by segment, labelled and
+    drawn or not, so each one's name is text a screen reader reaches; then
+    how many bands the list leaves out."""
+    if not bands:
         return []
-    return ["<p>Segments too narrow to label on the graph:</p>", "<ul>" + "\n".join(narrow) + "</ul>"]
+    entries = [f"<li>{_escaped(band.segment)}, from {_s(band.start)} s to {_s(band.end)} s</li>"
+               for band in bands[:LISTED]]
+    listed = ["<p>Segments, in run order:</p>", "<ul>" + "\n".join(entries) + "</ul>"]
+    if len(bands) > LISTED:
+        listed.append(f"<p>and {len(bands) - LISTED} more.</p>")
+    return listed
 
 
 def _axes(plot: _Plot) -> list[str]:

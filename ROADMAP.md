@@ -1604,7 +1604,7 @@ the source of truth; all three engines set that condition, 2026-11-10.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 💭 [FLED-0080] **The picture report has no cap on bands.**
+- 🚧 [FLED-0080] **The picture report has no cap on bands.**
   UT Ants' review of FLED-0039, finding 1.7: the graph draws at most
   1200 columns but one band per stretch of equal segments, and lists
   each narrow one. It measured 200000 frames alternating two segments:
@@ -1622,11 +1622,21 @@ the source of truth; all three engines set that condition, 2026-11-10.
   So UT Ants and DOOM Ants want the 1200-band cap; Vestige wants narrow
   bands merged and the list cut with "and N more". Still needs a spec
   section agreed by all three before building.
+  2026-11-19, one design put to the three engines, to be built with
+  FLED-0081 as one change to FLED-0001 § 4.21
+  (docs/specs/FLED-0001-run-file-format.md): (a) over 1200 bands, none
+  is drawn and a sentence says so with the count; (b) the list under the
+  graph stops at 100 entries, then "and N more"; (c) no merging of
+  narrow bands. Vestige and DOOM Ants accept (a) to (c); Vestige: the
+  1200 cap bounds the page, which was its ask. UT Ants' answer owed.
+  2026-11-19, UT Ants accepts (a) to (c), so all three agree. Built
+  with FLED-0081 as FLED-0001 § 4.21's band cap and INV-131; with the
+  three engines for code review.
   **Layman:** A run that changes segment very often makes a huge, slow page.
   Kind: enhancement.
   Source: ut-ants-review-of-980a478-2026-11-19.
 
-- 💭 [FLED-0081] **The picture report's budget and band names are hidden from screen readers.**
+- 🚧 [FLED-0081] **The picture report's budget and band names are hidden from screen readers.**
   UT Ants' review of FLED-0039, finding 1.11: § 4.21 gives the graph
   role="img" and a one-sentence label, so assistive technology skips
   the text inside it. The budget label and every labelled band's name
@@ -1644,6 +1654,18 @@ the source of truth; all three engines set that condition, 2026-11-10.
   and DOOM Ants accept the band names as they are, and Vestige's
   condition, every segment name elsewhere on the page as text, is what
   this item still holds.
+  2026-11-19, proposed with FLED-0080: the list under the graph names
+  every band in run order with its start and end, not only the narrow
+  ones, cut at 100 entries with "and N more". Vestige: the cut list
+  meets its condition. DOOM Ants: no objection. UT Ants' answer owed.
+  Vestige's optional request, that the "and N more" sentence name each
+  segment the cut hides, is not taken: a run with many different
+  segment names would make it as long as the list FLED-0080 cuts.
+  Vestige accepted the plain cut in the same message.
+  2026-11-19, UT Ants has no objection, so all three agree. Built with
+  FLED-0080: § 4.21's list of every band, in
+  docs/specs/FLED-0001-run-file-format.md, and INV-131; with the three
+  engines for code review.
   **Layman:** Someone using a screen reader hears the graph's one-sentence summary but not the budget or the segment names.
   Kind: accessibility.
   Source: ut-ants-review-of-980a478-2026-11-19.

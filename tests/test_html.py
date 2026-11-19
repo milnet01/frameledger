@@ -1,6 +1,6 @@
 """report --html: the picture report, one web page with the run as a graph.
 
-Invariants INV-126 to INV-130 from docs/specs/FLED-0001-run-file-format.md
+Invariants INV-126 to INV-131 from docs/specs/FLED-0001-run-file-format.md
 § 5, the rules of § 4.21. Each run is built here as text. The page is
 well-formed XML, so the tests read it as a tree, and read the graph back
 through its own axes: a point's place on the page against the plot's box
@@ -126,6 +126,11 @@ class Graph:
 
 def sentences(page: str) -> list[str]:
     return ["".join(p.itertext()) for p in ET.fromstring(page).iter("p")]
+
+
+def listed(page: str) -> list[str]:
+    """The entries of the list of bands under the graph."""
+    return ["".join(item.itertext()) for item in ET.fromstring(page).iter("li")]
 
 
 def near(found: tuple[float, ...], expected: tuple[float, ...]) -> bool:
@@ -300,8 +305,8 @@ def test_graph_of_a_run(capsys, tmp_path):
 
 
 def test_band_labels(capsys, tmp_path):
-    """INV-127: bands are patterned and labelled above the plot; one too
-    narrow for its label is listed under the graph instead."""
+    """INV-127: bands are patterned and labelled above the plot, but for
+    one too narrow for its label; each is listed under the graph."""
     page = write_page(capsys, tmp_path, hundred())
     graph = Graph(page)
     bands = graph.all("rect", "band")
@@ -316,7 +321,9 @@ def test_band_labels(capsys, tmp_path):
     labels = graph.all("text", "band-label")
     assert [label.text for label in labels] == ["menu:1", "view:1"]
     assert all(float(label.get("y")) < graph.top for label in labels)  # above the plot, never over the line
-    assert ["".join(item.itertext()) for item in graph.root.iter("li")] == ["load:1, from 1.668 s to 1.684 s"]
+    assert "Segments, in run order:" in sentences(page)
+    assert listed(page) == ["menu:1, from 0.000 s to 0.480 s", "view:1, from 0.480 s to 1.668 s",
+                            "load:1, from 1.668 s to 1.684 s"]
 
     # A label needs 0.7 em a character and 1 em more. Of 1000 equal frames,
     # `enough` is the fewest whose band is that wide.
@@ -327,9 +334,49 @@ def test_band_labels(capsys, tmp_path):
         graph = Graph(page)
         assert len(graph.all("rect", "band")) == 1
         assert [label.text for label in graph.all("text", "band-label")] == (["ab:1"] if labelled else [])
-        end = f"{frames * 0.016:.3f}"
-        assert ["".join(item.itertext()) for item in graph.root.iter("li")] == (
-            [] if labelled else [f"ab:1, from 0.000 s to {end} s"])
+        assert listed(page) == [f"ab:1, from 0.000 s to {frames * 0.016:.3f} s"]
+
+
+def alternating(frames: int) -> str:
+    """INV-131's run: every frame a band of its own, `a:1` and `b:1` in turn."""
+    return flat(frames, segment=lambda frame: "ab"[frame % 2] + ":1")
+
+
+CAPPED = "The run has 1201 segment bands; the graph draws at most 1200, so it draws none."
+
+
+def test_band_cap(capsys, tmp_path):
+    """INV-131: a run of more than 1200 bands draws none, and says so."""
+    page = write_page(capsys, tmp_path, alternating(1201))
+    graph = Graph(page)
+    assert not graph.all("rect", "band") and not graph.all("text", "band-label")
+    assert CAPPED in sentences(page)
+
+    page = write_page(capsys, tmp_path, alternating(1200))
+    assert len(Graph(page).all("rect", "band")) == 1200
+    assert not any("the graph draws at most" in sentence for sentence in sentences(page))
+
+
+@pytest.mark.parametrize(("frames", "after"), [(1201, "and 1101 more."), (1200, "and 1100 more."),
+                                               (101, "and 1 more."), (100, None)])
+def test_the_band_list_is_cut(capsys, tmp_path, frames, after):
+    """INV-131: the list holds the first 100 bands, drawn or not, then says
+    how many it leaves out."""
+    page = write_page(capsys, tmp_path, alternating(frames))
+    entries = listed(page)
+    assert len(entries) == 100
+    assert (entries[0], entries[-1]) == ("a:1, from 0.000 s to 0.016 s", "b:1, from 1.584 s to 1.600 s")
+    said = sentences(page)
+    more = [sentence for sentence in said if re.fullmatch(r"and \d+ more\.", sentence)]
+    assert more == ([] if after is None else [after])
+    if after is not None:  # the count follows the list, which follows its heading
+        assert said.index(after) > said.index("Segments, in run order:")
+
+
+def test_no_band_list_without_segments(capsys, tmp_path):
+    """INV-131: a run with no segment has no band, so no list of them."""
+    page = write_page(capsys, tmp_path, flat(10))
+    assert not listed(page) and "Segments, in run order:" not in sentences(page)
 
 
 def test_markers(capsys, tmp_path):
@@ -528,13 +575,13 @@ def test_outside_text_is_escaped(capsys, tmp_path):
                if cells and cells[0].text == "note"]
     assert value == static["note"]
 
-    # A segment reaches the graph twice: as a band's label, and in the list
-    # of bands too narrow for one.
+    # A segment reaches the page twice: as a band's label, and in the list
+    # of bands under the graph.
     page = write_page(capsys, tmp_path, flat(100, segment=lambda frame: HOSTILE if frame < 99 else HOSTILE + "2"))
     graph = Graph(page)
     assert "<script" not in page
     assert [label.text for label in graph.all("text", "band-label")] == [HOSTILE]
-    assert ["".join(item.itertext()) for item in graph.root.iter("li")] == [f"{HOSTILE}2, from 1.584 s to 1.600 s"]
+    assert listed(page) == [f"{HOSTILE}, from 0.000 s to 1.584 s", f"{HOSTILE}2, from 1.584 s to 1.600 s"]
 
 
 # INV-130

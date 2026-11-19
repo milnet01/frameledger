@@ -64,6 +64,8 @@ engines 2026-11-17 at 68e0868 before it was built; their code reviews
 added the budget sentence under the graph, marker numbers clear of
 band labels, a lone frame as a dot and an empty PAGE refused, and they
 accepted it at df82ab4, with 551f2ae's INV-130 wording.
+§ 4.21's band cap and band list with INV-131 (FLED-0080, FLED-0081)
+agreed by the three engines 2026-11-19 before they were built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -2676,11 +2678,21 @@ frames' walls added, and every frame under `--all-frames`.
   (`view:3`). Frames with no segment have no band. A frame's segment
   is § 4.8's. Neighbouring bands are filled with different SVG
   patterns, not only different shades (UT Ants, Vestige).
+- **A run of more than 1200 bands draws none**, and no band label (UT
+  Ants, DOOM Ants). A sentence under the graph says so: "The run has
+  200000 segment bands; the graph draws at most 1200, so it draws
+  none."
 - **Band labels sit above the plot**, never over the line (DOOM Ants),
   in the page's monospace font at its text size. A band narrower than
-  0.7 em per character of its label, plus 1 em, is not labelled: it is
-  listed under the graph by segment, with its start and end in s
-  (Vestige).
+  0.7 em per character of its label, plus 1 em, is not labelled.
+- **Every band is listed under the graph**, labelled or not and drawn
+  or not, so each segment's name is on the page as text outside the
+  graph (Vestige). The list is headed "Segments, in run order:". An
+  entry gives the segment as written, with the band's start and end in
+  s: "load:1, from 1.668 s to 1.684 s". The list holds the run's first
+  100 bands. After it, a run of more bands says how many are not
+  listed: "and 1101 more." (Vestige, UT Ants). A run with no band has
+  no list.
 - **The worst frames are numbered markers**: `worst_frames`' entries,
   numbered as the worst-frames table lists them, each at its frame's
   own point. A number is text no smaller than the page's text (UT
@@ -4525,9 +4537,11 @@ breaks.
   30 to 98 in `view:1` and 99 in `load:1`, has axes naming s and ms,
   the ms axis up to 110.000. `menu:1` and `view:1` are band labels in
   SVG text above the plot, their bands filled with different patterns;
-  `load:1` is listed under the graph from 1.668 s to 1.684 s. A band
-  just wider than its label's 0.7 em per character plus 1 em is
-  labelled, and one just narrower is listed. Marker 1 is at frame 50's
+  `load:1` has a band and no label. Under "Segments, in run order:"
+  the list is `menu:1` from 0.000 s to 0.480 s, `view:1` from 0.480 s
+  to 1.668 s and `load:1` from 1.668 s to 1.684 s. A band just wider
+  than its label's 0.7 em per character plus 1 em is labelled, and one
+  just narrower is not; each is listed. Marker 1 is at frame 50's
   point, markers 1 to 10 follow `worst_frames`, no number is smaller
   than the page's text, and the numbers of markers 2 to 10, on frames
   0 to 8, do not overlap. With frames 495 to 504 of 1000 at 30.000 ms
@@ -4559,7 +4573,7 @@ breaks.
   `tests/test_html.py::test_generated_frames_on_the_graph`,
   `tests/test_html.py::test_no_graph_without_walls`.
   *Breaks when:* bands differ only in colour, a label sits over the
-  plot or a narrow band is neither labelled nor listed, marker numbers
+  plot, a band is missing from the list, marker numbers
   shrink or overlap, a fact is in a tooltip, frames past a missing
   wall are drawn, or the graph reads frames § 4.20 leaves out.
 
@@ -4584,8 +4598,8 @@ breaks.
   U+202E gives a page holding `&lt;/table&gt;&lt;script&gt;`, `&amp;`,
   `&quot;q&quot;`, `&#39;r&#39;` and `\u202e`, as § 4.8 shows it, and
   no `<script` and no U+202E. A segment `a<b>&"':x</text><script>1`
-  is one band's label and, on a band too narrow, one entry of the
-  list, each as written and neither adding an element.
+  is one band's label and one entry of the list, each as written and
+  neither adding an element.
   *Test:* `tests/test_html.py::test_outside_text_is_escaped`.
   *Breaks when:* any of `&`, `<`, `>`, `"` or `'` reaches the page
   unescaped, or the page skips § 4.8's cleaning.
@@ -4613,6 +4627,23 @@ breaks.
   script or `prefers-contrast: more` changes nothing, a length is in
   `px`, a line is under 2 units, or a colour falls under its contrast,
   one set as an SVG attribute included.
+
+- **INV-131** — A run that changes segment very often keeps a small
+  page. 1201 frames at 16.000 ms, alternating between `a:1` and `b:1`,
+  are 1201 bands: the graph draws no band and no band label, and "The
+  run has 1201 segment bands; the graph draws at most 1200, so it
+  draws none." is under it. The list holds 100 entries, the first
+  "a:1, from 0.000 s to 0.016 s" and the last "b:1, from 1.584 s to
+  1.600 s", then "and 1101 more." 1200 such frames draw 1200 bands and
+  say no such sentence; their list ends "and 1100 more." 101 such
+  frames list 100 bands, then "and 1 more."; 100 list them all and say
+  nothing after. A run with no segment has no list.
+  *Test:* `tests/test_html.py::test_band_cap`,
+  `tests/test_html.py::test_the_band_list_is_cut`,
+  `tests/test_html.py::test_no_band_list_without_segments`.
+  *Breaks when:* the cap is off by one, a capped run still draws bands
+  or labels, the list grows with the run, or the count of bands left
+  out is wrong or missing.
 
 ## 6. Failure modes
 
@@ -4680,6 +4711,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0076: INV-122 to INV-124.
 - FLED-0077: INV-125.
 - FLED-0039: INV-126 to INV-130.
+- FLED-0080 and FLED-0081: INV-131.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -4873,6 +4905,7 @@ it on each release they pin.
 | INV-128 | `tests/test_html.py::test_long_runs_in_columns` |
 | INV-129 | `tests/test_html.py::test_outside_text_is_escaped` |
 | INV-130 | `tests/test_html.py::test_normal_vision_first`, `tests/test_html.py::test_larger_text_and_lines`, `tests/test_html.py::test_contrast` |
+| INV-131 | `tests/test_html.py::test_band_cap`, `tests/test_html.py::test_the_band_list_is_cut`, `tests/test_html.py::test_no_band_list_without_segments` |
 | 4.21, how the page looks in a browser: zoom, the switch, greyscale | **`Partial:`** opened by hand in Firefox and Chromium before release; nothing here |
 | 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
