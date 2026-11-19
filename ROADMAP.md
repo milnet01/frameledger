@@ -1491,6 +1491,13 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-17: Vestige, UT Ants and DOOM Ants each accepted § 4.21 and
   INV-126 to INV-130 as folded at 68e0868, with nothing further owed.
   Ready to build.
+  2026-11-19: built at 980a478: picture.py, report --html PAGE
+  [--fps N], and tests/test_html.py with the tests INV-126 to INV-130
+  name, each seen failing first. Sent to Vestige, UT Ants and DOOM Ants
+  for code review, correctness and readability. Three choices § 4.21 does
+  not make are put to them: the budget label under the plot, a sentence
+  saying what the numbered markers are, and the wording of the
+  narrow-band list.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
