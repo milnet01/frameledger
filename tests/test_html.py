@@ -20,6 +20,7 @@ import pytest
 
 import cli
 from floor_runs import HEADER
+from test_cli import closed_pipe
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CHARACTER_EM = 0.7  # § 4.21: the width a label is given for each character
@@ -171,6 +172,23 @@ def test_page_beside_the_output(capsys, tmp_path, form):
     second = page.read_text(encoding="utf-8")
     assert second != first and second.startswith("<!DOCTYPE html>") and "view:1" not in second
     assert page.stat().st_ino != inode
+
+
+def test_the_page_is_a_new_file(tmp_path):
+    """INV-126: the page has a new file's permissions, whatever PAGE had;
+    and when printing fails after the page is in place, the exit is 3 and
+    the new page stays."""
+    run, page = tmp_path / "run.csv", tmp_path / "page.html"
+    run.write_text(hundred(), encoding="utf-8")
+    page.write_text("old", encoding="utf-8")
+    page.chmod(0o600)
+    mask = os.umask(0o022)
+    try:
+        assert closed_pipe(["report", str(run), "--html", str(page)]) == cli.ERROR
+    finally:
+        os.umask(mask)
+    assert page.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
+    assert page.stat().st_mode & 0o777 == 0o644
 
 
 class HalfWritten:
@@ -332,7 +350,9 @@ def test_markers(capsys, tmp_path):
     # but the larger text's.
     assert graph.svg.get("viewBox").split()[2] == "1200" and graph.svg.get("width") == "75rem"
     assert graph.em >= 16 and all(text.get("font-size") is None for text in graph.svg.iter("text"))
-    assert re.findall(r"font-size:[^;}]*", style_sheet(page)) == ["font-size:1.25rem"] * 2
+    assert re.findall(r"\bfont(?:-size)?:[^;}]*", style_sheet(page)) == ["font-size:1.25rem"] * 2
+    assert ("Each numbered marker is one of the worst frames, numbered in the order the worst-frames table "
+            "below lists them.") in sentences(page)
     assert_numbers_clear(graph)
 
     # A cluster of slow frames mid-run, under a band label: the numbers
@@ -374,13 +394,17 @@ def assert_numbers_clear(graph: Graph) -> None:
 def test_budget_line(capsys, tmp_path, fps, label, budget_ms, ms_top):
     """INV-127: --fps adds one dashed line at 1000/N ms, labelled in text
     with N as typed, and a budget above the slowest frame sets the ms axis."""
-    graph = Graph(write_page(capsys, tmp_path, hundred(), "--fps", fps))
+    page = write_page(capsys, tmp_path, hundred(), "--fps", fps)
+    graph = Graph(page)
     line = graph.one("line", "budget")
     assert line.get("stroke-dasharray")
     x1, y1, x2, y2 = numbers(line, "x1", "y1", "x2", "y2")
     assert y1 == y2 and near((graph.at(x1, y1)[1],), (budget_ms,))
     assert (x1, x2) == (graph.left, graph.left + graph.width)
-    assert graph.one("text", "budget-label").text == label
+    key = graph.one("text", "budget-label")
+    assert key.text == label and float(key.get("y")) > graph.top + graph.height + graph.em  # under the plot
+    # And as a sentence, since a screen reader skips the graph's own text.
+    assert f"The dashed line is the {label}." in sentences(page)
     assert graph.all("text", "ms-tick")[-1].text == ms_top
 
 

@@ -148,8 +148,8 @@ def _graph(run: ledger.Run, worst: list[dict], budget: Budget | None) -> list[st
     if budget:
         svg += _budget_line(plot, budget)
     svg += _markers(plot, marked, baselines)
-    return ["\n".join(svg) + "\n</svg></div>", *(f"<p>{sentence}</p>" for sentence in _said(frames, past, marked)),
-            *_unlabelled(plot, bands)]
+    sentences = [f"<p>{sentence}</p>" for sentence in _said(frames, past, marked, budget)]
+    return ["\n".join(svg) + "\n</svg></div>", *sentences, *_unlabelled(plot, bands)]
 
 
 def _plot_and_numbers(end: int, wall_top: float, marked: list[tuple[str, Frame]]) -> tuple[_Plot, list[float]]:
@@ -165,9 +165,12 @@ def _plot_and_numbers(end: int, wall_top: float, marked: list[tuple[str, Frame]]
     return _Plot(end, wall_top, y_top), [y_top + baseline for baseline in baselines]
 
 
-def _said(frames: list[Frame], past: int | None, marked: list[tuple[str, Frame]]) -> list[str]:
-    """The sentences under the graph: where it stops, that it is drawn as
-    columns, and what its numbered markers are (§ 4.21)."""
+def _said(frames: list[Frame], past: int | None, marked: list[tuple[str, Frame]],
+          budget: Budget | None) -> list[str]:
+    """The sentences under the graph, each ready for the page: where it
+    stops, that it is drawn as columns, what its numbered markers are, and
+    the budget, which is otherwise only inside the graph, where a screen
+    reader or a search of the page does not look (§ 4.21)."""
     said = []
     if past is not None:
         said.append(f"The graph stops after frame {frames[-1].number}: the timeline cannot be built "
@@ -177,7 +180,14 @@ def _said(frames: list[Frame], past: int | None, marked: list[tuple[str, Frame]]
     if marked:
         said.append("Each numbered marker is one of the worst frames, numbered in the order the worst-frames "
                     "table below lists them.")
+    if budget:
+        said.append(f"The dashed line is the {_budget_label(budget)}.")
     return said
+
+
+def _budget_label(budget: Budget) -> str:
+    """The budget line's label, ready for the page, with N as it was typed."""
+    return f"{_escaped(budget.typed)} fps budget: {_ms(budget.us)} ms"
 
 
 def _drawn(run: ledger.Run) -> tuple[list[Frame], int | None]:
@@ -284,7 +294,7 @@ def _budget_line(plot: _Plot, budget: Budget) -> list[str]:
             f'<line class="budget key" x1="{LEFT}" y1="{_n(key_y - 0.3 * EM)}" x2="{LEFT + 3 * EM}" '
             f'y2="{_n(key_y - 0.3 * EM)}" {dashed}/>',
             f'<text class="budget-label" x="{LEFT + 3.5 * EM}" y="{_n(key_y)}">'
-            f'{_escaped(budget.typed)} fps budget: {_ms(budget.us)} ms</text>']
+            f'{_budget_label(budget)}</text>']
 
 
 def _number_baselines(points: list[tuple[str, float, float]]) -> list[float]:

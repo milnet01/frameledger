@@ -2691,7 +2691,10 @@ frames' walls added, and every frame under `--all-frames`.
   labelled in text, with N as typed: "60 fps budget: 16.667 ms",
   "59.94 fps budget: 16.684 ms". The label is under the plot, on a
   row of its own beside a piece of the dashed line, never over the
-  data. Without `--fps` there is none.
+  data. A sentence under the graph repeats it, since a screen reader
+  or a search of the page skips the graph's own text: "The dashed line
+  is the 60 fps budget: 16.667 ms." (UT Ants, Vestige). Without `--fps`
+  there is none.
 - **Long runs are drawn in columns.** The graph draws at most 1200
   columns (UT Ants). With N frames drawn, counted after the stop above
   and not by frame number, and N over 1200, column i, from 0, holds
@@ -4502,7 +4505,10 @@ breaks.
   naming FILE through a symbolic link, as `dir/../FILE`, and as a hard
   link each exit 3 and leave FILE unchanged. PAGE as a link to another
   file becomes the page, a file of its own, and that file is unchanged.
+  With PAGE at mode 0600, a umask of 022 and standard output a closed
+  pipe, the exit is 3, PAGE holds the new page and its mode is 0644.
   *Test:* `tests/test_html.py::test_page_beside_the_output`,
+  `tests/test_html.py::test_the_page_is_a_new_file`,
   `tests/test_html.py::test_page_refusals`,
   `tests/test_html.py::test_page_is_never_file`.
   *Breaks when:* `--html` changes standard output, the page fetches or
@@ -4524,7 +4530,9 @@ breaks.
   em and none touches the band's label. The graph's label is "Frame time against
   time: median wall 16.000 ms; slowest frame 100.000 ms, frame 50, at
   0.900 s." It has no `<title>` element or `title` attribute. `--fps
-  60` adds a dashed line labelled "60 fps budget: 16.667 ms", `--fps
+  60` adds a dashed line labelled "60 fps budget: 16.667 ms" under the
+  plot, and the sentence "The dashed line is the 60 fps budget: 16.667
+  ms." under the graph, `--fps
   59.94` one labelled "59.94 fps budget: 16.684 ms", and `--fps 5`
   takes the ms axis up to 220.000; without `--fps` no budget line is
   drawn. Removing frame 70's `frame/wall` draws frames 0 to 69 and
@@ -4855,7 +4863,7 @@ it on each release they pin.
 | INV-123 | `tests/test_measure_p99.py::test_too_few_frames`, `tests/test_measure_p99.py::test_nothing_judged_never_passes` |
 | INV-124 | `tests/test_measure_p99.py::test_bisect_p99` |
 | INV-125 | `tests/test_budget_spans.py::test_frame_span_budgets`, `tests/test_budget_spans.py::test_frame_span_refusals`, `tests/test_budget_spans.py::test_frames_holding_the_span`, `tests/test_budget_spans.py::test_a_span_has_no_depth`, `tests/test_budget_spans.py::test_a_span_after_the_warm_up` |
-| INV-126 | `tests/test_html.py::test_page_beside_the_output`, `tests/test_html.py::test_page_refusals`, `tests/test_html.py::test_page_is_never_file` |
+| INV-126 | `tests/test_html.py::test_page_beside_the_output`, `tests/test_html.py::test_the_page_is_a_new_file`, `tests/test_html.py::test_page_refusals`, `tests/test_html.py::test_page_is_never_file` |
 | INV-127 | `tests/test_html.py::test_graph_of_a_run`, `tests/test_html.py::test_band_labels`, `tests/test_html.py::test_markers`, `tests/test_html.py::test_budget_line`, `tests/test_html.py::test_a_missing_wall_stops_the_graph`, `tests/test_html.py::test_generated_frames_on_the_graph`, `tests/test_html.py::test_no_graph_without_walls` |
 | INV-128 | `tests/test_html.py::test_long_runs_in_columns` |
 | INV-129 | `tests/test_html.py::test_outside_text_is_escaped` |

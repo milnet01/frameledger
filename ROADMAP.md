@@ -1603,6 +1603,13 @@ the source of truth; all three engines set that condition, 2026-11-10.
   200000 patterned rects and 200000 list items, a 27 MB page. Not fixed
   in FLED-0039: a cap changes what § 4.21 says a band and the list are,
   which the three engines must design first.
+  2026-11-19, Vestige: not needed by it, low priority; cap what a
+  reader cannot use, not the data: the narrow-band list at a fixed length
+  with "and N more", and bands under a pixel merged into one rectangle.
+  2026-11-19, UT Ants: build it; at most 1200 bands, the columns' budget,
+  above which none is drawn and a sentence says so; the list capped at
+  about 100, then a count. DOOM Ants' answer owed. The two designs
+  differ, so it needs a spec section agreed by all three.
   **Layman:** A run that changes segment very often makes a huge, slow page.
   Kind: enhancement.
   Source: ut-ants-review-of-980a478-2026-11-19.
@@ -1614,6 +1621,12 @@ the source of truth; all three engines set that condition, 2026-11-10.
   are then nowhere else on the page as text. Not checked with a screen
   reader. Not fixed in FLED-0039: the remedy is a spec choice, such as
   a sentence or list under the graph, for the three engines to make.
+  2026-11-19: the budget half is built in FLED-0039: a sentence under
+  the graph repeats the budget label (UT Ants; Vestige, since the figure
+  was nowhere else on the page). The band names remain: UT Ants accepts
+  them as they are; Vestige accepts them only if every segment name is
+  elsewhere on the page as text, and it is not, since the tables group
+  by segment kind. DOOM Ants' answer owed.
   **Layman:** Someone using a screen reader hears the graph's one-sentence summary but not the budget or the segment names.
   Kind: accessibility.
   Source: ut-ants-review-of-980a478-2026-11-19.
