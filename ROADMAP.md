@@ -1604,7 +1604,7 @@ the source of truth; all three engines set that condition, 2026-11-10.
   Kind: feature.
   Source: competitor-research-2026-11-10.
 
-- 🚧 [FLED-0080] **The picture report has no cap on bands.**
+- ✅ [FLED-0080] **The picture report has no cap on bands.**
   UT Ants' review of FLED-0039, finding 1.7: the graph draws at most
   1200 columns but one band per stretch of equal segments, and lists
   each narrow one. It measured 200000 frames alternating two segments:
@@ -1637,11 +1637,13 @@ the source of truth; all three engines set that condition, 2026-11-10.
   N segment bands, more than the 1200 it can draw, so it draws none.",
   and tests cover bands against columns and a graph that stops early.
   The fold is back with them to confirm.
+  2026-11-19, shipped: Vestige, UT Ants and DOOM Ants each confirmed
+  the fold at 3ffb2c5.
   **Layman:** A run that changes segment very often makes a huge, slow page.
   Kind: enhancement.
   Source: ut-ants-review-of-980a478-2026-11-19.
 
-- 🚧 [FLED-0081] **The picture report's budget and band names are hidden from screen readers.**
+- ✅ [FLED-0081] **The picture report's budget and band names are hidden from screen readers.**
   UT Ants' review of FLED-0039, finding 1.11: § 4.21 gives the graph
   role="img" and a one-sentence label, so assistive technology skips
   the text inside it. The budget label and every labelled band's name
@@ -1676,6 +1678,8 @@ the source of truth; all three engines set that condition, 2026-11-10.
   a screen reader, "1101 more segments are not listed." (Vestige, UT
   Ants; DOOM Ants would have kept "and 1101 more."). The fold is back
   with them to confirm.
+  2026-11-19, shipped: Vestige, UT Ants and DOOM Ants each confirmed
+  the fold at 3ffb2c5.
   **Layman:** Someone using a screen reader hears the graph's one-sentence summary but not the budget or the segment names.
   Kind: accessibility.
   Source: ut-ants-review-of-980a478-2026-11-19.

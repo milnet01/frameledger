@@ -65,7 +65,9 @@ added the budget sentence under the graph, marker numbers clear of
 band labels, a lone frame as a dot and an empty PAGE refused, and they
 accepted it at df82ab4, with 551f2ae's INV-130 wording.
 § 4.21's band cap and band list with INV-131 (FLED-0080, FLED-0081)
-agreed by the three engines 2026-11-19 before they were built.
+agreed by the three engines 2026-11-19 before they were built; their
+code reviews reworded the two sentences under the graph, and they
+accepted it at 3ffb2c5.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
