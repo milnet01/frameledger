@@ -2679,9 +2679,10 @@ frames' walls added, and every frame under `--all-frames`.
   is § 4.8's. Neighbouring bands are filled with different SVG
   patterns, not only different shades (UT Ants, Vestige).
 - **A run of more than 1200 bands draws none**, and no band label (UT
-  Ants, DOOM Ants). A sentence under the graph says so: "The run has
-  200000 segment bands; the graph draws at most 1200, so it draws
-  none."
+  Ants, DOOM Ants). A sentence under the graph says so: "The graph has
+  200000 segment bands, more than the 1200 it can draw, so it draws
+  none." The bands counted are the graph's, so none is from past where
+  it stops.
 - **Band labels sit above the plot**, never over the line (DOOM Ants),
   in the page's monospace font at its text size. A band narrower than
   0.7 em per character of its label, plus 1 em, is not labelled.
@@ -2691,8 +2692,9 @@ frames' walls added, and every frame under `--all-frames`.
   entry gives the segment as written, with the band's start and end in
   s: "load:1, from 1.668 s to 1.684 s". The list holds the run's first
   100 bands. After it, a run of more bands says how many are not
-  listed: "and 1101 more." (Vestige, UT Ants). A run with no band has
-  no list.
+  listed, in a sentence a screen reader can read alone: "1101 more
+  segments are not listed.", or "1 more segment is not listed."
+  (Vestige, UT Ants). A run with no band has no list.
 - **The worst frames are numbered markers**: `worst_frames`' entries,
   numbered as the worst-frames table lists them, each at its frame's
   own point. A number is text no smaller than the page's text (UT
@@ -4631,18 +4633,24 @@ breaks.
 - **INV-131** — A run that changes segment very often keeps a small
   page. 1201 frames at 16.000 ms, alternating between `a:1` and `b:1`,
   are 1201 bands: the graph draws no band and no band label, and "The
-  run has 1201 segment bands; the graph draws at most 1200, so it
+  graph has 1201 segment bands, more than the 1200 it can draw, so it
   draws none." is under it. The list holds 100 entries, the first
   "a:1, from 0.000 s to 0.016 s" and the last "b:1, from 1.584 s to
-  1.600 s", then "and 1101 more." 1200 such frames draw 1200 bands and
-  say no such sentence; their list ends "and 1100 more." 101 such
-  frames list 100 bands, then "and 1 more."; 100 list them all and say
-  nothing after. A run with no segment has no list.
+  1.600 s", then "1101 more segments are not listed." 1200 such frames
+  draw 1200 bands and say no such sentence; their list ends "1100 more
+  segments are not listed." 2400 frames changing segment every second
+  frame are drawn as 1200 columns over 1200 bands; 2402 draw no band.
+  1300 alternating frames with frame 1201's `frame/wall` removed say
+  both sentences of 1201 bands; with frame 1200's removed, 1200 bands
+  are drawn. 101 alternating frames list 100 bands, then "1 more
+  segment is not listed."; 100 list them all and say nothing after. A
+  run with no segment has no list.
   *Test:* `tests/test_html.py::test_band_cap`,
   `tests/test_html.py::test_the_band_list_is_cut`,
   `tests/test_html.py::test_no_band_list_without_segments`.
-  *Breaks when:* the cap is off by one, a capped run still draws bands
-  or labels, the list grows with the run, or the count of bands left
+  *Breaks when:* the cap is off by one or counts frames or columns, a
+  capped run still draws bands or labels, bands past the graph's stop
+  are counted, the list grows with the run, or the count of bands left
   out is wrong or missing.
 
 ## 6. Failure modes

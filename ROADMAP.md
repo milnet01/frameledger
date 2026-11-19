@@ -1632,6 +1632,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   2026-11-19, UT Ants accepts (a) to (c), so all three agree. Built
   with FLED-0081 as FLED-0001 § 4.21's band cap and INV-131; with the
   three engines for code review.
+  2026-11-19, all three engines accepted 6cabbcf with no defect.
+  Folded from their reviews: the cap sentence now reads "The graph has
+  N segment bands, more than the 1200 it can draw, so it draws none.",
+  and tests cover bands against columns and a graph that stops early.
+  The fold is back with them to confirm.
   **Layman:** A run that changes segment very often makes a huge, slow page.
   Kind: enhancement.
   Source: ut-ants-review-of-980a478-2026-11-19.
@@ -1666,6 +1671,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   FLED-0080: § 4.21's list of every band, in
   docs/specs/FLED-0001-run-file-format.md, and INV-131; with the three
   engines for code review.
+  2026-11-19, all three engines accepted 6cabbcf; Vestige: the list as
+  built closes its condition. Folded: the count is a whole sentence for
+  a screen reader, "1101 more segments are not listed." (Vestige, UT
+  Ants; DOOM Ants would have kept "and 1101 more."). The fold is back
+  with them to confirm.
   **Layman:** Someone using a screen reader hears the graph's one-sentence summary but not the budget or the segment names.
   Kind: accessibility.
   Source: ut-ants-review-of-980a478-2026-11-19.

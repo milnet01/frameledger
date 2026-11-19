@@ -337,12 +337,12 @@ def test_band_labels(capsys, tmp_path):
         assert listed(page) == [f"ab:1, from 0.000 s to {frames * 0.016:.3f} s"]
 
 
-def alternating(frames: int) -> str:
-    """INV-131's run: every frame a band of its own, `a:1` and `b:1` in turn."""
-    return flat(frames, segment=lambda frame: "ab"[frame % 2] + ":1")
+def alternating(frames: int, each: int = 1, **options) -> str:
+    """INV-131's run: `a:1` and `b:1` in turn, a band every `each` frames."""
+    return flat(frames, segment=lambda frame: "ab"[frame // each % 2] + ":1", **options)
 
 
-CAPPED = "The run has 1201 segment bands; the graph draws at most 1200, so it draws none."
+CAPPED = "The graph has 1201 segment bands, more than the 1200 it can draw, so it draws none."
 
 
 def test_band_cap(capsys, tmp_path):
@@ -354,11 +354,27 @@ def test_band_cap(capsys, tmp_path):
 
     page = write_page(capsys, tmp_path, alternating(1200))
     assert len(Graph(page).all("rect", "band")) == 1200
-    assert not any("the graph draws at most" in sentence for sentence in sentences(page))
+    assert not any("it draws none" in sentence for sentence in sentences(page))
+
+    # The cap counts bands, not frames or columns: 2400 frames in 1200 bands
+    # are drawn, as columns, with every band.
+    page = write_page(capsys, tmp_path, alternating(2400, each=2))
+    graph = Graph(page)
+    assert len(graph.all("rect", "band")) == 1200 and len(graph.columns()) == 1200
+    assert not any("it draws none" in sentence for sentence in sentences(page))
+    assert CAPPED in sentences(write_page(capsys, tmp_path, alternating(2402, each=2)))
+
+    # The bands counted are the graph's: none from past where it stops.
+    said = sentences(write_page(capsys, tmp_path, alternating(1300, no_wall={1201})))
+    assert CAPPED in said and "1199 more segments are not listed." not in said
+    assert "1101 more segments are not listed." in said
+    page = write_page(capsys, tmp_path, alternating(1300, no_wall={1200}))
+    assert len(Graph(page).all("rect", "band")) == 1200
 
 
-@pytest.mark.parametrize(("frames", "after"), [(1201, "and 1101 more."), (1200, "and 1100 more."),
-                                               (101, "and 1 more."), (100, None)])
+@pytest.mark.parametrize(("frames", "after"), [(1201, "1101 more segments are not listed."),
+                                               (1200, "1100 more segments are not listed."),
+                                               (101, "1 more segment is not listed."), (100, None)])
 def test_the_band_list_is_cut(capsys, tmp_path, frames, after):
     """INV-131: the list holds the first 100 bands, drawn or not, then says
     how many it leaves out."""
@@ -367,7 +383,7 @@ def test_the_band_list_is_cut(capsys, tmp_path, frames, after):
     assert len(entries) == 100
     assert (entries[0], entries[-1]) == ("a:1, from 0.000 s to 0.016 s", "b:1, from 1.584 s to 1.600 s")
     said = sentences(page)
-    more = [sentence for sentence in said if re.fullmatch(r"and \d+ more\.", sentence)]
+    more = [sentence for sentence in said if sentence.endswith("not listed.")]
     assert more == ([] if after is None else [after])
     if after is not None:  # the count follows the list, which follows its heading
         assert said.index(after) > said.index("Segments, in run order:")

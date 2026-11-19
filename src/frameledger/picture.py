@@ -168,11 +168,11 @@ def _plot_and_numbers(end: int, wall_top: float, marked: list[tuple[str, Frame]]
     return _Plot(end, wall_top, y_top), [y_top + baseline for baseline in baselines]
 
 
-def _said(frames: list[Frame], past: int | None, bands: int, marked: list[tuple[str, Frame]],
+def _said(frames: list[Frame], past: int | None, band_count: int, marked: list[tuple[str, Frame]],
           budget: Budget | None) -> list[str]:
     """The sentences under the graph, each ready for the page: where it
-    stops, that it is drawn as columns, that its `bands` bands are too many
-    to draw, what its numbered markers are, and the budget, which is
+    stops, that it is drawn as columns, that its `band_count` bands are too
+    many to draw, what its numbered markers are, and the budget, which is
     otherwise only inside the graph, where a screen reader or a search of
     the page does not look (§ 4.21)."""
     said = []
@@ -181,8 +181,8 @@ def _said(frames: list[Frame], past: int | None, bands: int, marked: list[tuple[
                     f"past frame {past}.")
     if len(frames) > COLUMNS:
         said.append(f"{len(frames)} frames are drawn as {COLUMNS} columns; each shows its fastest and slowest frame.")
-    if bands > BANDS:
-        said.append(f"The run has {bands} segment bands; the graph draws at most {BANDS}, so it draws none.")
+    if band_count > BANDS:
+        said.append(f"The graph has {band_count} segment bands, more than the {BANDS} it can draw, so it draws none.")
     if marked:
         said.append("Each numbered marker is one of the worst frames, numbered in the order the worst-frames "
                     "table below lists them.")
@@ -234,16 +234,18 @@ def _band_shapes(plot: _Plot, bands: list[Band]) -> list[str]:
 
 
 def _band_list(bands: list[Band]) -> list[str]:
-    """Under the graph: the run's first bands by segment, labelled and
+    """Under the graph: the first of its bands by segment, labelled and
     drawn or not, so each one's name is text a screen reader reaches; then
-    how many bands the list leaves out."""
+    how many bands the list leaves out. `bands` are the graph's, so none
+    is from past where it stops."""
     if not bands:
         return []
     entries = [f"<li>{_escaped(band.segment)}, from {_s(band.start)} s to {_s(band.end)} s</li>"
                for band in bands[:LISTED]]
     listed = ["<p>Segments, in run order:</p>", "<ul>" + "\n".join(entries) + "</ul>"]
     if len(bands) > LISTED:
-        listed.append(f"<p>and {len(bands) - LISTED} more.</p>")
+        more = len(bands) - LISTED
+        listed.append(f"<p>{more} more segment{' is' if more == 1 else 's are'} not listed.</p>")
     return listed
 
 
