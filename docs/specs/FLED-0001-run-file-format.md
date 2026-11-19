@@ -59,6 +59,11 @@ generated frames are counted.
 engines 2026-11-17 before they were built; their reviews added that a
 span has no depth to match and that its frame count is the frames
 holding it.
+§ 4.21 with INV-126 to INV-130 (FLED-0039) agreed by the three
+engines 2026-11-17 at 68e0868 before it was built; their code reviews
+added the budget sentence under the graph, marker numbers clear of
+band labels, a lone frame as a dot and an empty PAGE refused, and they
+accepted it at df82ab4, with 551f2ae's INV-130 wording.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.

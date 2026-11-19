@@ -1435,7 +1435,7 @@ An optional picture of a run. The text report stays the default and
 
 the source of truth; all three engines set that condition, 2026-11-10.
 
-- 🚧 [FLED-0039] **An optional picture report.**
+- ✅ [FLED-0039] **An optional picture report.**
   report --html writes one self-contained page with a frame-time
   graph and the worst frames marked, drawn as SVG with the standard
   library alone. Large text; no meaning carried by colour alone; the
@@ -1505,6 +1505,14 @@ the source of truth; all three engines set that condition, 2026-11-10.
   segment escaping and the refusals' order. § 4.21 and INV-126, 127, 129
   and 130 amended to match. FLED-0080 and FLED-0081 filed from UT Ants'
   findings. Sent back to the three engines to confirm.
+  2026-11-19: Vestige and UT Ants accepted the fold and the § 4.21 and
+  INV-126 to INV-130 amendments at df82ab4, which closed UT Ants' last
+  test gaps and added the budget sentence under the graph. DOOM Ants
+  accepted df82ab4 with three findings, none blocking, folded at 551f2ae:
+  INV-130's font-size sentence reworded to what the code does, and tests
+  for a time's half rounding up and for the budget key's own row. Its
+  answers: leave the marker sentence; FLED-0080 and FLED-0081 carry the
+  other two. All three engines have accepted. Shipped.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -1610,6 +1618,10 @@ the source of truth; all three engines set that condition, 2026-11-10.
   above which none is drawn and a sentence says so; the list capped at
   about 100, then a count. DOOM Ants' answer owed. The two designs
   differ, so it needs a spec section agreed by all three.
+  2026-11-19, DOOM Ants: build it at UT Ants' 1200 bands, low priority.
+  So UT Ants and DOOM Ants want the 1200-band cap; Vestige wants narrow
+  bands merged and the list cut with "and N more". Still needs a spec
+  section agreed by all three before building.
   **Layman:** A run that changes segment very often makes a huge, slow page.
   Kind: enhancement.
   Source: ut-ants-review-of-980a478-2026-11-19.
@@ -1627,6 +1639,11 @@ the source of truth; all three engines set that condition, 2026-11-10.
   them as they are; Vestige accepts them only if every segment name is
   elsewhere on the page as text, and it is not, since the tables group
   by segment kind. DOOM Ants' answer owed.
+  2026-11-19, DOOM Ants: accepts the page as built, now that the budget
+  is a sentence; band names as text can wait on this item. So UT Ants
+  and DOOM Ants accept the band names as they are, and Vestige's
+  condition, every segment name elsewhere on the page as text, is what
+  this item still holds.
   **Layman:** Someone using a screen reader hears the graph's one-sentence summary but not the budget or the segment names.
   Kind: accessibility.
   Source: ut-ants-review-of-980a478-2026-11-19.
