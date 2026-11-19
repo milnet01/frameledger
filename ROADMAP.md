@@ -1517,93 +1517,6 @@ the source of truth; all three engines set that condition, 2026-11-10.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 💭 [FLED-0061] **The picture report can show two sets' frame-time curves.**
-  Percentile curves of old and new runs on one graph. Shows whether a
-  regression is a shifted median or a fatter tail. Log viewers for
-  MangoHud and Tracy's comparison mode do this. S26 covers one run
-  only, so the engines must agree to widen S26 first; otherwise after
-  1.0. Builds on FLED-0039.
-  2026-11-10, engines: later from all three.
-  **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 📋 [FLED-0072] **compare warns on a run whose own frame times scatter.**
-  FLED-0053's held half. Proposed 2026-11-13: `noisy_run`, per run, when
-  (75th - 25th percentile) / median of frame/wall is above a limit, over
-  segment kinds with at least 100 frames. The three engines agreed the
-  measure and held the number until real runs give it; 0.25 was a guess.
-  DOOM Ants warns that quartiles of one run's frames miss a burst.
-  Waiting on: Vestige's three quiet-machine captures under 3D_E-0970;
-  UT Ants has no ledgers yet. Needs a spec amendment to FLED-0001 § 4.9
-  or § 4.10.
-  2026-11-13, Vestige's figures (message 1974; commit 0508b49, Release,
-  RX 6600, 1920x1080, meadow-flythrough, no vsync, about 2490 frames a
-  run, warm-up included). Five quiet runs: (p75 - p25) / median of
-  frame/wall is 0.105 to 0.115; their medians span 1.06%. One run under
-  load, taken right after a build: 0.2194, p99 81.663 ms against about
-  14.5. So for this scene a limit between 0.12 and 0.21 separates them;
-  one loaded sample, so the upper end is soft. Vestige's caution: the
-  camera moves, so much of the 0.11 is the path, not noise, and a still
-  scene would read lower. Still waiting on: UT Ants and DOOM Ants runs.
-  **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
-  Kind: feature.
-  Source: split-from-FLED-0053-2026-11-13.
-
-- 💭 [FLED-0074] **Read a gzip-compressed run file.**
-  Vestige, 2026-11-13: `check run.csv.gz` reads the gzip bytes as a run
-  with no close line ("unfinished") rather than refusing it as not a run
-  file. Five of its runs are 29 MB, 2.2 MB gzipped, so a baseline's runs
-  are too big to commit. Two parts: say plainly that a .gz is not a run
-  file, and perhaps read one. Low priority by Vestige's word. Not
-  checked here: the message `check` gives.
-  **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
-  Kind: feature.
-  Source: vestige-2026-11-13.
-
-- 💭 [FLED-0054] **A noisy compare says how many more runs would settle it.**
-  On exit 2 for a noisy `frame/wall`, estimate the runs a side that
-  would settle it; the run helper could keep alternating up to a cap.
-  Chromium's bisect returned "need more data" and grew its sample:
-  https://codereview.chromium.org/1702013004
-  Needs FLED-0029, the engines' agreement and a spec amendment.
-  2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
-  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
-  idea; the owner chose it because one engine said yes. Put to the three
-  engines: plan it or not.
-  2026-11-17, DOOM Ants: still yes; it would use it in 0.7.0, nothing
-  blocks on it. UT Ants: keep it an idea, still later. Vestige's answer
-  owed.
-  2026-11-17, Vestige: keep as idea; it would use it, but no gate
-  depends on it. Outcome: stays an idea (two of three).
-  **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 💭 [FLED-0058] **report counts hitches against the local median.**
-  Count frames longer than k times the rolling median of nearby frames,
-  per segment kind. One number for judder that pacing (S14) and the
-  worst-10 list do not give. A common practice; no authoritative
-  source for the multiplier was found, so k is the engines' call.
-  2026-11-10, engines: yes (Vestige, for 3D_E-0795's frame-time gate),
-  later (DOOM Ants, UT Ants).
-  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
-  idea; the owner chose it because one engine said yes. Put to the three
-  engines: plan it or not.
-  2026-11-17, DOOM Ants: plan it for Vestige; it would use it for
-  DOOM-0359, no date pressure; k as Vestige's gate sets it. UT Ants:
-  plan it for 0.7.0 if Vestige's gate still needs it, with k set per
-  call, not fixed; it will review the spec amendment. Vestige's answer
-  owed.
-  2026-11-17, Vestige: keep as idea. 3D_E-0795's gate shipped on floor's
-  absolute limit (floor --fps 60), so it no longer needs a relative
-  count; wanted later for stutter below 16.667 ms at higher refresh
-  rates. Outcome: stays an idea, since the other two answers were
-  conditional on Vestige's gate. When planned: k set per call (UT Ants).
-  **Layman:** Counts sudden stutters: frames much slower than the frames around them.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
 - ✅ [FLED-0080] **The picture report has no cap on bands.**
   UT Ants' review of FLED-0039, finding 1.7: the graph draws at most
   1200 columns but one band per stretch of equal segments, and lists
@@ -1710,6 +1623,100 @@ format, the JSON output and the commands.
   **Layman:** Says how long features and systems are supported and how changes are announced.
   Kind: doc.
   Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0072] **compare warns on a run whose own frame times scatter.**
+  FLED-0053's held half. Proposed 2026-11-13: `noisy_run`, per run, when
+  (75th - 25th percentile) / median of frame/wall is above a limit, over
+  segment kinds with at least 100 frames. The three engines agreed the
+  measure and held the number until real runs give it; 0.25 was a guess.
+  DOOM Ants warns that quartiles of one run's frames miss a burst.
+  Waiting on: Vestige's three quiet-machine captures under 3D_E-0970;
+  UT Ants has no ledgers yet. Needs a spec amendment to FLED-0001 § 4.9
+  or § 4.10.
+  2026-11-13, Vestige's figures (message 1974; commit 0508b49, Release,
+  RX 6600, 1920x1080, meadow-flythrough, no vsync, about 2490 frames a
+  run, warm-up included). Five quiet runs: (p75 - p25) / median of
+  frame/wall is 0.105 to 0.115; their medians span 1.06%. One run under
+  load, taken right after a build: 0.2194, p99 81.663 ms against about
+  14.5. So for this scene a limit between 0.12 and 0.21 separates them;
+  one loaded sample, so the upper end is soft. Vestige's caution: the
+  camera moves, so much of the 0.11 is the path, not noise, and a still
+  scene would read lower. Still waiting on: UT Ants and DOOM Ants runs.
+  2026-11-19: moved from 0.7.0 to 0.8.0 with FLED-0061, FLED-0074,
+  FLED-0054 and FLED-0058, so 0.7.0 could be released; Vestige, UT Ants
+  and DOOM Ants each agreed. The run ask went to UT Ants and DOOM Ants:
+  5 quiet and 3 loaded runs, at least 2000 frames, one job, run files
+  back. UT Ants filed it as UTA-0482; its writer UTA-0437 is not built,
+  so it offers per-run percentiles now or run files later. DOOM Ants'
+  loaded runs wait on its user's go-ahead for an all-core compile.
+  **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
+  Kind: feature.
+  Source: split-from-FLED-0053-2026-11-13.
+
+- 💭 [FLED-0061] **The picture report can show two sets' frame-time curves.**
+  Percentile curves of old and new runs on one graph. Shows whether a
+  regression is a shifted median or a fatter tail. Log viewers for
+  MangoHud and Tracy's comparison mode do this. S26 covers one run
+  only, so the engines must agree to widen S26 first; otherwise after
+  1.0. Builds on FLED-0039.
+  2026-11-10, engines: later from all three.
+  **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0074] **Read a gzip-compressed run file.**
+  Vestige, 2026-11-13: `check run.csv.gz` reads the gzip bytes as a run
+  with no close line ("unfinished") rather than refusing it as not a run
+  file. Five of its runs are 29 MB, 2.2 MB gzipped, so a baseline's runs
+  are too big to commit. Two parts: say plainly that a .gz is not a run
+  file, and perhaps read one. Low priority by Vestige's word. Not
+  checked here: the message `check` gives.
+  **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
+  Kind: feature.
+  Source: vestige-2026-11-13.
+
+- 💭 [FLED-0054] **A noisy compare says how many more runs would settle it.**
+  On exit 2 for a noisy `frame/wall`, estimate the runs a side that
+  would settle it; the run helper could keep alternating up to a cap.
+  Chromium's bisect returned "need more data" and grew its sample:
+  https://codereview.chromium.org/1702013004
+  Needs FLED-0029, the engines' agreement and a spec amendment.
+  2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
+  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
+  idea; the owner chose it because one engine said yes. Put to the three
+  engines: plan it or not.
+  2026-11-17, DOOM Ants: still yes; it would use it in 0.7.0, nothing
+  blocks on it. UT Ants: keep it an idea, still later. Vestige's answer
+  owed.
+  2026-11-17, Vestige: keep as idea; it would use it, but no gate
+  depends on it. Outcome: stays an idea (two of three).
+  **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0058] **report counts hitches against the local median.**
+  Count frames longer than k times the rolling median of nearby frames,
+  per segment kind. One number for judder that pacing (S14) and the
+  worst-10 list do not give. A common practice; no authoritative
+  source for the multiplier was found, so k is the engines' call.
+  2026-11-10, engines: yes (Vestige, for 3D_E-0795's frame-time gate),
+  later (DOOM Ants, UT Ants).
+  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
+  idea; the owner chose it because one engine said yes. Put to the three
+  engines: plan it or not.
+  2026-11-17, DOOM Ants: plan it for Vestige; it would use it for
+  DOOM-0359, no date pressure; k as Vestige's gate sets it. UT Ants:
+  plan it for 0.7.0 if Vestige's gate still needs it, with k set per
+  call, not fixed; it will review the spec amendment. Vestige's answer
+  owed.
+  2026-11-17, Vestige: keep as idea. 3D_E-0795's gate shipped on floor's
+  absolute limit (floor --fps 60), so it no longer needs a relative
+  count; wanted later for stutter below 16.667 ms at higher refresh
+  rates. Outcome: stays an idea, since the other two answers were
+  conditional on Vestige's gate. When planned: k set per call (UT Ants).
+  **Layman:** Counts sudden stutters: frames much slower than the frames around them.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
 
 ## 0.9.0 — ready for strangers (release candidate)
 
