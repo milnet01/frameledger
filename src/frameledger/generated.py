@@ -64,7 +64,7 @@ def application_frames(run: ledger.Run) -> ledger.Run:
                                start_unknown=start_unknown)
 
 
-def _before_first(run: ledger.Run, leading: list[int], first: int) -> tuple[int, str | None]:
+def _before_first(run: ledger.Run, leading: list[int], first: int) -> tuple[int, ledger.Stop | None]:
     """The generated frames `leading` the first application frame, `first`,
     belong to none, but their walls move the timeline (§ 4.20): the time
     they take, and what stops it being known, a missing frame or wall, or
@@ -72,12 +72,12 @@ def _before_first(run: ledger.Run, leading: list[int], first: int) -> tuple[int,
     start_us, previous = 0, None
     for number in [*leading, first]:
         if previous is not None and number != previous + 1:
-            return start_us, f"frame {previous + 1} is missing"
+            return start_us, ledger.Stop(previous + 1, ledger.MISSING)
         if number == first:
             return start_us, None
         wall = run.frames[number].get(WALL)
         if wall is None:
-            return start_us, f"frame {number} has no frame/wall row"
+            return start_us, ledger.Stop(number, ledger.NO_WALL)
         start_us += wall.thousandths
         previous = number
     return start_us, None  # not reached: the loop ends at `first`

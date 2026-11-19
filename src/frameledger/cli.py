@@ -20,6 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal, DecimalException, InvalidOperation
 from typing import NamedTuple
 
 import alternate
+import atomic
 import baseline
 import bisecting
 import budgeting
@@ -617,7 +618,7 @@ def _report(args: argparse.Namespace) -> dict:
                        [{"code": "file_error", "message": str(error)}], {})
     result = _result("report", "none", PASS, built["summary"], built["warnings"], built["result"])
     if args.html is not None:
-        presentmon.write_atomically(args.html, picture.page(result, run, budget), place=os.replace)
+        atomic.write(args.html, picture.page(result, run, budget), overwrite=True)
     return result
 
 
@@ -639,6 +640,8 @@ def _page_budget(args: argparse.Namespace) -> picture.Budget | None:
 def _refuse_page_over_file(page: str, file: str) -> None:
     """PAGE must not be the run file, by any path to it: a link, or
     another spelling (§ 4.21). os.path.samefile compares device and inode."""
+    if not page:
+        raise ledger.LedgerError("--html needs a file to write, and was given an empty name")
     try:
         same = os.path.samefile(page, file)
     except OSError:  # PAGE is new, or FILE is missing, which reading it will say

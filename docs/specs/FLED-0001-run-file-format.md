@@ -2619,11 +2619,16 @@ output is byte for byte what `report` prints without `--html`: text,
   3, or a page that cannot be written, leaves PAGE as it was: the same
   file, or still absent. A page that cannot be written is exit 3, an
   error naming PAGE, reported as § 4.11's errors are: on standard
-  error alone.
+  error alone. One exit 3 comes too late for that: when printing then
+  fails, the new page stays (UT Ants).
+- **The page is a new file.** It has the permissions any new file
+  gets, whatever PAGE had (UT Ants). A PAGE that is a link is replaced
+  by the page; the file it pointed at is untouched (Vestige).
 - **Exit 3, before anything is read:** PAGE being FILE, judged by
   device and inode, so through a link or any spelling of the path
-  (Vestige); `--fps` without `--html`, or given twice (DOOM Ants); a
-  `--fps` whose 1000/N ms § 4.7 refuses for `floor`'s window check.
+  (Vestige); an empty PAGE (UT Ants); `--fps` without `--html`, or
+  given twice (DOOM Ants); a `--fps` whose 1000/N ms § 4.7 refuses for
+  `floor`'s window check.
 - **The page is self-contained.** Nothing runs and nothing is
   fetched: no `<script>`, `<object>`, `<embed>` or `<iframe>`, no
   attribute starting `on`, no `@import`, and every `url(`, `href` and
@@ -2647,7 +2652,8 @@ string cannot add markup to the page.
 (§ 4.7). Both axes name their unit. The time axis runs from 0 s to
 the last drawn frame's end. The ms axis runs from 0 to 1.1 times the
 larger of the slowest wall drawn and the budget line (DOOM Ants). Each
-frame is a point at its end, joined by a line. § 4.20 decides which
+frame is a point at its end, joined by a line; a frame drawn alone is
+a dot (UT Ants). § 4.20 decides which
 frames are read: by default an application frame with its generated
 frames' walls added, and every frame under `--all-frames`.
 
@@ -2673,13 +2679,19 @@ frames' walls added, and every frame under `--all-frames`.
 - **The worst frames are numbered markers**: `worst_frames`' entries,
   numbered as the worst-frames table lists them, each at its frame's
   own point. A number is text no smaller than the page's text (UT
-  Ants). Numbers that would overlap, by the same 0.7 em per character,
-  are stacked upward, so a cluster of slow frames stays readable (DOOM
-  Ants).
+  Ants). Numbers on one line within 0.5 em of each other, by the same
+  0.7 em per character, are stacked upward, so a cluster of slow
+  frames stays readable (DOOM Ants) and 1 beside 7 never reads as 17
+  (UT Ants). A stack that rises above the plot ends under the band
+  labels. A sentence under the graph says what the markers are: "Each
+  numbered marker is one of the worst frames, numbered in the order
+  the worst-frames table below lists them." (Vestige).
 - **`--fps N` adds one budget line** at 1000/N ms rounded up to three
   places, as `floor`'s window check uses (§ 4.7). It is dashed and
   labelled in text, with N as typed: "60 fps budget: 16.667 ms",
-  "59.94 fps budget: 16.684 ms". Without `--fps` there is none.
+  "59.94 fps budget: 16.684 ms". The label is under the plot, on a
+  row of its own beside a piece of the dashed line, never over the
+  data. Without `--fps` there is none.
 - **Long runs are drawn in columns.** The graph draws at most 1200
   columns (UT Ants). With N frames drawn, counted after the stop above
   and not by frame number, and N over 1200, column i, from 0, holds
@@ -4483,10 +4495,13 @@ breaks.
   each exit 3 with nothing on standard output; a FILE with a breach
   exits 3 with `report`'s error output; PAGE in a missing directory
   exits 3 naming PAGE on standard error alone; a write to the new file
-  that the test makes fail part way exits 3. Each leaves PAGE the same
+  that the test makes fail part way exits 3; a FILE with a breach,
+  given `--fps 2000000` or an empty PAGE, exits 3 with nothing on
+  standard output. Each leaves PAGE the same
   file, by inode, holding "old", and no new file beside it. PAGE
   naming FILE through a symbolic link, as `dir/../FILE`, and as a hard
-  link each exit 3 and leave FILE unchanged.
+  link each exit 3 and leave FILE unchanged. PAGE as a link to another
+  file becomes the page, a file of its own, and that file is unchanged.
   *Test:* `tests/test_html.py::test_page_beside_the_output`,
   `tests/test_html.py::test_page_refusals`,
   `tests/test_html.py::test_page_is_never_file`.
@@ -4504,7 +4519,9 @@ breaks.
   labelled, and one just narrower is listed. Marker 1 is at frame 50's
   point, markers 1 to 10 follow `worst_frames`, no number is smaller
   than the page's text, and the numbers of markers 2 to 10, on frames
-  0 to 8, do not overlap. The graph's label is "Frame time against
+  0 to 8, do not overlap. With frames 495 to 504 of 1000 at 30.000 ms
+  under one `view:1` band, no two numbers on one line are within 0.5
+  em and none touches the band's label. The graph's label is "Frame time against
   time: median wall 16.000 ms; slowest frame 100.000 ms, frame 50, at
   0.900 s." It has no `<title>` element or `title` attribute. `--fps
   60` adds a dashed line labelled "60 fps budget: 16.667 ms", `--fps
@@ -4514,7 +4531,10 @@ breaks.
   says "The graph stops after frame 69: the timeline cannot be built
   past frame 70."; removing frame 70 instead says the same; removing
   frame 0's says "There is no graph: the timeline cannot be built past
-  frame 0." Marking frame 61 `event/generated` draws frame 60 at
+  frame 0." Frames 0 to 2 marked `event/generated`, with frame 1
+  or its `frame/wall` removed, say the same of frame 1. With frame 0
+  the fastest and frame 1's `frame/wall` removed, frame 0 is drawn as
+  a dot. Marking frame 61 `event/generated` draws frame 60 at
   32.000 ms and no point for frame 61; with `--all-frames`, both are
   drawn at 16.000 ms. The run with no `frame/wall` row says "No frame
   has a wall, so there is no graph." and draws none.
@@ -4550,16 +4570,19 @@ breaks.
   line holds `</table><script>x</script> & "q" 'r'` and a value with
   U+202E gives a page holding `&lt;/table&gt;&lt;script&gt;`, `&amp;`,
   `&quot;q&quot;`, `&#39;r&#39;` and `\u202e`, as § 4.8 shows it, and
-  no `<script` and no U+202E.
+  no `<script` and no U+202E. A segment `a<b>&"':x</text><script>1`
+  is one band's label and, on a band too narrow, one entry of the
+  list, each as written and neither adding an element.
   *Test:* `tests/test_html.py::test_outside_text_is_escaped`.
   *Breaks when:* any of `&`, `<`, `>`, `"` or `'` reaches the page
   unescaped, or the page skips § 4.8's cleaning.
 
 - **INV-130** — The page is for normal vision first. By default its
   style sheet leaves the root text at the browser's size. Every length
-  in the style sheet, and the graph's width and height, are in `em` or
-  `rem`, the width 75rem over a 1200-unit view box; nothing in the
-  page is in `px`. The data line, the budget line and the markers'
+  with a unit in the style sheet, and the graph's width and height,
+  are in `em` or `rem`, the width 75rem over a 1200-unit view box;
+  nothing in the page is in `px`. No style rule or attribute sets a
+  font size inside the graph. The data line, the budget line and the markers'
   outlines are at least 2 units wide. The graph's box scrolls
   sideways. A "Larger text and lines" checkbox with its label is first
   in the page. Its checked state, and `prefers-contrast: more`, each

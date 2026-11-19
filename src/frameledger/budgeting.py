@@ -376,7 +376,7 @@ def _unmatched_sentence(budget: Budget) -> str:
             "so a re-run gives the same: fix the budget file or the engine.")
 
 
-def _incomplete(run: ledger.Run, stop: str | None) -> list[str]:
+def _incomplete(run: ledger.Run, stop: ledger.Stop | None) -> list[str]:
     """Why holding budgets cannot pass: dropped rows, no close line, or,
     with a warm-up, a timeline that stops early."""
     reasons = []

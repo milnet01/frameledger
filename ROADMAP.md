@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=79 -->
+<!-- ants-roadmap-id-high-water: FLED=81 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1588,6 +1588,28 @@ the source of truth; all three engines set that condition, 2026-11-10.
   **Layman:** Counts sudden stutters: frames much slower than the frames around them.
   Kind: feature.
   Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0080] **The picture report has no cap on bands.**
+  UT Ants' review of FLED-0039, finding 1.7: the graph draws at most
+  1200 columns but one band per stretch of equal segments, and lists
+  each narrow one. It measured 200000 frames alternating two segments:
+  200000 patterned rects and 200000 list items, a 27 MB page. Not fixed
+  in FLED-0039: a cap changes what § 4.21 says a band and the list are,
+  which the three engines must design first.
+  **Layman:** A run that changes segment very often makes a huge, slow page.
+  Kind: enhancement.
+  Source: ut-ants-review-of-980a478-2026-11-19.
+
+- 💭 [FLED-0081] **The picture report's budget and band names are hidden from screen readers.**
+  UT Ants' review of FLED-0039, finding 1.11: § 4.21 gives the graph
+  role="img" and a one-sentence label, so assistive technology skips
+  the text inside it. The budget label and every labelled band's name
+  are then nowhere else on the page as text. Not checked with a screen
+  reader. Not fixed in FLED-0039: the remedy is a spec choice, such as
+  a sentence or list under the graph, for the three engines to make.
+  **Layman:** Someone using a screen reader hears the graph's one-sentence summary but not the budget or the segment names.
+  Kind: accessibility.
+  Source: ut-ants-review-of-980a478-2026-11-19.
 
 ## 0.8.0 — stable promises (beta)
 

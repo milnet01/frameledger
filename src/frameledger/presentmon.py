@@ -14,13 +14,12 @@ import io
 import json
 import os
 import re
-import tempfile
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from fractions import Fraction
 
+import atomic
 import ledger
 
 NEEDED = ("Application", "ProcessID", "SwapChainAddress", "MsBetweenPresents", "MsCPUBusy")
@@ -85,7 +84,10 @@ def import_capture(capture: str, run_path: str, chosen: Chosen, facts: dict, eng
     notices, said = _start_order(rows, columns)
     header = _header(rows, columns, facts, engine, started, version, data, capture)
     lines, not_displayed, generated = _run_lines(rows, columns, header, capture)
-    write_atomically(run_path, "\n".join(lines) + "\n")
+    try:
+        atomic.write(run_path, "\n".join(lines) + "\n")
+    except atomic.Exists:  # it appeared since the first look, above
+        raise _exists(run_path) from None
 
     first = rows[0]
     process, pid, swapchain = (first.get(c) for c in ("Application", "ProcessID", "SwapChainAddress"))
@@ -371,45 +373,3 @@ def _value(row: _Row, column: str, capture: str) -> Decimal | None:
 
 def _exists(path: str) -> ledger.LedgerError:
     return ledger.LedgerError("the file exists, and an import never overwrites a run", path)
-
-
-def write_atomically(path: str, text: str, place: Callable[[str, str], None] | None = None) -> None:
-    """Write `path` through a temporary file beside it, so a failure leaves
-    no half file, and `path` as it was. `place` puts the temporary file at
-    `path`. An import leaves it out and the file is linked, which fails if
-    `path` appeared meanwhile, where a rename would overwrite it; the
-    picture report's page passes os.replace, since it overwrites (§ 4.21)."""
-    folder = os.path.dirname(os.path.abspath(path))
-    try:
-        handle, temporary = tempfile.mkstemp(dir=folder, prefix=".frameledger-")
-    except OSError as error:
-        raise ledger.LedgerError(error.strerror or "cannot be written", path) from error
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
-            stream.write(text)
-        os.chmod(temporary, 0o666 & ~_umask())  # mkstemp's 0600, made what open() would give
-        (place or _link)(temporary, path)
-    except OSError as error:
-        raise ledger.LedgerError(error.strerror or "cannot be written", path) from error
-    finally:
-        if os.path.lexists(temporary):
-            os.unlink(temporary)
-
-
-def _link(temporary: str, path: str) -> None:
-    """Put `temporary` at `path`, never over a file there. A file system
-    with no hard links falls back to a rename after one more look."""
-    try:
-        os.link(temporary, path)
-    except FileExistsError:
-        raise _exists(path) from None
-    except OSError:
-        if os.path.lexists(path):
-            raise _exists(path) from None
-        os.replace(temporary, path)
-
-
-def _umask() -> int:
-    mask = os.umask(0)
-    os.umask(mask)
-    return mask

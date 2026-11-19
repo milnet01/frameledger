@@ -60,6 +60,8 @@ Four parts. The format spec is the only thing the other three share.
   - `baseline.py` — reads a baseline file into the run paths it names
     (S24).
   - `presentmon.py` — turns a PresentMon capture into a run file (S25).
+  - `atomic.py` — writes a file whole or not at all: an import's run
+    file, and the report page.
   - `generated.py` — reads a run as its application rendered it: frames
     marked `event/generated` left out, unless `--all-frames` keeps them
     (FLED-0001 § 4.20).
@@ -163,8 +165,8 @@ tool, not by any one part.
   file; `picture.py` imports `render.py`, for the text's sentences and
   tables, and `run_report.py`, `stats.py` and `ledger.py`.
 - **`ledger.py` and `stats.py` import no other analyser file.**
-  `baseline.py`, `presentmon.py`, `expect.py` and `kit.py` import only
-  `ledger.py`; `strict.py` imports `ledger.py` and `stats.py`, whose
+  `baseline.py`, `atomic.py`, `expect.py` and `kit.py` import only
+  `ledger.py`, and `presentmon.py` only `ledger.py` and `atomic.py`; `strict.py` imports `ledger.py` and `stats.py`, whose
   `median` is § 4.19's lower middle. Only `cli.py` calls them, and
   `selftest.py` may, as it may import any file but `cli.py`.
 - **`generated.py` imports only `ledger.py`.** `compare.py`,

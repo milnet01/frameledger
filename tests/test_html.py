@@ -212,6 +212,11 @@ def test_page_refusals(capsys, tmp_path, monkeypatch):
         out, err = refused(str(run), *flags)
         assert out == "" and "--fps" in err
 
+    # Before anything is read: a FILE that breaks the format is not reached.
+    for flags in (["--html", str(page), "--fps", "2000000"], ["--html", ""]):
+        out, err = refused(str(broken), *flags)
+        assert out == "" and ("--fps" in err or "--html" in err) and "breaks" not in err
+
     report_alone, _ = refused(str(broken))
     out, _ = refused(str(broken), "--html", str(page))
     assert out == report_alone and "breaks the run-file format" in out
@@ -240,6 +245,16 @@ def test_page_is_never_file(capsys, tmp_path):
         said = capsys.readouterr()
         assert said.out == "" and "run file" in said.err
         assert run.read_bytes() == written and (tmp_path / "link.html").is_symlink()
+
+    # A PAGE that is a link to some other file is replaced by the page; the
+    # file it pointed at is untouched.
+    other, link = tmp_path / "other.txt", tmp_path / "elsewhere.html"
+    other.write_text("kept", encoding="utf-8")
+    link.symlink_to(other)
+    assert cli.main(["report", str(run), "--html", str(link)]) == 0
+    capsys.readouterr()
+    assert other.read_text(encoding="utf-8") == "kept" and not link.is_symlink()
+    assert link.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
 
 
 # INV-127
@@ -312,17 +327,43 @@ def test_markers(capsys, tmp_path):
     assert list(markers) == [str(n) for n in range(1, 11)]
     assert all(near(markers[str(n)], points[frame]) for n, frame in enumerate(worst, start=1))
 
-    texts = graph.all("text", "marker-number halo")
-    # The view box is 1200 units over 75rem, so 16 units are the page's 1rem text.
+    # The view box is 1200 units over 75rem, so 16 units are the page's 1rem
+    # text; no label sets a size of its own, and the style sheet sets none
+    # but the larger text's.
     assert graph.svg.get("viewBox").split()[2] == "1200" and graph.svg.get("width") == "75rem"
-    assert graph.em >= 16 and all(float(text.get("font-size", graph.em)) >= graph.em for text in texts)
-    boxes = []
-    for text in texts:
+    assert graph.em >= 16 and all(text.get("font-size") is None for text in graph.svg.iter("text"))
+    assert re.findall(r"font-size:[^;}]*", style_sheet(page)) == ["font-size:1.25rem"] * 2
+    assert_numbers_clear(graph)
+
+    # A cluster of slow frames mid-run, under a band label: the numbers
+    # stack upward, stay half an em apart on a line, so 1 and 7 never read
+    # as 17, and end under the label.
+    walls = [16.0] * 1000
+    walls[495:505] = [30.0] * 10
+    graph = Graph(write_page(capsys, tmp_path, run_text(walls, lambda frame: "view:1")))
+    assert len(graph.markers()) == 10 and [label.text for label in graph.all("text", "band-label")] == ["view:1"]
+    assert_numbers_clear(graph)
+
+
+def boxes(graph: Graph, kind: str) -> list[tuple[float, float, float, float]]:
+    """Each label of a kind as (left, right, top, bottom): centred on its
+    x, 0.7 em a character wide, and 1 em tall above its baseline."""
+    found = []
+    for text in graph.all("text", kind):
         x, baseline = numbers(text, "x", "y")
         half = graph.label_width(text.text) / 2
-        boxes.append((x - half, x + half, baseline - graph.em, baseline))
-    for (left, right, top, bottom), (left2, right2, top2, bottom2) in combinations(boxes, 2):
-        assert right <= left2 or right2 <= left or bottom <= top2 or bottom2 <= top
+        found.append((x - half, x + half, baseline - graph.em, baseline))
+    return found
+
+
+def assert_numbers_clear(graph: Graph) -> None:
+    """No two marker numbers on one line are within half an em, and none touches a band label."""
+    marker_numbers, gap = boxes(graph, "marker-number halo"), graph.em / 2
+    for (left, right, top, bottom), (left2, right2, top2, bottom2) in combinations(marker_numbers, 2):
+        assert right + gap <= left2 or right2 + gap <= left or bottom <= top2 or bottom2 <= top
+    for left, right, top, bottom in marker_numbers:
+        for left2, right2, top2, bottom2 in boxes(graph, "band-label"):
+            assert right <= left2 or right2 <= left or bottom <= top2 or bottom2 <= top
 
 
 @pytest.mark.parametrize(("fps", "label", "budget_ms", "ms_top"), [
@@ -361,6 +402,19 @@ def test_a_missing_wall_stops_the_graph(capsys, tmp_path):
     page = write_page(capsys, tmp_path, hundred(no_wall={0}))
     assert "<svg" not in page
     assert "There is no graph: the timeline cannot be built past frame 0." in sentences(page)
+    # Generated frames before the first application frame: a wall or a
+    # frame missing among them stops the timeline before it starts (§ 4.20).
+    for options in ({"no_wall": {1}}, {"missing": {1}}):
+        page = write_page(capsys, tmp_path, flat(20, generated={0, 1, 2}, **options))
+        assert "<svg" not in page
+        assert "There is no graph: the timeline cannot be built past frame 1." in sentences(page)
+
+    # One drawn frame that is no worst frame is still a point: a dot.
+    walls = [16.0] * 100
+    walls[0] = 10.0
+    graph = Graph(write_page(capsys, tmp_path, run_text(walls, no_wall={1})))
+    assert len(graph.points()) == 1 and "1" not in graph.markers()
+    assert near(graph.at(*numbers(graph.one("circle", "point"), "cx", "cy")), (0.010, 10.0))
     assert all("The graph stops" not in sentence for sentence in sentences(write_page(capsys, tmp_path, hundred())))
 
 
@@ -423,6 +477,8 @@ def test_long_runs_in_columns(capsys, tmp_path):
 
 # INV-129
 
+HOSTILE = "a<b>&\"':x</text><script>1"  # a segment the format allows
+
 
 def test_outside_text_is_escaped(capsys, tmp_path):
     """INV-129: a static value cannot add markup, and is cleaned as plain text is."""
@@ -434,6 +490,14 @@ def test_outside_text_is_escaped(capsys, tmp_path):
     [value] = [cells[1].text for cells in (row.findall("td") for row in ET.fromstring(page).iter("tr"))
                if cells and cells[0].text == "note"]
     assert value == static["note"]
+
+    # A segment reaches the graph twice: as a band's label, and in the list
+    # of bands too narrow for one.
+    page = write_page(capsys, tmp_path, flat(100, segment=lambda frame: HOSTILE if frame < 99 else HOSTILE + "2"))
+    graph = Graph(page)
+    assert "<script" not in page
+    assert [label.text for label in graph.all("text", "band-label")] == [HOSTILE]
+    assert ["".join(item.itertext()) for item in graph.root.iter("li")] == [f"{HOSTILE}2, from 1.584 s to 1.600 s"]
 
 
 # INV-130

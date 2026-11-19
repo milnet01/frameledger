@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from fractions import Fraction
 from pathlib import Path
+from typing import NamedTuple
 
 SCHEMA = 1
 COLUMNS = "run_id,segment,frame,category,name,depth,value"
@@ -62,6 +63,21 @@ class Notice:
     line: int | None = None
 
 
+class Stop(NamedTuple):
+    """Where a run's timeline cannot be built further. As text it reads
+    "frame 70 is missing", for a sentence to quote."""
+
+    frame: int  # the first frame that cannot be placed in time
+    why: str  # "is missing" or "has no frame/wall row"
+
+    def __str__(self) -> str:
+        return f"frame {self.frame} {self.why}"
+
+
+MISSING = "is missing"
+NO_WALL = "has no frame/wall row"
+
+
 @dataclass(frozen=True)
 class Row:
     segment: str
@@ -90,7 +106,7 @@ class Run:
     # frame kept; and why that start is unknown, or None.
     left_out: frozenset[int] = frozenset()
     start_us: int = 0
-    start_unknown: str | None = None
+    start_unknown: Stop | None = None
 
     def after(self, frame: int) -> int:
         """The frame number that follows `frame`, past any left out as generated."""

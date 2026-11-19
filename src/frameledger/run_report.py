@@ -232,7 +232,7 @@ def frame_check(run: ledger.Run, warmup_us: int, budget: int, allowed: int) -> F
     if run.close is None:
         reasons.append("The file has no close line, so the run did not finish.")
     if stop:
-        reasons.append(f"{stop[0].upper()}{stop[1:]}, so the timeline stops there.")
+        reasons.append(f"Frame {stop.frame} {stop.why}, so the timeline stops there.")
     state = "fail" if len(slow) > allowed else "inconclusive" if reasons or not judged else "pass"
     return FrameCheck(state, judged, slow, reasons)
 
@@ -278,7 +278,7 @@ def _window_mean(window: Window) -> float:
     return _ms(window.wall_us) / window.frames if window.frames else math.inf
 
 
-def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str | None, int]:
+def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], ledger.Stop | None, int]:
     """Each frame with a wall, as (frame, rows, end, wall) in frame order,
     its end summed from the first frame in integer microseconds; the
     (start, end) of every frame carrying event/cut; what stops the timeline early, a
@@ -293,11 +293,11 @@ def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str |
     for previous, frame in zip([None, *order], order, strict=False):  # (None, first), (first, second), ...
         rows = run.frames[frame]
         if stop is None and previous is not None and frame != run.after(previous):
-            stop, stopped_at = f"frame {run.after(previous)} is missing", now
+            stop, stopped_at = ledger.Stop(run.after(previous), ledger.MISSING), now
         wall = rows.get(("frame", "wall"))
         if wall is None:
             if stop is None and frame != order[-1]:
-                stop, stopped_at = f"frame {frame} has no frame/wall row", now
+                stop, stopped_at = ledger.Stop(frame, ledger.NO_WALL), now
             continue
         if ("event", "cut") in rows:
             cuts.append((now, now + wall.thousandths))
@@ -305,11 +305,6 @@ def timeline(run: ledger.Run) -> tuple[list[tuple], list[tuple[int, int]], str |
         timed.append((frame, rows, now, wall.thousandths))
     return timed, cuts, stop, now if stopped_at is None else stopped_at
 
-
-def stop_frame(stop: str) -> int:
-    """The frame number a timeline() stop names: the first frame it could
-    not place. Every stop, there and in generated.py, opens "frame N"."""
-    return int(stop.split()[1])
 
 
 def _windows(ends: list[int], walls: list[int], cuts: list[tuple[int, int]], warmup_us: int,
