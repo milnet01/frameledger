@@ -4589,8 +4589,8 @@ breaks.
   style sheet leaves the root text at the browser's size. Every length
   with a unit in the style sheet, and the graph's width and height,
   are in `em` or `rem`, the width 75rem over a 1200-unit view box;
-  nothing in the page is in `px`. No style rule or attribute sets a
-  font size inside the graph. The data line, the budget line and the markers'
+  nothing in the page is in `px`. No label in the graph sets a font
+  size of its own, by a style rule or an attribute. The data line, the budget line and the markers'
   outlines are at least 2 units wide. The graph's box scrolls
   sideways. A "Larger text and lines" checkbox with its label is first
   in the page. Its checked state, and `prefers-contrast: more`, each

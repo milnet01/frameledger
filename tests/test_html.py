@@ -403,9 +403,22 @@ def test_budget_line(capsys, tmp_path, fps, label, budget_ms, ms_top):
     assert (x1, x2) == (graph.left, graph.left + graph.width)
     key = graph.one("text", "budget-label")
     assert key.text == label and float(key.get("y")) > graph.top + graph.height + graph.em  # under the plot
+    # On a row of its own: a line of text below the time axis's name, and inside the picture.
+    [axis_name] = [title for title in graph.all("text", "axis-title") if title.text == "time (s)"]
+    assert float(axis_name.get("y")) + graph.em <= float(key.get("y")) < float(graph.svg.get("viewBox").split()[3])
     # And as a sentence, since a screen reader skips the graph's own text.
     assert f"The dashed line is the {label}." in sentences(page)
     assert graph.all("text", "ms-tick")[-1].text == ms_top
+
+
+@pytest.mark.parametrize(("walls", "slowest_ends"), [
+    ([2.5, 1.0], "0.003"),  # rounding a half to the even thousandth says 0.002
+    ([1.0, 6.5], "0.008"),  # a float's own rounding says 0.007
+])
+def test_a_time_rounds_a_half_up(capsys, tmp_path, walls, slowest_ends):
+    """A time is in seconds to a thousandth, and half a thousandth rounds up."""
+    graph = Graph(write_page(capsys, tmp_path, run_text(walls)))
+    assert graph.svg.get("aria-label").endswith(f"at {slowest_ends} s.")
 
 
 def test_a_missing_wall_stops_the_graph(capsys, tmp_path):
