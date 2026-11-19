@@ -1498,6 +1498,13 @@ the source of truth; all three engines set that condition, 2026-11-10.
   not make are put to them: the budget label under the plot, a sentence
   saying what the numbered markers are, and the wording of the
   narrow-band list.
+  2026-11-19: Vestige, UT Ants and DOOM Ants reviewed 980a478; none
+  found a blocking defect. Folded at bb0bb5f: marker numbers clear of
+  band labels and 0.5 em apart, the timeline's stop as ledger.Stop,
+  atomic.py, a lone frame as a dot, an empty PAGE refused, tests for
+  segment escaping and the refusals' order. § 4.21 and INV-126, 127, 129
+  and 130 amended to match. FLED-0080 and FLED-0081 filed from UT Ants'
+  findings. Sent back to the three engines to confirm.
   **Layman:** A page you open in a browser that shows a run as a graph, easy to read with poor eyesight.
   Kind: feature.
   Source: engine-answers-2026-11-10.
