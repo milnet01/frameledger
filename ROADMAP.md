@@ -1670,6 +1670,14 @@ format, the JSON output and the commands.
   oddities (bisect's run entries lack `started_utc` and sometimes
   `under_load`; floor's `fps` is a count; `result` on an unreadable
   file; no NaN). Answers owed by all three.
+  2026-11-20: Vestige and UT Ants agreed all seven. Neither reads any
+  --json today; both pin the .pyz alone and would read the schemas from
+  it. Vestige also asks for a `frames` key beside floor's `fps`; UT Ants
+  would leave it; DOOM Ants' answer decides. Spec drafted at a0c0088:
+  `docs/specs/FLED-0041-json-result-schemas.md`, its § 13 holding the
+  open points. Out for review to the three engines, and to ExperiRays
+  for a cold read; the owner asked the same day that ExperiRays also
+  cold-reads the code.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
