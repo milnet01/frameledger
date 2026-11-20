@@ -13,8 +13,12 @@ What counts as breaking is
 
 - **Only the newest release.** A fix ships in the next release. No
   older release is patched.
-- **An older release stays published.** Its archive and SHA256 stay on
-  the releases page, so a pin keeps resolving.
+- **An older release is never unpublished.** Its archive and its
+  notes, which hold the SHA256, stay on the releases page, so a pin
+  keeps resolving.
+- **`CHANGELOG.md` is where every deprecation and removal is
+  announced.** `scripts/release_notes.py` prints a release's section
+  as its notes.
 
 ## What it runs on
 
@@ -27,10 +31,11 @@ What counts as breaking is
 - **Systems.** Linux, Windows and macOS. `.github/workflows/ci.yml`
   runs the gate on Linux and macOS. `.github/workflows/release.yml`
   builds each release and runs its `--selftest` on Linux and Windows.
-  No version of a system is promised beyond the ones those runners
-  give.
-- **The writer.** `include/frameledger.h` compiles as C and as C++17
-  under the flags `tests/writer/test_compile.sh` uses.
+  Both name their runners `-latest`, which GitHub moves, so no
+  version of a system is promised.
+- **The writer.** `include/frameledger.h` compiles as C99 and as
+  C++17, under the compilers and flags
+  `tests/writer/test_compile.sh` names.
 
 **For how long.** No end date is set for any of these. Dropping one is
 a breaking change, so it follows the two sections below.
@@ -51,6 +56,8 @@ From 1.0.0, a MAJOR only (`~/.claude/standards/versioning.md` § 2).
 2. **A way across.** The deprecating release already holds the
    replacement, or its `CHANGELOG.md` entry says there is none.
 3. **The three engines' agreement**: Vestige, UT Ants and DOOM Ants.
+   No other user's agreement is asked. The break's `ROADMAP.md` item
+   records each engine's answer.
    Silence is not agreement. Where an engine does not answer, the
    owner decides.
 
@@ -58,7 +65,7 @@ Nothing checks these three. The release's reviewers do.
 
 **One exception.** A security hole that cannot be closed without a
 break skips the warning. It keeps the release level and the
-`CHANGELOG.md` entry.
+`CHANGELOG.md` entry, and it does not reach the two things below.
 
 **What no release breaks.**
 

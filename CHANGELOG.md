@@ -35,8 +35,7 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   frozen under `tests/fixtures/schemas/`, and the tests hold every
   later release's output to them (FLED-0041).
 - `floor --json`: each window has `frames`, the count of frames ending
-  in it. `fps` holds the same count and stays, as the older name
-  (FLED-0041).
+  in it (FLED-0041).
 - `bisect --json`: each run has `started_utc` and `under_load`, as
   `compare`'s runs have. Both are null for a run that could not be
   read or that breaks the format (FLED-0041).
@@ -51,6 +50,14 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   `render_scale` times each side is the size drawn. It also says a
   reader skips a byte-order mark at the start of a run or budget file
   and a writer puts none. No command behaves differently (FLED-0040).
+
+### Deprecated
+
+- `floor --json`: `fps` in each window. Read `frames`, which holds the
+  same count. `fps` keeps working, and its schema entry is marked
+  `"deprecated": true`. The earliest release that may remove it is
+  2.0.0. `docs/support-policy.md` says how a thing is retired
+  (FLED-0042).
 
 ## [0.7.0] - 2026-11-19
 

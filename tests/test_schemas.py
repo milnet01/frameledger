@@ -53,8 +53,9 @@ CONDITIONAL = ("if", "then", "else", "allOf", "anyOf", "oneOf", "not")
 # Every keyword the files use. strict() and the walkers know these and no
 # other: `contains` or `dependentSchemas`, say, would be closed or skipped wrongly.
 KEYWORDS = {"$schema", "$defs", "$ref", "title", "description", "type", "properties", "required", "items",
-            "additionalProperties", "enum", "const", *CONDITIONAL}
-VALUES = ("enum", "const", "required", "type", "title", "description", "$ref", "$schema")  # hold no schema
+            "additionalProperties", "enum", "const", "deprecated", *CONDITIONAL}
+# These hold no schema.
+VALUES = ("enum", "const", "required", "type", "title", "description", "deprecated", "$ref", "$schema")
 FIRST_FROZEN = (0, 8, 0)  # § 4.7: from this release, every release freezes its schemas; check-release.sh agrees
 
 # A break made on purpose: (frozen version, command, where, a sentence of

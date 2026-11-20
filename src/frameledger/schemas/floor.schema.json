@@ -57,7 +57,8 @@
               },
               "fps": {
                 "type": "integer",
-                "description": "The older name of frames, holding the same count."
+                "description": "The older name of frames, holding the same count. Deprecated: read frames.",
+                "deprecated": true
               },
               "mean_ms": {
                 "type": [

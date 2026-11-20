@@ -1726,6 +1726,18 @@ format, the JSON output and the commands.
   the Python floor rises before 1.0, whether only the newest release gets
   fixes, and whether `fps` is marked `"deprecated": true` in floor's
   schema before 0.8.0 freezes it.
+  2026-11-20, answers. UT Ants and DOOM Ants each: yes to all four
+  (`fps` deprecated in 0.8.0 and removed no earlier than 2.0.0; only the
+  newest release gets fixes; the Python floor stays 3.10 through 1.x; the
+  schema mark and a `### Deprecated` entry before the freeze). Neither
+  reads `fps` or runs the analyser in a gate; both would run it under
+  Python 3.13. Folded from them: no newer Python is tested, said plainly;
+  silence is not agreement and the owner then decides; the named earliest
+  release binds; the break's roadmap item records each engine's answer.
+  ExperiRays' cold read folded: floating runner images said plainly, the
+  security exception scoped, CHANGELOG.md named as where a deprecation is
+  announced, C99 named. Not folded: how to report a bug or a security
+  hole (FLED-0045). Vestige's answer owed.
   **Layman:** Says how long features and systems are supported and how changes are announced.
   Kind: doc.
   Source: engine-answers-2026-11-10.
