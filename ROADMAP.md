@@ -1603,7 +1603,7 @@ What a stranger can rely on not to change under them: the file
 
 format, the JSON output and the commands.
 
-- 🚧 [FLED-0040] **The run-file format is promised stable.**
+- ✅ [FLED-0040] **The run-file format is promised stable.**
   Format spec 1.0: what may change in a later schema version and
   what never will, and how long older versions keep analysing (S6).
   2026-11-20: picked up. It gets its own spec at
@@ -1641,6 +1641,12 @@ format, the JSON output and the commands.
   said in the spec: an absolute path in a frozen baseline, and a baseline
   through `compare --baseline`. Confirmation of 409622f asked of the
   three engines.
+  2026-11-20: Vestige, UT Ants and DOOM Ants each confirmed 409622f;
+  nothing of theirs still stands. Vestige ran the 53 tests on an export,
+  also through a symlinked path, and showed that refusing a frame with no
+  frame/gpu_span fails two tests, through its own frozen file. DOOM Ants
+  ran the tests on a clone. UT Ants read the commit and did not re-run.
+  Shipped; it reaches engines with 0.8.0, when schema 1 freezes.
   **Layman:** A promise that files written today will still be read by future versions.
   Kind: doc.
   Source: engine-answers-2026-11-10.

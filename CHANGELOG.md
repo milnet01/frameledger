@@ -21,8 +21,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   frozen as FLED-0001 stands at 0.8.0. A later release adds to a
   schema only what an older analyser already reads, and anything else
   takes a new `schema` number; no writer is made to move. Frozen files
-  under `tests/fixtures/frozen/` hold it, one of them a run Vestige's
-  writer wrote (FLED-0040).
+  under `tests/fixtures/frozen/` hold it, two of them from a run
+  Vestige's writer wrote, and `scripts/freeze.py` freezes a new one
+  (FLED-0040).
 
 ### Changed
 

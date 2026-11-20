@@ -2,9 +2,8 @@
 
 ## Where this project is
 
-**State:** 5 — On an item.
-**In flight:** FLED-0040, built, the three engines' and ExperiRays' code
-reviews folded; the engines' confirmations asked for.
+**State:** 4 — Between items.
+**In flight:** nothing.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.
