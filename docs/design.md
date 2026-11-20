@@ -33,7 +33,7 @@ Four parts. The format spec is the only thing the other three share.
   test fails when one does (`sys.stdlib_module_names`). Its files:
   - `ledger.py` — reads one run file into a `Run`, and lists every way
     it breaks the format. It reads every older schema version (S6's
-    older files) and Windows files, with CRLF endings and Windows paths
+    older files; `docs/specs/FLED-0040-format-stability-promise.md`) and Windows files, with CRLF endings and Windows paths
     (S11). The `check` command (S18) reports that list.
   - `stats.py` — percentiles, lows, spreads, one-second windows,
     frame-to-frame variation. Numbers in, numbers out.

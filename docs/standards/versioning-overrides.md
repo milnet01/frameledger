@@ -40,7 +40,10 @@ scripts and writers are built to.
 - **The run file**: its header, static line, rows and close line,
   `docs/specs/FLED-0001-run-file-format.md` § 4.1 to § 4.5. A file
   that one release reads must still be read by the next, with the same
-  values (DOOM Ants). The reverse
+  values (DOOM Ants).
+  `docs/specs/FLED-0040-format-stability-promise.md` owns the rule:
+  what a schema may gain, what takes a new number, and that an older
+  schema is read for ever. The reverse
   is not promised: a file with a newer `schema` than the analyser's is
   exit 3, naming both versions (INV-2), so update the analyser before
   or with the header (Vestige).

@@ -8,8 +8,10 @@
 ## Status
 
 The run-file format is agreed
-([spec](docs/specs/FLED-0001-run-file-format.md)). These commands are
-built:
+([spec](docs/specs/FLED-0001-run-file-format.md)). From 0.8.0 a file
+that a release reads is read the same by every later release
+([the promise](docs/specs/FLED-0040-format-stability-promise.md)).
+These commands are built:
 
 - `check` says whether a run file meets the format.
 - `report` says where one run's frame time went, and how evenly its

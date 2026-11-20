@@ -1,0 +1,40 @@
+{
+ "match": {
+  "tier": "high",
+  "render_scale": 1
+ },
+ "budgets": [
+  [
+   "gpu",
+   "shadows",
+   "view",
+   0,
+   "p99",
+   6000
+  ],
+  [
+   "cpu",
+   "cpu_remainder",
+   "*",
+   null,
+   "median",
+   999999999999
+  ],
+  [
+   "cpu",
+   "scene/culling",
+   null,
+   1,
+   "median",
+   1
+  ],
+  [
+   "frame",
+   "gpu_span",
+   "*",
+   null,
+   "p99",
+   16667
+  ]
+ ]
+}

@@ -4,3 +4,6 @@ launcher/frameledger text eol=lf
 # The writer kit's files are bytes to be matched: kit DIR writes them as
 # they are, from the tree or the .pyz, so a Windows checkout must keep LF.
 src/frameledger/kit/** text eol=lf
+# A frozen file is bytes to be matched (FLED-0040): no checkout may change
+# a line ending or a trailing space.
+tests/fixtures/frozen/** -text

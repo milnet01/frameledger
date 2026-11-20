@@ -12,6 +12,26 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Added
+
+- The format stability promise,
+  `docs/specs/FLED-0040-format-stability-promise.md`: a run, budget or
+  baseline file that 0.8.0 or a later release reads without a breach
+  is read the same by every release after it, for ever. Schema 1 is
+  frozen as FLED-0001 stands at 0.8.0. A later release adds to a
+  schema only what an older analyser already reads, and anything else
+  takes a new `schema` number; no writer is made to move. Frozen files
+  under `tests/fixtures/frozen/` hold it, one of them a run Vestige's
+  writer wrote (FLED-0040).
+
+### Changed
+
+- The format spec says what `resolution` means: the size of the image
+  the engine hands on for display, after any upscaling of its own.
+  `render_scale` times each side is the size drawn. It also says a
+  reader skips a byte-order mark at the start of a run or budget file
+  and a writer puts none. No command behaves differently (FLED-0040).
+
 ## [0.7.0] - 2026-11-19
 
 **Theme:** Seen, not only read.

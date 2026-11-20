@@ -1,7 +1,7 @@
 <!-- ants-spec-format: 1 -->
 # FLED-0040 — Promise the run file's format stable
 
-**Status:** spec draft (2026-11-20).
+**Status:** accepted (2026-11-20).
 **Kind:** doc.
 **Source:** ROADMAP FLED-0040 (engine-answers-2026-11-10; discovery S6 and S27).
 **Blocker for:** FLED-0015.
@@ -62,6 +62,9 @@ the choices below on 2026-11-20, as sessions using the format.
   Ants, and each engine writes or will write it so).
 - `check --strict` may gain a code that fails a file it passed, and
   the release note names each new code (§ 4.3).
+- `FLED_SCHEMA` is the lowest schema the writer header's own lines are
+  valid under, and an engine writes it as its `schema` (§ 4.5; asked
+  by Vestige).
 
 ## 4. Design
 
@@ -209,9 +212,11 @@ and keeping the older header is always allowed.
 The engine composes line 1 itself, so `FLED_SCHEMA` cannot know what
 is in it. An engine whose own header JSON uses something only a later
 schema defines writes that later number: the number written is the
-higher of the two (UT Ants). A writer that does not use
-`frameledger.h` writes the number of the schema it follows, as a
-literal.
+higher of the two (UT Ants). A field of the engine's own does not
+touch `schema`: the number says which schema's rules the file
+follows, and § 4.4 already allows such a field (DOOM Ants). A writer
+that does not use `frameledger.h` writes the number of the schema it
+follows, as a literal.
 
 ### 4.6 How long an older schema is read
 
@@ -243,6 +248,8 @@ tests/fixtures/frozen/
   run-schema-1.json        its parsed values (§ 4.3)
   run-schema-1-b.csv       two more runs, so the baseline names three
   run-schema-1-c.csv
+  run-schema-1-vestige.csv the opening frames of a run Vestige's writer wrote
+  run-*.json               one beside each run file
   budget-schema-1.csv
   budget-schema-1.json     its `match` and each budget's fields
   baseline-schema-1.txt    names the three run files by relative path
@@ -263,7 +270,7 @@ tests/test_frozen.py
 - `run-schema-1.csv` holds every required and optional header field,
   the static line, every category, a quoted field, a negative value,
   line 1 padded with 2048 spaces after its closing brace (FLED-0001
-  § 4.1), the length Vestige's writer keeps, and CRLF on at least one
+  § 4.1), the most Vestige's writer leaves, and CRLF on at least one
   line.
 - It also holds a row at each limit of FLED-0001 § 4.2 and § 4.4: the
   longest name, segment kind, segment id and category, the most digits
@@ -454,6 +461,4 @@ Rows live in `../reviews/FLED-0040-format-stability-promise-loop-log.md`.
 
 ## 13. Open questions
 
-1. **What `FLED_SCHEMA` means** (§ 4.5). Vestige asked what an engine
-   should write as `schema`, since `fled_open` writes none. The rule
-   in § 4.5 is the author's proposal, not yet agreed by the engines.
+None.

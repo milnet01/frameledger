@@ -1,0 +1,518 @@
+{
+ "header": {
+  "schema": 1,
+  "run_id": "frozen-1",
+  "engine": "frozen",
+  "tool": {
+   "name": "bench",
+   "version": "1.0"
+  },
+  "build_type": "release",
+  "commit": "0123abc",
+  "dirty": false,
+  "device": "AMD Radeon RX 6600",
+  "renderer": "AMD Radeon RX 6600 (RADV NAVI23)",
+  "driver": "Mesa 25.0.0",
+  "api": "vulkan-1.3",
+  "resolution": [
+   1920,
+   1080
+  ],
+  "render_scale": 1.0,
+  "vsync": false,
+  "pipelined": false,
+  "display": "onscreen",
+  "scene": "meadow",
+  "inputs": [
+   {
+    "name": "meadow.scene",
+    "hash": "sha256:abababababababababababababababababababababababababababababababab",
+    "bytes": 48213
+   },
+   {
+    "name": "e1m1.wad",
+    "hash": "md5:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "bytes": 0
+   }
+  ],
+  "started_utc": "2026-11-20T12:00:00.12345678901234567890Z",
+  "tier": "high",
+  "ray_tracing": false,
+  "frames_in_flight": 2,
+  "settling_frames": 3,
+  "settled_frames": 3,
+  "pinned": {
+   "time": true
+  },
+  "gpu_tick_ns": 1.0,
+  "load": {
+   "start": 0.02,
+   "end": 0.03,
+   "peak": 0.5
+  },
+  "gpu_busy_pct": {
+   "start": 1,
+   "end": 2,
+   "peak": 99
+  },
+  "gpu_clock_mhz": {
+   "start": 2000,
+   "end": 2100
+  },
+  "os": "Linux 6.12",
+  "sanitizers": [
+   "address"
+  ],
+  "cpu_governor": "performance",
+  "turbo": true,
+  "power": "mains",
+  "cpu_clock_mhz": {
+   "start": 4000,
+   "end": 4100
+  },
+  "cpu_temp_c": {
+   "start": 50,
+   "end": 60,
+   "peak": 61.5
+  },
+  "gpu_temp_c": {
+   "start": 55,
+   "end": 65
+  },
+  "throttled": false,
+  "unknown": [
+   "driver"
+  ],
+  "extra": {
+   "engine_note": "anything",
+   "nested": {
+    "n": 1
+   }
+  }
+ },
+ "static": {
+  "summary": {
+   "draws": "1200"
+  },
+  "pipelines": [
+   {
+    "name": "opaque",
+    "hash": "17436423623014656123"
+   }
+  ]
+ },
+ "close": {
+  "rows_dropped": 0,
+  "frames": 6
+ },
+ "rows": [
+  [
+   "view:1",
+   99999999999999999994,
+   "frame",
+   "cpu_span",
+   0,
+   8250
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "frame",
+   "gpu_span",
+   0,
+   10500
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "frame",
+   "wall",
+   0,
+   16667
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "cpu",
+   "scene",
+   0,
+   5000
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "cpu",
+   "scene/culling",
+   1,
+   1250
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "gpu",
+   "shadows",
+   0,
+   4000
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "mem",
+   "gpu_mb",
+   0,
+   512000
+  ],
+  [
+   "view:1",
+   99999999999999999995,
+   "frame",
+   "cpu_span",
+   0,
+   8250
+  ],
+  [
+   "view:1",
+   99999999999999999995,
+   "frame",
+   "gpu_span",
+   0,
+   10500
+  ],
+  [
+   "view:1",
+   99999999999999999995,
+   "frame",
+   "wall",
+   0,
+   16667
+  ],
+  [
+   "view:1",
+   99999999999999999995,
+   "cpu",
+   "scene",
+   0,
+   5000
+  ],
+  [
+   "view:1",
+   99999999999999999995,
+   "cpu",
+   "scene/culling",
+   1,
+   1250
+  ],
+  [
+   "view:1",
+   99999999999999999995,
+   "gpu",
+   "shadows",
+   0,
+   4000
+  ],
+  [
+   "view:1",
+   99999999999999999995,
+   "mem",
+   "gpu_mb",
+   0,
+   512000
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "frame",
+   "cpu_span",
+   0,
+   8250
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "frame",
+   "gpu_span",
+   0,
+   10500
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "frame",
+   "wall",
+   0,
+   16667
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "cpu",
+   "scene",
+   0,
+   5000
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "cpu",
+   "scene/culling",
+   1,
+   1250
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "gpu",
+   "shadows",
+   0,
+   4000
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "mem",
+   "gpu_mb",
+   0,
+   512000
+  ],
+  [
+   "spot:e1m1,a",
+   99999999999999999997,
+   "frame",
+   "cpu_span",
+   0,
+   8250
+  ],
+  [
+   "spot:e1m1,a",
+   99999999999999999997,
+   "frame",
+   "gpu_span",
+   0,
+   10500
+  ],
+  [
+   "spot:e1m1,a",
+   99999999999999999997,
+   "frame",
+   "wall",
+   0,
+   16667
+  ],
+  [
+   "spot:e1m1,a",
+   99999999999999999997,
+   "cpu",
+   "scene",
+   0,
+   5000
+  ],
+  [
+   "spot:e1m1,a",
+   99999999999999999997,
+   "cpu",
+   "scene/culling",
+   1,
+   1250
+  ],
+  [
+   "spot:e1m1,a",
+   99999999999999999997,
+   "gpu",
+   "shadows",
+   0,
+   4000
+  ],
+  [
+   "spot:e1m1,a",
+   99999999999999999997,
+   "mem",
+   "gpu_mb",
+   0,
+   512000
+  ],
+  [
+   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+   99999999999999999998,
+   "frame",
+   "cpu_span",
+   0,
+   8250
+  ],
+  [
+   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+   99999999999999999998,
+   "frame",
+   "gpu_span",
+   0,
+   10500
+  ],
+  [
+   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+   99999999999999999998,
+   "frame",
+   "wall",
+   0,
+   16667
+  ],
+  [
+   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+   99999999999999999998,
+   "cpu",
+   "scene",
+   0,
+   5000
+  ],
+  [
+   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+   99999999999999999998,
+   "cpu",
+   "scene/culling",
+   1,
+   1250
+  ],
+  [
+   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+   99999999999999999998,
+   "gpu",
+   "shadows",
+   0,
+   4000
+  ],
+  [
+   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk:iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii",
+   99999999999999999998,
+   "mem",
+   "gpu_mb",
+   0,
+   512000
+  ],
+  [
+   "",
+   99999999999999999999,
+   "frame",
+   "cpu_span",
+   0,
+   8250
+  ],
+  [
+   "",
+   99999999999999999999,
+   "frame",
+   "gpu_span",
+   0,
+   10500
+  ],
+  [
+   "",
+   99999999999999999999,
+   "cpu",
+   "scene",
+   0,
+   5000
+  ],
+  [
+   "",
+   99999999999999999999,
+   "cpu",
+   "scene/culling",
+   1,
+   1250
+  ],
+  [
+   "",
+   99999999999999999999,
+   "gpu",
+   "shadows",
+   0,
+   4000
+  ],
+  [
+   "",
+   99999999999999999999,
+   "mem",
+   "gpu_mb",
+   0,
+   512000
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "frame",
+   "fence_wait",
+   0,
+   100
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "frame",
+   "present_wait",
+   0,
+   200
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "gpu",
+   "ssao",
+   0,
+   -1
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "mem",
+   "peak_mb",
+   0,
+   999999999999
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "event",
+   "tic",
+   0,
+   2000
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "event",
+   "loaded_chunk",
+   0,
+   3000
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "cpu",
+   "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+   0,
+   1
+  ],
+  [
+   "view:1",
+   99999999999999999994,
+   "ext.eeeeeeeeeeeeeeeeeeeeeeeeeeee",
+   "own_counter",
+   99999999999999999999,
+   7000
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "event",
+   "cut",
+   0,
+   1000
+  ],
+  [
+   "move:1-2",
+   99999999999999999996,
+   "event",
+   "generated",
+   0,
+   1000
+  ]
+ ]
+}
