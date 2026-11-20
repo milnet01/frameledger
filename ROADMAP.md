@@ -1696,6 +1696,9 @@ format, the JSON output and the commands.
   command, not a flag; `frames` beside floor's `fps`). Sent to Vestige,
   UT Ants and DOOM Ants for acceptance, with one open point: which value
   sets are closed. Not built until all three accept.
+  2026-11-20: Vestige, UT Ants and DOOM Ants each accepted the spec,
+  closed sets included (`statistic` closed; `unit` open with
+  `category`). The spec is accepted; the build is next.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
