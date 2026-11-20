@@ -58,6 +58,10 @@ the choices below on 2026-11-20, as sessions using the format.
 - Segment kinds are an open set (§ 4.4; UT Ants).
 - The frozen run file has a space-padded line 1 (§ 4.8; Vestige, which
   rewrites its header in place at close).
+- `resolution` is the image handed on for display (§ 11; raised by UT
+  Ants, and each engine writes or will write it so).
+- `check --strict` may gain a code that fails a file it passed, and
+  the release note names each new code (§ 4.3).
 
 ## 4. Design
 
@@ -77,8 +81,9 @@ others. "A file" below means any of the three.
 In every schema, present and future:
 
 - the file is UTF-8 text;
-- line 1 is the file's keyword from § 4.1, then one JSON object on that
-  line;
+- line 1 is the file's keyword from § 4.1, whose last character is
+  one space, then one JSON object on that line. The line ends in LF or
+  CRLF;
 - that object holds `schema` at its top level, a whole number, 1 or
   more;
 - a writer puts no byte-order mark before the keyword. A reader skips
@@ -100,12 +105,14 @@ nothing.
   a run file; a budget or baseline file is not refused with exit 3 for
   its own contents. `check --strict` is outside the promise: it fails
   on any warning (FLED-0001 § 4.19), and § 4.4's additions make an
-  older release warn (DOOM Ants).
-- **The same values** — for a run file, the `ledger.Run`'s `header`,
-  `static` and `close`, and every `ledger.Row` in its `frames`: the
-  row's segment, frame, category, name, depth and value in
-  thousandths. § 4.8 gives the stored form. For a budget or baseline
-  file, the lines it holds, as the reader hands them to the command.
+  older release warn (DOOM Ants). It may gain a code in any release.
+- **The same values** — for a run file, the header, static and close
+  objects, and each row's segment, frame, category, name, depth and
+  value. For a budget file, its `match` and each budget's fields. For
+  a baseline file, each path as written, before it is resolved. § 4.8
+  gives the stored form. The tests read them through the readers'
+  types, such as `ledger.Run`; those types are not a surface
+  (`versioning-overrides.md` § Not surfaces) and may change shape.
 - **Not covered here** — what is computed from those values. A
   percentile, a warning or a verdict changes only as
   `versioning-overrides.md` § Breaking surfaces allows. A new warning
@@ -114,6 +121,12 @@ nothing.
 So after 0.8.0 no rule of a released schema is tightened. A check that
 would newly refuse a file that passed, as INV-102 of FLED-0001 did, is
 a new schema or a warning, never a new breach in schema 1.
+
+**Rules a file is judged by elsewhere are frozen with it** (Vestige).
+A budget file's `match` names compare-blocking fields, so for schema 1
+that list does not shrink (`compare.BLOCKING`). A baseline file needs
+a fewest number of runs, so for schema 1 that number does not rise
+(`baseline.FEWEST_RUNS`).
 
 **A file that already breaches is promised nothing.** A later release
 may read it, or report the breach in other words.
@@ -139,7 +152,8 @@ file's schema 1:
 | an `event`, `cpu`, `gpu`, `mem` or `ext.<engine>` name | reads the row; FLED-0001 § 4.4 limits a name's characters and length and lists no names for these categories |
 | a segment kind | reads the row; any kind within the length limit is allowed, and `view`, `move`, `leg` and `spot` are examples |
 | a `frame` name | warns `unknown_frame_name`, reads the rest |
-| anything in the static line | prints it; its shape is the engine's (FLED-0001 § 4.3) |
+| a key in the static line, at any depth | prints it; the shape is the engine's, and a statistic is a JSON string, never a JSON number, which is a breach (FLED-0001 § 4.3) |
+| a key inside a header field that is an object, such as `tool`, `load` or an `inputs` entry | ignores it, with no warning; `unknown_field` judges top-level fields only (Vestige) |
 
 For the baseline file's schema 1: a key in line 1, which FLED-0001
 § 4.17 already says is ignored.
@@ -169,6 +183,10 @@ read it wrongly:
 - a change to what an existing field, row or unit means, or to the
   rounding rule of FLED-0001 § 4.4;
 - a rule that refuses what the schema allowed;
+- a rule that allows what the schema refused (Vestige): a new value in
+  a closed set, such as `display`, a hash prefix or a budget's
+  `statistic`; a longer name, kind or number; a new character in a
+  name. Every earlier release refuses the file;
 - for the budget file, a new column, or a key in line 1 that changes
   what is judged. An earlier release reads only `schema` and `match`
   from line 1 (`budgeting.py`), so it would ignore the key and judge
@@ -178,11 +196,15 @@ read it wrongly:
 ever (§ 4.6). A writer changes the number it writes only when it uses
 something a later schema defines.
 
-`FLED_SCHEMA` in `include/frameledger.h` is the schema that header's
-functions write. An engine vendors the header from a release (FLED-0001
-§ 4.6), so its files change schema only when it takes a newer header
-whose `FLED_SCHEMA` is higher. The release note of the first such
-header says so. Keeping the older header is always allowed.
+**`FLED_SCHEMA` in `include/frameledger.h` is the lowest schema under
+which the lines its functions write are valid.** `fled_open` copies
+the engine's header JSON as given, so the engine writes `schema`
+itself, and writes `FLED_SCHEMA` there, as Vestige does. The number
+rises only in a release whose header writes a row or close line that
+the lower schema does not allow, and that release's note says so. A
+header that only gains what § 4.4 allows keeps its number. So taking a
+newer header relabels no file unless the header's own output changed,
+and keeping the older header is always allowed.
 
 ### 4.6 How long an older schema is read
 
@@ -212,8 +234,12 @@ release; a budget or baseline file holding it is exit 3.
 tests/fixtures/frozen/
   run-schema-1.csv         a run file using every field and line schema 1 defines at 0.8.0
   run-schema-1.json        its parsed values (§ 4.3)
+  run-schema-1-b.csv       two more runs, so the baseline names three
+  run-schema-1-c.csv
   budget-schema-1.csv
-  baseline-schema-1.txt
+  budget-schema-1.json     its `match` and each budget's fields
+  baseline-schema-1.txt    names the three run files by relative path
+  baseline-schema-1.json   the paths as written
   SHA256SUMS               one line per file above
 tests/test_frozen.py
 ```
@@ -225,12 +251,13 @@ tests/test_frozen.py
   `[segment, frame, category, name, depth, thousandths]`.
 - A frozen file is never edited once a release has shipped it. A later
   addition to a schema (§ 4.4) gets a new frozen file beside it; the
-  old one stays. So does a run file an engine's own writer wrote, when
-  an engine gives one.
+  old one stays. A run file an engine's own writer wrote is frozen the
+  same way when an engine gives one, with its own `.json`.
 - `run-schema-1.csv` holds every required and optional header field,
   the static line, every category, a quoted field, a negative value,
-  line 1 padded with spaces after its closing brace (FLED-0001 § 4.1)
-  and CRLF on at least one line.
+  line 1 padded with 2048 spaces after its closing brace (FLED-0001
+  § 4.1), the length Vestige's writer keeps, and CRLF on at least one
+  line.
 - It also holds a row at each limit of FLED-0001 § 4.2 and § 4.4: the
   longest name, segment kind, segment id and category, the most digits
   in a frame number and a depth, the largest value, and the most
@@ -242,10 +269,11 @@ tests/test_frozen.py
 
 ## 5. Invariants
 
-- **INV-1** — `run-schema-1.csv` passes `check` with exit 0 and no
-  breach, and `ledger.read` gives exactly the values in
-  `run-schema-1.json`: the three objects, and the rows of `Run.frames`
-  sorted by their line in the file.
+- **INV-1** — Every frozen run file passes `check` with exit 0 and no
+  breach, and `ledger.read` gives exactly the values in the `.json`
+  beside it: the three objects, and the rows of `Run.frames` sorted by
+  their line in the file. `run-schema-1.csv` is one; an engine's own
+  file is another.
   *Test:* `tests/test_frozen.py::test_run_file_reads_the_same`.
   *Breaks when:* a reader change refuses or re-reads something schema 1
   allowed: a tightened `started_utc` rule, a changed rounding, a
@@ -253,7 +281,9 @@ tests/test_frozen.py
   parsed values, so no change to statistics or wording can fail it.
 
 - **INV-2** — The frozen budget file and baseline file are accepted,
-  and hold the lines stored for them.
+  and their readers give the values in the `.json` beside each: the
+  budget's `match` and budgets, and the baseline's paths made relative
+  to its folder again.
   *Test:* `tests/test_frozen.py::test_budget_and_baseline_read_the_same`.
   *Breaks when:* `budgeting.py` or `baseline.py` refuses a column value
   or a line 1 key that schema 1 allowed.
@@ -265,7 +295,8 @@ tests/test_frozen.py
   `SHA256SUMS`; § 10 says so.
 
 - **INV-4** — For each of the three files, every number from 1 to the
-  analyser's `SCHEMA` constant has a frozen file.
+  analyser's `SCHEMA` constant has a frozen file of exactly the name
+  § 4.8 gives, `<file>-schema-<N>` and its extension.
   *Test:* `tests/test_frozen.py::test_every_schema_is_frozen`.
   *Breaks when:* a commit raises a `SCHEMA` constant and adds no frozen
   file for the new number, or deletes an old schema's frozen file.
@@ -275,9 +306,9 @@ tests/test_frozen.py
   message naming schema 99 and schema 1, and reports no breach.
   *Test:* `tests/test_frozen.py::test_newer_schema_is_judged_from_line_1`,
   on a file built in the test.
-  *Breaks when:* the reader judges a header field or a later line
-  before `schema`, and so reports a schema 1 breach in a file that is
-  not schema 1. `tests/fixtures/schema-99.csv` cannot show this: every
+  *Breaks when:* a newer schema stops ending the read: the reader
+  notes it and goes on, so `check` lists schema 1 breaches and exits 1
+  for a file that is not schema 1. `tests/fixtures/schema-99.csv` cannot show this: every
   other line of it is valid schema 1.
 
 - **INV-7** — `run-schema-1.csv` with its `schema` set to each of `0`,
@@ -326,7 +357,8 @@ tests/test_frozen.py
 Each test is seen to fail before it is trusted: INV-1 by a reader
 patched to round a value differently, INV-2 by a narrowed budget
 column, INV-3 by one changed byte, INV-4 by a `SCHEMA` constant set to
-2, INV-5 by moving the schema check after the header's field checks,
+2, INV-5 by a reader that records the newer schema as a breach and reads
+on,
 INV-6 by making `unknown_field` a breach and by holding segment kinds
 to `view`, `move`, `leg` and `spot`, INV-7 by a schema check that
 takes any number, INV-8 by removing the reader's skip.
@@ -393,7 +425,17 @@ them, so INV-1 does.
   run-file bullet keeps the surface and points here for the rule.
 - `docs/specs/FLED-0001-run-file-format.md` — § 4.2's `schema` row and
   § 4.6's `FLED_SCHEMA` line point here for when the number moves;
-  § 4.12 and § 4.17 likewise. No clause of it changes meaning.
+  § 4.12 and § 4.17 likewise. Three sentences are added before 0.8.0,
+  while nothing is frozen:
+  - § 4.2: `resolution` is the size of the image the engine hands on
+    for display, after any upscaling of its own; a window that
+    stretches that image does not count, and a run with no display
+    writes the size it would hand on. `render_scale` times each side,
+    rounded to whole pixels as the engine chooses, is the size drawn.
+    Both are as at the run's start. No reader computes the drawn size.
+  - § 4.1 and § 4.12: a reader skips a UTF-8 byte-order mark at the
+    start of the file, and a writer never writes one. `ledger.py` and
+    `budgeting.py` already skip it.
 - `docs/design.md` § The parts — `ledger.py`'s "reads every older
   schema version" cites this spec.
 - `README.md` — one line under its format section naming the promise.
@@ -405,27 +447,6 @@ Rows live in `../reviews/FLED-0040-format-stability-promise-loop-log.md`.
 
 ## 13. Open questions
 
-Each closes before 0.8.0. Until that release nothing is frozen, so
-none is a change of meaning under § 4.5.
-
-1. **What `resolution` means when `render_scale` is not 1** (UT Ants).
-   FLED-0001 § 4.2 says `[width, height]` in pixels and not which
-   pixels. Both fields block a compare, so two engines reading it
-   differently would write files that compare and should not.
-   Proposed, for FLED-0001 § 4.2: `resolution` is the size of the
-   image the engine hands on for display, after any upscaling of its
-   own; a window that stretches that image does not count. A run with
-   no display writes the size it would hand on (UT Ants). `render_scale`
-   times each side is the size drawn, rounded as the engine chooses.
-   No reader computes the drawn size: a printed 0.6667 times 3840 is
-   not the 2560 drawn (UT Ants). DOOM Ants' three renderers write
-   this today, Classic included, whose software framebuffer a window
-   stretches. UT Ants accepts the wording. Needs Vestige to say what
-   it writes.
-2. **The byte-order mark sentence in FLED-0001.** § 4.2 here settles
-   the rule. FLED-0001 says a reader skips the mark for the baseline
-   file (§ 4.17) and not for the run file (§ 4.1). Proposed: § 4.1
-   gains both halves. UT Ants and DOOM Ants agree.
-3. **May `kit --strict` (FLED-0001 § 4.19) gain a code that fails a
-   file it passed?** Proposed: yes, and the release note names each
-   new code. UT Ants and DOOM Ants agree.
+1. **What `FLED_SCHEMA` means** (§ 4.5). Vestige asked what an engine
+   should write as `schema`, since `fled_open` writes none. The rule
+   in § 4.5 is the author's proposal, not yet agreed by the engines.
