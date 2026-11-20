@@ -1704,6 +1704,11 @@ format, the JSON output and the commands.
   `scripts/freeze_schemas.py`; the gate passes. Sent to Vestige, UT Ants
   and DOOM Ants for code review, readability included, and to ExperiRays
   for a cold read. Not shipped until their reviews are folded.
+  2026-11-20: the three engines' code reviews and ExperiRays' cold read
+  of 6231734 are folded at 10acffe; none found a wrong type or key, and
+  the frozen-set checks and several descriptions were strengthened. Sent
+  back to Vestige, UT Ants and DOOM Ants to confirm. Shipped once all
+  three confirm.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
