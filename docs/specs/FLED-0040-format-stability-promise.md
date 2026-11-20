@@ -414,13 +414,14 @@ none is a change of meaning under § 4.5.
    differently would write files that compare and should not.
    Proposed, for FLED-0001 § 4.2: `resolution` is the size of the
    image the engine hands on for display, after any upscaling of its
-   own; a window that stretches that image does not count. `render_scale`
+   own; a window that stretches that image does not count. A run with
+   no display writes the size it would hand on (UT Ants). `render_scale`
    times each side is the size drawn, rounded as the engine chooses.
    No reader computes the drawn size: a printed 0.6667 times 3840 is
    not the 2560 drawn (UT Ants). DOOM Ants' three renderers write
    this today, Classic included, whose software framebuffer a window
-   stretches. Needs Vestige to say what it writes, and UT Ants to
-   accept "handed on for display".
+   stretches. UT Ants accepts the wording. Needs Vestige to say what
+   it writes.
 2. **The byte-order mark sentence in FLED-0001.** § 4.2 here settles
    the rule. FLED-0001 says a reader skips the mark for the baseline
    file (§ 4.17) and not for the run file (§ 4.1). Proposed: § 4.1
