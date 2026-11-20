@@ -1610,6 +1610,18 @@ format, the JSON output and the commands.
   docs/specs/FLED-0040-format-stability-promise.md (spec-format.md § 1:
   a contract engines bind to, and hard to reverse). Six design choices
   put to the three engines before drafting.
+  2026-11-20: Vestige, UT Ants and DOOM Ants each agreed all six
+  proposals, as sessions using the format: three files covered, older
+  schemas read for ever, only the version line fixed across schemas,
+  additions only where an older analyser already reads them, a new
+  number for anything else with no writer made to move, and "read"
+  meaning parsed values. Folded in: no byte-order mark from a writer and
+  segment kinds open (UT Ants); a space-padded line 1 in the frozen file
+  (Vestige). Draft at docs/specs/FLED-0040-format-stability-promise.md,
+  sent to the three for review. Open, in its § 13: what `resolution`
+  means when `render_scale` is not 1 (UT Ants wants it stated in
+  FLED-0001 § 4.2 before the freeze); the byte-order mark sentence for
+  FLED-0001 § 4.1; whether `kit --strict` may gain a failing code.
   **Layman:** A promise that files written today will still be read by future versions.
   Kind: doc.
   Source: engine-answers-2026-11-10.
