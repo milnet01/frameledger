@@ -6,3 +6,5 @@ gpu,shadows,view,0,p99,6.000
 cpu,cpu_remainder,*,,median,999999999.999
 cpu,scene/culling,,1,median,0.001
 frame,gpu_span,*,,p99,16.667
+gpu,ssao,view,12,median,2
+cpu,scene,view,0,median,1.5

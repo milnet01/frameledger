@@ -35,6 +35,22 @@
    null,
    "p99",
    16667
+  ],
+  [
+   "gpu",
+   "ssao",
+   "view",
+   12,
+   "median",
+   2000
+  ],
+  [
+   "cpu",
+   "scene",
+   "view",
+   0,
+   "median",
+   1500
   ]
  ]
 }

@@ -34,7 +34,7 @@
  },
  "static": null,
  "close": {
-  "rows_dropped": 0,
+  "rows_dropped": 3,
   "frames": 4
  },
  "rows": [

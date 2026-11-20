@@ -1,0 +1,148 @@
+{
+ "header": {
+  "schema": 1,
+  "run_id": "frozen-awkward",
+  "engine": "frozen",
+  "tool": {
+   "name": "bench",
+   "version": "1.0"
+  },
+  "build_type": "release",
+  "commit": "0123abc",
+  "dirty": true,
+  "device": "Gerät ü",
+  "renderer": "llvmpipe",
+  "driver": "Mesa 25.0.0",
+  "api": "opengl-4.5",
+  "resolution": [
+   1,
+   1
+  ],
+  "render_scale": 0,
+  "vsync": true,
+  "pipelined": true,
+  "display": "offscreen",
+  "scene": "wiese-flug-ü",
+  "inputs": [],
+  "started_utc": "1968-02-29T23:59:59Z",
+  "frames_in_flight": 18446744073709551616,
+  "settling_frames": -1,
+  "load": {
+   "start": 1.5,
+   "end": 2
+  },
+  "gpu_clock_mhz": {
+   "start": -1,
+   "end": 0
+  },
+  "cpu_temp_c": {
+   "start": -40.5,
+   "end": -30
+  },
+  "sanitizers": [],
+  "power": "battery",
+  "unknown": [],
+  "pinned": {},
+  "extra": {}
+ },
+ "static": {
+  "flag": true,
+  "none": null,
+  "text": "ü",
+  "list": [
+   "1",
+   false
+  ]
+ },
+ "close": null,
+ "rows": [
+  [
+   "view:ü",
+   5,
+   "frame",
+   "cpu_span",
+   0,
+   8000
+  ],
+  [
+   "view:ü",
+   5,
+   "frame",
+   "gpu_span",
+   0,
+   10000
+  ],
+  [
+   "view:ü",
+   5,
+   "frame",
+   "wall",
+   0,
+   16000
+  ],
+  [
+   "view:ü",
+   5,
+   "cpu",
+   "pass.one-two",
+   0,
+   0
+  ],
+  [
+   "view:ü",
+   5,
+   "mem",
+   "delta_mb",
+   0,
+   -12500
+  ],
+  [
+   "view:ü",
+   5,
+   "ext.my-engine.v2",
+   "own-count",
+   1,
+   1000
+  ],
+  [
+   "move:1:2",
+   6,
+   "frame",
+   "cpu_span",
+   0,
+   8000
+  ],
+  [
+   "move:1:2",
+   6,
+   "frame",
+   "gpu_span",
+   0,
+   10000
+  ],
+  [
+   "move:1:2",
+   6,
+   "frame",
+   "wall",
+   0,
+   16000
+  ],
+  [
+   "spot:a\"b,c",
+   8,
+   "frame",
+   "cpu_span",
+   0,
+   8000
+  ],
+  [
+   "spot:a\"b,c",
+   8,
+   "frame",
+   "gpu_span",
+   0,
+   10000
+  ]
+ ]
+}

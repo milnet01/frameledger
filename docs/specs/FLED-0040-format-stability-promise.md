@@ -87,8 +87,9 @@ In every schema, present and future:
 - line 1 is the file's keyword from § 4.1, whose last character is
   one space, then one JSON object on that line. The line ends in LF or
   CRLF;
-- that object holds `schema` at its top level, a whole number, 1 or
-  more;
+- that object holds `schema` at its top level: a whole number, 1 or
+  more, written in digits alone. `1.0`, `1e0` and `"1"` are not it
+  (ExperiRays);
 - a writer puts no byte-order mark before the keyword. A reader skips
   one, as `ledger.read_bytes` does today, since an editor on Windows
   may add it.
@@ -109,9 +110,10 @@ nothing.
   its own contents. `check --strict` is outside the promise: it fails
   on any warning (FLED-0001 § 4.19), and § 4.4's additions make an
   older release warn (DOOM Ants). It may gain a code in any release.
-- **The same values** — for a run file, the header, static and close
-  objects, and each row's segment, frame, category, name, depth and
-  value. For a budget file, its `match` and each budget's fields. For
+- **The same values**, types included — for a run file, the header,
+  static and close objects, and each row's segment, frame, category,
+  name, depth and value. A row's `run_id` is the header's, so it adds
+  nothing. For a budget file, its `match` and each budget's fields. For
   a baseline file, each path as written, before it is resolved. § 4.8
   gives the stored form. The tests read them through the readers'
   types, such as `ledger.Run`; those types are not a surface
@@ -141,7 +143,9 @@ fault is.
   as a warning in schema 1. It becomes a breach only in a later schema.
 - Where the reader parses a value differently from what FLED-0001
   says, the fix lands and the value changes. The release note names it
-  (UT Ants). "The same values" means the values FLED-0001 gives.
+  (UT Ants). "The same values" means the values FLED-0001 gives. This
+  is the one case in which a frozen file's stored values change
+  (§ 4.8).
 
 ### 4.4 What may be added to a released schema
 
@@ -155,11 +159,13 @@ file's schema 1:
 | an `event`, `cpu`, `gpu`, `mem` or `ext.<engine>` name | reads the row; FLED-0001 § 4.4 limits a name's characters and length and lists no names for these categories |
 | a segment kind | reads the row; any kind within the length limit is allowed, and `view`, `move`, `leg` and `spot` are examples |
 | a `frame` name | warns `unknown_frame_name`, reads the rest |
-| a key in the static line, at any depth | prints it; the shape is the engine's, and a statistic is a JSON string, never a JSON number, which is a breach (FLED-0001 § 4.3) |
+| a key in the static line, at any depth | prints it; the shape is the engine's. No JSON number may appear anywhere in the line: a number is written as a string of its digits, and a bare one is a breach (FLED-0001 § 4.3). Strings, true, false and null are allowed |
 | a key inside a header field that is an object, such as `tool`, `load` or an `inputs` entry | ignores it, with no warning; `unknown_field` judges top-level fields only (Vestige) |
 
 For the baseline file's schema 1: a key in line 1, which FLED-0001
-§ 4.17 already says is ignored.
+§ 4.17 already says is ignored. For the budget file's schema 1: a key
+in line 1 that changes nothing judged, such as a note; an earlier
+release ignores it. § 4.5 has the other kind.
 
 An addition is optional for ever. Its absence means unknown, as
 FLED-0001 § 4.2 says of every optional field. A field once defined
@@ -174,7 +180,9 @@ for something else: a header field of its own, a `frame` name, an
 **An engine's own names have homes no later release defines into**:
 the header's `extra` object (FLED-0001 § 4.2), the static line, and
 rows under `ext.<engine>`. A name written elsewhere may meet a later
-definition, and then gets its warning.
+definition, and then gets its warning. The close line is not such a
+home: a key an engine adds there is read today and may be defined
+later.
 
 ### 4.5 What needs a new schema number
 
@@ -199,20 +207,25 @@ read it wrongly:
 ever (§ 4.6). A writer changes the number it writes only when it uses
 something a later schema defines.
 
-**`FLED_SCHEMA` in `include/frameledger.h` is the lowest schema under
-which the lines its functions write are valid.** `fled_open` copies
-the engine's header JSON as given, so the engine writes `schema`
-itself, and writes `FLED_SCHEMA` there, as Vestige does. The number
-rises only in a release whose header writes a row or close line that
-the lower schema does not allow, and that release's note says so. A
-header that only gains what § 4.4 allows keeps its number. So taking a
-newer header relabels no file unless the header's own output changed,
-and keeping the older header is always allowed.
+Two things are called a header. Here **the writer** is the C file
+`include/frameledger.h`, and **line 1** is the JSON the engine puts on
+the file's first line.
+
+**`FLED_SCHEMA` in the writer is the schema whose rules the rows and
+close line it writes follow.** `fled_open` copies the engine's line 1
+JSON as given, so the engine writes `schema` itself, and writes
+`FLED_SCHEMA` there, as Vestige does. The number rises only in a
+release whose writer puts out a row or close line that the earlier
+schema does not allow, and that release's note says so. A writer that
+only gains what § 4.4 allows keeps its number. So taking a newer
+writer relabels no file unless the writer's own output changed, and
+keeping the older writer is always allowed.
 
 The engine composes line 1 itself, so `FLED_SCHEMA` cannot know what
-is in it. An engine whose own header JSON uses something only a later
-schema defines writes that later number: the number written is the
-higher of the two (UT Ants). A field of the engine's own does not
+is in it. A file follows one schema throughout. An engine whose line 1
+uses something only a later schema defines writes that schema's
+number, and needs a writer whose `FLED_SCHEMA` is that number too (UT
+Ants). A field of the engine's own does not
 touch `schema`: the number says which schema's rules the file
 follows, and § 4.4 already allows such a field (DOOM Ants). A writer
 that does not use `frameledger.h` writes the number of the schema it
@@ -244,117 +257,181 @@ release; a budget or baseline file holding it is exit 3.
 
 ```
 tests/fixtures/frozen/
-  run-schema-1.csv         a run file using every field and line schema 1 defines at 0.8.0
-  run-schema-1.json        its parsed values (§ 4.3)
-  run-schema-1-b.csv       two more runs, so the baseline names three
+  run-schema-1.csv           every field, line and limit schema 1 defines at 0.8.0
+  run-schema-1-awkward.csv   what schema 1 allows and a careful writer seldom writes
+  run-schema-1-b.csv         two small runs, so the baseline names three
   run-schema-1-c.csv
-  run-schema-1-vestige.csv the opening frames of a run Vestige's writer wrote
-  run-*.json               one beside each run file
+  run-schema-1-vestige.csv   the opening frames of a run Vestige's writer wrote
   budget-schema-1.csv
-  budget-schema-1.json     its `match` and each budget's fields
-  baseline-schema-1.txt    names the three run files by relative path
-  baseline-schema-1.json   the paths as written
-  SHA256SUMS               one line per file above
+  baseline-schema-1.txt      names three of the run files by relative path
+  <each file above>.json     its stored values
+  SHA256SUMS                 one line per file above
+scripts/freeze.py            freezes a new file
 tests/test_frozen.py
 ```
 
+**Names.** A schema's first frozen file is `<file>-schema-<N>` with
+its extension, `<file>` being `run`, `budget` or `baseline`. A further
+file of the same schema adds one word: `run-schema-1-awkward.csv`.
+
+**The stored values** are one JSON object per file, in the form
+`scripts/freeze.py` writes:
+
+| File | Its `.json` holds |
+|---|---|
+| run | `header`, `static` and `close` as the file's JSON gives them, `close` null when the file has none; and `rows`, in file order, each `[segment, frame, category, name, depth, thousandths]` |
+| budget | `match`; and `budgets`, in file order, each `[category, name, kind, depth, statistic, limit]`, the limit in thousandths of a millisecond, an empty kind or depth null |
+| baseline | `runs`: each path, relative to the baseline file's folder |
+
+A later schema whose lines differ defines its own stored form in the
+spec that defines the schema.
+
+**Freezing a file.** Put it in the folder under its name and run
+`python3 -I scripts/freeze.py`. The script writes the `.json` with the
+reader of the commit it runs in, and adds the new files' lines to
+`SHA256SUMS`. It refuses, writing nothing, when a file already listed
+has changed or is gone. Read the new `.json` before committing it.
+
+**Never edited.** Once a release has shipped a frozen file, the file,
+its `.json` and its `SHA256SUMS` line do not change, and none is
+removed. `SHA256SUMS` itself only gains lines. Until a file's first
+release it may still change. A later addition to a schema (§ 4.4)
+gets a new frozen file beside the old ones. The one exception is
+§ 4.3's reader fault in a parsed value: the commit that fixes the
+reader rewrites that `.json` and its line, and the release note names
+it. The run, budget or baseline file itself still does not change.
+
+**What the files hold.**
+
 - `.gitattributes` marks `tests/fixtures/frozen/**` as `-text`, so no
   checkout changes a line ending or a trailing space (DOOM Ants).
-- `run-schema-1.json` is one object: `header`, `static` and `close` as
-  the file's own JSON gives them, and `rows`, a list in file order of
-  `[segment, frame, category, name, depth, thousandths]`.
-- A frozen file is never edited once a release has shipped it. A later
-  addition to a schema (§ 4.4) gets a new frozen file beside it; the
-  old one stays. A run file an engine's own writer wrote is frozen the
-  same way when an engine gives one, with its own `.json`.
-- `run-schema-1.csv` holds every required and optional header field,
-  the static line, every category, a quoted field, a negative value,
+- `run-schema-1.csv`: every required and optional header field, the
+  static line, every category, a quoted field, a negative value, and
   line 1 padded with 2048 spaces after its closing brace (FLED-0001
-  § 4.1), the most Vestige's writer leaves, and CRLF on at least one
-  line.
-- It also holds a row at each limit of FLED-0001 § 4.2 and § 4.4: the
-  longest name, segment kind, segment id and category, the most digits
-  in a frame number and a depth, the largest value, and the most
-  fraction digits in `started_utc`. A limit lowered later then fails
-  INV-1 (UT Ants).
-- `tests/test_frozen.py` reads each frozen file and compares; checks
-  each file against `SHA256SUMS`; and checks that every number from 1
-  to each of the three `SCHEMA` constants has its frozen files.
+  § 4.1), the most Vestige's writer leaves. A row at each limit of
+  FLED-0001 § 4.2 and § 4.4: the longest name, segment kind, segment
+  id and category, the most digits in a frame number and a depth, the
+  largest value, and the most fraction digits in `started_utc` (UT
+  Ants).
+- `run-schema-1-awkward.csv` (UT Ants): no close line, as a killed run
+  leaves; CRLF on every line and no final line ending; `display`
+  `offscreen`; empty `inputs`, `sanitizers` and `unknown`; `power`
+  `battery`; a `render_scale` of 0, a `load` above 1, negative clock
+  and temperature figures, a whole number past 64 bits; a leap-day
+  `started_utc` before 1970; text outside ASCII in a header string and
+  a segment; a doubled quote in a quoted field; a segment id holding
+  `:`; `.` and `-` in a name and an `ext.` category; `-0.000`, a
+  negative `mem` value, leading zeros in a frame, a depth and a value;
+  a missing frame number; true, false and null in the static line.
+- `run-schema-1-c.csv` has `rows_dropped` above 0.
+- `budget-schema-1.csv`: CRLF on some lines, a comment, a blank line,
+  each statistic, an empty kind and depth, a depth of two digits, and
+  limits with no, one and three decimal places.
+- `baseline-schema-1.txt`: a key in line 1, a comment, a blank line, a
+  CRLF line and a path beginning `./`.
 
 ## 5. Invariants
 
 - **INV-1** — Every frozen run file passes `check` with exit 0 and no
-  breach, and `ledger.read` gives exactly the values in the `.json`
-  beside it: the three objects, and the rows of `Run.frames` sorted by
-  their line in the file. `run-schema-1.csv` is one; an engine's own
-  file is another.
+  breach, and reads to exactly the values in the `.json` beside it,
+  types included.
   *Test:* `tests/test_frozen.py::test_run_file_reads_the_same`.
   *Breaks when:* a reader change refuses or re-reads something schema 1
-  allowed: a tightened `started_utc` rule, a changed rounding, a
-  stripped space. The fixture isolates the reader: the test compares
-  parsed values, so no change to statistics or wording can fail it.
+  allowed: a limit lowered, `offscreen` dropped from `display`, a file
+  with no close line refused, a value read as a float, false read as
+  0. The fixture isolates the reader: the test compares parsed values,
+  so no change to statistics or wording can fail it.
 
-- **INV-2** — The frozen budget file and baseline file are accepted,
-  and their readers give the values in the `.json` beside each: the
-  budget's `match` and budgets, and the baseline's paths made relative
-  to its folder again.
-  *Test:* `tests/test_frozen.py::test_budget_and_baseline_read_the_same`.
+- **INV-2** — Every frozen budget and baseline file is accepted, and
+  its reader gives the values in the `.json` beside it. The `budget`
+  command does not exit 3 on the frozen budget and run files.
+  *Test:* `tests/test_frozen.py::test_budget_and_baseline_read_the_same`
+  and `tests/test_frozen.py::test_budget_command_takes_the_frozen_budget`.
   *Breaks when:* `budgeting.py` or `baseline.py` refuses a column value
-  or a line 1 key that schema 1 allowed.
+  or a line 1 key that schema 1 allowed, needs three decimal places in
+  a limit, or keeps a line's CR.
 
-- **INV-3** — Each frozen file's SHA-256 is its line in `SHA256SUMS`.
+- **INV-3** — Each frozen file's SHA-256 is its line in `SHA256SUMS`,
+  and every file in the folder has a line.
   *Test:* `tests/test_frozen.py::test_frozen_files_unchanged`.
   *Breaks when:* a commit edits a frozen file so that INV-1 or INV-2
   passes again. It does not break when the same commit also rewrites
-  `SHA256SUMS`; § 10 says so.
+  `SHA256SUMS`, or removes a file with its line; § 10 says so.
 
 - **INV-4** — For each of the three files, every number from 1 to the
   analyser's `SCHEMA` constant has a frozen file of exactly the name
-  § 4.8 gives, `<file>-schema-<N>` and its extension.
-  *Test:* `tests/test_frozen.py::test_every_schema_is_frozen`.
+  § 4.8 gives, and every frozen file has its `.json`.
+  *Test:* `tests/test_frozen.py::test_every_schema_is_frozen` and
+  `tests/test_frozen.py::test_frozen_files_are_found`.
   *Breaks when:* a commit raises a `SCHEMA` constant and adds no frozen
-  file for the new number, or deletes an old schema's frozen file.
+  file for the new number, deletes an old schema's first frozen file,
+  or adds a frozen file without freezing it.
 
 - **INV-5** — A run file whose line 1 holds `schema` 99, and whose
   other header fields and later lines break schema 1, is exit 3 with a
-  message naming schema 99 and schema 1, and reports no breach.
+  message naming schema 99 and the reader's own schema, and no file is
+  judged.
   *Test:* `tests/test_frozen.py::test_newer_schema_is_judged_from_line_1`,
   on a file built in the test.
   *Breaks when:* a newer schema stops ending the read: the reader
-  notes it and goes on, so `check` lists schema 1 breaches and exits 1
-  for a file that is not schema 1. `tests/fixtures/schema-99.csv` cannot show this: every
-  other line of it is valid schema 1.
+  notes it and goes on, so `check` lists breaches and exits 1 for a
+  file that is not its schema. `tests/fixtures/schema-99.csv` cannot
+  show this: every other line of it is valid schema 1.
 
-- **INV-7** — `run-schema-1.csv` with its `schema` set to each of `0`,
-  `1.5` and `true` fails `check` with exit 1 and one breach, on line 1.
-  *Test:* `tests/test_frozen.py::test_a_schema_that_is_no_schema`.
-  *Breaks when:* the reader takes `true` or `1.5` as schema 1, or
-  treats `0` as an older schema and reads the file.
-
-- **INV-8** — `run-schema-1.csv` with a UTF-8 byte-order mark before
-  its first byte passes `check` with exit 0 and gives the values of
-  `run-schema-1.json`.
-  *Test:* `tests/test_frozen.py::test_byte_order_mark_is_skipped`.
-  *Breaks when:* the reader stops skipping the mark, so line 1 no
-  longer begins with the keyword and the file a release read is
-  refused.
-
-- **INV-6** — `run-schema-1.csv` with one more header field, one more
-  close-line key, a row under a new `event` name, a row under a new
-  `frame` name and a row in a segment of a new kind still exits 0 from
-  `check`, and its other parsed values equal `run-schema-1.json`. Each
-  addition is also tried alone.
+- **INV-6** — `run-schema-1.csv` still exits 0 from `check`, with its
+  other parsed values as stored, when given any of: one more header
+  field; one more close-line key; one more key inside the `tool`
+  object; a segment of a new kind; a row under a new `event` name; a
+  row under a new `frame` name; rows under new `cpu`, `gpu`, `mem` and
+  `ext.` names. Each is tried alone, then all together.
   *Test:* `tests/test_frozen.py::test_additions_do_not_break_the_reader`.
-  *Breaks when:* the reader turns any of the five into a breach: an
-  unknown header field, close-line key or `frame` name refused, or
-  segment kinds held to a list. Each would make an addition of § 4.4 a
-  break for a pinned older release.
+  *Breaks when:* the reader turns any of them into a breach: an
+  unknown header field, close-line key, inner key or `frame` name
+  refused, or segment kinds or `mem` names held to a list. Each would
+  make an addition of § 4.4 a break for a pinned older release.
+
+- **INV-7** — A `schema` of `0`, `1.5`, `true`, `1.0`, `1e0` or `"1"`
+  in `run-schema-1.csv` fails `check` with exit 1 and one breach, on
+  line 1. The same values, and `99`, in the frozen budget or baseline
+  file are an error naming `schema`.
+  *Test:* `tests/test_frozen.py::test_a_schema_that_is_no_schema` and
+  `tests/test_frozen.py::test_budget_and_baseline_refuse_another_schema`.
+  *Breaks when:* a reader takes `true`, `1.0` or `1.5` as schema 1,
+  treats `0` as an older schema, or reads a budget file of a schema it
+  does not know.
+
+- **INV-8** — A UTF-8 byte-order mark before the first byte of the
+  frozen run, budget or baseline file changes none of its values, and
+  the run file still passes `check`.
+  *Test:* `tests/test_frozen.py::test_byte_order_mark_is_skipped`.
+  *Breaks when:* a reader stops skipping the mark, so line 1 no longer
+  begins with the keyword and a file a release read is refused.
+
+- **INV-9** — Every field `compare.BLOCKING` held at the freeze is
+  still in it, and `baseline.FEWEST_RUNS` is no more than it was.
+  *Test:* `tests/test_frozen.py::test_rules_frozen_with_schema_1`.
+  *Breaks when:* a field leaves the blocking list, so a schema 1
+  budget file's `match` naming it is refused; or a baseline needs more
+  runs than a schema 1 file had to name.
+
+- **INV-10** — `scripts/freeze.py` changes nothing in the folder as
+  committed, writes each committed `.json` again byte for byte, and
+  refuses, writing nothing, when a listed file was edited or removed.
+  *Test:* `tests/test_frozen.py::test_freeze_adds_nothing_to_a_frozen_folder`,
+  `tests/test_frozen.py::test_freeze_writes_the_stored_values_again`
+  and `tests/test_frozen.py::test_freeze_refuses_a_changed_frozen_file`.
+  *Breaks when:* the script re-freezes over an edited file, which
+  would make an edit pass INV-3; or its stored form drifts from the
+  committed files, so the next frozen file is held to another form.
 
 ## 6. Failure modes
 
 - **A frozen file must change**, because it was built wrong and never
   held what § 4.8 lists. Add a corrected file beside it. The wrong one
   stays: it is still a file a release read.
+- **A reader fault changed a stored value.** § 4.8's exception: the
+  fix rewrites that `.json` and its `SHA256SUMS` line by hand, since
+  `scripts/freeze.py` refuses a changed file.
 - **A needed fix would refuse files schema 1 allowed.** It lands as a
   warning (§ 4.3). If a warning is not enough, it waits for schema 2.
 - **An addition turns out to need a meaning change.** The field keeps
@@ -365,23 +442,31 @@ tests/test_frozen.py
 
 ## 7. Tests
 
-`tests/test_frozen.py` holds INV-1 to INV-8, one test each, named in
-§ 5. It is new, with `tests/fixtures/frozen/`.
+`tests/test_frozen.py` holds INV-1 to INV-10, under the test names § 5
+gives. `scripts/freeze.py` gives it the stored form, so the tests and
+the script cannot disagree on it.
 
-Each test is seen to fail before it is trusted: INV-1 by a reader
-patched to round a value differently, INV-2 by a narrowed budget
-column, INV-3 by one changed byte, INV-4 by a `SCHEMA` constant set to
-2, INV-5 by a reader that records the newer schema as a breach and reads
-on,
-INV-6 by making `unknown_field` a breach and by holding segment kinds
-to `view`, `move`, `leg` and `spot`, INV-7 by a schema check that
-takes any number, INV-8 by removing the reader's skip.
+The reader already behaved as the promise says, so no test was seen
+red on the tree. Each was seen to fail on a copy of the tree, with the
+reader changed in a way the promise forbids: a limit lowered, a value
+read as a float, false read as 0, a file with no close line refused,
+`offscreen` dropped, an unknown field made a breach, the schema checks
+loosened, the byte-order mark kept, a blocking field removed.
 
-What the tests do not show: that `run-schema-1.csv` uses every rule of
-schema 1. A rule the file does not exercise can be tightened unseen
-(§ 10). INV-6 does not try the static line or the open `cpu`, `gpu`,
-`mem` and `ext.<engine>` names of § 4.4: the frozen file already holds
-them, so INV-1 does.
+Three changes tried that way passed every test, and each changes
+nothing a file can show: keeping the CR on line 1, which JSON reads as
+space; keeping the CR in a baseline file, whose reader strips each
+line; and lowering `baseline.FEWEST_RUNS`, which the promise allows.
+
+What the tests do not show:
+
+- that the frozen files use every rule of schema 1. A rule no frozen
+  file exercises can be tightened unseen (§ 10);
+- INV-6 to INV-8 for a schema other than 1. They build their cases by
+  editing schema 1's bytes; a later schema needs its own;
+- a baseline file through a command. INV-2 reads it with
+  `baseline.read`; `compare --baseline` would also need the frozen
+  runs to be comparable with each other, which they are not.
 
 ## 8. Alternatives considered (and rejected)
 
@@ -420,16 +505,18 @@ them, so INV-1 does.
 | Rule | What catches a breach |
 |------|----------------------|
 | INV-1 | `tests/test_frozen.py::test_run_file_reads_the_same` |
-| INV-2 | `tests/test_frozen.py::test_budget_and_baseline_read_the_same` |
-| INV-3 | Partial: `tests/test_frozen.py::test_frozen_files_unchanged` catches an edited file; a commit that edits the file and `SHA256SUMS` together is caught only by the engines' code review |
-| INV-4 | `tests/test_frozen.py::test_every_schema_is_frozen` |
+| INV-2 | Partial: `tests/test_frozen.py::test_budget_and_baseline_read_the_same` and `::test_budget_command_takes_the_frozen_budget`; a baseline file through `compare --baseline` has **nothing** |
+| INV-3 | Partial: `tests/test_frozen.py::test_frozen_files_unchanged` catches an edited file; a commit that edits a file and `SHA256SUMS` together, or removes a further file such as `run-schema-1-vestige.csv` with its line, is caught only by the engines' code review |
+| INV-4 | `tests/test_frozen.py::test_every_schema_is_frozen` and `::test_frozen_files_are_found` |
 | INV-5 | `tests/test_frozen.py::test_newer_schema_is_judged_from_line_1` |
 | INV-6 | `tests/test_frozen.py::test_additions_do_not_break_the_reader` |
-| INV-7 | `tests/test_frozen.py::test_a_schema_that_is_no_schema` |
+| INV-7 | `tests/test_frozen.py::test_a_schema_that_is_no_schema` and `::test_budget_and_baseline_refuse_another_schema` |
 | INV-8 | `tests/test_frozen.py::test_byte_order_mark_is_skipped` |
+| INV-9 | `tests/test_frozen.py::test_rules_frozen_with_schema_1` |
+| INV-10 | `tests/test_frozen.py::test_freeze_adds_nothing_to_a_frozen_folder`, `::test_freeze_writes_the_stored_values_again` and `::test_freeze_refuses_a_changed_frozen_file` |
 | § 4.2 no mark from a writer | Partial: `include/frameledger.h` writes none, and an engine's own writer is judged by the kit (FLED-0001 § 4.19) only if the kit gains a case for it; today **nothing** |
 | § 4.2 | Partial: INV-5 holds the reader to line 1; **nothing** stops a later spec from moving `schema` off line 1 but its review |
-| § 4.3 no tightening | Partial: INV-1 and INV-2, for the rules the frozen files exercise; a rule they do not exercise has **nothing** |
+| § 4.3 no tightening | Partial: INV-1, INV-2 and INV-9, for the rules the frozen files exercise; a rule they do not exercise has **nothing** |
 | § 4.4 and § 4.5 | **nothing** — whether a change is an addition or a new schema, and whether a newly defined name brings only a warning, is judged when its spec amendment is reviewed by the engines |
 | § 4.6 | Partial: INV-4 stops a frozen file being dropped; **nothing** stops a release note from ending support but the engines' review |
 
