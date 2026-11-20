@@ -1930,6 +1930,19 @@ format, the JSON output and the commands.
   limit 2 percent; per segment kind, own median, floor 1000; a kind
   under the floor named as unjudged; under the limit says that run was
   calm, not that the machine was.
+  2026-11-20, decided by all three engines. DOOM Ants: yes to 2 percent
+  and to each segment kind with at least 1000 frames against its own
+  median. Its three runs with the user's chat client closed and the card
+  idle before each (quiet-8 to quiet-10): no frame over twice the median
+  in any, p99 / median 1.73 to 1.75, quartile spread 0.045 to 0.047,
+  longest frame 13.4 to 13.7 ms. So that client was the main holder, and
+  no run of any engine lands between 0.4 and 3.3 percent but UT Ants'
+  1.7. The rule to write: `noisy_run`, a warning, per run and segment
+  kind, when more than 2 percent of the kind's frame/wall values are
+  over twice the kind's median; a kind with fewer than 1000 frames is
+  not judged and the result names it as unjudged; the quartile spread is
+  reported and not judged. Next: amend FLED-0001 § 4.9 or § 4.10, then
+  build.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
