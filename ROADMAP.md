@@ -1678,6 +1678,20 @@ format, the JSON output and the commands.
   open points. Out for review to the three engines, and to ExperiRays
   for a cold read; the owner asked the same day that ExperiRays also
   cold-reads the code.
+  2026-11-20: all four reviews of the spec at a0c0088 are in, not yet
+  folded: UT Ants (eight findings), Vestige (one blocker, six more),
+  ExperiRays' cold read (eight), DOOM Ants (ten). Kept until folded in
+  /mnt/Emulators/.claude/Scratchpad/frameledger/fled-0041-reviews/.
+  Decided by them: a `schema` command, not a flag (a flag before the
+  command cannot take a value, FLED-0001 § 4.11; confirmed in
+  `cli._command`); floor's windows gain `frames` beside `fps` (Vestige
+  and DOOM Ants); bisect's run entries get `started_utc` back (all
+  three). Open: which value sets are closed (DOOM Ants: close
+  `statistic`; open `unit` with `category`). Found by three readers: a
+  NaN would exit 1 with a traceback unless a handler is added; the
+  strict form as written misjudges if/then; `compare` and `alternate`
+  have several shapes under verdict error. DOOM Ants agreed all seven
+  choices and reads no --json today.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -1770,6 +1784,11 @@ format, the JSON output and the commands.
   the sum of the passes, and one pass far over its own median. Details:
   know_how topic "timed-gpu-run-disturbers". This supports DOOM Ants'
   tail figure beside the spread.
+  2026-11-20: DOOM Ants' user has allowed its timing runs, quiet and
+  loaded, provided it agrees a quiet window with the running sessions
+  first. The owner asked every session the same day to work together
+  when one needs a quiet machine; frameledger's offer went to all
+  projects (message 2350 onward).
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
