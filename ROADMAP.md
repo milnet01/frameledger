@@ -1758,6 +1758,18 @@ format, the JSON output and the commands.
   Open for the spec amendment: Vestige's limit relative to the
   baseline's spread, DOOM Ants' tail figure. Waiting on: DOOM Ants'
   runs, and UTA-0490's cause.
+  2026-11-20, UT Ants on UTA-0490: the hitch is the desktop compositor
+  (kwin_wayland) holding the GPU, not its renderer. In a disturbed run
+  8 to 26 percent of frames take 20 to 60 ms against a 7 ms median; in a
+  calm one none of 4100 passed 27 ms. In a slow frame one pass gains
+  about 13 ms or a multiple and the rest keep their time. So: all eight
+  of its files are disturbed, the quiet ones too, and must not be fitted
+  as calm runs. The disturbance is a second population of frames, which
+  the quartile spread sees only near a 25 percent slow share; below
+  that p99 / median sees it. Its offered signal: per frame, wall minus
+  the sum of the passes, and one pass far over its own median. Details:
+  know_how topic "timed-gpu-run-disturbers". This supports DOOM Ants'
+  tail figure beside the spread.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
