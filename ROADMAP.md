@@ -1603,9 +1603,13 @@ What a stranger can rely on not to change under them: the file
 
 format, the JSON output and the commands.
 
-- 📋 [FLED-0040] **The run-file format is promised stable.**
+- 🚧 [FLED-0040] **The run-file format is promised stable.**
   Format spec 1.0: what may change in a later schema version and
   what never will, and how long older versions keep analysing (S6).
+  2026-11-20: picked up. It gets its own spec at
+  docs/specs/FLED-0040-format-stability-promise.md (spec-format.md § 1:
+  a contract engines bind to, and hard to reverse). Six design choices
+  put to the three engines before drafting.
   **Layman:** A promise that files written today will still be read by future versions.
   Kind: doc.
   Source: engine-answers-2026-11-10.
