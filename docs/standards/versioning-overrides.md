@@ -80,6 +80,9 @@ not know (UT Ants, Vestige). Removing, renaming or changing the meaning of
 any of them is breaking. So is a new value in a closed set, such as a
 verdict or an exit code; FLED-0041 § 4.3 names the closed sets.
 
+**When a break is allowed, and what must come before it**:
+[`docs/support-policy.md`](../support-policy.md#when-a-breaking-change-is-allowed).
+
 ## Not surfaces
 
 - **Plain text and Markdown output.** They are for people; scripts

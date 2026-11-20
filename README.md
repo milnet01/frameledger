@@ -253,6 +253,7 @@ commit and push checks, which git does not copy with a clone.
 |---|---|
 | [ROADMAP.md](ROADMAP.md) | What is planned, in progress and shipped |
 | [CHANGELOG.md](CHANGELOG.md) | What shipped, when |
+| [docs/support-policy.md](docs/support-policy.md) | Which release gets fixes, what it runs on, and how a thing is retired |
 | [docs/discovery.md](docs/discovery.md) | What this is for, and how we would know it works |
 | [docs/design.md](docs/design.md) | The shape — the parts, and what may touch what |
 | [docs/decisions/](docs/decisions/) | Why a close call went the way it did |
