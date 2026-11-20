@@ -1913,6 +1913,23 @@ format, the JSON output and the commands.
   moving. UT Ants asked to count one calm run's moving frames and for
   the path of its eight UTA-0482 files. Next: a FLED-0001 amendment,
   then the build.
+  2026-11-20, answers on the limit and the frames judged. Vestige: yes
+  to 2 percent and to each segment kind with at least 1000 frames
+  against its own median, moving included; it withdraws the limit
+  relative to a baseline and calls its 0.2194 of 2026-11-13 unverified.
+  UT Ants: yes to both, and withdraws the still-only scoping: on two
+  calm runs, five of six 700-frame moves have no frame over twice the
+  move's median and the sixth has under 1 percent. It asks that a kind
+  short of the floor be reported and named as unjudged in the result,
+  not passed silently; its moves are 700 frames and its views 500, so
+  none of its kinds reaches 1000. It does not ask for a lower floor: at
+  700 frames 2 percent is 14 frames. Its eight UTA-0482 files are gone,
+  so they cannot be recounted. DOOM Ants: yes to the measure and "near 2
+  percent"; its answer on the frames judged is owed, and it is taking
+  quiet runs with the user's chat client closed. For the amendment: the
+  limit 2 percent; per segment kind, own median, floor 1000; a kind
+  under the floor named as unjudged; under the limit says that run was
+  calm, not that the machine was.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
