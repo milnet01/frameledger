@@ -1741,6 +1741,11 @@ format, the JSON output and the commands.
   2026-11-20: UT Ants and DOOM Ants each confirmed 1131dfa's three code
   hunks by reading, neither running it. Owed: Vestige's four answers,
   its review of the policy and its code review.
+  2026-11-20: Vestige yes to all four, so all three engines agreed. Its
+  findings folded in 871b996, with a test tying the schema mark to the
+  policy's table, and Vestige confirmed that commit. Its note, left for
+  the first removal: a table row for a key no longer marked would pass.
+  UT Ants' and DOOM Ants' confirmations of 871b996 owed.
   **Layman:** Says how long features and systems are supported and how changes are announced.
   Kind: doc.
   Source: engine-answers-2026-11-10.
@@ -1837,6 +1842,27 @@ format, the JSON output and the commands.
   recorded frames, private display at 3840x2400, DOOM Ants 1f6a001; five
   quiet runs each after `quiet-machine settle`, then three under a
   looping clean all-core build. Paths and loads owed.
+  2026-11-20, DOOM Ants' figures (eight files under its scratch folder
+  `fled72/`, all passing `check`; 1f6a001, dev build, RX 6600, header
+  resolution 4608x2400 at render scale 0.5, one still `level:e2m2`
+  segment, 2999 frame/wall values a run). Per run: (p75 - p25) / median;
+  p99 / median; share of frames over twice the median.
+  quiet-1 0.048; 8.71; 7.34%. quiet-2 0.102; 8.64; 8.70%.
+  quiet-3 0.168; 8.68; 16.17%. quiet-4 0.075; 8.74; 7.70%.
+  quiet-5 0.046; 6.90; 4.33%.
+  loaded-1 0.063; 1.75; 0.40%. loaded-2 0.071; 1.64; 0.10%.
+  loaded-3 0.062; 1.61; 0.17%.
+  Medians 7.32 to 7.45 ms in all eight. Read: the runs under an all-core
+  compile are the calm ones, and the "quiet" ones are disturbed, p99
+  near 64 ms against 12 to 13. DOOM Ants saw the card 51 to 96 percent
+  busy before four of the quiet runs and 0 percent before each loaded
+  one, so the disturber is something holding the GPU, as in UTA-0490,
+  not CPU load. The quartile spread does not tell the two groups apart
+  (0.05 to 0.17 against 0.06 to 0.07); the share over twice the median
+  does (4.3 percent and up against 0.4 and under), and so does p99 /
+  median (6.9 and up against 1.75 and under). Put to the three engines:
+  judge `noisy_run` on the tail share, with the quartile spread reported
+  and not judged.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
