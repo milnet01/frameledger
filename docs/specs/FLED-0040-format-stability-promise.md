@@ -40,8 +40,9 @@ release with the same values. A test holds the last of these.
 
 ## 3. Scope decisions (agreed with the user)
 
-The three engine sessions decide for this project (`CLAUDE.md` § Who
-decides and who reviews). Vestige, UT Ants and DOOM Ants each agreed
+The owner handed this project's decisions to the three engine
+sessions (`CLAUDE.md` § Who decides and who reviews), so the agreement
+recorded here is theirs. Vestige, UT Ants and DOOM Ants each agreed
 the choices below on 2026-11-20, as sessions using the format.
 
 - The promise covers three files, not the run file alone (§ 4.1).
@@ -78,7 +79,8 @@ In every schema, present and future:
 - the file is UTF-8 text;
 - line 1 is the file's keyword from § 4.1, then one JSON object on that
   line;
-- that object holds `schema`, a whole number, 1 or more;
+- that object holds `schema` at its top level, a whole number, 1 or
+  more;
 - a writer puts no byte-order mark before the keyword. A reader skips
   one, as `ledger.read_bytes` does today, since an editor on Windows
   may add it.
@@ -89,9 +91,10 @@ column line, the rows or the close line.
 
 ### 4.3 A released schema is fixed
 
-**From the 0.8.0 release, a file that a release reads without a breach
-is read without a breach by every later release, and parses to the
-same values.**
+**A file that 0.8.0 or any later release reads without a breach is
+read without a breach by every release after it, and parses to the
+same values.** A file only an earlier release passed is promised
+nothing.
 
 - **Without a breach** — `check FILE` exits 0 for a run file; a budget
   or baseline file is not refused with exit 3 for its own contents.
@@ -111,9 +114,14 @@ a new schema or a warning, never a new breach in schema 1.
 **A file that already breaches is promised nothing.** A later release
 may read it, or report the breach in other words.
 
-**A reader fault is fixed, not kept.** Where the reader passes a file
-that FLED-0001 forbids, the fix lands as a warning in schema 1. It
-becomes a breach only in a later schema.
+**A reader fault is fixed, not kept**, and FLED-0001 decides what a
+fault is.
+
+- Where the reader passes a file that FLED-0001 forbids, the fix lands
+  as a warning in schema 1. It becomes a breach only in a later schema.
+- Where the reader parses a value differently from what FLED-0001
+  says, the fix lands and the value changes. The release note names it
+  (UT Ants). "The same values" means the values FLED-0001 gives.
 
 ### 4.4 What may be added to a released schema
 
@@ -136,6 +144,17 @@ An addition is optional for ever. Its absence means unknown, as
 FLED-0001 § 4.2 says of every optional field. A field once defined
 keeps its meaning, type and unit.
 
+**A name defined after a schema's release brings warnings only in that
+schema, never a breach** (UT Ants). A file may already use the name
+for something else: a header field of its own, a `frame` name, an
+`event` name. FLED-0001 § 4.4 made any `event/generated` value but
+`1.000` a breach; after 0.8.0 such a rule is a warning in schema 1.
+
+**An engine's own names have homes no later release defines into**:
+the header's `extra` object (FLED-0001 § 4.2), the static line, and
+rows under `ext.<engine>`. A name written elsewhere may meet a later
+definition, and then gets its warning.
+
 ### 4.5 What needs a new schema number
 
 Everything else, because an earlier release would refuse the file or
@@ -150,8 +169,13 @@ read it wrongly:
 
 **A writer is never made to move.** A schema N file stays valid for
 ever (§ 4.6). A writer changes the number it writes only when it uses
-something a later schema defines. `FLED_SCHEMA` in
-`include/frameledger.h` is the schema that header's functions write.
+something a later schema defines.
+
+`FLED_SCHEMA` in `include/frameledger.h` is the schema that header's
+functions write. An engine vendors the header from a release (FLED-0001
+§ 4.6), so its files change schema only when it takes a newer header
+whose `FLED_SCHEMA` is higher. The release note of the first such
+header says so. Keeping the older header is always allowed.
 
 ### 4.6 How long an older schema is read
 
@@ -191,6 +215,11 @@ tests/test_frozen.py
   the static line, every category, a quoted field, a negative value,
   line 1 padded with spaces after its closing brace (FLED-0001 § 4.1)
   and CRLF on at least one line.
+- It also holds a row at each limit of FLED-0001 § 4.2 and § 4.4: the
+  longest name, segment kind, segment id and category, the most digits
+  in a frame number and a depth, the largest value, and the most
+  fraction digits in `started_utc`. A limit lowered later then fails
+  INV-1 (UT Ants).
 - `tests/test_frozen.py` reads each frozen file and compares; checks
   each file against `SHA256SUMS`; and checks that every number from 1
   to each of the three `SCHEMA` constants has its frozen files.
@@ -235,12 +264,15 @@ tests/test_frozen.py
   other line of it is valid schema 1.
 
 - **INV-6** — `run-schema-1.csv` with one more header field, one more
-  close-line key and one row under a new `event` name still exits 0
-  from `check`, and its other parsed values equal `run-schema-1.json`.
+  close-line key, a row under a new `event` name, a row under a new
+  `frame` name and a row in a segment of a new kind still exits 0 from
+  `check`, and its other parsed values equal `run-schema-1.json`. Each
+  addition is also tried alone.
   *Test:* `tests/test_frozen.py::test_additions_do_not_break_the_reader`.
-  *Breaks when:* the reader turns an unknown header field or close-line
-  key into a breach, which would make every addition of § 4.4 a break
-  for a pinned older release.
+  *Breaks when:* the reader turns any of the five into a breach: an
+  unknown header field, close-line key or `frame` name refused, or
+  segment kinds held to a list. Each would make an addition of § 4.4 a
+  break for a pinned older release.
 
 ## 6. Failure modes
 
@@ -264,11 +296,14 @@ Each test is seen to fail before it is trusted: INV-1 by a reader
 patched to round a value differently, INV-2 by a narrowed budget
 column, INV-3 by one changed byte, INV-4 by a `SCHEMA` constant set to
 2, INV-5 by moving the schema check after the header's field checks,
-INV-6 by making `unknown_field` a breach.
+INV-6 by making `unknown_field` a breach and by holding segment kinds
+to `view`, `move`, `leg` and `spot`.
 
 What the tests do not show: that `run-schema-1.csv` uses every rule of
 schema 1. A rule the file does not exercise can be tightened unseen
-(§ 10).
+(§ 10). INV-6 does not try the static line or the open `cpu`, `gpu`,
+`mem` and `ext.<engine>` names of § 4.4: the frozen file already holds
+them, so INV-1 does.
 
 ## 8. Alternatives considered (and rejected)
 
@@ -314,7 +349,7 @@ schema 1. A rule the file does not exercise can be tightened unseen
 | INV-6 | `tests/test_frozen.py::test_additions_do_not_break_the_reader` |
 | § 4.2 | Partial: INV-5 holds the reader to line 1; **nothing** stops a later spec from moving `schema` off line 1 but its review |
 | § 4.3 no tightening | Partial: INV-1 and INV-2, for the rules the frozen files exercise; a rule they do not exercise has **nothing** |
-| § 4.4 and § 4.5 | **nothing** — whether a change is an addition or a new schema is judged when its spec amendment is reviewed by the engines |
+| § 4.4 and § 4.5 | **nothing** — whether a change is an addition or a new schema, and whether a newly defined name brings only a warning, is judged when its spec amendment is reviewed by the engines |
 | § 4.6 | Partial: INV-4 stops a frozen file being dropped; **nothing** stops a release note from ending support but the engines' review |
 
 ## 11. Cross-doc impact
@@ -341,10 +376,13 @@ Rows live in `../reviews/FLED-0040-format-stability-promise-loop-log.md`.
    reading it differently would write files that compare and should
    not. Proposed, for FLED-0001 § 4.2 before the freeze: `resolution`
    is the size presented, and `render_scale` times each side is the
-   size drawn. Needs each engine to say what it writes today.
+   size drawn, rounded as the engine chooses. No reader computes the
+   drawn size: a printed 0.6667 times 3840 is not the 2560 drawn (UT
+   Ants). Needs each engine to say what it writes today.
 2. **A byte-order mark in a run file.** `ledger.read_bytes` skips one.
    FLED-0001 says so for the baseline file (§ 4.17) and not for the
    run file (§ 4.1). Proposed: § 4.1 gains the sentence, with a test.
 3. **May `kit --strict` (FLED-0001 § 4.19) gain a code that fails a
    file it passed?** Proposed: yes. It judges a writer, and § 4.3 is
-   about `check` without `--strict`.
+   about `check` without `--strict`. The release note names each new
+   code (UT Ants).
