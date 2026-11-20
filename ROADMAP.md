@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=81 -->
+<!-- ants-roadmap-id-high-water: FLED=82 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1738,6 +1738,9 @@ format, the JSON output and the commands.
   security exception scoped, CHANGELOG.md named as where a deprecation is
   announced, C99 named. Not folded: how to report a bug or a security
   hole (FLED-0045). Vestige's answer owed.
+  2026-11-20: UT Ants and DOOM Ants each confirmed 1131dfa's three code
+  hunks by reading, neither running it. Owed: Vestige's four answers,
+  its review of the policy and its code review.
   **Layman:** Says how long features and systems are supported and how changes are announced.
   Kind: doc.
   Source: engine-answers-2026-11-10.
@@ -1828,6 +1831,12 @@ format, the JSON output and the commands.
   first. The owner asked every session the same day to work together
   when one needs a quiet machine; frameledger's offer went to all
   projects (message 2350 onward).
+  2026-11-20: the run recipe went to DOOM Ants and its runs are under
+  way: one still view (its writer has one segment kind, `level:`),
+  Ultra, rasterised, E2M2 start, monsters frozen, render scale 50, 3000
+  recorded frames, private display at 3840x2400, DOOM Ants 1f6a001; five
+  quiet runs each after `quiet-machine settle`, then three under a
+  looping clean all-core build. Paths and loads owed.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
@@ -1926,6 +1935,19 @@ frameledger, wire it into their engine and get help.
   **Layman:** Tells outsiders how to report problems and help out.
   Kind: doc.
   Source: engine-answers-2026-11-10.
+
+- 📋 [FLED-0082] **The gate also runs on the newest Python.**
+  The gate runs on the floor only, the version `scripts/local-ci.sh`
+  pins. UT Ants and DOOM Ants would each run the analyser under Python
+  3.13, so nothing tests the version they use, and
+  `docs/support-policy.md` § What it runs on says so. Add one leg on the
+  newest released Python, pinned as the floor is, and change that
+  sentence. 2026-11-20: UT Ants raised it and DOOM Ants called it worth
+  doing; Vestige not yet asked. The section is a guess; the engines may
+  move it.
+  **Layman:** Tests frameledger on the newest Python as well as the oldest one it supports, since that is what its users run.
+  Kind: test.
+  Source: engine-review-FLED-0042-2026-11-20.
 
 ## 1.0.0 — fully working
 
