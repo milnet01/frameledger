@@ -1630,6 +1630,17 @@ format, the JSON output and the commands.
   tests/test_frozen.py, one frozen run from Vestige's writer; the reader
   needed no change. Sent to the three engines and ExperiRays for code
   review.
+  2026-11-20 (code review): ExperiRays, UT Ants, DOOM Ants and Vestige
+  each reviewed the build. None found a defect in the tests; each listed
+  reader changes the promise forbids that the tests passed. Folded at
+  49115e5 and 409622f: values compared with their types; a frozen run of
+  what schema 1 allows and is seldom written; two files from Vestige's
+  writer, the start and the end of a run; a second budget; a list of
+  every frozen file's name; INV-9 and INV-10; scripts/freeze.py, which
+  freezes a new file and refuses to change a listed one. Not taken, and
+  said in the spec: an absolute path in a frozen baseline, and a baseline
+  through `compare --baseline`. Confirmation of 409622f asked of the
+  three engines.
   **Layman:** A promise that files written today will still be read by future versions.
   Kind: doc.
   Source: engine-answers-2026-11-10.
