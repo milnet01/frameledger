@@ -1,7 +1,7 @@
 <!-- ants-spec-format: 1 -->
 # FLED-0041 — Publish a schema for every JSON result
 
-**Status:** spec draft (2026-11-20).
+**Status:** accepted (2026-11-20).
 **Kind:** feature.
 **Source:** ROADMAP FLED-0041 (engine-answers-2026-11-10).
 **Blocker for:** FLED-0015.
@@ -73,8 +73,7 @@ Decided in their review of this spec, the same day:
   `under_load` (§ 4.5; all three).
 - `floor`'s windows gain `frames` beside `fps` (§ 4.5; Vestige and
   DOOM Ants. UT Ants would have left `fps` alone).
-
-Which value sets are closed (§ 4.3) waits on DOOM Ants (§ 13).
+- Which value sets are closed (§ 4.3; all three).
 
 ## 4. Design
 
@@ -176,7 +175,8 @@ disagree with it.
 A command that reaches a verdict prints the object, and `"error"` is a
 verdict: a file that cannot be read is exit 3 with the whole object. A
 bad argument or a setup error prints nothing on standard output, and
-is also exit 3 (FLED-0001 § 4.11, *A bad argument*). No file describes
+is also exit 3, or 128 under `bisect` (FLED-0001 § 4.11, *A bad
+argument*). No file describes
 that case. A script tells the two apart by whether standard output is
 empty.
 
@@ -218,10 +218,10 @@ writes as `required`.
 | `import`, `kit`, `selftest` | one | |
 
 Every `compare` and `alternate` result but `{}` also holds `baseline`
-(`cli._name_baseline`). The last four `compare` rows all have the
-verdict `error`, as has a `--by-scene` or variants result in which
-nothing was judged; so `verdict` alone does not pick the shape, and
-the keys in the last column do.
+(`cli._name_baseline`). `compare`'s refused, absent-name and
+unread rows have the verdict `error`, and so has a `--by-scene` or
+variants result in which nothing was judged; so `verdict` alone does
+not pick the shape, and the keys in the last column do.
 
 ### 4.5 What changes in the output
 
@@ -230,7 +230,8 @@ the keys in the last column do.
   peaks over their limits, empty when there are none, as in `compare`.
   `bisect` writes a short entry for a run that could not be read, and
   for one that breaks the format. In a short entry both keys are null,
-  as its `commit` is.
+  as its `commit` is. So in `bisect`'s file the type of `under_load`
+  is a list of strings or null, and in `compare`'s a list of strings.
 - **`floor`'s `windows` entries** gain `frames`, holding the value
   `fps` holds: the count of frames in the window. `fps` stays, and its
   description calls it the older name.
@@ -519,6 +520,4 @@ Rows live in `../reviews/FLED-0041-json-result-schemas-loop-log.md`.
 
 ## 13. Open questions
 
-1. § 4.3's closed sets are written DOOM Ants' way: `statistic`
-   closed, `unit` open with `category`. UT Ants and Vestige agreed it
-   on 2026-11-20. DOOM Ants' confirmation is owed.
+None.
