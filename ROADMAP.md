@@ -1882,6 +1882,37 @@ format, the JSON output and the commands.
   second signal, wall minus the sum of the passes, is withdrawn. Its
   caution: a run under the limit shows that run was calm, not that the
   machine was. Owed: Vestige's and DOOM Ants' answers.
+  2026-11-20, Vestige: agrees to judge the tail share and report the
+  quartile spread unjudged, subject to its moving-camera runs. Computed
+  here from its files of 2026-11-13 (commit 4961504, flythrough, frames
+  after the first 2 s of wall time, about 2400 to 2800 a run): the five
+  quiet runs each have no frame over twice the median, p99 / median 1.23
+  to 1.27, quartile spread 0.100 to 0.102; the loaded run has 6.21
+  percent over, p99 / median 3.20, quartile spread 0.102. Its slow
+  frames sit in 19 groups, all in the last third of the run, so they
+  follow the disturbance and not the scene cuts. Those files have an
+  empty segment column, so a per-scene median could not be tried. The
+  loaded run's quartile spread reads 0.102 here against the 0.2194
+  Vestige reported on 2026-11-13; the difference is not explained. So a
+  limit near 2 percent separates calm from disturbed in all three
+  engines' files: Vestige 0 against 6.2, DOOM Ants 0.4 and under against
+  4.3 and up, UT Ants 0.2 and under against mostly 3.3 and up. Open:
+  UT Ants' ask to judge only still or writer-marked frames, which
+  Vestige's moving runs do not need; DOOM Ants' answer and its two more
+  quiet runs.
+  2026-11-20, DOOM Ants: yes to judging the tail share with the quartile
+  spread reported and not judged, so all three engines agree the measure.
+  Two more runs meant as quiet, both started with the card busy: quiet-6
+  20.07 percent over twice the median (quartile spread 0.616), quiet-7
+  10.00 percent (0.120). The holder is the user's desktop, not a session:
+  a chat client measured at 31 percent of the card, the rest probably the
+  compositor. So all seven of its quiet runs are desktop-disturbed and
+  its three loaded runs are its calm sample. Put to the three engines
+  with a recommendation: a limit of 2 percent, and each segment kind
+  with at least 1000 frames judged against its own median, still or
+  moving. UT Ants asked to count one calm run's moving frames and for
+  the path of its eight UTA-0482 files. Next: a FLED-0001 amendment,
+  then the build.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
