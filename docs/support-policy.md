@@ -21,8 +21,9 @@ What counts as breaking is
 - **Python.** The floor is Python 3.10
   ([ADR-0001](decisions/ADR-0001-analyser-language.md)). The gate runs
   on the floor only, the version `scripts/local-ci.sh` pins as
-  `PYTHON_VERSION`. A failure on a newer Python is a bug, and its fix
-  ships in the next release.
+  `PYTHON_VERSION`. No newer Python is tested. A failure on one is a
+  bug, fixed once it is reported, and the fix ships in the next
+  release.
 - **Systems.** Linux, Windows and macOS. `.github/workflows/ci.yml`
   runs the gate on Linux and macOS. `.github/workflows/release.yml`
   builds each release and runs its `--selftest` on Linux and Windows.
@@ -43,12 +44,15 @@ From 1.0.0, a MAJOR only (`~/.claude/standards/versioning.md` § 2).
 
 **What it needs first.** All three:
 
-1. **A warning.** An earlier release deprecated the thing, as § How a
-   thing is retired says. A PATCH of the breaking release's own MINOR
-   is not earlier.
+1. **A warning.** An earlier MINOR or MAJOR deprecated the thing, as
+   § How a thing is retired says. Its `CHANGELOG.md` entry named the
+   earliest release that may remove it, and that binds: no release
+   before it removes the thing.
 2. **A way across.** The deprecating release already holds the
    replacement, or its `CHANGELOG.md` entry says there is none.
 3. **The three engines' agreement**: Vestige, UT Ants and DOOM Ants.
+   Silence is not agreement. Where an engine does not answer, the
+   owner decides.
 
 Nothing checks these three. The release's reviewers do.
 
