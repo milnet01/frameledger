@@ -1717,9 +1717,15 @@ format, the JSON output and the commands.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0042] **A support and deprecation policy.**
+- 🚧 [FLED-0042] **A support and deprecation policy.**
   How a flag or field is retired (warned for a release first), which
   Python versions and systems are supported, and for how long.
+  2026-11-20: drafted as docs/support-policy.md, a plain policy
+  document and not a spec: it builds nothing. Sent to Vestige, UT Ants,
+  DOOM Ants and ExperiRays with four questions: when `fps` may go, whether
+  the Python floor rises before 1.0, whether only the newest release gets
+  fixes, and whether `fps` is marked `"deprecated": true` in floor's
+  schema before 0.8.0 freezes it.
   **Layman:** Says how long features and systems are supported and how changes are announced.
   Kind: doc.
   Source: engine-answers-2026-11-10.
