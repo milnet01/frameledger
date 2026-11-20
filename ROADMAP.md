@@ -1699,6 +1699,11 @@ format, the JSON output and the commands.
   2026-11-20: Vestige, UT Ants and DOOM Ants each accepted the spec,
   closed sets included (`statistic` closed; `unit` open with
   `category`). The spec is accepted; the build is next.
+  2026-11-20: built at 6231734: the schema files, the `schema` command,
+  the samples, tests for INV-1 to INV-11 and
+  `scripts/freeze_schemas.py`; the gate passes. Sent to Vestige, UT Ants
+  and DOOM Ants for code review, readability included, and to ExperiRays
+  for a cold read. Not shipped until their reviews are folded.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
