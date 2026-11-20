@@ -1622,6 +1622,14 @@ format, the JSON output and the commands.
   means when `render_scale` is not 1 (UT Ants wants it stated in
   FLED-0001 § 4.2 before the freeze); the byte-order mark sentence for
   FLED-0001 § 4.1; whether `kit --strict` may gain a failing code.
+  2026-11-20 (later): the three engines reviewed the draft at fd28562;
+  their findings are folded and all three agreed the open points,
+  `FLED_SCHEMA`'s meaning last. The spec is accepted. FLED-0001 § 4.1,
+  § 4.2 and § 4.12 gained the agreed sentences on `resolution` and the
+  byte-order mark. Built at 0dc209f: tests/fixtures/frozen/ and
+  tests/test_frozen.py, one frozen run from Vestige's writer; the reader
+  needed no change. Sent to the three engines and ExperiRays for code
+  review.
   **Layman:** A promise that files written today will still be read by future versions.
   Kind: doc.
   Source: engine-answers-2026-11-10.
