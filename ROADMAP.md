@@ -1651,9 +1651,16 @@ format, the JSON output and the commands.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0041] **A published schema for every --json result.**
+- 🚧 [FLED-0041] **A published schema for every --json result.**
   A JSON Schema per command, shipped in the release and checked by
   the tests against every command's output, so scripts can rely on it.
+  2026-11-20: put to the three engines, this or FLED-0042 first.
+  Vestige and DOOM Ants: this first; the policy can then name the
+  schemas as a covered surface. UT Ants' answer owed. Vestige reads
+  --json from compare and floor and will check its parsing against the
+  schemas when they land.
+  2026-11-20, UT Ants: this first too. Outcome (all three): FLED-0041,
+  then FLED-0042.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
@@ -1706,6 +1713,34 @@ format, the JSON output and the commands.
   One 500-frame view swings from 0.02 to 1.94 inside quiet runs, so the
   100-frame floor looks too low. Put to the three engines. Still waiting
   on: DOOM Ants' runs.
+  2026-11-20, Vestige: agrees to set no number yet and to raise the
+  frame floor from 100 to 1000. It proposes a limit relative to the
+  baseline's own spread (for example a new run's spread above 1.5 times
+  the baseline's), with an absolute 0.25 as the fallback when no baseline
+  is given, because its loaded run is twice its own quiet spread yet
+  inside UT Ants' calm range. A second loaded run from Vestige: not now;
+  ask again if DOOM Ants' runs leave the soft end open. UT Ants' and
+  DOOM Ants' answers owed.
+  2026-11-20, DOOM Ants: agrees to set no number yet and to raise the
+  floor to 1000 frames. It asks for a tail figure beside the spread
+  (p99 / median, or the share of frames over twice the median) before a
+  limit is chosen, since the quartile spread passes a bursty run. In UT
+  Ants' runs p99 / median of the moving frames is 7.3 to 8.3 quiet and
+  5.9 to 7.2 loaded, so there it shows the standing hitch, not load.
+  DOOM Ants has made no runs; all of them wait on its user's go-ahead,
+  which it is asking for. Outcome so far (two of three): no number yet,
+  floor 1000. Open: Vestige's relative limit, DOOM Ants' tail figure,
+  UT Ants' answer.
+  2026-11-20, UT Ants: agrees, no number yet and floor 1000. Its runs
+  carry an unexplained hitch (UTA-0490): about one frame in a hundred
+  at 50 to 57 ms, still and moving, quiet and loaded. If the cause is
+  UT Ants' own and is fixed, its quiet spreads may move, so today's
+  figures may fit a defect; it will report. UTA-0437 will write still
+  and moving as two segment kinds (`view:N`, `move:N-M`), so they are
+  judged apart. Outcome (all three): no limit yet; frame floor 1000.
+  Open for the spec amendment: Vestige's limit relative to the
+  baseline's spread, DOOM Ants' tail figure. Waiting on: DOOM Ants'
+  runs, and UTA-0490's cause.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
