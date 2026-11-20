@@ -1651,7 +1651,7 @@ format, the JSON output and the commands.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0041] **A published schema for every --json result.**
+- ✅ [FLED-0041] **A published schema for every --json result.**
   A JSON Schema per command, shipped in the release and checked by
   the tests against every command's output, so scripts can rely on it.
   2026-11-20: put to the three engines, this or FLED-0042 first.
@@ -1709,6 +1709,10 @@ format, the JSON output and the commands.
   the frozen-set checks and several descriptions were strengthened. Sent
   back to Vestige, UT Ants and DOOM Ants to confirm. Shipped once all
   three confirm.
+  2026-11-20: shipped at 10acffe. Vestige, UT Ants and DOOM Ants each
+  confirmed the folded build. Not released: the schemas ship with 0.8.0,
+  which freezes them (`scripts/freeze_schemas.py`, run last before the
+  tag).
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
