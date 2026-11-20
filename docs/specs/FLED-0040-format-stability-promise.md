@@ -206,6 +206,13 @@ header that only gains what § 4.4 allows keeps its number. So taking a
 newer header relabels no file unless the header's own output changed,
 and keeping the older header is always allowed.
 
+The engine composes line 1 itself, so `FLED_SCHEMA` cannot know what
+is in it. An engine whose own header JSON uses something only a later
+schema defines writes that later number: the number written is the
+higher of the two (UT Ants). A writer that does not use
+`frameledger.h` writes the number of the schema it follows, as a
+literal.
+
 ### 4.6 How long an older schema is read
 
 For ever. Every release reads every schema that any release defined.
