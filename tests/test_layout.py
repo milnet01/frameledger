@@ -28,6 +28,7 @@ ALLOWED = {
     "presentmon": {"atomic", "ledger"},
     "expect": {"ledger"},
     "kit": {"ledger"},
+    "schemas": {"ledger"},
     "strict": {"ledger", "stats"},
     "render": set(),
     "picture": {"render", "run_report", "stats", "ledger"},

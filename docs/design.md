@@ -81,6 +81,12 @@ Four parts. The format spec is the only thing the other three share.
     inside the `.pyz` cannot be listed through the loader; a test
     checks the names against `kit/`. `.gitattributes` pins `kit/` to LF,
     so a Windows checkout writes the same bytes as the `.pyz`.
+  - `schemas.py` — `schema COMMAND`: prints the JSON Schema of one
+    command's `--json` result
+    ([FLED-0041](specs/FLED-0041-json-result-schemas.md)). The
+    schemas are files in `schemas/` beside it, plain data read and
+    named as `kit.py` reads and names its cases, and pinned to LF the
+    same way.
   - `render.py` — turns a result into plain text, JSON or Markdown.
     Plain sentences come first.
   - `picture.py` — turns one run and its result into the optional
@@ -232,18 +238,23 @@ tool, not by any one part.
   launchers for Linux and Windows, `include/frameledger.h` and
   `LICENSE`, so one pinned hash covers both parts. The kit is inside
   `frameledger.pyz`: `scripts/build_release.py` packs the tracked
-  `kit/` files under `kit/` with the modules. `kit/` is the one folder
-  its flatness check allows, and only for files that are not `.py`. Engines pin the archive and its hash (S6). GitHub's own tag
+  `kit/` files under `kit/` with the modules, and the result schemas
+  under `schemas/` the same way. Those are the two folders
+  its flatness check allows, and only for files that are not `.py`.
+  The archive also holds each schema under `schemas/`, for an engine
+  that pins the archive and not the `.pyz`. Engines pin the archive and its hash (S6). GitHub's own tag
   archives are not used for the pin; their hash is not promised to stay
   the same. `scripts/build_release.py` builds the archive reproducibly.
   `.github/workflows/release.yml` publishes it only when its builds on
   Linux and Windows give the hash in the notes, and its Windows
-  launcher runs by name. The archive will also hold the JSON result
-  schemas (S27). A PyPI package with a `frameledger` command
+  launcher runs by name. A PyPI package with a `frameledger` command
   (FLED-0043), still standard library only, sits beside the archive
   and does not replace it.
-- **Our tests: pytest**, a test-time tool only. The analyser and its
-  `--selftest` need nothing installed.
+- **Our tests: pytest, and `jsonschema`** to hold each JSON result to
+  its schema with the validator a script's author would use
+  (FLED-0041 § 4.8). Both are test-time tools only, pinned in
+  `scripts/local-ci.sh`. The analyser and its `--selftest` need
+  nothing installed.
 - **No CMake ships.** An engine fetches the archive itself.
 
 ## Close calls

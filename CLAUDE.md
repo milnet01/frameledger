@@ -36,7 +36,8 @@ is one C header. `docs/design.md` § The stack, and what it rules out.
   document checks; the pre-push hook picks it for a documentation-only
   push.
 - `pytest` — the tests alone. `pyproject.toml` puts `src/frameledger`
-  on the import path.
+  on the import path. `tests/test_schemas.py` needs `jsonschema`,
+  which the gate installs and bare `pytest` does not.
 - `python3 -I src/frameledger check FILE…` — run the analyser from the
   tree.
 - **A new file under `src/frameledger/` must be `git add`ed before the

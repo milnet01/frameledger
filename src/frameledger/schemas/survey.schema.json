@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger survey --json",
+  "description": "The result of `frameledger survey FILE... --json`: many runs against one frame budget. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "survey",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/survey_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/survey_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "The file's path as given."
+              },
+              "run_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The header's run_id; null for a file that could not be read."
+              },
+              "verdict": {
+                "$ref": "#/$defs/survey_run_verdict"
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Why the run is inconclusive or unjudged; null otherwise."
+              },
+              "rank": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Its place among the runs, worst first, from 1; null when it is not ranked."
+              },
+              "worst_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment kind the run is ranked by; null with no rank."
+              },
+              "worst_segment": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment the run's slowest frame is in; null with no rank."
+              },
+              "median_ms": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The worst kind's median frame/wall, in ms; null with no rank."
+              },
+              "p99_ms": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The worst kind's 99th percentile frame/wall, in ms; null with no rank."
+              },
+              "frames_over_budget": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "How many judged frames are over the budget; null for a run that could not be judged."
+              },
+              "slowest_over": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "frame": {
+                    "type": "integer",
+                    "description": "The frame's number."
+                  },
+                  "segment": {
+                    "type": "string",
+                    "description": "The frame's segment."
+                  },
+                  "wall_ms": {
+                    "type": "number",
+                    "description": "The frame's frame/wall, in ms."
+                  },
+                  "top_pass": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "category/name of the frame's largest depth-0 cpu or gpu cost; null when the frame has none."
+                  }
+                },
+                "required": [
+                  "frame",
+                  "segment",
+                  "top_pass",
+                  "wall_ms"
+                ],
+                "description": "The slowest frame over the budget; null when no judged frame is over it."
+              },
+              "kinds": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "segment_kind": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "The segment's kind, the part of a segment name before its colon; an engine chooses its kinds, such as view or spot. Null for frames with no segment."
+                    },
+                    "median_ms": {
+                      "type": "number",
+                      "description": "The median frame/wall, in ms."
+                    },
+                    "p99_ms": {
+                      "type": "number",
+                      "description": "The 99th percentile frame/wall, in ms."
+                    },
+                    "frames": {
+                      "type": "integer",
+                      "description": "The frames judged."
+                    },
+                    "ranked": {
+                      "type": "boolean",
+                      "description": "Whether the kind has enough frames to rank the run by."
+                    }
+                  },
+                  "required": [
+                    "frames",
+                    "median_ms",
+                    "p99_ms",
+                    "ranked",
+                    "segment_kind"
+                  ],
+                  "description": "One segment kind."
+                },
+                "description": "The run's figures per segment kind."
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/warning"
+                },
+                "description": "The run's own warnings."
+              },
+              "generated_frames": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "How many of the run's frames a frame generator made; null for a file that could not be read."
+              }
+            },
+            "required": [
+              "frames_over_budget",
+              "generated_frames",
+              "kinds",
+              "median_ms",
+              "p99_ms",
+              "path",
+              "rank",
+              "reason",
+              "run_id",
+              "slowest_over",
+              "verdict",
+              "warnings",
+              "worst_kind",
+              "worst_segment"
+            ],
+            "description": "One run."
+          },
+          "description": "Each file, in rank order, then the unranked in the order given."
+        },
+        "budget_ms": {
+          "type": "number",
+          "description": "The frame budget, in ms."
+        },
+        "warmup_s": {
+          "type": "number",
+          "description": "--warmup-s: the seconds left out at the start of each run."
+        },
+        "allowed": {
+          "type": "integer",
+          "description": "--allow-frames: how many frames of a run may be over the budget."
+        },
+        "all_frames": {
+          "type": "boolean",
+          "description": "Whether --all-frames counted the frames a frame generator made."
+        }
+      },
+      "required": [
+        "all_frames",
+        "allowed",
+        "budget_ms",
+        "runs",
+        "warmup_s"
+      ],
+      "description": "Each run against the budget."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "$defs": {
+    "survey_verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ],
+      "description": "The verdict of survey: fail when a run is flagged, inconclusive when none is but a run is unjudged or inconclusive, pass when every run is judged and none is flagged. A closed set."
+    },
+    "survey_exit_code": {
+      "enum": [
+        0,
+        1,
+        2
+      ],
+      "description": "The exit codes a survey result can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    },
+    "survey_run_verdict": {
+      "enum": [
+        "flagged",
+        "clean",
+        "inconclusive",
+        "unjudged"
+      ],
+      "description": "What became of one run: flagged when it is over the budget, clean, inconclusive, or unjudged when it could not be judged. A closed set."
+    }
+  }
+}

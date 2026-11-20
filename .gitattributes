@@ -4,6 +4,10 @@ launcher/frameledger text eol=lf
 # The writer kit's files are bytes to be matched: kit DIR writes them as
 # they are, from the tree or the .pyz, so a Windows checkout must keep LF.
 src/frameledger/kit/** text eol=lf
+# So are the result schemas: schema COMMAND prints one as it is (FLED-0041).
+src/frameledger/schemas/** text eol=lf
+# A frozen set of them is bytes to be matched, as a frozen file is.
+tests/fixtures/schemas/** -text
 # A frozen file is bytes to be matched (FLED-0040): no checkout may change
 # a line ending or a trailing space.
 tests/fixtures/frozen/** -text

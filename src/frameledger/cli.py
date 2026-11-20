@@ -34,6 +34,7 @@ import presentmon
 import render
 import run_report
 import scenes
+import schemas
 import selftest
 import stats
 import strict
@@ -172,6 +173,9 @@ def _add_import(commands) -> None:
         choice.add_argument(yes, dest=f"fact_{field}", action="store_const", const=True, help=f"{field} is true")
         choice.add_argument(no, dest=f"fact_{field}", action="store_const", const=False, help=f"{field} is false")
     _add_output_flags(command)
+    schema = commands.add_parser("schema", help="print the JSON Schema of a command's --json result")
+    schema.add_argument("name", nargs="?", metavar="COMMAND", help="the command whose result it describes")
+    _add_output_flags(schema)
 
 
 def _resolution(text: str) -> list[int]:
@@ -205,10 +209,21 @@ def _renderer(args: argparse.Namespace) -> Callable[[dict], str]:
     if args.json and args.markdown:
         raise ledger.LedgerError("give --json or --markdown, not both")
     if args.json:
-        return render.to_json
+        return _to_json
     if args.markdown:
         return render.to_markdown
     return render.to_text
+
+
+def _to_json(result: dict) -> str:
+    """The JSON result. JSON holds no NaN and no infinity, so one in a
+    result is a fault here, and is said so instead of printed (FLED-0041
+    § 4.5)."""
+    try:
+        return render.to_json(result)
+    except ValueError as error:
+        raise ledger.LedgerError(f"the result cannot be written as JSON ({error}); this is a fault in "
+                                 "frameledger, and nothing was printed") from error
 
 
 def _add_compare_flags(command) -> None:
@@ -415,6 +430,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.version:
             _write(f"frameledger {VERSION}\n")
             return PASS
+        if args.command == "schema":
+            _write_bytes(schemas.data(args.name))
+            return PASS
         result = _dispatch(args)
         _write(print_as(result))
     except ledger.LedgerError as error:
@@ -456,7 +474,7 @@ def _dispatch(args: argparse.Namespace) -> dict:
     if args.command == "import":
         return _import(args)
     raise ledger.LedgerError("name a command (check, report, floor, compare, alternate, bisect, budget, "
-                             "survey, import, kit) or --selftest; --help lists them")
+                             "survey, import, kit, schema) or --selftest; --help lists them")
 
 
 def _bisect_main(argv: list[str]) -> int:
@@ -502,6 +520,17 @@ def _write(text: str) -> None:
         return
     sys.stdout.write(text)
     sys.stdout.flush()
+
+
+def _write_bytes(data: bytes) -> None:
+    """Print `data` as the bytes it is. Text output would turn each line
+    end into CR LF on Windows, and a schema is printed as its file is
+    (FLED-0041 § 4.2)."""
+    if sys.stdout is None:
+        return
+    sys.stdout.flush()
+    sys.stdout.buffer.write(data)
+    sys.stdout.buffer.flush()
 
 
 def _failed_write(error: OSError, code: int) -> int:

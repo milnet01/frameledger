@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger kit --json",
+  "description": "The result of `frameledger kit DIR --json`: the writer kit was written. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "kit",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/kit_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/kit_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "kit": {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "type": "string",
+              "description": "DIR as given."
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The name of each file written, README.txt first."
+            }
+          },
+          "required": [
+            "directory",
+            "files"
+          ],
+          "description": "The kit."
+        }
+      },
+      "required": [
+        "kit"
+      ],
+      "description": "What was written."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "$defs": {
+    "kit_verdict": {
+      "enum": [
+        "none"
+      ],
+      "description": "The verdict of kit: always none, since writing the kit judges nothing. A closed set."
+    },
+    "kit_exit_code": {
+      "enum": [
+        0
+      ],
+      "description": "The exit codes a kit result can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    }
+  }
+}

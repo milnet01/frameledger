@@ -42,6 +42,9 @@ UV_VERSION='0.13.5'
 PYTHON_VERSION='3.10.22'
 PYTEST_VERSION='9.1.1'
 RUFF_VERSION='0.17.2'
+# The tests' validator for the result schemas (FLED-0041 § 4.8). Test-only:
+# nothing under src/frameledger imports it.
+JSONSCHEMA_VERSION='4.26.0'
 
 if [[ ${1:-} == --docs-glob ]]; then printf '%s\n' "$DOCS_GLOB"; exit 0; fi
 if [[ ${1:-} == --uv-version ]]; then printf '%s\n' "$UV_VERSION"; exit 0; fi
@@ -68,7 +71,8 @@ step() { printf '\n=== %s ===\n' "$1" >&2; }
 # only; there is no package to install.
 py() {
     uvx "uv@$UV_VERSION" run --quiet --no-project --managed-python --python "$PYTHON_VERSION" \
-        --with "pytest==$PYTEST_VERSION" --with "ruff==$RUFF_VERSION" -- "$@"
+        --with "pytest==$PYTEST_VERSION" --with "ruff==$RUFF_VERSION" \
+        --with "jsonschema==$JSONSCHEMA_VERSION" -- "$@"
 }
 
 # A check whose tool is absent SAYS SO and is never silently dropped: a check

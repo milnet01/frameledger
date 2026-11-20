@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger floor --json",
+  "description": "The result of `frameledger floor FILE --fps N --json`: whether one run holds a frame-rate floor. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "floor",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/floor_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/floor_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "windows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start_s": {
+                "type": "number",
+                "description": "When the window starts, in seconds from the run's start."
+              },
+              "frames": {
+                "type": "integer",
+                "description": "The frames ending inside the window."
+              },
+              "fps": {
+                "type": "integer",
+                "description": "The older name of frames, holding the same count."
+              },
+              "mean_ms": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The window's mean frame/wall, in ms; null for a window with no frame."
+              },
+              "pass": {
+                "type": "boolean",
+                "description": "Whether the window meets the floor."
+              }
+            },
+            "required": [
+              "fps",
+              "frames",
+              "mean_ms",
+              "pass",
+              "start_s"
+            ],
+            "description": "One window."
+          },
+          "description": "Each whole one-second window judged; empty with --no-windows."
+        },
+        "windows_skipped": {
+          "type": "integer",
+          "description": "The windows left out of the judging."
+        },
+        "slow_frames": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "frame": {
+                "type": "integer",
+                "description": "The frame's number."
+              },
+              "segment": {
+                "type": "string",
+                "description": "The frame's segment."
+              },
+              "wall_ms": {
+                "type": "number",
+                "description": "The frame's frame/wall, in ms."
+              },
+              "top_pass": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "category/name of the frame's largest depth-0 cpu or gpu cost; null when the frame has none."
+              }
+            },
+            "required": [
+              "frame",
+              "segment",
+              "top_pass",
+              "wall_ms"
+            ],
+            "description": "One frame."
+          },
+          "description": "The frames over the budget, slowest first."
+        },
+        "frames_over_budget": {
+          "type": "integer",
+          "description": "How many judged frames are over the budget."
+        },
+        "allowed": {
+          "type": "integer",
+          "description": "--allow-frames: how many frames may be over the budget."
+        },
+        "rows_dropped": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "The close line's count of rows the writer dropped; null when the run has no close line."
+        },
+        "finished": {
+          "type": "boolean",
+          "description": "Whether the run has a close line."
+        },
+        "generated_frames": {
+          "type": "integer",
+          "description": "How many of the run's frames a frame generator made."
+        },
+        "all_frames": {
+          "type": "boolean",
+          "description": "Whether --all-frames counted those frames."
+        }
+      },
+      "description": "The two checks. With the verdict error, a file could not be read and result holds no key."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "enum": [
+              "pass",
+              "fail",
+              "inconclusive"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "all_frames",
+              "allowed",
+              "finished",
+              "frames_over_budget",
+              "generated_frames",
+              "rows_dropped",
+              "slow_frames",
+              "windows",
+              "windows_skipped"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "floor_verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive",
+        "error"
+      ],
+      "description": "The verdict of floor: pass, fail, inconclusive when the run cannot settle it, or error when the file could not be read or breaks the format. A closed set."
+    },
+    "floor_exit_code": {
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "description": "The exit codes a floor result can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    }
+  }
+}

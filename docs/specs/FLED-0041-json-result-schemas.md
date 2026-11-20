@@ -129,7 +129,8 @@ disagree with it.
   files share, such as a warning or the envelope's keys, is repeated
   under `$defs` in each, under the same name and with the same content
   (INV-5), so a printed file is usable alone. A `$ref` to an object
-  stands alone, with no `properties` beside it, and never sits
+  stands alone, with no `properties` beside it (a `type` may narrow
+  one that is null in some places), and never sits
   directly under `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf` or
   `not`: the strict form closes its target (§ 4.6).
 - **Every key the analyser writes is named**, with its type. A key
@@ -156,6 +157,7 @@ disagree with it.
   values in `static_diff` and `refused`, and `expected` and `found` in
   `check --expect`'s differences.
 - **Closed sets** are an `enum`, each under its own name in `$defs`,
+  a command's own as `<command>_verdict` and `<command>_exit_code`,
   and a later value is a breaking change: `command`; the top-level
   `verdict`, per command (§ 4.4); each entry's own `verdict` (a
   measure's, a scene's, a variant's, a surveyed run's); `set`;
@@ -203,7 +205,7 @@ writes as `required`.
 | `check` | with `--expect` | `expect` is there |
 | `check` | a file unread | `verdict` is `error`; `files` leaves the unread file out, and `expect` is absent |
 | `report`, `floor`, `budget` | judged | `verdict` is not `error` |
-| `report`, `floor`, `budget` | a file unread | `verdict` is `error`; `result` is `{}` |
+| `report`, `floor`, `budget` | a file unread | `verdict` is `error`; `result` is `{}`, and its file requires no key of it |
 | `compare` | plain | `measures` |
 | `compare` | `--by-scene` | `scenes` |
 | `compare` | `--base` with `--variant` | `variants` |
@@ -256,7 +258,12 @@ tests/test_schemas.py
   iterate it.
 - **A sample** is a command line, the files it needs, and the entry
   of `SHAPES` it shows. Every entry has a sample, and between them the
-  samples write every key the files name (INV-3).
+  samples write every key the files name (INV-3). A key of a shared
+  `$defs` entry is one key whichever file names it, so any command's
+  sample may write it: `kit` has no warning to show.
+- **A file never caps what a result may hold.** An unread file's
+  `{}` is described by requiring nothing, not by forbidding keys, so
+  a key added to it later still validates.
 - **The strict form** of a file is made by the test. It closes each
   object once: a schema with `properties` gains
   `unevaluatedProperties: false` when it is the root, or is reached
@@ -340,8 +347,10 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
   refuses; `additionalProperties: false`; a `$ref` to another file.
 
 - **INV-3** — Every entry of `SHAPES` has a sample, and every key a
-  file names is written by at least one sample.
-  *Test:* `tests/test_schemas.py::test_samples_cover_the_schemas`.
+  file names is written by at least one sample, a shared definition's
+  key by a sample of any command.
+  *Test:* `tests/test_schemas.py::test_every_shape_has_a_sample` and
+  `::test_samples_cover_the_schemas`.
   *Breaks when:* a file names a key no sample writes; an entry of
   `SHAPES` has no sample.
 
@@ -349,8 +358,9 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
   from the tree and from `frameledger.pyz`, and the archive holds the
   same bytes under `schemas/`. A missing name, or one § 4.1 does not
   list, is exit 3 with nothing on standard output.
-  *Test:* `tests/test_schemas.py::test_schema_command_prints_the_file`
-  and `::test_archive_holds_the_schemas`.
+  *Test:* `tests/test_schemas.py::test_schema_command_prints_the_file`,
+  `::test_schema_command_takes_a_name_not_a_path` and
+  `::test_archive_holds_the_schemas`.
   *Breaks when:* the build leaves `schemas/` out of the `.pyz`; the
   command prints a re-serialised copy; `schema ../cli.py` prints a
   file.
@@ -404,14 +414,17 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
 
 - **INV-10** — The name given to `schema` is user input. It selects
   from § 4.1's list and never reaches the file system as a path.
-  *Test:* `tests/test_schemas.py::test_schema_command_prints_the_file`,
+  *Test:* `tests/test_schemas.py::test_schema_command_takes_a_name_not_a_path`,
   its cases `../cli.py`, an absolute path and `check.schema.json`.
   *Breaks when:* the name is joined to the folder and opened.
 
 - **INV-11** — The strict form refuses a key added to any object of
-  any sample's output, and refuses a sample's output given the
-  `verdict` of another shape.
-  *Test:* `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key`.
+  any sample's output that its file describes, which the published
+  form accepts; and, where two shapes differ in the keys they
+  require, it refuses a sample's output given the other shape's
+  `verdict`.
+  *Test:* `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key`
+  and `::test_strict_form_refuses_another_shapes_verdict`.
   The fixture isolates the closing rule of § 4.6: a strict form that
   closed a `then`, or left a nested object open, passes INV-1 on a
   correct sample or fails it for every sample, and only this test
@@ -482,15 +495,15 @@ key's meaning is unchanged. A schema holds shape, not meaning.
 |------|----------------------|
 | INV-1 | Partial: `tests/test_schemas.py::test_output_matches_its_schema`, for the shapes the samples show; a key written only in a shape with no sample has **nothing** |
 | INV-2 | `tests/test_schemas.py::test_each_file_is_a_schema` |
-| INV-3 | Partial: `tests/test_schemas.py::test_samples_cover_the_schemas` catches a named key no sample writes; that `SHAPES` and § 4.4's table list every shape the code has is caught only by the engines' review |
-| INV-4 | Partial: `tests/test_schemas.py::test_schema_command_prints_the_file` and `::test_archive_holds_the_schemas`; `.github/workflows/ci.yml` runs the tests on Linux and macOS, so a changed line end on Windows has **nothing** |
+| INV-3 | Partial: `tests/test_schemas.py::test_every_shape_has_a_sample`, and `::test_samples_cover_the_schemas` catches a named key no sample writes; that `SHAPES` and § 4.4's table list every shape the code has is caught only by the engines' review |
+| INV-4 | Partial: `tests/test_schemas.py::test_schema_command_prints_the_file`, `::test_schema_command_takes_a_name_not_a_path` and `::test_archive_holds_the_schemas`; `.github/workflows/ci.yml` runs the tests on Linux and macOS, so a changed line end on Windows has **nothing** |
 | INV-5 | `tests/test_schemas.py::test_shared_definitions_agree` |
 | INV-6 | Partial: `tests/test_schemas.py::test_output_matches_every_frozen_set`; a failure wrongly listed as a deliberate break is caught only by the engines' code review |
 | INV-7 | Partial: `tests/test_schemas.py::test_frozen_sets_unchanged`, `::test_this_version_is_frozen` and `::test_freeze_refuses_an_existing_folder`; a commit that edits a frozen file and `SHA256SUMS` together is caught only by the engines' code review |
 | INV-8 | `tests/test_schemas.py::test_every_result_names_its_release` and `::test_a_bad_argument_prints_no_result` |
 | INV-9 | `tests/test_schemas.py::test_json_holds_no_nan` |
-| INV-10 | `tests/test_schemas.py::test_schema_command_prints_the_file` |
-| INV-11 | `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key` |
+| INV-10 | `tests/test_schemas.py::test_schema_command_takes_a_name_not_a_path` |
+| INV-11 | Partial: `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key` and `::test_strict_form_refuses_another_shapes_verdict`; `check`'s two shapes hold the same keys, and a whole result under the verdict `error` passes `report`'s, `floor`'s and `budget`'s files, so those have **nothing** |
 | § 4.3 a `description` is true | **nothing** — read by the engines when a file changes |
 | § 4.3 which sets are closed | **nothing** — a set closed or opened wrongly is judged in review |
 | § 4.7 the frozen folder equals the tree's files at release | `scripts/check-release.sh` |

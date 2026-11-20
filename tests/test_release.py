@@ -64,7 +64,8 @@ def test_archive_holds_the_analyser_header_and_licence(tmp_path):
     assert sha == hashlib.sha256(archive.read_bytes()).hexdigest()
     with zipfile.ZipFile(archive) as zf:
         assert zf.namelist() == ["LICENSE", "frameledger", "frameledger.cmd", "frameledger.pyz",
-                                 "include/frameledger.h"]
+                                 "include/frameledger.h",
+                                 *sorted(f"schemas/{p.name}" for p in (ROOT / "src/frameledger/schemas").iterdir())]
         assert zf.read("include/frameledger.h") == (ROOT / "include" / "frameledger.h").read_bytes()
 
 
@@ -97,7 +98,8 @@ def test_the_pyz_runs_its_selftest(tmp_path):
     analyser = ROOT / "src" / "frameledger"
     with zipfile.ZipFile(pyz) as zf:
         assert sorted(zf.namelist()) == sorted([*(p.name for p in analyser.glob("*.py")),
-                                                *(f"kit/{p.name}" for p in (analyser / "kit").iterdir())])
+                                                *(f"kit/{p.name}" for p in (analyser / "kit").iterdir()),
+                                                *(f"schemas/{p.name}" for p in (analyser / "schemas").iterdir())])
 
 
 def test_only_the_linux_launcher_runs_and_the_windows_one_has_crlf(tmp_path):
@@ -200,10 +202,12 @@ def test_notes_must_state_the_built_hash(tmp_path, monkeypatch, capsys):
     assert release_notes.main(["0.2.0", "--sha", HASH_A]) == 2
 
 
-@pytest.mark.parametrize("nested", ["sub/extra.py", "kit/extra.py", "kit/sub/case.json"])
+@pytest.mark.parametrize("nested", ["sub/extra.py", "kit/extra.py", "kit/sub/case.json", "schemas/extra.py",
+                                    "schemas/sub/check.schema.json"])
 def test_a_module_in_a_subdirectory_stops_the_build(monkeypatch, nested):
-    """The .pyz holds the flat analyser and kit/'s flat data; a nested
-    module would go missing from it, and kit/ holds no module."""
+    """The .pyz holds the flat analyser and the flat data of kit/ and
+    schemas/; a nested module would go missing from it, and neither
+    folder holds a module."""
     build_release = load_script("build_release")
     listed = f"cli.py\0kit/README.txt\0{nested}\0".encode()
     monkeypatch.setattr(build_release.subprocess, "run",

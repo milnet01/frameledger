@@ -401,12 +401,14 @@ def _verdict_sentence(wanted: Wanted, value: Fraction, line: Fraction, reference
 
 def _entry(r: _Run, value: int | None) -> dict:
     """§ 4.11's run entry. A run that could not be read, or breaks the
-    format, may have no header, so it gives only its name, set and path."""
+    format, may have no header, so it gives only its name, set and path:
+    the short entry, with compare's other keys null (FLED-0041 § 4.5)."""
     if r.run is None or r.run.breaches:
         entry = {"name": r.name, "set": r.set, "path": r.path, "run_id": None, "commit": None,
-                 "dirty": None, "rows_dropped": None, "finished": None, "generated_frames": None}
+                 "dirty": None, "started_utc": None, "rows_dropped": None, "finished": None,
+                 "under_load": None, "generated_frames": None}
     else:
-        entry = {key: item for key, item in compare.run_entry(r).items() if key != "started_utc"}
+        entry = compare.run_entry(r)
     return {**entry, "value": None if value is None else _number(value)}
 
 

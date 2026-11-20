@@ -54,7 +54,9 @@ scripts and writers are built to.
   uses, since an engine building with warnings as errors breaks on a
   new warning as surely as on a renamed function (Vestige).
 - **The commands**: each command's flags, defaults and exit codes, and
-  its JSON result's keys and meanings, § 4.7 to § 4.16. Standard
+  its JSON result's keys and meanings, § 4.7 to § 4.20.
+  `docs/specs/FLED-0041-json-result-schemas.md` holds each result to
+  a schema, and to every schema a release shipped. Standard
   output holds only the result, the engine's output going to standard
   error under `alternate` (INV-81). `alternate` names its run files
   `old-1.csv`, `base-1.csv`, `<name>-1.csv` and so on, and scripts
@@ -75,7 +77,8 @@ releases carries none (DOOM Ants).
 in an open set such as a warning code, a new flag or command, or a new
 optional header field. A script must ignore keys and values it does
 not know (UT Ants, Vestige). Removing, renaming or changing the meaning of
-any of them is breaking.
+any of them is breaking. So is a new value in a closed set, such as a
+verdict or an exit code; FLED-0041 § 4.3 names the closed sets.
 
 ## Not surfaces
 

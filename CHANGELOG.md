@@ -25,8 +25,27 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   Vestige's writer wrote, and `scripts/freeze.py` freezes a new one
   (FLED-0040).
 
+- A JSON Schema for every command's `--json` result,
+  `docs/specs/FLED-0041-json-result-schemas.md`: each key, its type,
+  whether it is always there and whether it may be null.
+  `frameledger schema COMMAND` prints one, and the release archive
+  holds them under `schemas/`. A schema allows keys it does not name,
+  so a script that checks a result against the schema it pinned
+  survives a later release. From 0.8.0 each release's schemas are
+  frozen under `tests/fixtures/schemas/`, and the tests hold every
+  later release's output to them (FLED-0041).
+- `floor --json`: each window has `frames`, the count of frames ending
+  in it. `fps` holds the same count and stays, as the older name
+  (FLED-0041).
+- `bisect --json`: each run has `started_utc` and `under_load`, as
+  `compare`'s runs have. Both are null for a run that could not be
+  read or that breaks the format (FLED-0041).
+
 ### Changed
 
+- A result that would hold a NaN or an infinity is not printed: the
+  command ends with a message, exit 3, or 128 under `bisect`. JSON
+  holds neither, and no result holds one today (FLED-0041).
 - The format spec says what `resolution` means: the size of the image
   the engine hands on for display, after any upscaling of its own.
   `render_scale` times each side is the size drawn. It also says a

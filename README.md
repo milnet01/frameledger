@@ -125,6 +125,9 @@ Without the launcher, `python3 -I frameledger.pyz` runs the same
 commands; on Windows, `py -I frameledger.pyz` or `python -I
 frameledger.pyz`. Every command takes `--json`,
 and `--markdown` for results to paste into a pull request or a note.
+`frameledger schema COMMAND` prints the JSON Schema of that command's
+`--json` result, for a script that reads it; the release archive holds
+the same files under `schemas/`. Releases up to 0.7.0 have none.
 The spec lists the flags and exit codes:
 [check, report and floor](docs/specs/FLED-0001-run-file-format.md#47-the-010-commands),
 [compare](docs/specs/FLED-0001-run-file-format.md#410-comparing-labelled-sets-of-runs),

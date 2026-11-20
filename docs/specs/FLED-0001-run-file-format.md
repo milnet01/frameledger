@@ -544,6 +544,7 @@ instead of text, and `--markdown`, printing the text as Markdown
 | `floor FILE --fps N [--warmup-s S] [--budget-ms B] [--no-windows] [--no-frames] [--allow-frames K] [--all-frames]` | S8's two checks | 0 pass; 1 fail; 2 inconclusive; 3 error |
 | `--selftest` | the analyser's own checks on built-in samples | 0 pass; 1 fail |
 | `--version` | prints the version | 0 |
+| `schema COMMAND` | prints the JSON Schema of `COMMAND`'s `--json` result, as bytes; it prints no result itself, and `--json` and `--markdown` change nothing ([FLED-0041](FLED-0041-json-result-schemas.md) § 4.2) | 0; 3 a missing or unknown `COMMAND` |
 
 `floor` defaults: `--warmup-s 2`, `--budget-ms` = 1000/`--fps`
 rounded up to three places (16.667 at 60, 6.945 at 144),
@@ -559,7 +560,8 @@ rounded up to three places (16.667 at 60, 6.945 at 144),
   the window open when it starts. So no window overlaps it, and it is
   judged by the budget alone.
 - **A window's frame rate** is the frames that end in it divided by one
-  second, and is reported as `fps`. Their mean `frame/wall` is reported
+  second, and is reported as `frames`, and as `fps`, its older name.
+  Their mean `frame/wall` is reported
   as `mean_ms`, or null when no frame ends in the window.
 - **A window passes** when the mean `frame/wall` of the frames ending
   in it is at most 1000/`--fps` ms rounded up to three places (16.667
@@ -610,7 +612,7 @@ than 100 columns. No meaning is carried by colour.
 ```
 
 `result` is the command's own. For `floor`:
-`{"windows": [{"start_s", "fps", "mean_ms", "pass"}], "windows_skipped",
+`{"windows": [{"start_s", "frames", "fps", "mean_ms", "pass"}], "windows_skipped",
 "slow_frames": [{"frame", "segment", "wall_ms", "top_pass"}],
 "frames_over_budget", "allowed", "rows_dropped", "finished"}`. For `report`:
 `{"passes": [{"category", "name", "segment_kind", "depth", "median_ms",
@@ -621,7 +623,9 @@ than 100 columns. No meaning is carried by colour.
 "missing_gpu_frames", "static"}`. For `check`: `{"files": [{"path",
 "breaches": [{"line", "rule", "message"}]}]}`. For `compare`: § 4.10.
 For `bisect`, whose verdicts are the last four: § 4.11. For `budget`:
-§ 4.12.
+§ 4.12. Each key's type, and whether it is always written and may be
+null, is in the command's schema
+([FLED-0041](FLED-0041-json-result-schemas.md)).
 
 1% low is 1000 divided by the 99th-percentile `frame/wall`;
 percentiles are nearest-rank.
@@ -1362,8 +1366,8 @@ between the good runs' 10.000 ms and the bad runs' 12.300 ms: bad
 {
   "measure": {"segment_kind", "segment", "category", "name", "depth", "statistic", "unit"},
   "dry_run": false,
-  "runs": [{"name", "set", "path", "run_id", "commit", "dirty",
-            "rows_dropped", "finished", "value"}],
+  "runs": [{"name", "set", "path", "run_id", "commit", "dirty", "started_utc",
+            "rows_dropped", "finished", "under_load", "value"}],
   "value", "bad_above",
   "references": {"good_centre", "bad_centre", "spread", "floor"},
   "refused": [{"field", "values": {}}],
@@ -1373,7 +1377,9 @@ between the good runs' 10.000 ms and the bad runs' 12.300 ms: bad
 
 `segment` is the `--segment` given, or null; `segment_kind` is its
 kind, or `--kind`'s, or null for `--unsegmented`. `set` is `tested`,
-`good` or `bad`. `unit` is `ms` or `MB`. `value` is the tested value, or
+`good` or `bad`. A run is listed as § 4.10 lists one; a run that could
+not be read, or that breaks the format, has a short entry: its `name`,
+`set` and `path`, and null for the rest. `unit` is `ms` or `MB`. `value` is the tested value, or
 the dry run's `VALUE`; null on `skip` and `stop`. A run's own `value` is
 null when it has none. `bad_above` is `X` or the midpoint. `references`
 is null in threshold mode. `skip_reason` names the first skip class

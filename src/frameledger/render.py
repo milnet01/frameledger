@@ -48,7 +48,9 @@ Block = str | Table  # a str is one line of prose; "" is a blank line in the tex
 
 
 def to_json(result: dict) -> str:
-    return json.dumps(result, indent=2) + "\n"
+    """Raises ValueError on a NaN or an infinity: JSON holds neither, and
+    json.dumps would print one as a word no parser reads."""
+    return json.dumps(result, indent=2, allow_nan=False) + "\n"
 
 
 # What a terminal obeys or hides instead of showing: Unicode's control

@@ -192,7 +192,8 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
         summary.append(f"{no_frame[0].upper()}{no_frame[1:]}.")
 
     result = {
-        "windows": [{"start_s": w.start / SECOND, "fps": w.frames,
+        # `fps` is the older name of `frames`, kept for whoever reads it (FLED-0041 § 4.5).
+        "windows": [{"start_s": w.start / SECOND, "frames": w.frames, "fps": w.frames,
                      "mean_ms": round(_window_mean(w), 3) if w.frames else None,
                      "pass": _window_passes(w, limit)} for w in full],
         "windows_skipped": skipped,

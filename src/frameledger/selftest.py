@@ -126,7 +126,7 @@ def run() -> list[tuple[str, bool]]:
          _report(_GPU_MISSING)["missing_gpu_frames"] == 1 and _gpu_figure(_report(_GPU_MISSING), "gpu_span") == 12.0),
         ("the remainder subtracts depth-0 rows only", _gpu_figure(_report(_NESTED), "gpu_remainder") == 11.004),
         ("a window counts the frames ending inside it",
-         _floor_windows(_QUARTERS) == [{"start_s": 0.0, "fps": 3, "mean_ms": 250.0, "pass": True}]),
+         _floor_windows(_QUARTERS) == [{"start_s": 0.0, "frames": 3, "fps": 3, "mean_ms": 250.0, "pass": True}]),
         ("a compare of a run with itself passes, and a slower pass fails it",
          _compare_verdict(_GOOD) == "pass" and _compare_verdict(_GOOD.replace(b"5.250", b"6.250")) == "fail"),
         ("a bisect calls a value at the threshold good and one above it bad",

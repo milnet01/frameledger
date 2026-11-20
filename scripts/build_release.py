@@ -20,7 +20,8 @@ kit's data, the launchers and header are read from the working tree, so
 build from a clean checkout of the tag, as release.yml does.
 
 Standard library only. Exit 0 on success; 1 when a module sits in a
-subdirectory of src/frameledger, or anything in a subdirectory of kit/;
+subdirectory of src/frameledger, or anything in a subdirectory of kit/ or
+schemas/;
 2 on a usage error.
 """
 
@@ -43,6 +44,7 @@ ENTRY_MODE = 0o100644  # a regular file: read-write for its owner, read for all
 RUNNABLE_MODE = 0o100755  # the same, and anyone may run it
 RUNNABLE = {"frameledger"}  # the Linux launcher (launcher/frameledger)
 SHEBANG = b"#!/usr/bin/env python3\n"
+DATA_FOLDERS = ("kit", "schemas")  # plain data beside the modules, read with pkgutil.get_data
 
 
 def source_bytes(path: Path) -> bytes:
@@ -78,22 +80,24 @@ def tracked_files() -> list[str]:
     checkout never ships.
 
     The analyser is flat: its modules import each other by bare name
-    (docs/design.md § The parts). Its one folder is kit/, plain data that
-    kit.py reads with pkgutil.get_data, with no module and no folder of
-    its own. Anything else in a subdirectory stops the build rather than
+    (docs/design.md § The parts). Its folders are kit/ and schemas/, plain
+    data that kit.py and schemas.py read with pkgutil.get_data, with no
+    module and no folder of their own. Anything else in a subdirectory stops the build rather than
     going missing from the .pyz.
     """
-    listed = subprocess.run(["git", "ls-files", "-z", "--", "*.py", "kit"], cwd=ANALYSER, capture_output=True,
+    listed = subprocess.run(["git", "ls-files", "-z", "--", "*.py", *DATA_FOLDERS], cwd=ANALYSER, capture_output=True,
                             check=True).stdout.decode()
     names = [name for name in listed.split("\0") if name]
-    nested = [name for name in names if "/" in name and not _kit_data(name)]
+    nested = [name for name in names if "/" in name and not _data_file(name)]
     if nested:
-        sys.exit(f"build_release: src/frameledger is flat but for kit/'s data, and git tracks {', '.join(nested)}")
+        sys.exit("build_release: src/frameledger is flat but for the data in kit/ and schemas/, and git tracks "
+                 + ", ".join(nested))
     return names
 
 
-def _kit_data(name: str) -> bool:
-    return name.startswith("kit/") and name.count("/") == 1 and not name.endswith(".py")
+def _data_file(name: str) -> bool:
+    folder, _, rest = name.partition("/")
+    return folder in DATA_FOLDERS and "/" not in rest and not name.endswith(".py")
 
 
 def build_pyz() -> bytes:
@@ -103,7 +107,9 @@ def build_pyz() -> bytes:
 
 
 def build_archive(pyz: bytes) -> bytes:
+    schemas = {name: source_bytes(ANALYSER / name) for name in tracked_files() if name.startswith("schemas/")}
     return zip_bytes({
+        **schemas,
         "frameledger.pyz": pyz,
         "frameledger": source_bytes(ROOT / "launcher" / "frameledger"),
         "frameledger.cmd": crlf(source_bytes(ROOT / "launcher" / "frameledger.cmd")),

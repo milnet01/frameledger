@@ -75,7 +75,7 @@ def test_window_rate(capsys):
     # frame that ends on its end would raise their mean to 16.683 ms.
     code, out = run_floor(capsys, FIXTURES / "edge-frame.csv", "--no-frames")
     assert (code, out["verdict"]) == (0, "pass")
-    assert out["result"]["windows"][0] == {"start_s": 2.0, "fps": 59, "mean_ms": 16.1, "pass": True}
+    assert out["result"]["windows"][0] == {"start_s": 2.0, "frames": 59, "fps": 59, "mean_ms": 16.1, "pass": True}
 
 
 def test_steady_frame_time_passes(capsys):

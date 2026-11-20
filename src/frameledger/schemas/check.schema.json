@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger check --json",
+  "description": "The result of `frameledger check FILE... --json`: whether each file meets the run-file format. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "check",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/check_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/check_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "The file's path as given."
+              },
+              "breaches": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "line": {
+                      "type": "integer",
+                      "description": "The line of the file, from 1."
+                    },
+                    "rule": {
+                      "type": "string",
+                      "description": "Which part of the format is broken. An open set."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "The breach in words."
+                    }
+                  },
+                  "required": [
+                    "line",
+                    "message",
+                    "rule"
+                  ],
+                  "description": "One breach."
+                },
+                "description": "Each place the file breaks the format; empty when it conforms."
+              }
+            },
+            "required": [
+              "breaches",
+              "path"
+            ],
+            "description": "One file."
+          },
+          "description": "Each file that was read. A file that could not be read is left out, and has a file_error warning."
+        },
+        "expect": {
+          "type": "object",
+          "properties": {
+            "matches": {
+              "type": "boolean",
+              "description": "True when FILE meets the format and holds what the expected file holds."
+            },
+            "differences": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "where": {
+                    "type": "string",
+                    "description": "Where in the run the two differ."
+                  },
+                  "expected": {
+                    "description": "What the expected file holds there. Any JSON value."
+                  },
+                  "found": {
+                    "description": "What FILE holds there. Any JSON value."
+                  }
+                },
+                "required": [
+                  "expected",
+                  "found",
+                  "where"
+                ],
+                "description": "One difference."
+              },
+              "description": "Up to 20 differences."
+            }
+          },
+          "required": [
+            "differences",
+            "matches"
+          ],
+          "description": "Written only with --expect, and only when the file could be read: how FILE compares with the expected run file, by content."
+        }
+      },
+      "required": [
+        "files"
+      ],
+      "description": "What was found in each file."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "$defs": {
+    "check_verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "error"
+      ],
+      "description": "The verdict of check: pass when every file conforms, fail when one breaks the format, has a warning under --strict or differs under --expect, error when a file could not be read. A closed set."
+    },
+    "check_exit_code": {
+      "enum": [
+        0,
+        1,
+        3
+      ],
+      "description": "The exit codes a check result can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    }
+  }
+}
