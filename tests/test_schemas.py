@@ -307,6 +307,20 @@ def test_every_named_key_is_described(command):
 
 # ----------------------------------------------------------------------- INV-3
 
+DEPRECATED = {("floor", "fps")}  # (command, key): the keys docs/support-policy.md § Deprecated now lists
+
+
+def test_the_policy_lists_every_deprecated_key():
+    """A schema marks a key deprecated exactly when DEPRECATED names it, and the policy's table has its row."""
+    marked = {(command, key) for command in schemas.COMMANDS for node, _ in subschemas(TREE[command])
+              for key, sub in node.get("properties", {}).items() if sub.get("deprecated")}
+    assert marked == DEPRECATED
+    policy = (ROOT / "docs" / "support-policy.md").read_text(encoding="utf-8")
+    rows = [line for line in policy.split("## Deprecated now")[1].splitlines() if line.startswith("| `")]
+    for command, key in DEPRECATED:
+        assert any(f"`{key}`" in row and f"`{command} --json`" in row for row in rows), f"no row for {command}'s {key}"
+
+
 def test_every_shape_has_a_sample():
     """INV-3: SHAPES lists § 4.4's table, and each entry is shown."""
     shown = {(sample.command, sample.shape) for sample in schema_samples.SAMPLES}

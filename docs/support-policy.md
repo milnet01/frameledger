@@ -11,14 +11,19 @@ What counts as breaking is
 
 ## Which release gets fixes
 
-- **Only the newest release.** A fix ships in the next release. No
-  older release is patched.
+- **Only the newest release**, before 1.0.0 as after. A fix ships in
+  the next release. No older release is patched.
+- **So a fix can bring a removal with it.** Once a MAJOR is released,
+  the one before it gets no fix, a security fix included. Whoever
+  wants the fix takes that MAJOR's removals too.
 - **An older release is never unpublished.** Its archive and its
   notes, which hold the SHA256, stay on the releases page, so a pin
   keeps resolving.
-- **`CHANGELOG.md` is where every deprecation and removal is
-  announced.** `scripts/release_notes.py` prints a release's section
-  as its notes.
+- **`CHANGELOG.md` is where every deprecation, removal and security
+  fix is announced, and the only place.** No notice is sent.
+  `scripts/release_notes.py` prints a release's section as its notes.
+- **Where to report a bug or a security hole** is not written yet. It
+  is tracked by FLED-0045.
 
 ## What it runs on
 
@@ -37,8 +42,10 @@ What counts as breaking is
   C++17, under the compilers and flags
   `tests/writer/test_compile.sh` names.
 
-**For how long.** No end date is set for any of these. Dropping one is
-a breaking change, so it follows the two sections below.
+**For how long.** The Python floor stays 3.10 until 2.0.0 at the
+earliest. No end date is set for a system or for the writer's
+languages. Dropping any of these is a breaking change, so it follows
+the two sections below.
 
 ## When a breaking change is allowed
 
@@ -84,8 +91,9 @@ apply, and the thing keeps working unchanged:
   thing, its replacement, and the earliest release that may remove it.
 - **A flag or a command** prints one line on standard error when used,
   opening `frameledger:` and naming the replacement. Standard output,
-  the verdict and the exit code do not change. Its `--help` text says
-  it is deprecated.
+  the verdict and the exit code do not change. A script that merges
+  standard error into standard output will read the line as part of
+  the result. Its `--help` text says it is deprecated.
 - **A key in a JSON result** has `"deprecated": true` in its schema,
   and its `description` names the replacement.
 - **A header field, or a file's field,** is marked in the spec that
@@ -104,6 +112,8 @@ which fails on a removal that is not listed.
 
 Nothing checks the standard-error line or the `--help` text until a
 flag is first deprecated. That change brings its test.
+`tests/test_schemas.py::test_the_policy_lists_every_deprecated_key`
+holds a JSON key's schema mark and the table below to each other.
 
 ## Deprecated now
 
