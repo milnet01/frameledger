@@ -238,7 +238,8 @@ settles.
 
 UTF-8 text. Lines end in LF or CRLF; a reader treats them the same.
 Numbers use `.` as the decimal point, never `,`, whatever the writer's
-locale.
+locale. A writer puts no byte-order mark at the start of the file; a
+reader skips one, since an editor on Windows may add it (FLED-0040).
 
 ```
 # frameledger {"schema":1,"run_id":"...",...}        line 1: header, required
@@ -311,6 +312,14 @@ stand-in, § 4.18.1), `extra` (object, the engine's own).
 `resolution` is two whole numbers, each 1 or more. `render_scale`
 may be any finite number, 0 and negatives included: readers only
 compare it.
+
+`resolution` is the size of the image the engine hands on for display,
+after any upscaling of its own. A window that stretches that image
+does not count, and a run with no display writes the size it would
+hand on. `render_scale` times each side, rounded to whole pixels as
+the engine chooses, is the size drawn. Both are as at the run's start.
+No reader computes the drawn size (FLED-0040; the three engines,
+2026-11-20).
 
 `started_utc` names a real date and time: year 0001 to 9999, a month
 and day that exist, with 29 February only in a leap year, hour 00 to
@@ -1388,7 +1397,8 @@ budget; 2 inconclusive; 3 an error in either file.
 
 **The budget file** is UTF-8 CSV, as § 4.1's: LF or CRLF, `.` as the
 decimal point, fields quoted CSV-style. A blank line is skipped
-(Vestige).
+(Vestige). A byte-order mark at its start is skipped, and a writer
+puts none (FLED-0040).
 
 ```
 # frameledger-budget {"schema":1,"match":{"tier":"high"}}   line 1, required
