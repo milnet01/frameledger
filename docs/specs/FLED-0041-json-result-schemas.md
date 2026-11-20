@@ -24,7 +24,7 @@ releases shipped.
 ## 2. Problem
 
 1. **A result's shape is written as key names in prose.** FLED-0001
-   § 4.8 and § 4.10 to § 4.18 list each `result`'s keys with no types.
+   § 4.8 and § 4.10 to § 4.20 list each `result`'s keys with no types.
    Whether a key may be null or absent is in sentences, or nowhere.
 2. **No test checks a whole result.** The tests assert picked keys.
    `tests/test_render.py::test_text_matches_json` holds `summary`
@@ -36,8 +36,8 @@ releases shipped.
    key is not breaking. Only a reviewer notices a breach.
 4. **Two results differ where a reader expects one shape.** In
    `bisect`'s `runs` an entry has no `started_utc`, which `compare`'s
-   has, and an unreadable run's entry has no `under_load` key
-   (`src/frameledger/bisecting.py`).
+   has. The entry of a run that could not be read, or that breaks the
+   format, has no `under_load` key either (`bisecting._entry`).
 5. **Nothing stops a number JSON cannot hold.** `render.to_json` calls
    `json.dumps` with its default `allow_nan`, which would print `NaN`
    or `Infinity`. No result holds one today.
@@ -45,34 +45,36 @@ releases shipped.
 ## 3. Scope decisions (agreed with the user)
 
 The owner handed this project's decisions to the three engine sessions
-(`CLAUDE.md` § Who decides and who reviews). Vestige and UT Ants each
-agreed the choices below on 2026-11-20. DOOM Ants' answer is owed
-(§ 13).
+(`CLAUDE.md` § Who decides and who reviews). Vestige, UT Ants and DOOM
+Ants each agreed the choices below on 2026-11-20.
 
 - JSON Schema draft 2020-12, one file per command (§ 4.1).
 - The files ship in the release archive and inside `frameledger.pyz`,
   which prints them (§ 4.2). Vestige and UT Ants each pin the `.pyz`
-  alone and would read them from it.
+  alone; DOOM Ants pins the archive.
 - The published files allow keys they do not name; the tests refuse
   them (§ 4.3, § 4.6).
 - Each release's files are frozen, and later output is held to them
   (§ 4.7).
 - A result carries no schema number. Its `frameledger` key picks the
   release whose files describe it (§ 4.3; Vestige). So every result
-  carries that key, on an error exit too (INV-8; UT Ants).
+  carries that key, with an `"error"` verdict too (§ 4.4, INV-8; UT
+  Ants).
 - The tests use the `jsonschema` package; the analyser stays standard
   library only (§ 4.8).
-- `bisect`'s run entries gain `started_utc` and always carry
-  `under_load` (§ 4.5).
-- `floor`'s `fps` keeps its name, and its description says it is a
-  count (§ 4.5).
 - On an unreadable file `result` stays as it is, and each schema
-  states that shape, so a script need not read prose (§ 4.4; Vestige,
-  UT Ants).
+  states that shape, so a script need not read prose (§ 4.4).
 
-Mine, not yet put to the engines, for their review of this spec: the
-files are printed by a flag, `--schema`, not a command (§ 4.2, § 8);
-which value sets are closed (§ 4.3); and no `$id` (§ 4.3).
+Decided in their review of this spec, the same day:
+
+- The files are printed by a `schema` command. A `--schema` flag
+  cannot be routed (§ 8; Vestige).
+- `bisect`'s run entries gain `started_utc` and always carry
+  `under_load` (§ 4.5; all three).
+- `floor`'s windows gain `frames` beside `fps` (§ 4.5; Vestige and
+  DOOM Ants. UT Ants would have left `fps` alone).
+
+Not yet agreed: which value sets are closed (§ 4.3, § 13).
 
 ## 4. Design
 
@@ -98,14 +100,22 @@ disagree with it.
 - **The archive.** `frameledger-TAG.zip` holds each file as
   `schemas/<command>.schema.json`.
 - **The `.pyz`.** `frameledger.pyz` holds the same files, and
-  `frameledger --schema COMMAND` prints one to standard output, byte
-  for byte, and exits 0. `--json` and `--markdown` change nothing, as
-  with `--version`.
-- A `COMMAND` that is not one of § 4.1's names is exit 3: standard
-  output holds nothing, and standard error names the ones there are.
-  The name is looked up in a fixed list and is never used as a path.
-- Under `bisect`, `--schema` is refused as `--version` is (FLED-0001
-  § 4.11).
+  `frameledger schema COMMAND` prints one to standard output and
+  exits 0. It writes the file's bytes, not text, so the output is the
+  same on every system: Python's text output would turn each line end
+  into CR LF on Windows.
+- **`schema` prints no result.** It is the one command whose output
+  is not the result object of FLED-0001 § 4.8, so `command` never
+  holds `schema` and no file describes it. `--json` and `--markdown`
+  are accepted and change nothing.
+- A `COMMAND` that is missing, or is not one of § 4.1's names, is
+  exit 3: standard output holds nothing, and standard error names the
+  ones there are. The name is looked up in a fixed list and is never
+  used as a path.
+- **Which file describes a result.** A file names no release. Print
+  it from the same `frameledger.pyz`, or take it from the same
+  archive, as the copy that printed the result. 0.7.0 and earlier
+  have no files.
 
 `scripts/build_release.py::tracked_files` takes `schemas/` as it takes
 `kit/`: tracked data files one level down, read with
@@ -116,14 +126,22 @@ disagree with it.
 - **Dialect.** `"$schema"` is
   `https://json-schema.org/draft/2020-12/schema`. There is no `$id`:
   two releases' files differ, and an `$id` would name both the same.
-  The result's `frameledger` key says which release's file applies.
 - **Self-contained.** A `$ref` points inside its own file. What the
   files share, such as a warning or the envelope's keys, is repeated
   under `$defs` in each, under the same name and with the same content
-  (INV-5), so a printed file is usable alone.
-- **Every key the analyser writes is named**, with its type and a
-  `description`. A key always written is in `required`. A key that may
-  be null says so in its type.
+  (INV-5), so a printed file is usable alone. A `$ref` to an object
+  stands alone, with no `properties` beside it (§ 4.6).
+- **Every key the analyser writes is named**, with its type. A key
+  that may be null says so in its type. INV-1 holds this for the
+  shapes the samples show.
+- **Absent and null are different.** A key a shape always writes is in
+  that shape's `required`, and null is then a value it may hold. A key
+  a shape never writes is not named for that shape. A key a shape
+  writes only sometimes is named, not required, and its `description`
+  says when.
+- **`frameledger`** is a string, the release's version. It is not a
+  constant, so a later release's result still validates against an
+  earlier file (§ 4.7).
 - **Open to additions.** No object is closed with
   `additionalProperties: false` or `unevaluatedProperties: false`, so
   a result with a key the file does not name still validates. That is
@@ -136,47 +154,90 @@ disagree with it.
 - **Engine-supplied values are any JSON.** `report`'s `static`, the
   values in `static_diff` and `refused`, and `expected` and `found` in
   `check --expect`'s differences.
-- **Closed sets** are an `enum`, and a later value is a breaking
-  change: `command`; the top-level `verdict`, per command; each
-  entry's own `verdict` (a measure's, a scene's, a variant's, a
-  surveyed run's); `set`; `unit`; and `skip_reason`.
-- **Open sets** are a string whose `description` lists today's values:
-  warning codes, breach rules, `category`, `statistic`, segment kinds
-  and every name an engine chose.
+- **Closed sets** are an `enum`, each under its own name in `$defs`,
+  and a later value is a breaking change: `command`; the top-level
+  `verdict`, per command (§ 4.4); each entry's own `verdict` (a
+  measure's, a scene's, a variant's, a surveyed run's); `set`;
+  `statistic`; and `skip_reason`.
+- **Open sets** are a string: warning codes, breach rules, `category`,
+  `unit`, segment kinds and every name an engine chose. A script must
+  ignore a value it does not know. `unit` is open because it follows
+  from `category` (`compare.unit_of`).
 - **`exit_code`** is an `enum` of the codes the command's result can
   carry.
+- **A `description` is documentation.** Every named key has one, and
+  an open set's lists today's values. No test holds a description
+  true, and it is no part of the promise.
 
 ### 4.4 The shapes a file must tell apart
 
-A command's `result` has more than one shape. Each file tells them
-apart with `if`/`then` on keys of the result itself, so a validator
-needs nothing but the result.
+**What standard output holds.** Either one result object or nothing.
+A command that reaches a verdict prints the object, and `"error"` is a
+verdict: a file that cannot be read is exit 3 with the whole object. A
+bad argument or a setup error prints nothing on standard output, and
+is also exit 3 (FLED-0001 § 4.11, *A bad argument*). No file describes
+that case. A script tells the two apart by whether standard output is
+empty.
 
-| Command | Shapes |
+**The top-level `verdict`, per command:**
+
+| Command | `verdict` |
 |---|---|
-| `check` | files judged; with `--expect`, also `expect`; an unreadable file, which is left out of `files` |
-| `report`, `floor`, `budget` | judged; a file error, where `result` is `{}` |
-| `compare` | plain; `--by-scene`; `--base` with `--variant`; refused over blocking fields; an absent `--measure` name; a file error, `{}` |
-| `alternate` | `compare`'s plain or variants shape with `commands`, `out`, `warmup` and `stopped`; stopped, with those four and `baseline` only |
-| `bisect` | judged; skipped or stopped, where `value` is null |
-| `survey` | judged; a run it could not judge, its figures null |
-| `import`, `kit`, `selftest` | one |
+| `check` | `pass`, `fail`, `error` |
+| `floor`, `budget`, `compare`, `alternate` | `pass`, `fail`, `inconclusive`, `error` |
+| `survey` | `pass`, `fail`, `inconclusive` |
+| `report` | `none`, `error` |
+| `kit`, `import` | `none` |
+| `bisect` | `good`, `bad`, `skip`, `stop` |
+| `selftest` | `pass`, `fail` |
 
-The top-level `verdict` decides which keys of `result` are required:
-with `"error"`, none but the ones the error shape above names. Each
-file states that rule as `if`/`then` on `verdict`.
+**The shapes of `result`.** Each file tells them apart with `if`/`then`
+on `verdict` and on which keys `result` holds, so a validator needs
+nothing but the result. Each `then` lists the keys that shape always
+writes as `required`.
 
-A setup or argument error prints no result (FLED-0001 § 4.11, *A bad
-argument*), so no file describes one.
+| Command | Shape | Told apart by |
+|---|---|---|
+| `check` | judged | `verdict` is not `error`; `files` |
+| `check` | with `--expect` | `expect` is there |
+| `check` | a file unread | `verdict` is `error`; `files` leaves the unread file out, and `expect` is absent |
+| `report`, `floor`, `budget` | judged | `verdict` is not `error` |
+| `report`, `floor`, `budget` | a file unread | `verdict` is `error`; `result` is `{}` |
+| `compare` | plain | `measures` |
+| `compare` | `--by-scene` | `scenes` |
+| `compare` | `--base` with `--variant` | `variants` |
+| `compare` | refused over blocking fields | `refused` with no `measures`; holds `runs`, `refused`, `all_frames` |
+| `compare` | a `--measure` name no run has | `named_measures` with none of `measures`, `scenes`, `variants`; plain compare also holds `runs` |
+| `compare` | a file unread | `result` is `{}` |
+| `alternate` | each of `compare`'s shapes | as `compare`, with `commands`, `out`, `warmup` and a null `stopped` added; so a file unread holds those and `baseline`, never `{}` |
+| `alternate` | stopped | `stopped` is not null; holds `commands`, `out`, `warmup`, `stopped`, `baseline` |
+| `bisect` | judged | `verdict` is `good` or `bad` |
+| `bisect` | skipped or stopped | `verdict` is `skip` or `stop`; `value` is null |
+| `survey` | one | a run it could not judge has its figures null |
+| `import`, `kit`, `selftest` | one | |
+
+Every `compare` and `alternate` result but `{}` also holds `baseline`
+(`cli._name_baseline`). The last four `compare` rows all have the
+verdict `error`, as has a `--by-scene` or variants result in which
+nothing was judged; so `verdict` alone does not pick the shape, and
+the keys in the last column do.
 
 ### 4.5 What changes in the output
 
-- `bisect`'s `runs` entries gain `started_utc`, as `compare`'s have,
-  and always carry `under_load`. For a run that could not be read both
-  are null, as that entry's `commit` is.
-- `render.to_json` passes `allow_nan=False`. A NaN or an infinity
-  reaching it is an error inside the analyser: exit 3, or 128 under
-  `bisect`, and nothing on standard output.
+- **`bisect`'s `runs` entries** gain `started_utc`, as `compare`'s
+  have, and always carry `under_load`: a list of the names of the
+  peaks over their limits, empty when there are none, as in `compare`.
+  `bisect` writes a short entry for a run that could not be read, and
+  for one that breaks the format. In a short entry both keys are null,
+  as its `commit` is.
+- **`floor`'s `windows` entries** gain `frames`, holding the value
+  `fps` holds: the count of frames in the window. `fps` stays, and its
+  description calls it the older name.
+- **`render.to_json` passes `allow_nan=False`.** A NaN or an infinity
+  reaching it ends the command as a setup error does: a message on
+  standard error, nothing on standard output, exit 3, or 128 under
+  `bisect`. `json.dumps` raises `ValueError` for one, which
+  `cli.main` does not catch today, so this needs its own handler.
 - Nothing else. Key order, indentation and the escaping of non-ASCII
   characters stay as `render.to_json` writes them, and are no part of
   the promise: a script parses the JSON.
@@ -184,44 +245,65 @@ argument*), so no file describes one.
 ### 4.6 The samples, and the stricter test
 
 ```
-tests/schema_samples.py      the sample runs
+tests/schema_samples.py      the shapes and the sample runs
 tests/test_schemas.py
 ```
 
-- **A sample** is a command line, the files it needs, and the shape of
-  § 4.4 it shows. The samples cover every shape in § 4.4's table, and
-  between them write every key the files name (INV-3).
-- **The strict form** of a file is made by the test: every object that
-  has `properties` and no `additionalProperties` gains
-  `unevaluatedProperties: false`. Each sample's output must validate
-  against its file's strict form (INV-1). So a key cannot reach a
-  result without being described, while the published file stays open.
+- **`SHAPES`** in `tests/schema_samples.py` lists every row of
+  § 4.4's shapes table as a command and a shape name. The tests
+  iterate it.
+- **A sample** is a command line, the files it needs, and the entry
+  of `SHAPES` it shows. Every entry has a sample, and between them the
+  samples write every key the files name (INV-3).
+- **The strict form** of a file is made by the test. It closes each
+  object once: a schema with `properties` gains
+  `unevaluatedProperties: false` when it is the root, or is reached
+  through `properties`, `additionalProperties`, `items`,
+  `prefixItems` or a `$defs` entry. A schema under `if`, `then`,
+  `else`, `allOf`, `anyOf`, `oneOf` or `not` is left open: the
+  enclosing object's `unevaluatedProperties` already counts the keys a
+  `then` names, and a closed `if` would never match a whole result.
+- Each sample's output must validate against its file's strict form
+  (INV-1), and the strict form must refuse a key added to any object
+  of any sample's output (INV-11). So a key cannot reach a result
+  without being described, while the published file stays open.
 
 ### 4.7 Frozen sets
 
 ```
 tests/fixtures/schemas/
   <version>/<command>.schema.json   the files a release shipped
+  <version>/keys.json               the keys each sample wrote
   SHA256SUMS                        one line per file above
-scripts/freeze_schemas.py           copies the tree's files to <version>/
+scripts/freeze_schemas.py           writes <version>/
 ```
 
 - **From 0.8.0, every release freezes its files.** `<version>` is
   `cli.VERSION`. `scripts/freeze_schemas.py` copies
-  `src/frameledger/schemas/` to that folder and adds the lines to
-  `SHA256SUMS`. It refuses to write over a folder that exists.
+  `src/frameledger/schemas/` to that folder, writes `keys.json`, and
+  adds the lines to `SHA256SUMS`. It refuses to write over a folder
+  that exists.
+- **`keys.json`** holds, for each sample by name, every key path its
+  output held when frozen, such as `result.runs[].started_utc`. A
+  schema's open form cannot see a key go missing unless the key is
+  `required`, and removing any key is breaking; this record can.
 - **The release cannot forget.** With `cli.VERSION` at 0.8.0 or later,
   the tests fail when `tests/fixtures/schemas/<VERSION>/` is absent,
-  and `scripts/check-release.sh` fails when it differs from the
-  tree's files.
-- **Later output is held to every frozen set.** Each sample's output
-  must validate against its command's file in every frozen folder, in
-  the open form (INV-6). A removed key, a changed type or a new value
-  in a closed set fails it.
+  and `scripts/check-release.sh` fails when its schema files differ
+  from the tree's.
+- **Later output is held to every frozen set** (INV-6), three ways.
+  Each sample's output validates against its command's frozen file, in
+  the open form: a changed type fails. Each sample a frozen
+  `keys.json` names still exists and still writes every key path
+  recorded for it: a removed or renamed key fails. Each closed set's
+  `enum` in the tree's file holds no value the frozen file's `enum` of
+  the same `$defs` name lacks: a new value fails, whether or not a
+  sample writes it.
 - **A deliberate break** is listed in `tests/test_schemas.py` as the
-  frozen version, the command and the `CHANGELOG.md` entry that names
-  it. Only a listed pair is let off. When a break is allowed is
-  FLED-0042's.
+  frozen version, the command, the key path or `$defs` name, and the
+  `CHANGELOG.md` entry that names it. Only a listed failure is let
+  off; another failure in the same command still fails. When a break
+  is allowed is FLED-0042's.
 - **Never edited.** A frozen file does not change. A wrong one stays,
   and the next release's file is right.
 
@@ -246,39 +328,46 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
 
 - **INV-2** — Each file is a valid draft 2020-12 schema, names that
   dialect, has no `$id`, closes no object, and holds no `$ref` that
-  leaves the file.
+  leaves the file or that has `properties` beside it.
   *Test:* `tests/test_schemas.py::test_each_file_is_a_schema`.
   *Breaks when:* a file has a keyword the dialect's own schema
   refuses; `additionalProperties: false`; a `$ref` to another file.
 
-- **INV-3** — The samples show every shape in § 4.4's table, and every
-  key a file names is written by at least one sample.
+- **INV-3** — Every entry of `SHAPES` has a sample, and every key a
+  file names is written by at least one sample.
   *Test:* `tests/test_schemas.py::test_samples_cover_the_schemas`.
-  *Breaks when:* a file names a key no sample writes; a shape in the
-  table has no sample.
+  *Breaks when:* a file names a key no sample writes; an entry of
+  `SHAPES` has no sample.
 
-- **INV-4** — `--schema COMMAND` prints the file byte for byte and
-  exits 0, from the tree and from `frameledger.pyz`, and the archive
-  holds the same bytes under `schemas/`. A name not in § 4.1, a path
-  among them, is exit 3 with nothing on standard output.
-  *Test:* `tests/test_schemas.py::test_schema_flag_prints_the_file`
+- **INV-4** — `schema COMMAND` prints the file's bytes and exits 0,
+  from the tree and from `frameledger.pyz`, and the archive holds the
+  same bytes under `schemas/`. A missing name, or one § 4.1 does not
+  list, is exit 3 with nothing on standard output.
+  *Test:* `tests/test_schemas.py::test_schema_command_prints_the_file`
   and `::test_archive_holds_the_schemas`.
   *Breaks when:* the build leaves `schemas/` out of the `.pyz`; the
-  flag prints a re-serialised copy; `--schema ../cli.py` prints a file.
+  command prints a re-serialised copy; `schema ../cli.py` prints a
+  file.
 
 - **INV-5** — A definition under `$defs` with the same name is the
   same in every file that has it.
   *Test:* `tests/test_schemas.py::test_shared_definitions_agree`.
   *Breaks when:* a warning's shape is corrected in one file only.
 
-- **INV-6** — Every sample's output validates against its command's
-  file in every folder under `tests/fixtures/schemas/`, but for the
-  pairs listed as deliberate breaks.
+- **INV-6** — Against every folder under `tests/fixtures/schemas/`:
+  every sample's output validates against its command's file; every
+  sample `keys.json` names exists and writes every key path recorded
+  for it; and no closed set in the tree's file holds a value the
+  frozen one lacks. Only a failure listed as a deliberate break is let
+  off.
   *Test:* `tests/test_schemas.py::test_output_matches_every_frozen_set`.
-  Before 0.8.0 there is no folder, so the test builds one from the
-  tree's files in a temporary directory and changes a sample's output.
-  *Breaks when:* a release removes or renames a key a frozen file
-  requires, changes its type, or writes a new value in a closed set.
+  Before 0.8.0 there is no folder, so the test freezes the tree's
+  files to a temporary directory and then breaks them four ways: a
+  key's type changed, an optional key removed from a sample's output,
+  a value added to a closed set, and a second failure beside a listed
+  one.
+  *Breaks when:* a release removes or renames a key, changes its type,
+  or adds a value to a closed set.
 
 - **INV-7** — Each frozen file's SHA-256 is its line in `SHA256SUMS`,
   which lists every frozen file; with `cli.VERSION` at 0.8.0 or later
@@ -291,21 +380,38 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
   freezing; the script is run twice for one version.
 
 - **INV-8** — Every sample's result carries all eight top-level keys,
-  on an error exit too, and its `frameledger` is `cli.VERSION`.
-  *Test:* `tests/test_schemas.py::test_every_result_names_its_release`.
+  and its `frameledger` is `cli.VERSION`. The samples include each
+  shape whose verdict is `error`. A bad argument prints nothing on
+  standard output.
+  *Test:* `tests/test_schemas.py::test_every_result_names_its_release`
+  and `::test_a_bad_argument_prints_no_result`.
   *Breaks when:* an error path builds its result without
-  `cli._result`.
+  `cli._result`; a setup error prints a partial object.
 
-- **INV-9** — `render.to_json` raises on a NaN or an infinity, at any
-  depth, and prints neither.
-  *Test:* `tests/test_schemas.py::test_json_holds_no_nan`.
-  *Breaks when:* `allow_nan=False` is dropped.
+- **INV-9** — A result holding a NaN or an infinity, at any depth,
+  ends the command with exit 3, or 128 under `bisect`, and nothing on
+  standard output.
+  *Test:* `tests/test_schemas.py::test_json_holds_no_nan`, which runs
+  `cli.main` with a result patched to hold each.
+  *Breaks when:* `allow_nan=False` is dropped; the `ValueError` is
+  left to become a traceback, which is exit 1.
 
-- **INV-10** — The name given to `--schema` is user input. It selects
+- **INV-10** — The name given to `schema` is user input. It selects
   from § 4.1's list and never reaches the file system as a path.
-  *Test:* `tests/test_schemas.py::test_schema_flag_prints_the_file`,
+  *Test:* `tests/test_schemas.py::test_schema_command_prints_the_file`,
   its cases `../cli.py`, an absolute path and `check.schema.json`.
   *Breaks when:* the name is joined to the folder and opened.
+
+- **INV-11** — The strict form refuses a key added to any object of
+  any sample's output, and refuses a sample's output given the
+  `verdict` of another shape.
+  *Test:* `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key`.
+  The fixture isolates the closing rule of § 4.6: a strict form that
+  closed a `then`, or left a nested object open, passes INV-1 on a
+  correct sample or fails it for every sample, and only this test
+  tells a strict form that checks nothing from one that works.
+  *Breaks when:* the strict pass skips an object; an `if` no longer
+  matches, so its `then` never applies.
 
 ## 6. Failure modes
 
@@ -317,8 +423,8 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
 - **A release is cut without freezing.** INV-7 fails as soon as
   `cli.VERSION` is bumped.
 - **A frozen file was wrong when it shipped.** It stays. If the code
-  was right and the file wrong, later output fails INV-6 for that
-  pair, and the pair is listed with the changelog entry that says so.
+  was right and the file wrong, later output fails INV-6 at that key,
+  and the failure is listed with the changelog entry that says so.
 - **`jsonschema` is not installed.** `tests/test_schemas.py` fails at
   import. The gate installs it, so only bare `pytest` meets this.
 - **A NaN reaches `to_json`.** Exit 3 and a message on standard error,
@@ -326,10 +432,10 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
 
 ## 7. Tests
 
-`tests/test_schemas.py` holds every invariant. Each is seen to fail first: INV-1 against a file with a key
-removed, INV-4 against a build without `schemas/`, INV-9 against
-today's `to_json`, and the `bisect` change of § 4.5 against today's
-`bisecting.py` through INV-1.
+`tests/test_schemas.py` holds every invariant. Each is seen to fail
+first: INV-1 against a file with a key removed, INV-4 against a build
+without `schemas/`, INV-9 against today's `cli.main`, and the `bisect`
+and `floor` changes of § 4.5 against today's code through INV-1.
 
 What they do not show: that a file's `description` is true, and that a
 key's meaning is unchanged. A schema holds shape, not meaning.
@@ -341,22 +447,24 @@ key's meaning is unchanged. A schema holds shape, not meaning.
 - **Closed published files.** A script validating a later release's
   output against its pinned file would fail on every added key, which
   `versioning-overrides.md` says is not a break.
-- **A `schema` command instead of a flag.** Every command takes
-  `--json` and prints the result object (FLED-0001 § 4.7). A command
-  whose output is not that object would be the one exception, and
-  would need a schema of its own. `--version` and `--selftest` are
-  flags already.
+- **A `--schema COMMAND` flag.** The options before the command take
+  no value, so the first argument without a dash is the command
+  (FLED-0001 § 4.11, `cli._command`). `--schema bisect` would run
+  `bisect`.
 - **A hand-written checker in the tests.** No new pin, but it would
   prove the files to our reading of the dialect, not to the tool an
   engine would use.
 - **A schema number in the result.** One more value to keep true,
   beside a version the result already carries.
 - **Rename `floor`'s `fps`.** It breaks whoever reads it, for a name.
+  `frames` is added beside it instead.
+- **List a deliberate break by command alone.** One listed break
+  would let every later break to that command through.
 
 ## 9. Out of scope
 
-- When a breaking change is allowed and how it is announced — tracked
-  by FLED-0042.
+- When a breaking change is allowed and how it is announced, and when
+  `floor`'s `fps` may go — tracked by FLED-0042.
 - A schema for the run file, the budget file and the baseline file —
   FLED-0040 § 4.8 freezes files instead; deferred; not yet queued.
 - The text and Markdown output — not a surface
@@ -368,28 +476,34 @@ key's meaning is unchanged. A schema holds shape, not meaning.
 |------|----------------------|
 | INV-1 | Partial: `tests/test_schemas.py::test_output_matches_its_schema`, for the shapes the samples show; a key written only in a shape with no sample has **nothing** |
 | INV-2 | `tests/test_schemas.py::test_each_file_is_a_schema` |
-| INV-3 | Partial: `tests/test_schemas.py::test_samples_cover_the_schemas` catches a named key no sample writes; that § 4.4's table lists every shape the code has is caught only by the engines' review |
-| INV-4 | `tests/test_schemas.py::test_schema_flag_prints_the_file` and `::test_archive_holds_the_schemas` |
+| INV-3 | Partial: `tests/test_schemas.py::test_samples_cover_the_schemas` catches a named key no sample writes; that `SHAPES` and § 4.4's table list every shape the code has is caught only by the engines' review |
+| INV-4 | Partial: `tests/test_schemas.py::test_schema_command_prints_the_file` and `::test_archive_holds_the_schemas`; `.github/workflows/ci.yml` runs the tests on Linux and macOS, so a changed line end on Windows has **nothing** |
 | INV-5 | `tests/test_schemas.py::test_shared_definitions_agree` |
-| INV-6 | Partial: `tests/test_schemas.py::test_output_matches_every_frozen_set`; a pair wrongly listed as a deliberate break is caught only by the engines' code review |
+| INV-6 | Partial: `tests/test_schemas.py::test_output_matches_every_frozen_set`; a failure wrongly listed as a deliberate break is caught only by the engines' code review |
 | INV-7 | Partial: `tests/test_schemas.py::test_frozen_sets_unchanged`, `::test_this_version_is_frozen` and `::test_freeze_refuses_an_existing_folder`; a commit that edits a frozen file and `SHA256SUMS` together is caught only by the engines' code review |
-| INV-8 | `tests/test_schemas.py::test_every_result_names_its_release` |
+| INV-8 | `tests/test_schemas.py::test_every_result_names_its_release` and `::test_a_bad_argument_prints_no_result` |
 | INV-9 | `tests/test_schemas.py::test_json_holds_no_nan` |
-| INV-10 | `tests/test_schemas.py::test_schema_flag_prints_the_file` |
+| INV-10 | `tests/test_schemas.py::test_schema_command_prints_the_file` |
+| INV-11 | `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key` |
 | § 4.3 a `description` is true | **nothing** — read by the engines when a file changes |
 | § 4.3 which sets are closed | **nothing** — a set closed or opened wrongly is judged in review |
 | § 4.7 the frozen folder equals the tree's files at release | `scripts/check-release.sh` |
 
 ## 11. Cross-doc impact
 
-- `docs/specs/FLED-0001-run-file-format.md` — § 4.7 gains `--schema`;
-  § 4.8 points here for each result's types; § 4.11's result block
-  gains `started_utc` and `under_load`, with the rule for an unreadable
-  run, and its refused flags gain `--schema`.
+- `docs/specs/FLED-0001-run-file-format.md` — § 4.7 gains the `schema`
+  command; § 4.8 points here for each result's types, and its `floor`
+  block gains `frames`; § 4.11's result block gains `started_utc` and
+  `under_load`, with the rule for a short entry.
 - `docs/standards/versioning-overrides.md` § Breaking surfaces — the
-  commands bullet points here for what holds the JSON result.
-- `README.md` — where a script's author finds the schemas.
-- `CHANGELOG.md` — the files, `--schema`, and `bisect`'s two keys.
+  commands bullet covers every command, `import` and `kit` among
+  them, and points here for what holds the JSON result. *Adding is not
+  breaking* gains the other half: a new value in a closed set is
+  breaking, and § 4.3 here names the closed sets.
+- `README.md` — where a script's author finds the schemas, and that
+  0.7.0 and earlier have none.
+- `CHANGELOG.md` — the files, the `schema` command, `bisect`'s two
+  keys and `floor`'s `frames`.
 - `CLAUDE.md` § Build and test — bare `pytest` needs `jsonschema`.
 - `docs/design.md` § The stack, and what it rules out — the
   test-only dependency.
@@ -400,15 +514,8 @@ Rows live in `../reviews/FLED-0041-json-result-schemas-loop-log.md`.
 
 ## 13. Open questions
 
-1. DOOM Ants' answer to § 3's choices is owed.
-2. Vestige asks that `floor`'s windows also gain a correctly named
-   key, `frames`, with `fps`'s value, `fps` being described as the
-   older name. UT Ants would leave `fps` alone. DOOM Ants decides.
-3. § 4.3's closed sets are narrower than the engines were asked about:
-   `category` and `statistic` are open here, since a new feature may
-   add one. For the engines' review.
-4. `bisect` leaves `started_utc` out on purpose
-   (`bisecting.py::_entry`, since the FLED-0009 code review). § 4.5
-   puts it back; say if the reason then still stands.
-5. `--schema` as a flag (§ 4.2, § 8) where the engines were asked
-   about a `schema` command. For the engines' review.
+1. § 4.3's closed sets. UT Ants and Vestige agreed `category` and
+   `statistic` open. DOOM Ants would close `statistic`, a fixed list
+   (`stats.RANKS`), and open `unit` with `category`, since the one
+   follows from the other. § 4.3 is written DOOM Ants' way. The three
+   engines confirm or change it when they accept this spec.
