@@ -1690,6 +1690,22 @@ format, the JSON output and the commands.
   back. UT Ants filed it as UTA-0482; its writer UTA-0437 is not built,
   so it offers per-run percentiles now or run files later. DOOM Ants'
   loaded runs wait on its user's go-ahead for an all-core compile.
+  2026-11-20, UT Ants' figures (message 2317, UTA-0482; ut-bench at
+  b7ee2eb, RX 6600, CTF-Command, drawn 2560x1440, no vsync, 2100 moving
+  and 2000 still frames a run, warm-up excluded; the span is GPU work
+  only, likely but not confirmed to be UTA-0437's frame/wall).
+  (p75 - p25) / median, moving / still, with the 1-minute load at start:
+  quiet-1 0.306 / 0.266 (5.98); quiet-2 0.268 / 0.359 (3.36);
+  quiet-3 0.126 / 0.086 (3.25); quiet-4 0.202 / 0.087 (2.52);
+  quiet-5 0.126 / 0.101 (2.60); loaded-1 0.557 / 0.583;
+  loaded-2 0.487 / 0.495; loaded-3 1.856 / 0.648.
+  Read: the loaded runs are 0.49 and up. The two "quiet" runs taken
+  while the load was still above 3.3 read 0.27 to 0.36; the other three
+  read 0.09 to 0.20. Against Vestige's loaded run at 0.2194, the gap to
+  UT Ants' highest calm figure (0.202) is too thin to set a limit on.
+  One 500-frame view swings from 0.02 to 1.94 inside quiet runs, so the
+  100-frame floor looks too low. Put to the three engines. Still waiting
+  on: DOOM Ants' runs.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
