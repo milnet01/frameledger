@@ -25,8 +25,13 @@
   "scene": "wiese-flug-ü",
   "inputs": [],
   "started_utc": "1968-02-29T23:59:59Z",
+  "tier": "high",
+  "ray_tracing": true,
+  "throttled": true,
+  "turbo": false,
   "frames_in_flight": 18446744073709551616,
   "settling_frames": -1,
+  "gpu_tick_ns": 0.25,
   "load": {
    "start": 1.5,
    "end": 2
@@ -51,7 +56,12 @@
   "text": "ü",
   "list": [
    "1",
-   false
+   false,
+   [
+    [
+     "2"
+    ]
+   ]
   ]
  },
  "close": null,
@@ -99,13 +109,45 @@
   [
    "view:ü",
    5,
+   "mem",
+   "low_mb",
+   0,
+   -999999999999
+  ],
+  [
+   "view:ü",
+   5,
    "ext.my-engine.v2",
    "own-count",
    1,
    1000
   ],
   [
-   "move:1:2",
+   "view:ü",
+   5,
+   "cpu",
+   "./-a..b",
+   0,
+   1000
+  ],
+  [
+   "view:ü",
+   5,
+   "gpu",
+   "shadows",
+   0,
+   4000
+  ],
+  [
+   "view:ü",
+   5,
+   "event",
+   "tic",
+   0,
+   0
+  ],
+  [
+   "Move_2:1:2",
    6,
    "frame",
    "cpu_span",
@@ -113,7 +155,7 @@
    8000
   ],
   [
-   "move:1:2",
+   "Move_2:1:2",
    6,
    "frame",
    "gpu_span",
@@ -121,28 +163,36 @@
    10000
   ],
   [
-   "move:1:2",
+   "view:ü",
    6,
+   "cpu",
+   "scene",
+   0,
+   1000
+  ],
+  [
+   "spot:a\"b,c",
+   8,
+   "frame",
+   "cpu_span",
+   0,
+   0
+  ],
+  [
+   "spot:a\"b,c",
+   8,
+   "frame",
+   "gpu_span",
+   0,
+   10000
+  ],
+  [
+   "spot:a\"b,c",
+   8,
    "frame",
    "wall",
    0,
-   16000
-  ],
-  [
-   "spot:a\"b,c",
-   8,
-   "frame",
-   "cpu_span",
-   0,
-   8000
-  ],
-  [
-   "spot:a\"b,c",
-   8,
-   "frame",
-   "gpu_span",
-   0,
-   10000
+   1
   ]
  ]
 }

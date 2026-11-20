@@ -28,3 +28,10 @@ indent_size = 4
 [*.{go,go.mod,go.sum}]
 indent_style = tab
 indent_size = 4
+
+# A frozen file is bytes to be matched (FLED-0040): keep its trailing
+# spaces and its line endings.
+[tests/fixtures/frozen/**]
+trim_trailing_whitespace = false
+end_of_line = unset
+insert_final_newline = unset

@@ -36,7 +36,8 @@ BOM = b"\xef\xbb\xbf"
 
 
 def load_script(name):
-    """A scripts/ module; scripts/ is not on the import path, which is the analyser's."""
+    """A scripts/ module; scripts/ is not on the import path, which is the analyser's.
+    freeze.py puts src/frameledger first on that path as it loads, where pytest already has it."""
     spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -77,6 +78,14 @@ def frozen(glob):
     return sorted(FROZEN.glob(glob))
 
 
+def copy_of_frozen(tmp_path):
+    """A copy of the frozen folder, under the same name: the frozen baseline
+    file names one run through `../frozen/`."""
+    folder = tmp_path / "frozen"
+    shutil.copytree(FROZEN, folder)
+    return folder
+
+
 @pytest.mark.parametrize("path", frozen("run-*.csv"), ids=lambda path: path.name)
 def test_run_file_reads_the_same(capsys, path):
     """INV-1: every frozen run file passes check with no breach, and reads
@@ -102,12 +111,22 @@ def test_budget_command_takes_the_frozen_budget(capsys):
     assert code in (0, 1, 2)
 
 
+# Every file frozen so far. Add a name when a file is frozen; never take
+# one out. Without this list a frozen file could go, with its SHA256SUMS
+# line, and every other test would still pass (DOOM Ants).
+FROZEN_FILES = {
+    "run-schema-1.csv", "run-schema-1-awkward.csv", "run-schema-1-b.csv", "run-schema-1-c.csv",
+    "run-schema-1-vestige.csv", "run-schema-1-vestige-end.csv", "budget-schema-1.csv", "budget-schema-1-plain.csv",
+    "baseline-schema-1.txt",
+}
+
+
 def test_frozen_files_are_found():
-    """INV-1 and INV-2's guard: the parametrised tests above have files to
-    run on, and no frozen file is held by its name alone."""
-    assert RUN in frozen("run-*.csv")
-    assert BUDGET in frozen("budget-*.csv")
-    assert BASELINE in frozen("baseline-*.txt")
+    """INV-4's other half: every file ever frozen is still there, and each
+    has its stored values, without which only its name would be checked."""
+    present = {path.name for path in [*frozen("*.csv"), *frozen("*.txt")]}
+    assert FROZEN_FILES <= present, f"a frozen file is gone: {sorted(FROZEN_FILES - present)}"
+    assert present <= FROZEN_FILES, f"add to FROZEN_FILES: {sorted(present - FROZEN_FILES)}"
     for path in [*frozen("*.csv"), *frozen("*.txt")]:
         assert path.with_suffix(".json").is_file(), f"{path.name} has no stored values; run scripts/freeze.py"
 
@@ -162,7 +181,9 @@ def rows_before_close(*rows):
 
 HEADER_FIELD = (b'{"schema":1,', b'{"schema":1,"future_field":{"a":1},')
 CLOSE_KEY = (b'{"rows_dropped":0,"frames":6}', b'{"rows_dropped":0,"frames":6,"future_key":"x"}')
-INNER_KEY = (b'"tool":{"name":"bench","version":"1.0"}', b'"tool":{"name":"bench","version":"1.0","future_in":1}')
+INNER_KEY_IN_TOOL = (b'"version":"1.0"}', b'"version":"1.0","future_in":1}')
+INNER_KEY_IN_INPUT = (b'"bytes":48213}', b'"bytes":48213,"future_in":1}')
+INNER_KEY_IN_SPAN = (b'"load":{"start":0.02,', b'"load":{"future_in":1,"start":0.02,')
 SEGMENT_KIND = (b",move:1-2,", b",zone:1-2,")
 EVENT_NAME = rows_before_close(b"event,future_event,0,1.000")
 FRAME_NAME = rows_before_close(b"frame,future_wait,0,1.000")
@@ -171,12 +192,15 @@ OPEN_NAMES = rows_before_close(b"cpu,future_pass,0,1.000", b"gpu,future_pass,0,1
 ADDITIONS = {
     "header field": [HEADER_FIELD],
     "close-line key": [CLOSE_KEY],
-    "key inside a header object": [INNER_KEY],
+    "key inside tool": [INNER_KEY_IN_TOOL],
+    "key inside an inputs entry": [INNER_KEY_IN_INPUT],
+    "key inside a span": [INNER_KEY_IN_SPAN],
     "segment kind": [SEGMENT_KIND],
     "event name": [EVENT_NAME],
     "frame name": [FRAME_NAME],
     "cpu, gpu, mem and ext names": [OPEN_NAMES],
-    "all of them": [HEADER_FIELD, CLOSE_KEY, INNER_KEY, SEGMENT_KIND, EVENT_NAME, FRAME_NAME, OPEN_NAMES],
+    "all of them": [HEADER_FIELD, CLOSE_KEY, INNER_KEY_IN_TOOL, INNER_KEY_IN_INPUT, INNER_KEY_IN_SPAN, SEGMENT_KIND,
+                    EVENT_NAME, FRAME_NAME, OPEN_NAMES],
 }
 
 
@@ -184,7 +208,8 @@ def without_additions(read):
     """`read` with every addition above taken out again, to compare with
     the stored values."""
     read["header"].pop("future_field", None)
-    read["header"]["tool"].pop("future_in", None)
+    for holder in (read["header"]["tool"], read["header"]["load"], *read["header"]["inputs"]):
+        holder.pop("future_in", None)
     read["close"].pop("future_key", None)
     read["rows"] = [[segment.replace("zone:", "move:"), frame, category, name, depth, value]
                     for segment, frame, category, name, depth, value in read["rows"]
@@ -198,7 +223,7 @@ def test_additions_do_not_break_the_reader(capsys, tmp_path, edits):
     reader, and every other value reads as stored."""
     data = RUN.read_bytes()
     for old, new in edits:
-        assert old in data, old
+        assert data.count(old) >= 1, old
         data = data.replace(old, new)
     path = tmp_path / "added.csv"
     path.write_bytes(data)
@@ -234,14 +259,13 @@ def test_budget_and_baseline_refuse_another_schema(tmp_path, source, read, schem
 def test_byte_order_mark_is_skipped(capsys, tmp_path):
     """INV-8: a byte-order mark before the keyword changes nothing, in a
     run, budget or baseline file."""
-    for path in [*frozen("run-*.csv"), BUDGET, BASELINE]:  # the baseline's runs must sit beside it
-        shutil.copy(path, tmp_path / path.name)
+    folder = copy_of_frozen(tmp_path)  # the baseline's runs must sit beside it, in a folder of this name
     for source in (RUN, BUDGET, BASELINE):
-        marked = tmp_path / source.name
+        marked = folder / source.name
         marked.write_bytes(BOM + source.read_bytes())
         assert freeze.same(freeze.values(marked), stored(source)), source.name
 
-    code, out = check(capsys, tmp_path / RUN.name)
+    code, out = check(capsys, folder / RUN.name)
     assert (code, out["verdict"]) == (0, "pass")
     assert breaches(out) == []
 
@@ -258,17 +282,27 @@ def test_rules_frozen_with_schema_1():
     assert baseline.FEWEST_RUNS <= FEWEST_RUNS_AT_FREEZE
 
 
-def copy_of_frozen(tmp_path):
-    folder = tmp_path / "frozen"
-    shutil.copytree(FROZEN, folder)
-    return folder
-
-
 def test_freeze_adds_nothing_to_a_frozen_folder(tmp_path):
     """scripts/freeze.py on the folder as committed changes no byte."""
     folder = copy_of_frozen(tmp_path)
     assert freeze.freeze(folder) == []
     assert freeze.read_sums(folder) == freeze.read_sums(FROZEN)
+
+
+def test_freeze_refuses_a_folder_it_cannot_vouch_for(tmp_path):
+    """freeze.py stops when SHA256SUMS is gone but stored values remain,
+    since an edited file would then be frozen again unseen (Vestige); and
+    when the folder holds something that is not a frozen file."""
+    folder = copy_of_frozen(tmp_path)
+    (folder / freeze.SUMS).unlink()
+    with pytest.raises(ledger.LedgerError, match="nothing shows the files are unchanged"):
+        freeze.freeze(folder)
+    assert not (folder / freeze.SUMS).exists()
+
+    folder = copy_of_frozen(tmp_path / "second")
+    (folder / "notes.md").write_text("stray", encoding="utf-8")
+    with pytest.raises(ledger.LedgerError, match="is not a frozen file"):
+        freeze.freeze(folder)
 
 
 def test_freeze_writes_the_stored_values_again(tmp_path):

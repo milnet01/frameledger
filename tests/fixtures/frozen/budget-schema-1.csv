@@ -8,3 +8,5 @@ cpu,scene/culling,,1,median,0.001
 frame,gpu_span,*,,p99,16.667
 gpu,ssao,view,12,median,2
 cpu,scene,view,0,median,1.5
+"gpu","shadows",VIEW,007,p99,"3"
+gpu,shadows,view,12345,median,3

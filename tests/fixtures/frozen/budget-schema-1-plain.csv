@@ -1,0 +1,3 @@
+# frameledger-budget {"schema":1}
+category,name,kind,depth,statistic,limit_ms
+frame,cpu_span,*,,median,16.667

@@ -30,12 +30,22 @@
     "bytes": 48213
    }
   ],
-  "started_utc": "2026-11-20T12:05:00Z"
+  "started_utc": "2026-11-20T12:05:00Z",
+  "unknown": [
+   "commit",
+   "driver",
+   "scene",
+   "device",
+   "renderer",
+   "api",
+   "vsync",
+   "display"
+  ]
  },
  "static": null,
  "close": {
   "rows_dropped": 0,
-  "frames": 4
+  "frames": 0
  },
  "rows": [
   [

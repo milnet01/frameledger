@@ -13,9 +13,17 @@ that has none.
 
 It never changes what is already frozen: a file whose SHA-256 differs
 from its line in SHA256SUMS stops the run, exit 1, before anything is
-written. So does a file today's reader does not accept. Read the new
-`.json` before committing it: it is what every later reader is held to,
-so a reader fault frozen here is kept.
+written. So does a file today's reader does not accept, a folder that
+holds stored values and no SHA256SUMS, and anything in the folder that
+is not a frozen file. Read the new `.json` before committing it: it is
+what every later reader is held to, so a reader fault frozen here is
+kept.
+
+Two changes are made by hand, since this refuses both. To change a file
+no release has shipped yet, or to apply the spec's one exception (§ 4.3:
+a reader fix that changes a parsed value), delete the file's `.json` and
+both files' lines in SHA256SUMS, then run this. `git show
+<tag>:tests/fixtures/frozen/SHA256SUMS` lists what a release shipped.
 
 `values(path)` gives the stored form of one file; tests/test_frozen.py
 compares with it. Standard library only. Exit 0 on success, 1 on a
@@ -24,6 +32,7 @@ refusal.
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -70,13 +79,16 @@ def budget_values(path) -> dict:
 def baseline_values(path) -> dict:
     """A baseline file's runs in file order, each as a path relative to
     the file's folder: the reader gives absolute paths, which differ
-    from one checkout to the next."""
-    folder = Path(path).resolve().parent
-    return {"runs": [Path(run).relative_to(folder).as_posix() for run in baseline.read(str(path))]}
+    from one checkout to the next. Neither side has its symbolic links
+    followed, as the reader follows none (Vestige)."""
+    folder = os.path.dirname(os.path.abspath(path))
+    return {"runs": [Path(os.path.relpath(run, folder)).as_posix() for run in baseline.read(str(path))]}
 
 
 def values(path) -> dict:
-    """The stored form of a frozen file, chosen by its name's first word."""
+    """The stored form of a frozen file, chosen by its name's first word.
+    A later schema whose lines differ gets its own function here, chosen
+    by the schema number in the name; schema 1's stay as they are."""
     name = Path(path).name
     if name.startswith("budget-"):
         return budget_values(path)
@@ -113,6 +125,15 @@ def freeze(folder: Path = FROZEN) -> list[str]:
     Returns the names added. Raises ledger.LedgerError, having written
     nothing, when a listed file has changed or a new one cannot be read."""
     sums = read_sums(folder)
+    data = sorted(path for glob in DATA_GLOBS for path in folder.glob(glob))
+    frozen_names = {SUMS, *sums} | {path.name for path in data} | {path.with_suffix(".json").name for path in data}
+    for path in folder.iterdir():
+        if path.name not in frozen_names or not path.is_file():
+            raise ledger.LedgerError("is not a frozen file: its name is none of "
+                                     f"{', '.join(DATA_GLOBS)}, their .json or {SUMS}", str(path))
+    if not sums and any(path.with_suffix(".json").is_file() for path in data):
+        raise ledger.LedgerError(f"holds stored values and no {SUMS}, so nothing shows the files are unchanged",
+                                 str(folder))
     for name, digest in sums.items():
         path = folder / name
         if not path.is_file():
@@ -120,16 +141,17 @@ def freeze(folder: Path = FROZEN) -> list[str]:
         if digest_of(path) != digest:
             raise ledger.LedgerError("differs from its line in SHA256SUMS; a frozen file is never edited", str(path))
 
-    data = sorted(path for glob in DATA_GLOBS for path in folder.glob(glob))
     new_values = {path.with_suffix(".json"): values(path) for path in data
                   if not path.with_suffix(".json").is_file()}
 
+    # newline="\n": the folder is `-text` in .gitattributes, so on Windows a CRLF would be committed (Vestige).
     for path, kept in new_values.items():
-        path.write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(kept, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     added = sorted(path.name for path in folder.iterdir() if path.name != SUMS and path.name not in sums)
     for name in added:
         sums[name] = digest_of(folder / name)
-    (folder / SUMS).write_text("".join(f"{sums[name]}  {name}\n" for name in sorted(sums)), encoding="utf-8")
+    (folder / SUMS).write_text("".join(f"{sums[name]}  {name}\n" for name in sorted(sums)), encoding="utf-8",
+                               newline="\n")
     return added
 
 

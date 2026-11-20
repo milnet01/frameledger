@@ -2,6 +2,7 @@
  "runs": [
   "run-schema-1-b.csv",
   "run-schema-1-c.csv",
-  "run-schema-1.csv"
+  "run-schema-1.csv",
+  "run-schema-1-awkward.csv"
  ]
 }

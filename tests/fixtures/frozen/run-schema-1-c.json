@@ -30,7 +30,8 @@
     "bytes": 48213
    }
   ],
-  "started_utc": "2026-11-20T12:10:00Z"
+  "started_utc": "2026-11-20T12:10:00Z",
+  "frames_in_flight": -1
  },
  "static": null,
  "close": {
@@ -101,14 +102,6 @@
    "scene",
    0,
    5000
-  ],
-  [
-   "view:1",
-   2,
-   "frame",
-   "cpu_span",
-   0,
-   8000
   ],
   [
    "view:1",

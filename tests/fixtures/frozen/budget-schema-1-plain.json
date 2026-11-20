@@ -1,0 +1,13 @@
+{
+ "match": {},
+ "budgets": [
+  [
+   "frame",
+   "cpu_span",
+   "*",
+   null,
+   "median",
+   16667
+  ]
+ ]
+}

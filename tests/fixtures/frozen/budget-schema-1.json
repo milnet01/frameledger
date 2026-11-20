@@ -51,6 +51,22 @@
    0,
    "median",
    1500
+  ],
+  [
+   "gpu",
+   "shadows",
+   "VIEW",
+   7,
+   "p99",
+   3000
+  ],
+  [
+   "gpu",
+   "shadows",
+   "view",
+   12345,
+   "median",
+   3000
   ]
  ]
 }

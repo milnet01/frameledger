@@ -114,7 +114,7 @@ nothing.
   static and close objects, and each row's segment, frame, category,
   name, depth and value. A row's `run_id` is the header's, so it adds
   nothing. For a budget file, its `match` and each budget's fields. For
-  a baseline file, each path as written, before it is resolved. § 4.8
+  a baseline file, each path relative to the file's folder. § 4.8
   gives the stored form. The tests read them through the readers'
   types, such as `ledger.Run`; those types are not a surface
   (`versioning-overrides.md` § Not surfaces) and may change shape.
@@ -262,7 +262,9 @@ tests/fixtures/frozen/
   run-schema-1-b.csv         two small runs, so the baseline names three
   run-schema-1-c.csv
   run-schema-1-vestige.csv   the opening frames of a run Vestige's writer wrote
+  run-schema-1-vestige-end.csv   the same run's last frames and its close line
   budget-schema-1.csv
+  budget-schema-1-plain.csv  no `match`, and a budget on a frame span
   baseline-schema-1.txt      names three of the run files by relative path
   <each file above>.json     its stored values
   SHA256SUMS                 one line per file above
@@ -272,7 +274,7 @@ tests/test_frozen.py
 
 **Names.** A schema's first frozen file is `<file>-schema-<N>` with
 its extension, `<file>` being `run`, `budget` or `baseline`. A further
-file of the same schema adds one word: `run-schema-1-awkward.csv`.
+file of the same schema adds a name: `run-schema-1-awkward.csv`.
 
 **The stored values** are one JSON object per file, in the form
 `scripts/freeze.py` writes:
@@ -290,12 +292,17 @@ spec that defines the schema.
 `python3 -I scripts/freeze.py`. The script writes the `.json` with the
 reader of the commit it runs in, and adds the new files' lines to
 `SHA256SUMS`. It refuses, writing nothing, when a file already listed
-has changed or is gone. Read the new `.json` before committing it.
+has changed or is gone, when the folder has stored values and no
+`SHA256SUMS`, or when it holds anything that is not a frozen file.
+Read the new `.json` before committing it, and add the file's name to
+`FROZEN_FILES` in `tests/test_frozen.py`.
 
 **Never edited.** Once a release has shipped a frozen file, the file,
 its `.json` and its `SHA256SUMS` line do not change, and none is
 removed. `SHA256SUMS` itself only gains lines. Until a file's first
-release it may still change. A later addition to a schema (§ 4.4)
+release it may still change; `git show <tag>:tests/fixtures/frozen/SHA256SUMS`
+lists what a release shipped. The script's docstring gives the steps
+for changing such a file by hand. A later addition to a schema (§ 4.4)
 gets a new frozen file beside the old ones. The one exception is
 § 4.3's reader fault in a parsed value: the commit that fixes the
 reader rewrites that `.json` and its line, and the release note names
@@ -323,12 +330,31 @@ it. The run, budget or baseline file itself still does not change.
   `:`; `.` and `-` in a name and an `ext.` category; `-0.000`, a
   negative `mem` value, leading zeros in a frame, a depth and a value;
   a missing frame number; true, false and null in the static line.
-- `run-schema-1-c.csv` has `rows_dropped` above 0.
+  Also (DOOM Ants, Vestige): line 1 written with spaces after its
+  colons and commas, a key given twice, a `\u` escape and a number
+  with an exponent; spaces after the static line's brace; a frame
+  whose rows sit in two segments; a frame that is not the last with no
+  `frame/wall`; a wall under a millisecond; a `cpu_span` of 0; an
+  event value of 0; a name beginning `./-`; a quoted category, name
+  and value; a segment kind with a capital and a digit.
+- `run-schema-1-b.csv`: CRLF on every line, the close line included;
+  many names in `unknown`; a close line with spaces inside its JSON
+  and after it, and a `frames` that is not the frames in the file.
+- `run-schema-1-c.csv`: `rows_dropped` above 0, a frame with no
+  `frame/cpu_span`, and a negative `frames_in_flight`.
+- `run-schema-1-vestige-end.csv` (Vestige): frames with no
+  `frame/gpu_span`, which every finished Vestige run ends with; frame
+  numbers that do not start at 0.
 - `budget-schema-1.csv`: CRLF on some lines, a comment, a blank line,
-  each statistic, an empty kind and depth, a depth of two digits, and
-  limits with no, one and three decimal places.
-- `baseline-schema-1.txt`: a key in line 1, a comment, a blank line, a
-  CRLF line and a path beginning `./`.
+  each statistic, an empty kind and depth, depths of two and five
+  digits and one with leading zeros, quoted fields, a kind in
+  capitals, and limits with no, one and three decimal places.
+- `baseline-schema-1.txt`: a key in line 1, a comment, an indented
+  comment, a blank line, a CRLF line, spaces around a path, and paths
+  beginning `./`, `.\` and `../`.
+
+An absolute path in a baseline file is allowed (FLED-0001 § 4.17) and
+is in no frozen file: it would name one machine's folders.
 
 ## 5. Invariants
 
@@ -360,12 +386,13 @@ it. The run, budget or baseline file itself still does not change.
 
 - **INV-4** — For each of the three files, every number from 1 to the
   analyser's `SCHEMA` constant has a frozen file of exactly the name
-  § 4.8 gives, and every frozen file has its `.json`.
+  § 4.8 gives; every file named in the test's `FROZEN_FILES` is in the
+  folder; and every frozen file has its `.json`.
   *Test:* `tests/test_frozen.py::test_every_schema_is_frozen` and
   `tests/test_frozen.py::test_frozen_files_are_found`.
   *Breaks when:* a commit raises a `SCHEMA` constant and adds no frozen
-  file for the new number, deletes an old schema's first frozen file,
-  or adds a frozen file without freezing it.
+  file for the new number, removes a frozen file with its `.json` and
+  its `SHA256SUMS` lines, or adds a frozen file without freezing it.
 
 - **INV-5** — A run file whose line 1 holds `schema` 99, and whose
   other header fields and later lines break schema 1, is exit 3 with a
@@ -381,7 +408,8 @@ it. The run, budget or baseline file itself still does not change.
 - **INV-6** — `run-schema-1.csv` still exits 0 from `check`, with its
   other parsed values as stored, when given any of: one more header
   field; one more close-line key; one more key inside the `tool`
-  object; a segment of a new kind; a row under a new `event` name; a
+  object, an `inputs` entry or the `load` span; a segment of a new
+  kind; a row under a new `event` name; a
   row under a new `frame` name; rows under new `cpu`, `gpu`, `mem` and
   `ext.` names. Each is tried alone, then all together.
   *Test:* `tests/test_frozen.py::test_additions_do_not_break_the_reader`.
@@ -416,10 +444,13 @@ it. The run, budget or baseline file itself still does not change.
 
 - **INV-10** — `scripts/freeze.py` changes nothing in the folder as
   committed, writes each committed `.json` again byte for byte, and
-  refuses, writing nothing, when a listed file was edited or removed.
+  refuses, writing nothing, when a listed file was edited or removed,
+  when `SHA256SUMS` is gone and stored values remain, or when the
+  folder holds a file of another name.
   *Test:* `tests/test_frozen.py::test_freeze_adds_nothing_to_a_frozen_folder`,
-  `tests/test_frozen.py::test_freeze_writes_the_stored_values_again`
-  and `tests/test_frozen.py::test_freeze_refuses_a_changed_frozen_file`.
+  `tests/test_frozen.py::test_freeze_writes_the_stored_values_again`,
+  `tests/test_frozen.py::test_freeze_refuses_a_changed_frozen_file`
+  and `tests/test_frozen.py::test_freeze_refuses_a_folder_it_cannot_vouch_for`.
   *Breaks when:* the script re-freezes over an edited file, which
   would make an edit pass INV-3; or its stored form drifts from the
   committed files, so the next frozen file is held to another form.
@@ -506,14 +537,14 @@ What the tests do not show:
 |------|----------------------|
 | INV-1 | `tests/test_frozen.py::test_run_file_reads_the_same` |
 | INV-2 | Partial: `tests/test_frozen.py::test_budget_and_baseline_read_the_same` and `::test_budget_command_takes_the_frozen_budget`; a baseline file through `compare --baseline` has **nothing** |
-| INV-3 | Partial: `tests/test_frozen.py::test_frozen_files_unchanged` catches an edited file; a commit that edits a file and `SHA256SUMS` together, or removes a further file such as `run-schema-1-vestige.csv` with its line, is caught only by the engines' code review |
-| INV-4 | `tests/test_frozen.py::test_every_schema_is_frozen` and `::test_frozen_files_are_found` |
+| INV-3 | Partial: `tests/test_frozen.py::test_frozen_files_unchanged` catches an edited file; a commit that edits a file and `SHA256SUMS` together is caught only by the engines' code review |
+| INV-4 | Partial: `tests/test_frozen.py::test_every_schema_is_frozen` and `::test_frozen_files_are_found`; a commit that removes a file and its name from the test's `FROZEN_FILES` together is caught only by the engines' code review |
 | INV-5 | `tests/test_frozen.py::test_newer_schema_is_judged_from_line_1` |
 | INV-6 | `tests/test_frozen.py::test_additions_do_not_break_the_reader` |
 | INV-7 | `tests/test_frozen.py::test_a_schema_that_is_no_schema` and `::test_budget_and_baseline_refuse_another_schema` |
 | INV-8 | `tests/test_frozen.py::test_byte_order_mark_is_skipped` |
 | INV-9 | `tests/test_frozen.py::test_rules_frozen_with_schema_1` |
-| INV-10 | `tests/test_frozen.py::test_freeze_adds_nothing_to_a_frozen_folder`, `::test_freeze_writes_the_stored_values_again` and `::test_freeze_refuses_a_changed_frozen_file` |
+| INV-10 | `tests/test_frozen.py::test_freeze_adds_nothing_to_a_frozen_folder`, `::test_freeze_writes_the_stored_values_again`, `::test_freeze_refuses_a_changed_frozen_file` and `::test_freeze_refuses_a_folder_it_cannot_vouch_for`; that it writes LF on Windows has **nothing**, since no test runs it there |
 | § 4.2 no mark from a writer | Partial: `include/frameledger.h` writes none, and an engine's own writer is judged by the kit (FLED-0001 § 4.19) only if the kit gains a case for it; today **nothing** |
 | § 4.2 | Partial: INV-5 holds the reader to line 1; **nothing** stops a later spec from moving `schema` off line 1 but its review |
 | § 4.3 no tightening | Partial: INV-1, INV-2 and INV-9, for the rules the frozen files exercise; a rule they do not exercise has **nothing** |
