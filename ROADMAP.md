@@ -1661,6 +1661,15 @@ format, the JSON output and the commands.
   schemas when they land.
   2026-11-20, UT Ants: this first too. Outcome (all three): FLED-0041,
   then FLED-0042.
+  2026-11-20: needs a spec (spec-format.md § 1: a contract scripts bind
+  to). Seven design choices put to the three engines before drafting:
+  draft 2020-12 with one file per command; shipped in the zip and
+  printed by a `schema` command; open published schemas with a stricter
+  test; each release's schemas frozen and later output held to them; no
+  schema number in the result; `jsonschema` as a test-only pin; and four
+  oddities (bisect's run entries lack `started_utc` and sometimes
+  `under_load`; floor's `fps` is a count; `result` on an unreadable
+  file; no NaN). Answers owed by all three.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
