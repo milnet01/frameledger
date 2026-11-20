@@ -1717,7 +1717,7 @@ format, the JSON output and the commands.
   Kind: feature.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0042] **A support and deprecation policy.**
+- ✅ [FLED-0042] **A support and deprecation policy.**
   How a flag or field is retired (warned for a release first), which
   Python versions and systems are supported, and for how long.
   2026-11-20: drafted as docs/support-policy.md, a plain policy
@@ -1746,6 +1746,11 @@ format, the JSON output and the commands.
   policy's table, and Vestige confirmed that commit. Its note, left for
   the first removal: a table row for a key no longer marked would pass.
   UT Ants' and DOOM Ants' confirmations of 871b996 owed.
+  2026-11-20: shipped. UT Ants confirmed 871b996, so all three engines
+  have. `docs/support-policy.md` is the policy; `floor`'s `fps` is
+  deprecated from 0.8.0 and may go no earlier than 2.0.0. Left for the
+  first removal, noted by all three: the test holds a deprecated key to a
+  table row, not a row to a key.
   **Layman:** Says how long features and systems are supported and how changes are announced.
   Kind: doc.
   Source: engine-answers-2026-11-10.
@@ -1863,6 +1868,20 @@ format, the JSON output and the commands.
   median (6.9 and up against 1.75 and under). Put to the three engines:
   judge `noisy_run` on the tail share, with the quartile spread reported
   and not judged.
+  2026-11-20, UT Ants on the tail share and a limit near 2 percent. Ten
+  newer ut-bench runs, 2000 still frames each, share over twice the
+  view's median (close to the run's on still views): six with the
+  desktop in use 9.2, 7.0, 1.7, 15.8, 0.1 and 3.3 percent; four with it
+  untouched 0.0, 0.2, 0.0 and 0.1. So 2 percent passes every calm run,
+  and the two in-use runs it passes had low 99th percentiles. Not
+  checked: its eight UTA-0482 files, and moving frames. On moving frames
+  it computes no share on purpose: a frame's cost changes with the view,
+  so twice the median can flag real work. It asks that `noisy_run` be
+  judged only where the run is a still view, or where the writer marks
+  which frames are comparable, and reported unjudged otherwise. Its
+  second signal, wall minus the sum of the passes, is withdrawn. Its
+  caution: a run under the limit shows that run was calm, not that the
+  machine was. Owed: Vestige's and DOOM Ants' answers.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.

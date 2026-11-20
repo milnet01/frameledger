@@ -39,6 +39,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - `bisect --json`: each run has `started_utc` and `under_load`, as
   `compare`'s runs have. Both are null for a run that could not be
   read or that breaks the format (FLED-0041).
+- A support and deprecation policy, `docs/support-policy.md`: only the
+  newest release gets fixes; a breaking change needs a warning in an
+  earlier release, a replacement and the three engines' agreement; and
+  the Python floor stays 3.10 until 2.0.0 at the earliest (FLED-0042).
 
 ### Changed
 
