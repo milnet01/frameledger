@@ -74,7 +74,7 @@ Decided in their review of this spec, the same day:
 - `floor`'s windows gain `frames` beside `fps` (§ 4.5; Vestige and
   DOOM Ants. UT Ants would have left `fps` alone).
 
-Not yet agreed: which value sets are closed (§ 4.3, § 13).
+Which value sets are closed (§ 4.3) waits on DOOM Ants (§ 13).
 
 ## 4. Design
 
@@ -130,7 +130,9 @@ disagree with it.
   files share, such as a warning or the envelope's keys, is repeated
   under `$defs` in each, under the same name and with the same content
   (INV-5), so a printed file is usable alone. A `$ref` to an object
-  stands alone, with no `properties` beside it (§ 4.6).
+  stands alone, with no `properties` beside it, and never sits
+  directly under `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf` or
+  `not`: the strict form closes its target (§ 4.6).
 - **Every key the analyser writes is named**, with its type. A key
   that may be null says so in its type. INV-1 holds this for the
   shapes the samples show.
@@ -158,13 +160,12 @@ disagree with it.
   and a later value is a breaking change: `command`; the top-level
   `verdict`, per command (§ 4.4); each entry's own `verdict` (a
   measure's, a scene's, a variant's, a surveyed run's); `set`;
-  `statistic`; and `skip_reason`.
+  `statistic`; `skip_reason`; and `exit_code`, per command, the codes
+  its result can carry.
 - **Open sets** are a string: warning codes, breach rules, `category`,
   `unit`, segment kinds and every name an engine chose. A script must
   ignore a value it does not know. `unit` is open because it follows
   from `category` (`compare.unit_of`).
-- **`exit_code`** is an `enum` of the codes the command's result can
-  carry.
 - **A `description` is documentation.** Every named key has one, and
   an open set's lists today's values. No test holds a description
   true, and it is no part of the promise.
@@ -286,7 +287,10 @@ scripts/freeze_schemas.py           writes <version>/
 - **`keys.json`** holds, for each sample by name, every key path its
   output held when frozen, such as `result.runs[].started_utc`. A
   schema's open form cannot see a key go missing unless the key is
-  `required`, and removing any key is breaking; this record can.
+  `required`, and removing any key is breaking; this record can. A
+  path stops at a map whose keys are data and at an engine-supplied
+  value (§ 4.3), since what is inside follows the sample's input
+  files.
 - **The release cannot forget.** With `cli.VERSION` at 0.8.0 or later,
   the tests fail when `tests/fixtures/schemas/<VERSION>/` is absent,
   and `scripts/check-release.sh` fails when its schema files differ
@@ -328,7 +332,8 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
 
 - **INV-2** — Each file is a valid draft 2020-12 schema, names that
   dialect, has no `$id`, closes no object, and holds no `$ref` that
-  leaves the file or that has `properties` beside it.
+  leaves the file, has `properties` beside it, or sits directly under
+  `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf` or `not`.
   *Test:* `tests/test_schemas.py::test_each_file_is_a_schema`.
   *Breaks when:* a file has a keyword the dialect's own schema
   refuses; `additionalProperties: false`; a `$ref` to another file.
@@ -514,8 +519,6 @@ Rows live in `../reviews/FLED-0041-json-result-schemas-loop-log.md`.
 
 ## 13. Open questions
 
-1. § 4.3's closed sets. UT Ants and Vestige agreed `category` and
-   `statistic` open. DOOM Ants would close `statistic`, a fixed list
-   (`stats.RANKS`), and open `unit` with `category`, since the one
-   follows from the other. § 4.3 is written DOOM Ants' way. The three
-   engines confirm or change it when they accept this spec.
+1. § 4.3's closed sets are written DOOM Ants' way: `statistic`
+   closed, `unit` open with `category`. UT Ants and Vestige agreed it
+   on 2026-11-20. DOOM Ants' confirmation is owed.
