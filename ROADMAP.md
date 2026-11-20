@@ -1692,6 +1692,10 @@ format, the JSON output and the commands.
   strict form as written misjudges if/then; `compare` and `alternate`
   have several shapes under verdict error. DOOM Ants agreed all seven
   choices and reads no --json today.
+  2026-11-20: the four reviews are folded at ba5e0cd (a `schema`
+  command, not a flag; `frames` beside floor's `fps`). Sent to Vestige,
+  UT Ants and DOOM Ants for acceptance, with one open point: which value
+  sets are closed. Not built until all three accept.
   **Layman:** Programs that read frameledger's results get a fixed description of them.
   Kind: feature.
   Source: engine-answers-2026-11-10.
