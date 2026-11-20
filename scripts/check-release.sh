@@ -16,14 +16,17 @@ echo "check-release: $version section states this tree's archive, SHA256 $sha"
 # FLED-0041 § 4.7: a release's schemas are frozen as shipped, so later
 # releases are held to what scripts really got.
 frozen=tests/fixtures/schemas/$version
-for schema in src/frameledger/schemas/*.schema.json; do
-    if ! cmp -s "$schema" "$frozen/$(basename "$schema")"; then
-        echo "check-release: $frozen/$(basename "$schema") is not the tree's; run scripts/freeze_schemas.py" \
-             "before the tag, and never change a frozen set after it" >&2
-        exit 1
-    fi
-done
-echo "check-release: $frozen holds this tree's result schemas"
+first_frozen=0.8.0  # tests/test_schemas.py's FIRST_FROZEN: no earlier release owes a frozen set
+if [[ $(printf '%s\n' "$first_frozen" "${version%%-*}" | sort -V | head -n 1) == "$first_frozen" ]]; then
+    for schema in src/frameledger/schemas/*.schema.json; do
+        if ! cmp -s "$schema" "$frozen/$(basename "$schema")"; then
+            echo "check-release: $frozen/$(basename "$schema") is not the tree's; run scripts/freeze_schemas.py" \
+                 "as the last change before the tag, and never change a frozen set after it" >&2
+            exit 1
+        fi
+    done
+    echo "check-release: $frozen holds this tree's result schemas"
+fi
 # The archive is built from the working tree, so name any uncommitted file
 # that went into the hash. At bump time that is the VERSION edit; anything
 # else will not be in the tag, and release.yml will then fail on it.

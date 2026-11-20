@@ -209,7 +209,7 @@
           "required": [
             "measures"
           ],
-          "description": "Counts of what was judged. With --by-scene it holds scenes and measures; with variants, variants and measures."
+          "description": "Counts of what was judged: measures, and with it scenes under --by-scene or variants under --base."
         },
         "overrides": {
           "type": "array",
@@ -311,7 +311,7 @@
           "description": "The baseline file the old or base runs came from, or null without --baseline."
         }
       },
-      "description": "One of six shapes, told apart by its keys. measures: a plain compare. scenes: --by-scene. variants: --base with --variant. refused with no measures: the runs differ in a blocking field, and it holds runs, refused and all_frames. named_measures with none of those: a --measure name is in no run; a plain compare also holds runs. {}: a file could not be read. Every shape but {} also holds baseline."
+      "description": "One of six shapes, told apart by its keys. measures: a plain compare. scenes: --by-scene. variants: --base with --variant. refused with no measures: the runs differ in a blocking field, and it holds runs, refused and all_frames. named_measures with none of those: a --measure name is in no run; a plain compare also holds runs. {}: a file could not be read. Every shape but {} also holds baseline. The keys that tell the shapes apart are kept to their shapes: a release that adds one to another shape makes a breaking change."
     }
   },
   "required": [
@@ -387,7 +387,15 @@
               "overrides",
               "scenes",
               "unread"
-            ]
+            ],
+            "properties": {
+              "judged": {
+                "required": [
+                  "measures",
+                  "scenes"
+                ]
+              }
+            }
           }
         }
       }
@@ -418,7 +426,15 @@
               "overrides",
               "rank_measure",
               "variants"
-            ]
+            ],
+            "properties": {
+              "judged": {
+                "required": [
+                  "measures",
+                  "variants"
+                ]
+              }
+            }
           }
         }
       }
@@ -470,32 +486,51 @@
     },
     {
       "if": {
-        "properties": {
-          "result": {
-            "not": {
-              "anyOf": [
-                {
-                  "required": [
-                    "measures"
-                  ]
-                },
-                {
-                  "required": [
-                    "scenes"
-                  ]
-                },
-                {
-                  "required": [
-                    "variants"
+        "allOf": [
+          {
+            "properties": {
+              "result": {
+                "required": [
+                  "named_measures"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "result": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "measures"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "scenes"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "variants"
+                      ]
+                    }
                   ]
                 }
-              ]
+              }
             }
           }
-        }
+        ]
       },
       "then": {
         "properties": {
+          "result": {
+            "required": [
+              "baseline",
+              "named_measures"
+            ]
+          },
           "verdict": {
             "const": "error"
           }
@@ -520,7 +555,7 @@
         2,
         3
       ],
-      "description": "The exit codes a compare result can carry. A closed set."
+      "description": "The exit codes the result of compare can carry. A closed set."
     },
     "warning": {
       "type": "object",

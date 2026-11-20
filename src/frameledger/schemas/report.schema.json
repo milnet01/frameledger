@@ -49,7 +49,7 @@
             "properties": {
               "category": {
                 "type": "string",
-                "description": "The row's category. An open set: today frame, cpu, gpu or mem."
+                "description": "The row's category: cpu or gpu."
               },
               "name": {
                 "type": "string",
@@ -79,7 +79,7 @@
                   "number",
                   "null"
                 ],
-                "description": "Its total time over its span's total time, from 0 to 1, to four places; null when the span's total is 0."
+                "description": "Its total time over its span's total time, to four places; null when the span's total is 0."
               },
               "frames": {
                 "type": "integer",
@@ -183,18 +183,18 @@
                 "number",
                 "null"
               ],
-              "description": "The share of frames that are CPU-bound, from 0 to 1; null when it does not apply."
+              "description": "The share of frames that are CPU-bound, from 0 to 1; null when it does not apply, and when no frame has both spans."
             },
             "gpu": {
               "type": [
                 "number",
                 "null"
               ],
-              "description": "The share of frames that are GPU-bound, from 0 to 1; null when it does not apply."
+              "description": "The share of frames that are GPU-bound, from 0 to 1; null when it does not apply, and when no frame has both spans."
             },
             "applies": {
               "type": "boolean",
-              "description": "False when the header's pipelined is false."
+              "description": "False when the header's pipelined is false or unknown."
             }
           },
           "required": [
@@ -226,7 +226,7 @@
                   "string",
                   "null"
                 ],
-                "description": "category/name of the frame's largest depth-0 cpu or gpu cost; null when the frame has none."
+                "description": "category/name of the frame's largest depth-0 cpu or gpu cost, a remainder included; null when the frame has none, as in an imported run."
               }
             },
             "required": [
@@ -237,7 +237,7 @@
             ],
             "description": "One frame."
           },
-          "description": "The 10 frames with the longest frame/wall, longest first."
+          "description": "Up to 10 frames with the longest frame/wall, longest first."
         },
         "missing_gpu_frames": {
           "type": "integer",
@@ -262,7 +262,7 @@
           "description": "Whether --all-frames counted those frames."
         }
       },
-      "description": "The report. With the verdict error, a file could not be read and result holds no key."
+      "description": "The report. With the verdict error, a file could not be read or breaks its format, and result holds no key."
     }
   },
   "required": [
@@ -318,7 +318,7 @@
         0,
         3
       ],
-      "description": "The exit codes a report result can carry. A closed set."
+      "description": "The exit codes the result of report can carry. A closed set."
     },
     "warning": {
       "type": "object",

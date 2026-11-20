@@ -12,13 +12,25 @@ The published files allow keys they do not name, so a script survives a
 later release. `strict` closes them for these tests, so no key reaches a
 result without being described.
 
-Cutting a release: scripts/freeze_schemas.py, then commit
-tests/fixtures/schemas/. A deliberate break goes in DELIBERATE_BREAKS.
+Cutting a release: freeze last. Bumping VERSION makes
+test_this_version_is_frozen fail; finish the schemas and the samples,
+then run scripts/freeze_schemas.py and commit tests/fixtures/schemas/. A
+frozen set is never changed afterwards. A deliberate break goes in
+DELIBERATE_BREAKS.
+
+The walkers here (strict, subschemas, described) and in
+scripts/freeze_schemas.py read a schema the way INV-2 holds the files to:
+only the keywords in KEYWORDS, keys named under `properties`, items under
+`items`, and no key named under a conditional that the plain `properties`
+beside it does not name. A file that needs another keyword needs them
+taught first.
 """
 
+import contextlib
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -38,11 +50,18 @@ DIALECT = "https://json-schema.org/draft/2020-12/schema"
 # Keywords whose subschemas describe an object some other schema names the
 # keys of: the strict form leaves them open (§ 4.6).
 CONDITIONAL = ("if", "then", "else", "allOf", "anyOf", "oneOf", "not")
-FIRST_FROZEN = (0, 8, 0)  # § 4.7: from this release, every release freezes its schemas
+# Every keyword the files use. strict() and the walkers know these and no
+# other: `contains` or `dependentSchemas`, say, would be closed or skipped wrongly.
+KEYWORDS = {"$schema", "$defs", "$ref", "title", "description", "type", "properties", "required", "items",
+            "additionalProperties", "enum", "const", *CONDITIONAL}
+VALUES = ("enum", "const", "required", "type", "title", "description", "$ref", "$schema")  # hold no schema
+FIRST_FROZEN = (0, 8, 0)  # § 4.7: from this release, every release freezes its schemas; check-release.sh agrees
 
-# A break made on purpose: (frozen version, command, where, the CHANGELOG.md
-# entry that names it). `where` is a key path, or `$defs/NAME` for a closed
-# set. Only the listed failure is let off (§ 4.7).
+# A break made on purpose: (frozen version, command, where, a sentence of
+# the CHANGELOG.md entry that names it). `where` is what frozen_breaches
+# reports: a key path, `$defs/NAME: VALUE` for a value a closed set gained,
+# `$defs/NAME` for a set no longer closed, or `sample NAME` for a sample
+# that is gone. Only the listed failure is let off (§ 4.7).
 DELIBERATE_BREAKS: list[tuple[str, str, str, str]] = []
 
 
@@ -79,7 +98,9 @@ def outputs(ran):
 def strict(schema):
     """§ 4.6's strict form: each object closed once. A schema with
     `properties` gains `unevaluatedProperties: false` unless it sits under
-    a conditional keyword, whose keys the enclosing object already counts."""
+    a conditional keyword, whose keys the enclosing object already counts.
+    Everything below a conditional stays open, which is right only while a
+    conditional names no key of its own: INV-2 holds the files to that."""
     def close(node, open_here):
         if isinstance(node, list):
             return [close(item, open_here) for item in node]
@@ -87,7 +108,9 @@ def strict(schema):
             return node
         closed = {}
         for key, item in node.items():
-            if key in ("properties", "$defs"):  # a map of names to schemas, not a schema
+            if key in VALUES:
+                closed[key] = item
+            elif key in ("properties", "$defs"):  # a map of names to schemas, not a schema
                 closed[key] = {name: close(sub, open_here) for name, sub in item.items()}
             else:
                 closed[key] = close(item, open_here or key in CONDITIONAL)
@@ -98,9 +121,17 @@ def strict(schema):
 
 
 def errors(schema, output):
-    """Each way `output` fails `schema`, as (key path, message)."""
-    found = jsonschema.Draft202012Validator(schema).iter_errors(output)
-    return sorted((key_path(error.absolute_path), error.message) for error in found)
+    """Each way `output` fails `schema`, as (key path, message). A missing
+    required key is reported at the key, as keys.json would name it, not
+    at the object that lacks it."""
+    found = []
+    for error in jsonschema.Draft202012Validator(schema).iter_errors(output):
+        if error.validator == "required":
+            found += [(key_path([*error.absolute_path, key]), error.message)
+                      for key in error.validator_value if key not in error.instance]
+        else:
+            found.append((key_path(error.absolute_path), error.message))
+    return sorted(found)
 
 
 def key_path(parts):
@@ -122,7 +153,7 @@ def subschemas(node, under=()):
             if key in ("properties", "$defs"):
                 for sub in item.values():
                     yield from subschemas(sub, (*under, key))
-            elif key not in ("enum", "const", "required"):
+            elif key not in VALUES:
                 yield from subschemas(item, (*under, key))
 
 
@@ -190,7 +221,7 @@ def test_strict_form_refuses_an_unknown_key(name, outputs):
 # on the output of another is refused: (sample, the verdict it is given).
 OTHER_SHAPE = [("report-file-unread", "none"), ("floor-file-unread", "pass"), ("budget-file-unread", "pass"),
                ("bisect-good", "skip"), ("bisect-skip-unreadable", "good"),
-               ("compare-pass", "error"), ("compare-refused", "pass"), ("compare-file-unread", "pass"),
+               ("compare-pass", "error"), ("compare-refused", "pass"), ("compare-absent", "pass"),
                ("alternate-stopped-exit", "pass")]
 
 
@@ -220,15 +251,46 @@ def test_each_file_is_a_schema(command):
     assert schema["$schema"] == DIALECT
     assert schema["properties"]["command"]["const"] == command
     for node, under in subschemas(schema):
-        assert "$id" not in node
+        assert set(node) <= KEYWORDS, f"{sorted(set(node) - KEYWORDS)}: a keyword the walkers do not know"
         assert node.get("additionalProperties") is not False
-        assert "unevaluatedProperties" not in node
         if "$ref" in node:
             assert node["$ref"].removeprefix("#/$defs/") in schema["$defs"], node["$ref"]
             assert "properties" not in node
             assert under[-1] not in CONDITIONAL, f"{node['$ref']} sits directly under {under[-1]}"
         if "enum" in node and not set(under) & set(CONDITIONAL):
             assert under[-1:] == ("$defs",) and len(under) == 1, f"the closed set {node['enum']} has no name in $defs"
+
+
+def keys_only_a_conditional_names(condition, plain, root, at=""):
+    """Each key `condition` names that `plain`, the schema it applies
+    beside, does not."""
+    plain = freeze_schemas.resolved(plain, root)
+    found = []
+    for key in CONDITIONAL:
+        for sub in [condition[key]] if isinstance(condition.get(key), dict) else condition.get(key, []):
+            found += keys_only_a_conditional_names(sub, plain, root, at)
+    for key, sub in condition.get("properties", {}).items():
+        if key not in plain.get("properties", {}):
+            found.append(f"{at}{key}")
+        else:
+            found += keys_only_a_conditional_names(sub, plain["properties"][key], root, f"{at}{key}.")
+    return found
+
+
+@pytest.mark.parametrize("command", schemas.COMMANDS)
+def test_a_conditional_names_no_key_of_its_own(command):
+    """INV-2: a key named only under `if` or `then` would pass the strict
+    form unseen by INV-3, INV-11 and keys.json, which walk the plain
+    `properties`. A conditional may only require and narrow."""
+    schema = TREE[command]
+    for node, under in subschemas(schema):
+        if set(under) & set(CONDITIONAL):
+            continue  # reached again from the schema it sits in
+        conditions = {key: node[key] for key in CONDITIONAL if key in node}
+        assert keys_only_a_conditional_names(conditions, node, schema) == []
+    probe = {"properties": {"result": {"type": "object"}}, "allOf": [{"then": {"properties": {"result": {
+        "properties": {"new": {}}}, "other": {}}}}]}
+    assert keys_only_a_conditional_names({"allOf": probe["allOf"]}, probe, probe) == ["result.new", "other"]
 
 
 @pytest.mark.parametrize("command", schemas.COMMANDS)
@@ -250,6 +312,64 @@ def test_every_shape_has_a_sample():
     assert shown == set(schema_samples.SHAPES)
     assert {command for command, _ in schema_samples.SHAPES} == set(schemas.COMMANDS)
     assert len(SAMPLE_IDS) == len(set(SAMPLE_IDS))
+
+
+COMPARE_SHAPES = {"measures": "plain", "scenes": "by_scene", "variants": "variants", "refused": "refused",
+                  "named_measures": "absent_measure"}  # § 4.4's "told apart by", first match wins
+ALTERNATE_OWN = {"commands", "out", "warmup", "stopped", "baseline"}
+
+
+def shape_of(output):
+    """The shape a result has, by § 4.4's table: what a script would do."""
+    command, verdict, result = output["command"], output["verdict"], output["result"]
+    if command == "check":
+        return "expect" if "expect" in result else "file_unread" if verdict == "error" else "judged"
+    if command in ("report", "floor", "budget"):
+        return "file_unread" if verdict == "error" else "judged"
+    if command == "bisect":
+        return "judged" if verdict in ("good", "bad") else "skipped_or_stopped"
+    if command in ("compare", "alternate"):
+        if result.get("stopped") is not None:
+            return "stopped"
+        return next((shape for key, shape in COMPARE_SHAPES.items() if key in result), "file_unread")
+    return "one"
+
+
+@pytest.mark.parametrize("sample", schema_samples.SAMPLES, ids=SAMPLE_IDS)
+def test_each_sample_shows_its_shape(sample, outputs):
+    """INV-3: a sample's output has the shape the sample is listed under,
+    so a shape cannot lose its only real sample unseen. An unread file's
+    result holds nothing but what § 4.4 gives it, which the schema, never
+    capping a result, cannot say."""
+    output = outputs[sample.name]
+    assert (output["command"], shape_of(output)) == (sample.command, sample.shape)
+    if sample.shape == "file_unread" and sample.command != "check":
+        assert set(output["result"]) == (ALTERNATE_OWN if sample.command == "alternate" else set())
+    if sample.shape == "stopped":
+        assert set(output["result"]) == ALTERNATE_OWN
+
+
+# A key a shape writes whose loss its schema may not refuse: the key that
+# tells the shape apart, without which the result is another shape's, and
+# the two § 4.4 gives as written only sometimes.
+NOT_REQUIRED = {("check", "expect", "expect"), ("compare", "by_scene", "scenes"), ("compare", "variants", "variants"),
+                ("compare", "refused", "refused"), ("compare", "absent_measure", "named_measures"),
+                ("compare", "absent_measure", "runs"), ("alternate", "variants", "variants"),
+                ("alternate", "refused", "refused"), ("alternate", "absent_measure", "named_measures"),
+                ("alternate", "absent_measure", "runs")}
+
+
+@pytest.mark.parametrize("sample", schema_samples.SAMPLES, ids=SAMPLE_IDS)
+def test_each_shape_requires_its_keys(sample, outputs):
+    """§ 4.4: each `then` lists the keys its shape always writes. With any
+    one key of `result` removed the published schema refuses the output,
+    so no `if` is dead and no `required` list is short."""
+    output = outputs[sample.name]
+    for key in output["result"]:
+        changed = copy.deepcopy(output)
+        del changed["result"][key]
+        if (sample.command, sample.shape, key) not in NOT_REQUIRED:
+            assert errors(TREE[sample.command], changed), f"{key} can go unnoticed"
 
 
 def test_samples_cover_the_schemas(outputs):
@@ -288,7 +408,7 @@ def test_schema_command_prints_the_file(command, release):
     --markdown change nothing."""
     wanted = (SCHEMAS / freeze_schemas.file_name(command)).read_bytes()
     for target in (ROOT / "src" / "frameledger", release.parent / "frameledger.pyz"):
-        for flags in ((), ("--json",), ("--markdown",)):
+        for flags in ((), ("--json",), ("--markdown",), ("--json", "--markdown")):
             done = run_frameledger(target, "schema", command, *flags)
             assert (done.returncode, done.stdout, done.stderr) == (0, wanted, b"")
 
@@ -302,6 +422,15 @@ def test_schema_command_takes_a_name_not_a_path(name, release):
         done = run_frameledger(target, "schema", *([] if name is None else [name]))
         assert (done.returncode, done.stdout) == (3, b"")
         assert ", ".join(schemas.COMMANDS) in done.stderr.decode("utf-8")
+
+
+def test_schema_command_prints_to_a_text_stream():
+    """A caller's own text stream has no bytes under it; the schema is
+    written to it as text, not a traceback."""
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        assert cli.main(["schema", "kit"]) == 0
+    assert printed.getvalue().encode("utf-8") == (SCHEMAS / "kit.schema.json").read_bytes()
 
 
 def test_archive_holds_the_schemas(release):
@@ -325,69 +454,133 @@ def test_shared_definitions_agree():
 
 # ----------------------------------------------------------------------- INV-6
 
-def frozen_breaches(root, outputs, tree, allowed):
-    """Each way today's output or schemas break a frozen set under `root`,
-    as (version, command, where, what), but for those `allowed` lists."""
-    found = []
+def frozen_sets(root):
+    """Each frozen set under `root`: (version, {command: schema}, keys.json's content)."""
     for folder in sorted(path for path in root.iterdir() if path.is_dir()) if root.is_dir() else []:
         frozen = {command: json.loads((folder / freeze_schemas.file_name(command)).read_text(encoding="utf-8"))
                   for command in schemas.COMMANDS if (folder / freeze_schemas.file_name(command)).is_file()}
-        keys = json.loads((folder / freeze_schemas.KEYS).read_text(encoding="utf-8"))
-        for name, output in outputs.items():
-            command = output["command"]
-            if command in frozen:
-                found += [(folder.name, command, where, f"{name}: {message}")
-                          for where, message in errors(frozen[command], output)]
-        for name, paths in keys.items():
-            if name not in outputs:
-                found.append((folder.name, name, "", f"the sample {name} is gone"))
+        yield folder.name, frozen, json.loads((folder / freeze_schemas.KEYS).read_text(encoding="utf-8"))
+
+
+def retyped(frozen, outputs):
+    """(command, key path, what) for each output a frozen schema refuses."""
+    return [(output["command"], where, f"{name}: {message}") for name, output in outputs.items()
+            if output["command"] in frozen for where, message in errors(frozen[output["command"]], output)]
+
+
+def lost_keys(frozen, keys, outputs):
+    """(command, key path, what) for each key a sample wrote when frozen
+    and no longer writes, and for each sample that is gone."""
+    found = []
+    for name, record in keys.items():
+        command = record["command"]
+        if name not in outputs:
+            found.append((command, f"sample {name}", "is gone"))
+            continue
+        written = freeze_schemas.key_paths(outputs[name], frozen[command], frozen[command])
+        found += [(command, path, f"{name} no longer writes it")
+                  for path in freeze_schemas.missing_keys(record["keys"], written)]
+    return found
+
+
+def widened_sets(frozen, tree):
+    """(command, where, what) for each frozen closed set that today's file
+    gives a new value, or no longer holds as a closed set under its name."""
+    found = []
+    for command, schema in frozen.items():
+        for name, definition in schema["$defs"].items():
+            if "enum" not in definition:
                 continue
-            command = outputs[name]["command"]
-            written = freeze_schemas.key_paths(outputs[name], frozen[command], frozen[command])
-            found += [(folder.name, command, path, f"{name} no longer writes it") for path in paths
-                      if path not in written]
-        for command, schema in frozen.items():
-            for name, definition in schema["$defs"].items():
-                new = [value for value in tree[command]["$defs"].get(name, {}).get("enum", [])
-                       if "enum" in definition and value not in definition["enum"]]
-                found += [(folder.name, command, f"$defs/{name}", f"gained {value!r}") for value in new]
+            today = tree[command]["$defs"].get(name, {})
+            if "enum" not in today:
+                found.append((command, f"$defs/{name}", "is no longer a closed set of that name"))
+            found += [(command, f"$defs/{name}: {value!r}", "is a new value")
+                      for value in today.get("enum", []) if value not in definition["enum"]]
+    return found
+
+
+def frozen_breaches(root, outputs, tree, allowed):
+    """Each way today's output or schemas break a frozen set under `root`,
+    as (version, command, where, what), but for those `allowed` lists by
+    version, command and where."""
+    found = []
+    for version, frozen, keys in frozen_sets(root):
+        breaches = retyped(frozen, outputs) + lost_keys(frozen, keys, outputs) + widened_sets(frozen, tree)
+        found += [(version, *breach) for breach in breaches]
     return [breach for breach in found if breach[:3] not in allowed]
 
 
 ALLOWED = {entry[:3] for entry in DELIBERATE_BREAKS}
 
 
+def breaks(root, outputs, tree=TREE, allowed=frozenset()):
+    """The (command, where) of each breach, once."""
+    return sorted({breach[1:3] for breach in frozen_breaches(root, outputs, tree, allowed)})
+
+
+def changed(outputs, name, change):
+    """`outputs` with `change` made to a copy of the result of sample `name`."""
+    copied = copy.deepcopy(outputs)
+    change(copied[name]["result"])
+    return copied
+
+
 def test_output_matches_every_frozen_set(tmp_path, outputs):
     """INV-6: every frozen set still describes today's output. Then the
     same check is shown to fail: the tree's files are frozen to a folder,
-    and four breaks are made against it."""
+    and each kind of break is made against it."""
     assert frozen_breaches(freeze_schemas.FROZEN, outputs, TREE, ALLOWED) == []
 
     freeze_schemas.freeze(tmp_path, outputs, "9.9.9")
-    assert frozen_breaches(tmp_path, outputs, TREE, set()) == []
+    assert breaks(tmp_path, outputs) == []
+    # Adding is not breaking.
+    assert breaks(tmp_path, changed(outputs, "floor-pass", lambda result: result.update(new_key=1))) == []
 
-    retyped = copy.deepcopy(outputs)
-    retyped["floor-pass"]["result"]["windows"][0]["frames"] = "60"
-    assert [breach[:3] for breach in frozen_breaches(tmp_path, retyped, TREE, set())] == [
-        ("9.9.9", "floor", "result.windows[].frames")]
-
+    retype = changed(outputs, "floor-pass", lambda result: result["windows"][0].update(frames="60"))
+    assert breaks(tmp_path, retype) == [("floor", "result.windows[].frames")]
+    # A required key gone is named at the key, by the schema and by keys.json alike.
+    assert breaks(tmp_path, changed(outputs, "floor-pass", lambda result: result.pop("allowed"))) == [
+        ("floor", "result.allowed")]
     # `expect` is optional in the schema, so only keys.json sees it go.
-    dropped = copy.deepcopy(outputs)
-    del dropped["check-expect-match"]["result"]["expect"]
-    assert {breach[2] for breach in frozen_breaches(tmp_path, dropped, TREE, set())} == {
-        "result.expect", "result.expect.matches", "result.expect.differences"}
+    assert breaks(tmp_path, changed(outputs, "check-expect-match", lambda result: result.pop("expect"))) == [
+        ("check", "result.expect")]
+    # A list now empty has lost no key: what it holds follows the run.
+    assert outputs["floor-pass"]["result"]["windows"]
+    assert breaks(tmp_path, changed(outputs, "floor-pass", lambda result: result["windows"].clear())) == []
+    assert breaks(tmp_path, {name: output for name, output in outputs.items() if name != "kit"}) == [
+        ("kit", "sample kit")]
 
     wider = copy.deepcopy(TREE)
     wider["budget"]["$defs"]["statistic"]["enum"].append("p95")
-    assert [breach[:3] for breach in frozen_breaches(tmp_path, outputs, wider, set())] == [
-        ("9.9.9", "budget", "$defs/statistic")]
+    assert breaks(tmp_path, outputs, wider) == [("budget", "$defs/statistic: 'p95'")]
+    opened = copy.deepcopy(TREE)
+    opened["budget"]["$defs"]["statistic"] = {"type": "string"}
+    assert breaks(tmp_path, outputs, opened) == [("budget", "$defs/statistic")]
 
-    # A listed break lets off itself and nothing beside it.
-    both = copy.deepcopy(retyped)
-    both["floor-pass"]["result"]["allowed"] = None
-    listed = {("9.9.9", "floor", "result.windows[].frames")}
-    assert [breach[:3] for breach in frozen_breaches(tmp_path, both, TREE, listed)] == [
-        ("9.9.9", "floor", "result.allowed")]
+    # A listed break lets off itself and nothing beside it, in its own version and command only.
+    both = changed(retype, "floor-pass", lambda result: result.update(allowed=None))
+    listed = ("9.9.9", "floor", "result.windows[].frames")
+    assert breaks(tmp_path, both, allowed={listed}) == [("floor", "result.allowed")]
+    for other in (("9.9.8", *listed[1:]), ("9.9.9", "budget", listed[2])):
+        assert ("floor", "result.windows[].frames") in breaks(tmp_path, both, allowed={other})
+
+    # It is the frozen files that are read, not the tree's: change them alone.
+    kit = tmp_path / "9.9.9" / "kit.schema.json"
+    frozen_kit = json.loads(kit.read_text(encoding="utf-8"))
+    frozen_kit["properties"]["result"]["properties"]["kit"]["properties"]["directory"]["type"] = "integer"
+    kit.write_text(json.dumps(frozen_kit), encoding="utf-8")
+    keys = tmp_path / "9.9.9" / freeze_schemas.KEYS
+    record = json.loads(keys.read_text(encoding="utf-8"))
+    record["selftest"]["keys"].append("result.gone")
+    keys.write_text(json.dumps(record), encoding="utf-8")
+    assert breaks(tmp_path, outputs) == [("kit", "result.kit.directory"), ("selftest", "result.gone")]
+
+
+def test_each_deliberate_break_names_its_changelog_entry():
+    """§ 4.7: a break is let off only with the CHANGELOG.md entry that says so."""
+    changelog = " ".join((ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split())
+    for version, command, where, entry in DELIBERATE_BREAKS:
+        assert " ".join(entry.split()) in changelog, f"{version} {command} {where}: no such CHANGELOG.md entry"
 
 
 # ----------------------------------------------------------------------- INV-7

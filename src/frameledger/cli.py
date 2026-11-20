@@ -143,6 +143,7 @@ def _parser() -> _Parser:
     _add_all_frames(survey_cmd)
     _add_output_flags(survey_cmd)
     _add_import(commands)
+    _add_schema(commands)
     return parser
 
 
@@ -173,6 +174,11 @@ def _add_import(commands) -> None:
         choice.add_argument(yes, dest=f"fact_{field}", action="store_const", const=True, help=f"{field} is true")
         choice.add_argument(no, dest=f"fact_{field}", action="store_const", const=False, help=f"{field} is false")
     _add_output_flags(command)
+
+
+def _add_schema(commands) -> None:
+    """`schema COMMAND` (FLED-0041 § 4.2). It prints a schema and no
+    result, so --json and --markdown are taken and change nothing."""
     schema = commands.add_parser("schema", help="print the JSON Schema of a command's --json result")
     schema.add_argument("name", nargs="?", metavar="COMMAND", help="the command whose result it describes")
     _add_output_flags(schema)
@@ -426,12 +432,12 @@ def main(argv: list[str] | None = None) -> int:
         return _bisect_main(argv)
     try:
         args = _parser().parse_args(argv)
+        if args.command == "schema":  # before _renderer: it prints no result for the two flags to disagree over
+            _write_bytes(schemas.data(args.name))
+            return PASS
         print_as = _renderer(args)
         if args.version:
             _write(f"frameledger {VERSION}\n")
-            return PASS
-        if args.command == "schema":
-            _write_bytes(schemas.data(args.name))
             return PASS
         result = _dispatch(args)
         _write(print_as(result))
@@ -528,9 +534,12 @@ def _write_bytes(data: bytes) -> None:
     (FLED-0041 § 4.2)."""
     if sys.stdout is None:
         return
+    raw = getattr(sys.stdout, "buffer", None)
+    if raw is None:  # a caller's own text stream, which has no bytes under it
+        return _write(data.decode("utf-8"))
     sys.stdout.flush()
-    sys.stdout.buffer.write(data)
-    sys.stdout.buffer.flush()
+    raw.write(data)
+    raw.flush()
 
 
 def _failed_write(error: OSError, code: int) -> int:

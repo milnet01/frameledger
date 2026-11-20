@@ -2,7 +2,8 @@
 (docs/specs/FLED-0041-json-result-schemas.md).
 
 The schemas are plain data in `schemas/` beside this module, one
-COMMAND.schema.json per command that prints a result. They are written
+COMMAND.schema.json per command that prints a result. The folder holds
+no `.py` and no `__init__.py`, so `import schemas` still loads this file. They are written
 by hand and read with pkgutil.get_data, which reads the source tree and
 frameledger.pyz alike, and are printed as the bytes they are.
 """

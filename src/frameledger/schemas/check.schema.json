@@ -158,7 +158,7 @@
         1,
         3
       ],
-      "description": "The exit codes a check result can carry. A closed set."
+      "description": "The exit codes the result of check can carry. A closed set."
     },
     "warning": {
       "type": "object",

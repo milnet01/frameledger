@@ -1,10 +1,11 @@
 """The shapes of `result` and the sample runs that show them (FLED-0041 § 4.4
 and § 4.6).
 
-`SHAPES` lists every row of § 4.4's shapes table as (command, shape name),
-one entry per command. `SAMPLES` lists command lines; each names the shape
-it shows, and between them they write every key the analyser can write for
-the command, with both sides of anything nullable. `run(sample, tmp_path)`
+`SHAPES` lists every row of § 4.4's shapes table as (command, shape name);
+a row naming several commands is an entry for each. `SAMPLES` lists command
+lines; each names the shape it shows, and tests/test_schemas.py checks that
+it shows it and that between them they write every key the schemas name.
+`run(sample, tmp_path)`
 builds a sample's files, runs `cli.main` in this process with `--json`, and
 returns the exit code and what it printed on standard output.
 
@@ -957,7 +958,7 @@ def bisect_args(f: Folder, tested: list | None = None, good: list | None = None,
     return [*args, *flags]
 
 
-def _bisect(tested=None, good=SAME, bad=BAD, flags=tuple(OPAQUE), **kw) -> Callable[[Folder], list[str]]:
+def _bisect(tested=None, good=SAME, bad=BAD, flags=tuple(OPAQUE)) -> Callable[[Folder], list[str]]:
     return lambda f: bisect_args(f, tested, good, bad, *flags)
 
 

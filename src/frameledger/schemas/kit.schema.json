@@ -91,7 +91,7 @@
       "enum": [
         0
       ],
-      "description": "The exit codes a kit result can carry. A closed set."
+      "description": "The exit codes the result of kit can carry. A closed set."
     },
     "warning": {
       "type": "object",

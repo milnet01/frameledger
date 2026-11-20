@@ -108,7 +108,7 @@
                   "string",
                   "null"
                 ],
-                "description": "category/name of the frame's largest depth-0 cpu or gpu cost; null when the frame has none."
+                "description": "category/name of the frame's largest depth-0 cpu or gpu cost, a remainder included; null when the frame has none, as in an imported run."
               }
             },
             "required": [
@@ -149,7 +149,7 @@
           "description": "Whether --all-frames counted those frames."
         }
       },
-      "description": "The two checks. With the verdict error, a file could not be read and result holds no key."
+      "description": "The two checks. With the verdict error, a file could not be read or breaks its format, and result holds no key."
     }
   },
   "required": [
@@ -211,7 +211,7 @@
         2,
         3
       ],
-      "description": "The exit codes a floor result can carry. A closed set."
+      "description": "The exit codes the result of floor can carry. A closed set."
     },
     "warning": {
       "type": "object",

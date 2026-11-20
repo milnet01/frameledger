@@ -224,7 +224,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "The commands as given, placeholder and all, keyed by side: old and new, or base and each variant's name."
+          "description": "The commands as given, placeholder and all, keyed by side: old and new, or base and each variant's name. With --baseline the side the baseline stands for is left out."
         },
         "out": {
           "type": "string",
@@ -257,7 +257,7 @@
                 "integer",
                 "null"
               ],
-              "description": "Its command's exit code; null when it wrote no file, was killed by a signal or was stopped."
+              "description": "Its command's exit code; null when the run failed some other way, such as writing no file, being killed by a signal or leaving processes running."
             },
             "finished": {
               "type": "array",
@@ -291,7 +291,7 @@
         "stopped",
         "warmup"
       ],
-      "description": "commands, out, warmup, stopped and baseline, always; with them, the keys of one of compare's shapes. measures: a plain compare. variants: --base with --variant. refused with no measures: the runs differ in a blocking field. named_measures with none of those: a --measure name is in no run. None of them: a run failed, when stopped is not null, or a file could not be read."
+      "description": "commands, out, warmup, stopped and baseline, always; with them, the keys of one of compare's shapes. measures: a plain compare. variants: --base with --variant. refused with no measures: the runs differ in a blocking field. named_measures with none of those: a --measure name is in no run. None of them: a run failed, when stopped is not null, or a file could not be read. The keys that tell the shapes apart are kept to their shapes: a release that adds one to another shape makes a breaking change."
     }
   },
   "required": [
@@ -370,7 +370,15 @@
               "overrides",
               "rank_measure",
               "variants"
-            ]
+            ],
+            "properties": {
+              "judged": {
+                "required": [
+                  "measures",
+                  "variants"
+                ]
+              }
+            }
           }
         }
       }
@@ -422,47 +430,16 @@
     },
     {
       "if": {
-        "properties": {
-          "result": {
-            "not": {
-              "anyOf": [
-                {
-                  "required": [
-                    "measures"
-                  ]
-                },
-                {
-                  "required": [
-                    "variants"
-                  ]
-                }
-              ]
-            }
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "verdict": {
-            "const": "error"
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "result": {
+        "allOf": [
+          {
             "properties": {
-              "stopped": {
-                "type": "object"
+              "result": {
+                "required": [
+                  "named_measures"
+                ]
               }
             }
-          }
-        }
-      },
-      "then": {
-        "allOf": [
+          },
           {
             "properties": {
               "result": {
@@ -477,30 +454,49 @@
                       "required": [
                         "variants"
                       ]
-                    },
-                    {
-                      "required": [
-                        "refused"
-                      ]
-                    },
-                    {
-                      "required": [
-                        "named_measures"
-                      ]
                     }
                   ]
                 }
               }
             }
-          },
-          {
-            "properties": {
-              "verdict": {
-                "const": "error"
-              }
-            }
           }
         ]
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "baseline",
+              "named_measures"
+            ]
+          },
+          "verdict": {
+            "const": "error"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "properties": {
+              "stopped": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "stopped"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "const": "error"
+          }
+        }
       }
     }
   ],
@@ -521,7 +517,7 @@
         2,
         3
       ],
-      "description": "The exit codes a alternate result can carry. A closed set."
+      "description": "The exit codes the result of alternate can carry. A closed set."
     },
     "warning": {
       "type": "object",

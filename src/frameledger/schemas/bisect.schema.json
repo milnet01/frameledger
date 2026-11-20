@@ -72,7 +72,7 @@
                 "integer",
                 "null"
               ],
-              "description": "The depth judged at, or null when none was settled."
+              "description": "--depth's value; null without the flag."
             },
             "statistic": {
               "$ref": "#/$defs/statistic"
@@ -196,7 +196,7 @@
             ],
             "description": "One run."
           },
-          "description": "Every run named: the tested, then the good and bad references. A run that could not be read, or that breaks the format, has a short entry: its name, set and path, and null for the rest."
+          "description": "Every run named: the good and bad references, then the tested. A run that could not be read, or that breaks the format, has a short entry: its name, set and path, and null for the rest."
         },
         "value": {
           "type": [
@@ -360,7 +360,7 @@
         125,
         128
       ],
-      "description": "The exit codes a bisect result can carry. A closed set."
+      "description": "The exit codes the result of bisect can carry. A closed set."
     },
     "warning": {
       "type": "object",

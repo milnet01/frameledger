@@ -66,7 +66,7 @@
                   "string",
                   "null"
                 ],
-                "description": "Why the run is inconclusive or unjudged; null otherwise."
+                "description": "Why the run is unjudged or inconclusive, when there is a reason to give; null otherwise."
               },
               "rank": {
                 "type": [
@@ -80,14 +80,14 @@
                   "string",
                   "null"
                 ],
-                "description": "The segment kind the run is ranked by; null with no rank."
+                "description": "The segment kind the run is ranked by; null with no rank, and for frames with no segment."
               },
               "worst_segment": {
                 "type": [
                   "string",
                   "null"
                 ],
-                "description": "The segment the run's slowest frame is in; null with no rank."
+                "description": "The worst segment of that kind; null with no rank, and for frames with no segment."
               },
               "median_ms": {
                 "type": [
@@ -133,7 +133,7 @@
                       "string",
                       "null"
                     ],
-                    "description": "category/name of the frame's largest depth-0 cpu or gpu cost; null when the frame has none."
+                    "description": "category/name of the frame's largest depth-0 cpu or gpu cost, a remainder included; null when the frame has none, as in an imported run."
                   }
                 },
                 "required": [
@@ -271,7 +271,7 @@
         1,
         2
       ],
-      "description": "The exit codes a survey result can carry. A closed set."
+      "description": "The exit codes the result of survey can carry. A closed set."
     },
     "warning": {
       "type": "object",

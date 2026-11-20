@@ -130,7 +130,7 @@
       "enum": [
         0
       ],
-      "description": "The exit codes a import result can carry. A closed set."
+      "description": "The exit codes the result of import can carry. A closed set."
     },
     "warning": {
       "type": "object",

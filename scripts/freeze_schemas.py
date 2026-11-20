@@ -8,15 +8,24 @@ every later release's output to them
 src/frameledger/schemas/ to tests/fixtures/schemas/<VERSION>/, writes
 keys.json beside the copies, and adds a line to SHA256SUMS for each file.
 
-keys.json holds, for each sample of tests/schema_samples.py by name, every
-key path its output held, such as `result.runs[].started_utc`. A schema
-that allows more keys cannot see one go missing; this record can. A path
-stops where the schema names no key: at a map whose keys are data, and at
-a value that is the engine's own.
+keys.json holds, for each sample of tests/schema_samples.py by name, its
+command and every key path its output held, such as
+`result.runs[].started_utc`. A schema that allows more keys cannot see one
+go missing; this record can. A path stops where the schema names no key:
+at a map whose keys are data, and at a value that is the engine's own.
 
-It refuses a version whose folder exists, exit 1, writing nothing: a
-frozen set is never changed. A wrong file stays, and the next release's
-is right.
+Freeze last. It refuses a version whose folder exists, exit 1, writing
+nothing: a frozen set is never changed, so run this as the last change
+before the tag, when the schemas and the samples are final. Bumping
+VERSION makes tests/test_schemas.py fail until the set is frozen; that
+is the reminder, not a reason to freeze early. A wrong file that has
+shipped stays, and the next release's is right.
+
+The walkers here read a schema as tests/test_schemas.py's INV-2 holds
+the files to: keys are named under `properties`, array items under
+`items`, a shared part by a `$ref` into `$defs`, and a conditional
+(`if`, `then`, `allOf` and the like) names no key the plain
+`properties` beside it does not.
 
 `key_paths` and `named_paths` are what tests/test_schemas.py compares
 with. Standard library only. Exit 0 on success, 1 on a refusal.
@@ -95,10 +104,21 @@ def tree_schemas() -> dict[str, dict]:
             for command in schemas.COMMANDS}
 
 
-def sample_keys(outputs: dict[str, dict], by_command: dict[str, dict]) -> dict[str, list[str]]:
-    """keys.json's content: each sample's key paths, from its output."""
-    return {name: sorted(key_paths(output, by_command[output["command"]], by_command[output["command"]]))
+def sample_keys(outputs: dict[str, dict], by_command: dict[str, dict]) -> dict[str, dict]:
+    """keys.json's content: each sample's command and key paths, from its output."""
+    return {name: {"command": output["command"],
+                   "keys": sorted(key_paths(output, by_command[output["command"]], by_command[output["command"]]))}
             for name, output in sorted(outputs.items())}
+
+
+def missing_keys(frozen: list[str], written: set[str]) -> list[str]:
+    """The paths of `frozen` that an output holding `written` has lost. A
+    path counts only where the object that held it is still there: a list
+    now empty, or an object now null, has lost no key, and is data."""
+    def beside(path: str) -> str:
+        return path.rpartition(".")[0] + "."
+    held = {beside(path) for path in written}
+    return [path for path in frozen if path not in written and ("." not in path or beside(path) in held)]
 
 
 def run_samples(work: Path) -> dict[str, dict]:

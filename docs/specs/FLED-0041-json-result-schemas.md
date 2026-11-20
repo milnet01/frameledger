@@ -158,11 +158,11 @@ disagree with it.
   `check --expect`'s differences.
 - **Closed sets** are an `enum`, each under its own name in `$defs`,
   a command's own as `<command>_verdict` and `<command>_exit_code`,
-  and a later value is a breaking change: `command`; the top-level
+  and a later value is a breaking change: the top-level
   `verdict`, per command (§ 4.4); each entry's own `verdict` (a
   measure's, a scene's, a variant's, a surveyed run's); `set`;
   `statistic`; `skip_reason`; and `exit_code`, per command, the codes
-  its result can carry.
+  its result can carry. `command` is a `const`, the file's own.
 - **Open sets** are a string: warning codes, breach rules, `category`,
   `unit`, segment kinds and every name an engine chose. A script must
   ignore a value it does not know. `unit` is open because it follows
@@ -224,6 +224,11 @@ Every `compare` and `alternate` result but `{}` also holds `baseline`
 unread rows have the verdict `error`, and so has a `--by-scene` or
 variants result in which nothing was judged; so `verdict` alone does
 not pick the shape, and the keys in the last column do.
+
+Those keys belong to their shapes. A release that adds one of them to
+another shape makes a breaking change, since a pinned file would then
+read the result as the wrong shape. A new shape with keys of its own is
+an addition: no file ties a verdict to the absence of keys.
 
 ### 4.5 What changes in the output
 
@@ -292,8 +297,13 @@ scripts/freeze_schemas.py           writes <version>/
   `src/frameledger/schemas/` to that folder, writes `keys.json`, and
   adds the lines to `SHA256SUMS`. It refuses to write over a folder
   that exists.
-- **`keys.json`** holds, for each sample by name, every key path its
-  output held when frozen, such as `result.runs[].started_utc`. A
+- **Freeze last.** The script is the last change before the tag, when
+  the schemas and the samples are final.
+- **`keys.json`** holds, for each sample by name, its command and every
+  key path its output held when frozen, such as
+  `result.runs[].started_utc`. A path counts as lost only where the
+  object that held it is still there: a list now empty, or an object
+  now null, is the run's data. A
   schema's open form cannot see a key go missing unless the key is
   `required`, and removing any key is breaking; this record can. A
   path stops at a map whose keys are data and at an engine-supplied
@@ -302,18 +312,21 @@ scripts/freeze_schemas.py           writes <version>/
 - **The release cannot forget.** With `cli.VERSION` at 0.8.0 or later,
   the tests fail when `tests/fixtures/schemas/<VERSION>/` is absent,
   and `scripts/check-release.sh` fails when its schema files differ
-  from the tree's.
+  from the tree's. Neither asks it of an earlier version.
 - **Later output is held to every frozen set** (INV-6), three ways.
   Each sample's output validates against its command's frozen file, in
   the open form: a changed type fails. Each sample a frozen
   `keys.json` names still exists and still writes every key path
   recorded for it: a removed or renamed key fails. Each closed set's
   `enum` in the tree's file holds no value the frozen file's `enum` of
-  the same `$defs` name lacks: a new value fails, whether or not a
-  sample writes it.
+  the same `$defs` name lacks, and is still an `enum` under that name:
+  a new value fails, whether or not a sample writes it.
 - **A deliberate break** is listed in `tests/test_schemas.py` as the
-  frozen version, the command, the key path or `$defs` name, and the
-  `CHANGELOG.md` entry that names it. Only a listed failure is let
+  frozen version, the command, where it is, and a sentence of the
+  `CHANGELOG.md` entry that names it. Where is a key path, a `$defs`
+  name with the new value, or a sample's name. A missing required key
+  is reported at the key, not at the object that lacks it, so one
+  listing covers it and nothing else. Only a listed failure is let
   off; another failure in the same command still fails. When a break
   is allowed is FLED-0042's.
 - **Never edited.** A frozen file does not change. A wrong one stays,
@@ -339,17 +352,22 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
   where the file does not allow it.
 
 - **INV-2** — Each file is a valid draft 2020-12 schema, names that
-  dialect, has no `$id`, closes no object, and holds no `$ref` that
+  dialect, has no `$id`, closes no object, uses only the keywords the
+  tests' walkers know, names no key under a conditional keyword that
+  the plain `properties` beside it does not, and holds no `$ref` that
   leaves the file, has `properties` beside it, or sits directly under
   `if`, `then`, `else`, `allOf`, `anyOf`, `oneOf` or `not`.
-  *Test:* `tests/test_schemas.py::test_each_file_is_a_schema`.
+  *Test:* `tests/test_schemas.py::test_each_file_is_a_schema` and
+  `::test_a_conditional_names_no_key_of_its_own`.
   *Breaks when:* a file has a keyword the dialect's own schema
   refuses; `additionalProperties: false`; a `$ref` to another file.
 
-- **INV-3** — Every entry of `SHAPES` has a sample, and every key a
+- **INV-3** — Every entry of `SHAPES` has a sample, every sample's
+  output has the shape it is listed under, and every key a
   file names is written by at least one sample, a shared definition's
   key by a sample of any command.
-  *Test:* `tests/test_schemas.py::test_every_shape_has_a_sample` and
+  *Test:* `tests/test_schemas.py::test_every_shape_has_a_sample`,
+  `::test_each_sample_shows_its_shape` and
   `::test_samples_cover_the_schemas`.
   *Breaks when:* a file names a key no sample writes; an entry of
   `SHAPES` has no sample.
@@ -383,7 +401,8 @@ and skips nothing. Nothing under `src/frameledger/` imports it.
   a value added to a closed set, and a second failure beside a listed
   one.
   *Breaks when:* a release removes or renames a key, changes its type,
-  or adds a value to a closed set.
+  adds a value to a closed set, opens or renames one, or drops a
+  sample.
 
 - **INV-7** — Each frozen file's SHA-256 is its line in `SHA256SUMS`,
   which lists every frozen file; with `cli.VERSION` at 0.8.0 or later
@@ -494,16 +513,18 @@ key's meaning is unchanged. A schema holds shape, not meaning.
 | Rule | What catches a breach |
 |------|----------------------|
 | INV-1 | Partial: `tests/test_schemas.py::test_output_matches_its_schema`, for the shapes the samples show; a key written only in a shape with no sample has **nothing** |
-| INV-2 | `tests/test_schemas.py::test_each_file_is_a_schema` |
-| INV-3 | Partial: `tests/test_schemas.py::test_every_shape_has_a_sample`, and `::test_samples_cover_the_schemas` catches a named key no sample writes; that `SHAPES` and § 4.4's table list every shape the code has is caught only by the engines' review |
+| INV-2 | `tests/test_schemas.py::test_each_file_is_a_schema` and `::test_a_conditional_names_no_key_of_its_own` |
+| INV-3 | Partial: `tests/test_schemas.py::test_every_shape_has_a_sample`, `::test_each_sample_shows_its_shape`, and `::test_samples_cover_the_schemas` catches a named key no sample writes; that `SHAPES` and § 4.4's table list every shape the code has is caught only by the engines' review |
 | INV-4 | Partial: `tests/test_schemas.py::test_schema_command_prints_the_file`, `::test_schema_command_takes_a_name_not_a_path` and `::test_archive_holds_the_schemas`; `.github/workflows/ci.yml` runs the tests on Linux and macOS, so a changed line end on Windows has **nothing** |
 | INV-5 | `tests/test_schemas.py::test_shared_definitions_agree` |
-| INV-6 | Partial: `tests/test_schemas.py::test_output_matches_every_frozen_set`; a failure wrongly listed as a deliberate break is caught only by the engines' code review |
+| INV-6 | Partial: `tests/test_schemas.py::test_output_matches_every_frozen_set`; a key pointed at another, wider closed set is caught only where a sample writes the new value; a failure wrongly listed as a deliberate break is caught only by the engines' code review |
 | INV-7 | Partial: `tests/test_schemas.py::test_frozen_sets_unchanged`, `::test_this_version_is_frozen` and `::test_freeze_refuses_an_existing_folder`; a commit that edits a frozen file and `SHA256SUMS` together is caught only by the engines' code review |
 | INV-8 | `tests/test_schemas.py::test_every_result_names_its_release` and `::test_a_bad_argument_prints_no_result` |
 | INV-9 | `tests/test_schemas.py::test_json_holds_no_nan` |
 | INV-10 | `tests/test_schemas.py::test_schema_command_takes_a_name_not_a_path` |
-| INV-11 | Partial: `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key` and `::test_strict_form_refuses_another_shapes_verdict`; `check`'s two shapes hold the same keys, and a whole result under the verdict `error` passes `report`'s, `floor`'s and `budget`'s files, so those have **nothing** |
+| INV-11 | Partial: `tests/test_schemas.py::test_strict_form_refuses_an_unknown_key` and `::test_strict_form_refuses_another_shapes_verdict`; `check`'s two shapes hold the same keys, a whole result under the verdict `error` passes `report`'s, `floor`'s and `budget`'s files, and a `--by-scene` or variants result may carry any verdict, so those have **nothing** |
+| § 4.4 each shape's required keys | `tests/test_schemas.py::test_each_shape_requires_its_keys` |
+| § 4.7 a deliberate break names its changelog entry | `tests/test_schemas.py::test_each_deliberate_break_names_its_changelog_entry` |
 | § 4.3 a `description` is true | **nothing** — read by the engines when a file changes |
 | § 4.3 which sets are closed | **nothing** — a set closed or opened wrongly is judged in review |
 | § 4.7 the frozen folder equals the tree's files at release | `scripts/check-release.sh` |
