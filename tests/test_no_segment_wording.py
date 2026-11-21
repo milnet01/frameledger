@@ -36,7 +36,7 @@ def test_report_names_frames_with_no_segment(capsys, tmp_path):
 def test_report_names_both_when_mixed(capsys, tmp_path):
     frames = [frame(segment="", ssao=1.5)] * 50 + [frame(segment="view:1", ssao=1.5)] * 51
     out = report_text(capsys, tmp_path, budget_run(frames))
-    assert "The run has 101 frames, in frames with no segment and in view segments." in out
+    assert "The run has 101 frames, some in no segment and the rest in view segments." in out
 
 
 def test_kinds_phrase_joins_named_kinds():
@@ -82,4 +82,4 @@ def test_compare_short_run_names_frames_with_no_segment(capsys, tmp_path):
 def test_budget_unmatched_names_frames_outside_a_segment(capsys, tmp_path):
     run = budget_run([frame(segment="", a=2.5)] * 101)
     _, out = budget(capsys, tmp_path, run, budget_text("gpu,missing,,,median,2.000"))
-    assert any("gpu/missing is in no frame outside a segment judged" in s for s in out["summary"]), out["summary"]
+    assert any("gpu/missing is in no judged frame outside a segment," in s for s in out["summary"]), out["summary"]

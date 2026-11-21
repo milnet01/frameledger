@@ -2058,7 +2058,7 @@ frameledger, wire it into their engine and get help.
   Kind: test.
   Source: engine-review-FLED-0042-2026-11-20.
 
-- 🚧 [FLED-0083] **Frames with no segment read better than "unsegmented segments".**
+- ✅ [FLED-0083] **Frames with no segment read better than "unsegmented segments".**
   From the FLED-0072 reviews of 3767989 (DOOM Ants, UT Ants,
   ExperiRays): a kind of None prints "in unsegmented segments".
   run_report.kind_name gives "unsegmented", and noisy_run, outlier_run
@@ -2068,6 +2068,12 @@ frameledger, wire it into their engine and get help.
   Needs the three engines' agreement, since scripts may match the text.
   2026-11-21, engines: yes from all three, "in frames with no segment"
   everywhere at once. No script of theirs matches the old text.
+  2026-11-21, built at 666d8f0; reviews from UT Ants, Vestige and
+  ExperiRays folded at 1452d34 (budget's unmatched sentence, the "and
+  in" join, bisect's label on kinds_phrase, a test holding render's copy
+  alike), DOOM Ants' after it (report's mixed opening reads "some in no
+  segment and the rest in view segments"; "no judged frame outside a
+  segment"; kinds_phrase's docstring).
   **Layman:** A message about frames that belong to no named part of a run says so in plain words.
   Kind: ux.
   Source: review-FLED-0072-2026-11-21.

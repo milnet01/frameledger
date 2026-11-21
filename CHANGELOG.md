@@ -23,9 +23,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   unsegmented segments": in `report`, `compare` (`noisy_run`,
   `outlier_run`, the frame/wall sentences) and `budget` (FLED-0083).
   `report`'s opening sentence says "none of them in a segment" when no
-  frame has one, and "in frames with no segment and in view segments"
-  when some do. `budget`'s unmatched-line sentence says "in no frame
-  outside a segment judged". `compare`'s short-run sentence counts
+  frame has one, and "some in no segment and the rest in view
+  segments" when some do. `budget`'s unmatched-line sentence says "in
+  no judged frame outside a segment". `compare`'s short-run sentence counts
   "frame/wall values", not "frames with a frame/wall". JSON is unchanged:
   `segment_kind` stays null, and labels such as `unsegmented: gpu/a`
   keep the kind's name.

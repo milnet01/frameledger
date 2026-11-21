@@ -500,8 +500,11 @@ def warning_sentences(notices: list[ledger.Notice]) -> list[str]:
 
 def _headline(run: ledger.Run, result: dict, costs: Costs) -> list[str]:
     kinds = sorted({segment_kind(ledger.frame_segment(rows)) for rows in run.frames.values()}, key=kind_order)
-    where = ("none of them in a segment" if set(kinds) == {None} else
-             f"in {kinds_phrase(kinds)}" if kinds else "in no segments")
+    named = [k for k in kinds if k is not None]
+    where = ("in no segments" if not kinds else
+             "none of them in a segment" if not named else
+             f"in {kinds_phrase(named)}" if len(named) == len(kinds) else
+             f"some in no segment and the rest in {kinds_phrase(named)}")
     sentences = [f"The run has {counted(len(run.frames), 'frame')}, {where}."]
     if imported(run):
         sentences.append("The run was imported from PresentMon, so it has no passes; its CPU and GPU spans "
@@ -555,7 +558,7 @@ def kind_name(kind: str | None) -> str:
 def kinds_phrase(kinds: list[str | None]) -> str:
     """Where frames of `kinds` are, to follow "in": `view, menu segments`,
     `frames with no segment`, or both, as `frames with no segment and in
-    view segments`, no segment first as kind_order sorts it. `kinds` is
+    view segments`: no segment first, named kinds in the order given. `kinds` is
     never empty; JSON keeps None (FLED-0083). render._frames_in says the
     same for one kind, and a test holds the two alike."""
     named = [k for k in kinds if k is not None]
