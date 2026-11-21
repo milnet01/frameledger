@@ -173,13 +173,13 @@ run kit py env PYTHON=python tests/writer/test_kit.sh
 step 'selftest'
 # The analyser's own checks, run the way an engine runs them: isolated,
 # with nothing but the standard library.
-run selftest py python -I src/frameledger --selftest
+run selftest py python -I -W error::DeprecationWarning src/frameledger --selftest
 
 step "newest Python ($PYTHON_NEWEST_VERSION)"
 # The same tests and selftest on the newest release, so a break there is
 # found before an engine meets it.
 run test-newest py_on "$PYTHON_NEWEST_VERSION" python -m pytest -q
-run selftest-newest py_on "$PYTHON_NEWEST_VERSION" python -I src/frameledger --selftest
+run selftest-newest py_on "$PYTHON_NEWEST_VERSION" python -I -W error::DeprecationWarning src/frameledger --selftest
 
 if (( CONFIGURED )); then
     printf '\nlocal-ci: all checks passed.\n' >&2
