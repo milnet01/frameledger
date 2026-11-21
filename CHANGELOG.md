@@ -43,6 +43,14 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   newest release gets fixes; a breaking change needs a warning in an
   earlier release, a replacement and the three engines' agreement; and
   the Python floor stays 3.10 until 2.0.0 at the earliest (FLED-0042).
+- `compare` warns `noisy_run` for a run whose own frame times scatter:
+  in a segment kind of at least 1000 frames, more than 2 percent of
+  its `frame/wall` values are over twice the kind's median. Something
+  else, such as the desktop holding the GPU, likely slowed that run,
+  so the message says to re-run it. Each run in `--json` gains
+  `noise`, one entry per segment kind with the share, the median and
+  the quartile spread; a shorter kind is listed with `judged` false.
+  The warning changes no verdict and no exit code (FLED-0072).
 
 ### Changed
 

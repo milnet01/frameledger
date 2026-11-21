@@ -68,6 +68,8 @@ accepted it at df82ab4, with 551f2ae's INV-130 wording.
 agreed by the three engines 2026-11-19 before they were built; their
 code reviews reworded the two sentences under the graph, and they
 accepted it at 3ffb2c5.
+§ 4.10's `noisy_run` with INV-132 (FLED-0072) decided by the three
+engines 2026-11-20 from their own runs, before it was built.
 **Kind:** doc.
 **Source:** ROADMAP FLED-0001 (design-2026-10-24; requirements from the Vestige, UT Ants and DOOM Ants sessions).
 **Blocker for:** FLED-0002, FLED-0006.
@@ -1065,6 +1067,21 @@ weighs one `slower` among them.
   where quartiles say nothing. In a noisy set of three it names the
   end further from the middle run, unless the middle is exactly
   half-way.
+- `noisy_run` — one run's own frame times scatter (FLED-0072). It is
+  judged per run and segment kind, over the same `frame/wall` values
+  as the kind's `frame/wall` median: the kind's segments pooled, and
+  the application's frames unless `--all-frames`. A kind with at
+  least 1000 values warns when more than 2 percent of them are over
+  twice the kind's median. The message names the run and the kind,
+  gives the share in percent to two places, the median and the limit,
+  and says to re-run it. Each warning has its own sentence, and under
+  § 4.16 a base run's is given once. A kind with fewer than 1000
+  values is not judged, and its `noise` entry says so. The tail share
+  is judged because a desktop holding the GPU adds a second group of
+  slow frames, which the quartile spread misses until it is about a
+  quarter of them (the three engines). The quartile spread is in the
+  result and is not judged. A run under the limit was calm; that does
+  not show the machine is (UT Ants).
 - `load_differs` — the two sets' medians of `load.start` differ by more
   than 0.1.
 - `gpu_busy_differs` — the two sets' medians of `gpu_busy_pct.start`
@@ -1136,7 +1153,9 @@ is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `
 ```json
 {
   "runs": [{"name", "set", "path", "run_id", "commit", "dirty", "started_utc",
-            "rows_dropped", "finished", "under_load"}],
+            "rows_dropped", "finished", "under_load",
+            "noise": [{"segment_kind", "frames", "median", "over_twice", "share_pct",
+                       "quartile_spread", "judged"}]}],
   "min_ms", "min_mb", "min_pct", "max_load", "max_gpu_busy", "named_measures",
   "measures": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                 "old": [], "new": [], "old_frames": [], "new_frames": [],
@@ -1151,6 +1170,12 @@ is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `
 
 `under_load` lists each peak above its limit, `load.peak` and then
 `gpu_busy_pct.peak`, and is empty for a run not under load.
+`noise` has one entry per segment kind holding a `frame/wall`, in kind
+order, as `noisy_run` judges it: `frames` values, their `median` in
+ms, `over_twice` of them over twice it, `share_pct` that count over
+`frames` in percent to two places, `quartile_spread` the 75th
+percentile less the 25th over the median to three places (null when
+the median is 0), and `judged` false under 1000 frames.
 `named_measures` lists `--measure`'s names in the order given, a
 suffix included, and is empty without it. A measure's `suffixed` is
 true when a `--measure` named its statistic with a suffix (DOOM Ants). `old_frames` and
@@ -4671,6 +4696,28 @@ breaks.
   are counted, the list grows with the run, or the count of bands left
   out is wrong or missing.
 
+- **INV-132** — `compare` names a run whose own frame times scatter.
+  A new run of 1000 `frame/wall` values in `view` segments, 979 at
+  16.000 ms and 21 at 40.000 ms, gives one `noisy_run` warning: "new-2:
+  2.10% of its frame/wall values in view segments are over twice their
+  median of 16.000 ms, above 2%, so something else may have slowed
+  the run; re-run it". 21 at exactly 32.000 ms give none, with the same
+  verdict and exit. 20 at 40.000 ms, 2.00%, give none. Its
+  `noise` entry is `{"segment_kind": "view", "frames": 1000, "median":
+  16.0, "over_twice": 21, "share_pct": 2.1, "quartile_spread": 0.0,
+  "judged": true}`. 250 values at 12.000 ms, 500 at 16.000 and 250 at
+  20.000 have a `quartile_spread` of 0.25. A `spot` kind of 999 values,
+  100 of them slow, gives no warning, and its entry has `judged` false.
+  Two runs that warn each have a sentence. Under § 4.16 a base run that
+  warns is named once, opening with its own name.
+  *Test:* `tests/test_noisy_run.py::test_noisy_run`,
+  `tests/test_noisy_run.py::test_short_kind_is_unjudged`,
+  `tests/test_noisy_run.py::test_base_run_is_named_once`.
+  *Breaks when:* the share counts a value at exactly twice the median,
+  or warns at exactly 2 percent; a kind under 1000 values is judged or
+  missing from `noise`; segment kinds are pooled together; the warning
+  changes a verdict or exit; or a base run is named once per variant.
+
 ## 6. Failure modes
 
 - **A run with no frames**, a header and a close line alone, is judged
@@ -4738,6 +4785,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0077: INV-125.
 - FLED-0039: INV-126 to INV-130.
 - FLED-0080 and FLED-0081: INV-131.
+- FLED-0072: INV-132.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -4932,6 +4980,7 @@ it on each release they pin.
 | INV-129 | `tests/test_html.py::test_outside_text_is_escaped` |
 | INV-130 | `tests/test_html.py::test_normal_vision_first`, `tests/test_html.py::test_larger_text_and_lines`, `tests/test_html.py::test_contrast` |
 | INV-131 | `tests/test_html.py::test_band_cap`, `tests/test_html.py::test_the_band_list_is_cut`, `tests/test_html.py::test_no_band_list_without_segments` |
+| INV-132 | `tests/test_noisy_run.py::test_noisy_run`, `tests/test_noisy_run.py::test_short_kind_is_unjudged`, `tests/test_noisy_run.py::test_base_run_is_named_once` |
 | 4.21, how the page looks in a browser: zoom, the switch, greyscale | **`Partial:`** opened by hand in Firefox and Chromium before release; nothing here |
 | 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |

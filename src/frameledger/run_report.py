@@ -28,7 +28,7 @@ FRAME_ORDER = ["cpu_span", "gpu_span", "wall", "fence_wait", "present_wait"]
 FIRST_WARNINGS = ("rows_dropped", "unfinished")
 # Warnings that tell the reader to act on the run each names, so every one
 # has its sentence and none is counted as "more like it" (DOOM Ants).
-EACH_SAID = ("outlier_run",)
+EACH_SAID = ("outlier_run", "noisy_run")
 
 
 def report(run: ledger.Run) -> dict:

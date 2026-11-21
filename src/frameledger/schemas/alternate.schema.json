@@ -647,6 +647,58 @@
         "generated_frames": {
           "type": "integer",
           "description": "How many of the run's frames a frame generator made."
+        },
+        "noise": {
+          "type": "array",
+          "description": "One entry per segment kind holding a frame/wall, in kind order, as the noisy_run warning judges the run (FLED-0072).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "segment_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment kind; null for frames with no segment."
+              },
+              "frames": {
+                "type": "integer",
+                "description": "How many frame/wall values the kind holds."
+              },
+              "median": {
+                "type": "number",
+                "description": "Their median, in ms."
+              },
+              "over_twice": {
+                "type": "integer",
+                "description": "How many of them are over twice the median."
+              },
+              "share_pct": {
+                "type": "number",
+                "description": "over_twice over frames, in percent to two places."
+              },
+              "quartile_spread": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The 75th percentile less the 25th, over the median, to three places; reported and not judged. Null when the median is 0."
+              },
+              "judged": {
+                "type": "boolean",
+                "description": "Whether noisy_run judged the kind: false under 1000 frames."
+              }
+            },
+            "required": [
+              "frames",
+              "judged",
+              "median",
+              "over_twice",
+              "quartile_spread",
+              "segment_kind",
+              "share_pct"
+            ]
+          }
         }
       },
       "required": [
@@ -655,6 +707,7 @@
         "finished",
         "generated_frames",
         "name",
+        "noise",
         "path",
         "rows_dropped",
         "run_id",

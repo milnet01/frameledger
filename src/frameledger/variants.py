@@ -80,7 +80,9 @@ def against_base(base: list[str], variants: dict[str, list[str]], overrides: dic
     # What is about the base alone, said once. Every variant's compare
     # repeats these, word for word, since it names the base runs the same way.
     base_named = compare.named_set("old", BASE, base_runs)
-    base_notices = compare.run_notices(base_named) + compare.mixed_build_notices(base_named, BASE)
+    base_notices = (compare.run_notices(base_named)
+                    + compare.noisy_notices(base_named, [compare.noise_of(run) for run in base_runs])
+                    + compare.mixed_build_notices(base_named, BASE))
 
     judged_all = [_judge(name, base_runs, paths, overrides, floors, limits, named_measures, unread_is_unjudged,
                          baseline, all_frames)
