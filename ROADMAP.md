@@ -1755,7 +1755,7 @@ format, the JSON output and the commands.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0072] **compare warns on a run whose own frame times scatter.**
+- 🚧 [FLED-0072] **compare warns on a run whose own frame times scatter.**
   FLED-0053's held half. Proposed 2026-11-13: `noisy_run`, per run, when
   (75th - 25th percentile) / median of frame/wall is above a limit, over
   segment kinds with at least 100 frames. The three engines agreed the
@@ -1943,6 +1943,15 @@ format, the JSON output and the commands.
   not judged and the result names it as unjudged; the quartile spread is
   reported and not judged. Next: amend FLED-0001 § 4.9 or § 4.10, then
   build.
+  2026-11-21: built at 3767989, with FLED-0001 § 4.10 amended and
+  INV-132 added (docs/specs/FLED-0001-run-file-format.md). Proposed
+  beyond the decision, for the engines to confirm: the values are those
+  the kind's frame/wall median is taken over; each run's JSON gains
+  `noise`, where an unjudged kind is named with `judged` false, and
+  plain text names none; each warning has its own sentence; a base run
+  is named once under variants; bisect does not warn it. Sent to
+  Vestige, UT Ants and DOOM Ants for review, readability included, and
+  to ExperiRays cold.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
