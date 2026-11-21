@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=82 -->
+<!-- ants-roadmap-id-high-water: FLED=83 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -1952,6 +1952,34 @@ format, the JSON output and the commands.
   is named once under variants; bisect does not warn it. Sent to
   Vestige, UT Ants and DOOM Ants for review, readability included, and
   to ExperiRays cold.
+  2026-11-21, DOOM Ants' review of 3767989: yes to A to E. Findings,
+  all to be fixed: (1) a long run can warn "2.00% ... above 2%", since
+  the test is in whole numbers and the share is printed to two places
+  (2001 of 100000), so the message will give the count too, with an
+  INV-132 case; (2) a judged kind with a median of 0 warns on any value
+  above 0, so such a kind will be unjudged; (3) "unsegmented segments"
+  reads badly, but it is kind_name's wording, shared with outlier_run,
+  so it will be a separate item. It asks for noise_of's second walk
+  over each run to be timed once on the S19 million-row file, on a
+  quiet machine. It has no fled72/ files, so there is no real-run check.
+  Owed: Vestige's, UT Ants' and ExperiRays' answers.
+  2026-11-21, UT Ants' review of 3767989 (read, not run): yes to A to
+  E, no correctness defect, JSON enough for B, and go ahead with 0.8.0.
+  Gaps, all to be fixed: no test with generated frames; no test with two
+  segments of one kind; the quartile example sits on a rank boundary,
+  so it moves off it and INV-132 says nearest-rank; the "2.00% above 2%"
+  message, as DOOM Ants found (401 of 20001); a median of 0, as DOOM
+  Ants found; "unsegmented segments", the separate kind_name item; the
+  share computed twice, so the message will print share_pct. Owed:
+  Vestige's and ExperiRays' answers.
+  2026-11-21, ExperiRays' cold review of 3767989: the code meets
+  § 4.10 and INV-132 on every edge. Two tests fell short of their claim,
+  the quartile example and the unpinned verdict; both are fixed. Seven
+  readability points, the message and median-0 findings shared with the
+  engines. All are folded in the fix commit, except "unsegmented" (the
+  kind_name item). The median-0 finding cannot happen: § 4.4 refuses a
+  frame/wall at or below zero. Owed: Vestige's review of 3767989, and
+  all four reviewers' reading of the fix commit.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
@@ -2063,6 +2091,18 @@ frameledger, wire it into their engine and get help.
   **Layman:** Tests frameledger on the newest Python as well as the oldest one it supports, since that is what its users run.
   Kind: test.
   Source: engine-review-FLED-0042-2026-11-20.
+
+- 💭 [FLED-0083] **Frames with no segment read better than "unsegmented segments".**
+  From the FLED-0072 reviews of 3767989 (DOOM Ants, UT Ants,
+  ExperiRays): a kind of None prints "in unsegmented segments".
+  run_report.kind_name gives "unsegmented", and noisy_run, outlier_run
+  and the frame-time sentences all put "segments" after it. A fix
+  belongs in all of them at once, e.g. "in frames with no segment", so
+  they stay alike. Text output only: JSON's segment_kind stays null.
+  Needs the three engines' agreement, since scripts may match the text.
+  **Layman:** A message about frames that belong to no named part of a run says so in plain words.
+  Kind: ux.
+  Source: review-FLED-0072-2026-11-21.
 
 ## 1.0.0 — fully working
 

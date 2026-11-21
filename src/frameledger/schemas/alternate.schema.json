@@ -678,11 +678,8 @@
                 "description": "over_twice over frames, in percent to two places."
               },
               "quartile_spread": {
-                "type": [
-                  "number",
-                  "null"
-                ],
-                "description": "The 75th percentile less the 25th, over the median, to three places; reported and not judged. Null when the median is 0."
+                "type": "number",
+                "description": "The 75th percentile less the 25th, over the median, nearest rank, to three places; reported and not judged."
               },
               "judged": {
                 "type": "boolean",

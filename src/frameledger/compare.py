@@ -39,7 +39,8 @@ FRAME_MEASURES = (("cpu_span", "median"), ("gpu_span", "median"), ("wall", "medi
 P99_NEEDS_FRAMES = 1000
 # § 4.10's noisy_run: a kind with at least NOISY_FRAMES frame/wall values
 # warns when more than NOISY_SHARE_PCT percent of them are over twice their
-# median (FLED-0072). Under 1000, 2 percent is too few frames to judge on.
+# median (FLED-0072). Under NOISY_FRAMES values, 2 percent is fewer than 20
+# frames, too few to judge on.
 NOISY_FRAMES = 1000
 NOISY_SHARE_PCT = 2
 CATEGORY_ORDER = {"frame": 0, "cpu": 1, "gpu": 2, "mem": 3}
@@ -197,8 +198,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     summary += said
     refused, unused = refusals(runs, overrides)
     notices = unused_override_notices(unused)
-    noise = [noise_of(r.run) for r in runs]
-    run_list = [{**run_entry(r, limits), "noise": kinds} for r, kinds in zip(runs, noise, strict=True)]
+    noise = [(r, noise_of(r.run)) for r in runs]
+    run_list = [{**run_entry(r, limits), "noise": kinds} for r, kinds in noise]
     if refused:
         summary += [refusal_sentence(refused), *run_report.warning_sentences(notices)]
         return {"verdict": "error", "reason": refusal_reason(refused), "summary": summary,
@@ -210,7 +211,7 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     loaded = load_sentences(runs, limits)
     asked, suffixed = asked_statistics(named_measures), p99_by_suffix(named_measures)
     measures, unmatched, absent, outliers = _judge_all(runs, floors, called, named_measures, asked, suffixed)
-    notices += run_notices(runs) + noisy_notices(runs, noise) + _set_notices(runs, called, baseline) + outliers
+    notices += run_notices(runs) + noisy_notices(noise) + _set_notices(runs, called, baseline) + outliers
     shown = [n for n in notices if n.code not in INCOMPLETE_CODES]
     summary += incomplete + loaded + run_report.warning_sentences(shown)
 
@@ -426,7 +427,9 @@ def run_notices(runs: list[Named]) -> list[ledger.Notice]:
 def noise_of(run: ledger.Run) -> list[dict]:
     """§ 4.10's `noise` entries for one run: per segment kind, in kind
     order, how its frame/wall values scatter about their median. The
-    values are those the kind's frame/wall median is taken over."""
+    values are those the kind's frame/wall median is taken over, in
+    thousandths of a ms; each is above zero (§ 4.4), so the median is
+    too."""
     costs = run_report.Costs(run)
     entries = []
     for kind in sorted((k for k, name in costs.frame_values if name == "wall"), key=run_report.kind_order):
@@ -435,26 +438,29 @@ def noise_of(run: ledger.Run) -> list[dict]:
         over = sum(value > 2 * median for value in walls)
         entries.append({"segment_kind": kind, "frames": len(walls), "median": median / 1000,
                         "over_twice": over, "share_pct": round(over * 100 / len(walls), 2),
-                        "quartile_spread": round((p75 - p25) / median, 3) if median else None,
+                        "quartile_spread": round((p75 - p25) / median, 3),
                         "judged": len(walls) >= NOISY_FRAMES})
     return entries
 
 
-def noisy_notices(runs: list[Named], noise: list[list[dict]]) -> list[ledger.Notice]:
+def noisy_notices(noise: list[tuple[Named, list[dict]]]) -> list[ledger.Notice]:
     """A `noisy_run` warning for each judged kind of each run where more
     than NOISY_SHARE_PCT percent of the frame/wall values are over twice
-    their median. `noise` is noise_of() of each run, in order."""
+    their median. `noise` pairs each run with its noise_of()."""
     found = []
-    for r, kinds in zip(runs, noise, strict=True):
+    for r, kinds in noise:
         for entry in kinds:
-            # In whole numbers, so exactly the limit never warns.
+            # Judged on the counts in whole numbers: a share in floating
+            # point can land a hair either side of the limit. The message
+            # gives the counts too, since the share is rounded and a run
+            # just over the limit shows 2.00%.
             if entry["judged"] and entry["over_twice"] * 100 > NOISY_SHARE_PCT * entry["frames"]:
                 found.append(ledger.Notice(
                     "noisy_run",
-                    f"{r.name}: {entry['over_twice'] * 100 / entry['frames']:.2f}% of its frame/wall values in "
-                    f"{run_report.kind_name(entry['segment_kind'])} segments are over twice their median of "
-                    f"{entry['median']:.3f} ms, above {NOISY_SHARE_PCT}%, so something else may have slowed "
-                    "the run; re-run it"))
+                    f"{r.name}: {entry['over_twice']} of its {entry['frames']} frame/wall values in "
+                    f"{run_report.kind_name(entry['segment_kind'])} segments, {entry['share_pct']:.2f}%, are "
+                    f"over twice their median of {entry['median']:.3f} ms, where more than "
+                    f"{NOISY_SHARE_PCT}% warns; something else may have slowed the run, so re-run it"))
     return found
 
 
