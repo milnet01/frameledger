@@ -1,0 +1,360 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger report --json",
+  "description": "The result of `frameledger report FILE --json`: where one run's frame time went. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "report",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/report_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/report_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "passes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "type": "string",
+                "description": "The row's category: cpu or gpu."
+              },
+              "name": {
+                "type": "string",
+                "description": "The row's name, as the engine wrote it."
+              },
+              "segment_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment's kind, the part of a segment name before its colon; an engine chooses its kinds, such as view or spot. Null for frames with no segment."
+              },
+              "depth": {
+                "type": "integer",
+                "description": "The row's nesting depth; 0 is the top level."
+              },
+              "median_ms": {
+                "type": "number",
+                "description": "The median over the frames it appears in, in ms."
+              },
+              "p99_ms": {
+                "type": "number",
+                "description": "The 99th percentile over the frames it appears in, in ms."
+              },
+              "share": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Its total time over its span's total time, to four places; null when the span's total is 0."
+              },
+              "frames": {
+                "type": "integer",
+                "description": "The frames it appears in."
+              }
+            },
+            "required": [
+              "category",
+              "depth",
+              "frames",
+              "median_ms",
+              "name",
+              "p99_ms",
+              "segment_kind",
+              "share"
+            ],
+            "description": "One pass."
+          },
+          "description": "The cpu and gpu rows of every depth, per segment kind, with cpu_remainder and gpu_remainder as depth-0 entries; most total time first within a kind and category."
+        },
+        "frame_times": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The frame row's name, such as wall."
+              },
+              "segment_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment's kind, the part of a segment name before its colon; an engine chooses its kinds, such as view or spot. Null for frames with no segment."
+              },
+              "median_ms": {
+                "type": "number",
+                "description": "The median, in ms."
+              },
+              "p99_ms": {
+                "type": "number",
+                "description": "The 99th percentile, in ms."
+              },
+              "frames": {
+                "type": "integer",
+                "description": "The frames that have the row."
+              }
+            },
+            "required": [
+              "frames",
+              "median_ms",
+              "name",
+              "p99_ms",
+              "segment_kind"
+            ],
+            "description": "One frame measure in one segment kind."
+          },
+          "description": "Each frame row name, per segment kind."
+        },
+        "pacing": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "segment_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment's kind, the part of a segment name before its colon; an engine chooses its kinds, such as view or spot. Null for frames with no segment."
+              },
+              "median_ms": {
+                "type": "number",
+                "description": "The median change, in ms."
+              },
+              "p99_ms": {
+                "type": "number",
+                "description": "The 99th percentile change, in ms."
+              },
+              "pairs": {
+                "type": "integer",
+                "description": "The pairs of neighbouring frames counted."
+              }
+            },
+            "required": [
+              "median_ms",
+              "p99_ms",
+              "pairs",
+              "segment_kind"
+            ],
+            "description": "One segment kind's pacing."
+          },
+          "description": "The frame-to-frame change in frame/wall, per segment kind; a kind with no pair of neighbouring frames has no entry."
+        },
+        "bound_by": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "The share of frames that are CPU-bound, from 0 to 1; null when it does not apply, and when no frame has both spans."
+            },
+            "gpu": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "description": "The share of frames that are GPU-bound, from 0 to 1; null when it does not apply, and when no frame has both spans."
+            },
+            "applies": {
+              "type": "boolean",
+              "description": "False when the header's pipelined is false or unknown."
+            }
+          },
+          "required": [
+            "applies",
+            "cpu",
+            "gpu"
+          ],
+          "description": "Which side bounds the frame, over frames with both spans."
+        },
+        "worst_frames": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "frame": {
+                "type": "integer",
+                "description": "The frame's number."
+              },
+              "segment": {
+                "type": "string",
+                "description": "The frame's segment."
+              },
+              "wall_ms": {
+                "type": "number",
+                "description": "The frame's frame/wall, in ms."
+              },
+              "top_pass": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "category/name of the frame's largest depth-0 cpu or gpu cost, a remainder included; null when the frame has none, as in an imported run."
+              }
+            },
+            "required": [
+              "frame",
+              "segment",
+              "top_pass",
+              "wall_ms"
+            ],
+            "description": "One frame."
+          },
+          "description": "Up to 10 frames with the longest frame/wall, longest first."
+        },
+        "missing_gpu_frames": {
+          "type": "integer",
+          "description": "The frames with no frame/gpu_span."
+        },
+        "static": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "description": "Any JSON value: it is the engine's own."
+          },
+          "description": "The static line exactly as the engine wrote it, or null when the run has none. Any JSON object."
+        },
+        "generated_frames": {
+          "type": "integer",
+          "description": "How many of the run's frames a frame generator made."
+        },
+        "all_frames": {
+          "type": "boolean",
+          "description": "Whether --all-frames counted those frames."
+        }
+      },
+      "description": "The report. With the verdict error, a file could not be read or breaks its format, and result holds no key."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "enum": [
+              "none"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "all_frames",
+              "bound_by",
+              "frame_times",
+              "generated_frames",
+              "missing_gpu_frames",
+              "pacing",
+              "passes",
+              "static",
+              "worst_frames"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "report_verdict": {
+      "enum": [
+        "none",
+        "error"
+      ],
+      "description": "The verdict of report: none, since a report judges nothing, or error when the file could not be read or breaks the format. A closed set."
+    },
+    "report_exit_code": {
+      "enum": [
+        0,
+        3
+      ],
+      "description": "The exit codes the result of report can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    }
+  }
+}

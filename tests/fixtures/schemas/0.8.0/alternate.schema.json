@@ -1,0 +1,1032 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger alternate --json",
+  "description": "The result of `frameledger alternate --json`: the engine's commands run in turn, then compared as `compare` compares. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "alternate",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/alternate_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/alternate_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/run"
+          },
+          "description": "The runs compared, the old set and then the new."
+        },
+        "min_ms": {
+          "type": "number",
+          "description": "--min-ms: the smallest change in a time that counts, in ms."
+        },
+        "min_mb": {
+          "type": "number",
+          "description": "--min-mb: the smallest change in memory that counts, in MB."
+        },
+        "min_pct": {
+          "type": "number",
+          "description": "--min-pct: the smallest change that counts, in percent of the old centre."
+        },
+        "max_load": {
+          "type": "number",
+          "description": "--max-load: a run whose load peak is above this was taken under load."
+        },
+        "max_gpu_busy": {
+          "type": "number",
+          "description": "--max-gpu-busy: a run whose GPU-busy peak, in percent, is above this was taken under load."
+        },
+        "named_measures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "--measure's names in the order given, a suffix included; empty without the flag."
+        },
+        "measures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/measure",
+            "type": "object"
+          },
+          "description": "The measures judged, ranked by segment kind, then frame, cpu, gpu and mem, each by old centre, largest first."
+        },
+        "unmatched": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unmatched"
+          },
+          "description": "The measures only some runs have."
+        },
+        "static_diff": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/static_difference"
+          },
+          "description": "The static-line keys whose values differ between the runs."
+        },
+        "refused": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/refusal"
+          },
+          "description": "The blocking header fields that differ. Not empty only in a refused compare, which holds runs, refused and all_frames and no measures."
+        },
+        "all_frames": {
+          "type": "boolean",
+          "description": "Whether --all-frames counted the frames a frame generator made."
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The variant's name, from --variant."
+              },
+              "verdict": {
+                "$ref": "#/$defs/entry_verdict"
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Why the variant is inconclusive or unjudged; null otherwise."
+              },
+              "rank": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Its place by the rank measure, from 1; null when it is not ranked."
+              },
+              "measure": {
+                "$ref": "#/$defs/measure",
+                "description": "Its entry for the rank measure, or null."
+              },
+              "compare": {
+                "$ref": "#/$defs/comparison",
+                "description": "The compare of the base's runs with the variant's; null when the variant is unjudged for a file that could not be read."
+              }
+            },
+            "required": [
+              "compare",
+              "measure",
+              "name",
+              "rank",
+              "reason",
+              "verdict"
+            ],
+            "description": "One variant, judged against the base."
+          },
+          "description": "Each variant: the ranked ones in rank order, then the others by name."
+        },
+        "rank_measure": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "segment_kind": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "The segment's kind, the part of a segment name before its colon; an engine chooses its kinds, such as view or spot. Null for frames with no segment."
+            },
+            "category": {
+              "type": "string",
+              "description": "The row's category. An open set: today frame, cpu, gpu or mem."
+            },
+            "name": {
+              "type": "string",
+              "description": "The row's name."
+            },
+            "depth": {
+              "type": "integer",
+              "description": "The row's nesting depth."
+            },
+            "statistic": {
+              "$ref": "#/$defs/statistic"
+            }
+          },
+          "required": [
+            "category",
+            "depth",
+            "name",
+            "segment_kind",
+            "statistic"
+          ],
+          "description": "The measure the variants are ranked by; null when no base run has it."
+        },
+        "judged": {
+          "type": "object",
+          "properties": {
+            "variants": {
+              "type": "integer",
+              "description": "The variants not unjudged."
+            },
+            "measures": {
+              "type": "integer",
+              "description": "The sum of the measures each of them judged."
+            }
+          },
+          "required": [
+            "measures",
+            "variants"
+          ],
+          "description": "Counts of what was judged."
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/override"
+          },
+          "description": "The --override flags given, as in the top-level overrides."
+        },
+        "commands": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The commands as given, placeholder and all, keyed by side: old and new, or base and each variant's name. With --baseline the side the baseline stands for is left out."
+        },
+        "out": {
+          "type": "string",
+          "description": "--out's directory, as an absolute path."
+        },
+        "warmup": {
+          "type": "integer",
+          "description": "--warmup: the untimed runs of each side before the timed ones."
+        },
+        "stopped": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "run": {
+              "type": "string",
+              "description": "The run's name, such as new-2."
+            },
+            "command": {
+              "type": "string",
+              "description": "Its command, filled in."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Why the run failed, in words."
+            },
+            "exit_code": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "Its command's exit code; null when the run failed some other way, such as writing no file, being killed by a signal or leaving processes running."
+            },
+            "finished": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The names of the runs that finished before it."
+            }
+          },
+          "required": [
+            "command",
+            "exit_code",
+            "finished",
+            "reason",
+            "run"
+          ],
+          "description": "Null when every run finished; otherwise the run that failed, and nothing is compared."
+        },
+        "baseline": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The baseline file the old or base runs came from, or null without --baseline."
+        }
+      },
+      "required": [
+        "baseline",
+        "commands",
+        "out",
+        "stopped",
+        "warmup"
+      ],
+      "description": "commands, out, warmup, stopped and baseline, always; with them, the keys of one of compare's shapes. measures: a plain compare. variants: --base with --variant. refused with no measures: the runs differ in a blocking field. named_measures with none of those: a --measure name is in no run. None of them: a run failed, when stopped is not null, or a file could not be read. The keys that tell the shapes apart are kept to their shapes: a release that adds one to another shape makes a breaking change."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "required": [
+              "measures"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "all_frames",
+              "baseline",
+              "max_gpu_busy",
+              "max_load",
+              "measures",
+              "min_mb",
+              "min_ms",
+              "min_pct",
+              "named_measures",
+              "refused",
+              "runs",
+              "static_diff",
+              "unmatched"
+            ]
+          },
+          "verdict": {
+            "enum": [
+              "pass",
+              "fail",
+              "inconclusive"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "required": [
+              "variants"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "all_frames",
+              "baseline",
+              "judged",
+              "max_gpu_busy",
+              "max_load",
+              "min_mb",
+              "min_ms",
+              "min_pct",
+              "named_measures",
+              "overrides",
+              "rank_measure",
+              "variants"
+            ],
+            "properties": {
+              "judged": {
+                "required": [
+                  "measures",
+                  "variants"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "result": {
+                "required": [
+                  "refused"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "result": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "measures"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "all_frames",
+              "baseline",
+              "refused",
+              "runs"
+            ]
+          },
+          "verdict": {
+            "const": "error"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "allOf": [
+          {
+            "properties": {
+              "result": {
+                "required": [
+                  "named_measures"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "result": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "measures"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "variants"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "baseline",
+              "named_measures"
+            ]
+          },
+          "verdict": {
+            "const": "error"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "result": {
+            "properties": {
+              "stopped": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "stopped"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "const": "error"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "alternate_verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive",
+        "error"
+      ],
+      "description": "The verdict of alternate: pass, fail, inconclusive, or error: a file could not be read, the runs were refused, a --measure name is in no run, or no scene or variant could be judged, or a run failed. A closed set."
+    },
+    "alternate_exit_code": {
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "description": "The exit codes the result of alternate can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    },
+    "statistic": {
+      "enum": [
+        "median",
+        "p99"
+      ],
+      "description": "How a run's frames become one value: the median or the 99th percentile, nearest-rank. A closed set."
+    },
+    "set": {
+      "enum": [
+        "old",
+        "new"
+      ],
+      "description": "Which labelled set a run belongs to. A closed set."
+    },
+    "measure_verdict": {
+      "enum": [
+        "slower",
+        "faster",
+        "larger",
+        "smaller",
+        "noisy",
+        "unchanged",
+        "too_few"
+      ],
+      "description": "What became of one measure: slower or faster for a time, larger or smaller for memory, noisy when the runs disagree too much to say, unchanged, or too_few when a run has too few frames for a 99th percentile. A closed set."
+    },
+    "entry_verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive",
+        "unjudged"
+      ],
+      "description": "The verdict on one scene or variant; unjudged when it could not be compared. A closed set."
+    },
+    "run": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The run's name in this result: its set and its place in it, such as old-1."
+        },
+        "set": {
+          "$ref": "#/$defs/set"
+        },
+        "path": {
+          "type": "string",
+          "description": "The file's path as given."
+        },
+        "run_id": {
+          "type": "string",
+          "description": "The header's run_id."
+        },
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The header's commit; null when the engine wrote it as unknown."
+        },
+        "dirty": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "The header's dirty; null when the engine wrote it as unknown."
+        },
+        "started_utc": {
+          "type": "string",
+          "description": "The header's started_utc: when the run started, in UTC."
+        },
+        "rows_dropped": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "The close line's count of rows the writer dropped; null when the run has no close line."
+        },
+        "finished": {
+          "type": "boolean",
+          "description": "Whether the run has a close line."
+        },
+        "under_load": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The name of each machine-load peak above its limit, load.peak then gpu_busy_pct.peak; empty for a run not taken under load."
+        },
+        "generated_frames": {
+          "type": "integer",
+          "description": "How many of the run's frames a frame generator made."
+        },
+        "noise": {
+          "type": "array",
+          "description": "One entry per segment kind holding a frame/wall, in kind order, as the noisy_run warning judges the run (FLED-0072).",
+          "items": {
+            "type": "object",
+            "properties": {
+              "segment_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment kind; null for frames with no segment."
+              },
+              "frames": {
+                "type": "integer",
+                "description": "How many frame/wall values the kind holds."
+              },
+              "median": {
+                "type": "number",
+                "description": "Their median, in ms."
+              },
+              "over_twice": {
+                "type": "integer",
+                "description": "How many of them are over twice the median."
+              },
+              "share_pct": {
+                "type": "number",
+                "description": "over_twice over frames, in percent to two places; for display, since noisy_run decides on the counts (warns)."
+              },
+              "quartile_spread": {
+                "type": "number",
+                "description": "The 75th percentile less the 25th, over the median, nearest rank, to three places; reported and not judged."
+              },
+              "judged": {
+                "type": "boolean",
+                "description": "Whether noisy_run judged the kind: false under 1000 frames."
+              },
+              "warns": {
+                "type": "boolean",
+                "description": "Whether noisy_run warns on the kind: judged, and more than 2 percent of frames over twice the median, by the counts."
+              }
+            },
+            "required": [
+              "frames",
+              "judged",
+              "median",
+              "over_twice",
+              "quartile_spread",
+              "segment_kind",
+              "share_pct",
+              "warns"
+            ]
+          }
+        }
+      },
+      "required": [
+        "commit",
+        "dirty",
+        "finished",
+        "generated_frames",
+        "name",
+        "noise",
+        "path",
+        "rows_dropped",
+        "run_id",
+        "set",
+        "started_utc",
+        "under_load"
+      ],
+      "description": "One run file that was compared."
+    },
+    "refusal": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field."
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "description": "Any JSON value: it is the engine's own."
+          },
+          "description": "Each run's value of the field, keyed by run name."
+        }
+      },
+      "required": [
+        "field",
+        "values"
+      ],
+      "description": "One blocking header field whose values differ between the runs."
+    },
+    "measure": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "segment_kind": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The segment's kind, the part of a segment name before its colon; an engine chooses its kinds, such as view or spot. Null for frames with no segment."
+        },
+        "category": {
+          "type": "string",
+          "description": "The row's category. An open set: today frame, cpu, gpu or mem."
+        },
+        "name": {
+          "type": "string",
+          "description": "The row's name, as the engine wrote it."
+        },
+        "depth": {
+          "type": "integer",
+          "description": "The row's nesting depth; 0 is the top level."
+        },
+        "statistic": {
+          "$ref": "#/$defs/statistic"
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of the measure's values. An open set that follows from category: today ms, or MB for mem."
+        },
+        "old": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Each old run's value, in run order."
+        },
+        "new": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Each new run's value, in run order."
+        },
+        "old_frames": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Each old run's count of frames holding the measure, in run order."
+        },
+        "new_frames": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Each new run's count of frames holding the measure, in run order."
+        },
+        "old_centre": {
+          "type": "number",
+          "description": "The centre of the old runs' values."
+        },
+        "new_centre": {
+          "type": "number",
+          "description": "The centre of the new runs' values."
+        },
+        "change": {
+          "type": "number",
+          "description": "The new centre less the old centre."
+        },
+        "change_pct": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "The change over the old centre, in percent to two places; null when the old centre is 0."
+        },
+        "spread": {
+          "type": "number",
+          "description": "How far the runs of a set disagree; the change is judged against it."
+        },
+        "floor": {
+          "type": "number",
+          "description": "The smallest change that counts for this measure, from the --min flags."
+        },
+        "verdict": {
+          "$ref": "#/$defs/measure_verdict"
+        },
+        "suffixed": {
+          "type": "boolean",
+          "description": "True when a --measure flag named this measure's statistic with a suffix."
+        }
+      },
+      "required": [
+        "category",
+        "change",
+        "change_pct",
+        "depth",
+        "floor",
+        "name",
+        "new",
+        "new_centre",
+        "new_frames",
+        "old",
+        "old_centre",
+        "old_frames",
+        "segment_kind",
+        "spread",
+        "statistic",
+        "suffixed",
+        "unit",
+        "verdict"
+      ],
+      "description": "One measure, judged between the two sets. Null where a result has no measure to give."
+    },
+    "unmatched": {
+      "type": "object",
+      "properties": {
+        "segment_kind": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The segment's kind, the part of a segment name before its colon; an engine chooses its kinds, such as view or spot. Null for frames with no segment."
+        },
+        "category": {
+          "type": "string",
+          "description": "The row's category. An open set: today frame, cpu, gpu or mem."
+        },
+        "name": {
+          "type": "string",
+          "description": "The row's name, as the engine wrote it."
+        },
+        "depth": {
+          "type": "integer",
+          "description": "The row's nesting depth; 0 is the top level."
+        },
+        "statistic": {
+          "$ref": "#/$defs/statistic"
+        },
+        "unit": {
+          "type": "string",
+          "description": "The unit of the measure's values. An open set that follows from category: today ms, or MB for mem."
+        },
+        "present_in": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The names of the runs that have it."
+        }
+      },
+      "required": [
+        "category",
+        "depth",
+        "name",
+        "present_in",
+        "segment_kind",
+        "statistic",
+        "unit"
+      ],
+      "description": "One measure that only some runs have, so it is not judged."
+    },
+    "static_difference": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "The key."
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "description": "Any JSON value: it is the engine's own."
+          },
+          "description": "Each run's value for the key, keyed by run name."
+        }
+      },
+      "required": [
+        "key",
+        "values"
+      ],
+      "description": "One key of the static line whose value differs between the runs."
+    },
+    "comparison": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "runs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/run"
+          },
+          "description": "The runs compared, the old set and then the new."
+        },
+        "min_ms": {
+          "type": "number",
+          "description": "--min-ms: the smallest change in a time that counts, in ms."
+        },
+        "min_mb": {
+          "type": "number",
+          "description": "--min-mb: the smallest change in memory that counts, in MB."
+        },
+        "min_pct": {
+          "type": "number",
+          "description": "--min-pct: the smallest change that counts, in percent of the old centre."
+        },
+        "max_load": {
+          "type": "number",
+          "description": "--max-load: a run whose load peak is above this was taken under load."
+        },
+        "max_gpu_busy": {
+          "type": "number",
+          "description": "--max-gpu-busy: a run whose GPU-busy peak, in percent, is above this was taken under load."
+        },
+        "named_measures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "--measure's names in the order given, a suffix included; empty without the flag."
+        },
+        "measures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/measure",
+            "type": "object"
+          },
+          "description": "The measures judged, ranked by segment kind, then frame, cpu, gpu and mem, each by old centre, largest first."
+        },
+        "unmatched": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unmatched"
+          },
+          "description": "The measures only some runs have."
+        },
+        "static_diff": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/static_difference"
+          },
+          "description": "The static-line keys whose values differ between the runs."
+        },
+        "refused": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/refusal"
+          },
+          "description": "The blocking header fields that differ. Not empty only in a refused compare, which holds runs, refused and all_frames and no measures."
+        },
+        "all_frames": {
+          "type": "boolean",
+          "description": "Whether --all-frames counted the frames a frame generator made."
+        }
+      },
+      "required": [
+        "all_frames",
+        "refused",
+        "runs"
+      ],
+      "if": {
+        "required": [
+          "measures"
+        ]
+      },
+      "then": {
+        "required": [
+          "all_frames",
+          "max_gpu_busy",
+          "max_load",
+          "measures",
+          "min_mb",
+          "min_ms",
+          "min_pct",
+          "named_measures",
+          "refused",
+          "runs",
+          "static_diff",
+          "unmatched"
+        ]
+      },
+      "description": "The result of comparing one old set with one new set. Null where a scene could not be compared. A refused one holds only runs, refused and all_frames; any other holds every key."
+    }
+  }
+}

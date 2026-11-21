@@ -12,7 +12,19 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-21
+
+**Theme:** Stable promises.
+
 ### Added
+
+- The release archive, `frameledger-v0.8.0.zip`: `frameledger.pyz`, its
+  launchers `frameledger` and `frameledger.cmd`, `include/frameledger.h`,
+  `LICENSE`, and the result schemas under `schemas/`. SHA256
+  `3b7a03a350604cfef5e0d1339b00e88ed8fac72eac601237d005a8f264336228`.
+  `python3 -I scripts/build_release.py OUTDIR v0.8.0`, run on the tag,
+  rebuilds it; the release workflow does so under Python 3.10.22.
+  `include/frameledger.h` is 0.7.0's, with only `FLED_VERSION` changed.
 
 - The format stability promise,
   `docs/specs/FLED-0040-format-stability-promise.md`: a run, budget or

@@ -1,0 +1,450 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger bisect --json",
+  "description": "The result of `frameledger bisect --json`: one commit judged for `git bisect run`. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "bisect",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/bisect_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/bisect_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "measure": {
+          "type": "object",
+          "properties": {
+            "segment_kind": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "--segment's kind, or --kind's; null for --unsegmented."
+            },
+            "segment": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "The --segment given, or null."
+            },
+            "category": {
+              "type": "string",
+              "description": "The row's category. An open set: today frame, cpu, gpu or mem."
+            },
+            "name": {
+              "type": "string",
+              "description": "The row's name."
+            },
+            "depth": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "--depth's value; null without the flag."
+            },
+            "statistic": {
+              "$ref": "#/$defs/statistic"
+            },
+            "unit": {
+              "type": "string",
+              "description": "The unit of the measure's values. An open set that follows from category: today ms, or MB for mem."
+            }
+          },
+          "required": [
+            "category",
+            "depth",
+            "name",
+            "segment",
+            "segment_kind",
+            "statistic",
+            "unit"
+          ],
+          "description": "The measure the commit is judged by."
+        },
+        "dry_run": {
+          "type": "boolean",
+          "description": "True under --dry-run, which judges a given value and reads no tested run."
+        },
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The run's name in this result: its set and its place in it, such as tested-1."
+              },
+              "set": {
+                "$ref": "#/$defs/bisect_set"
+              },
+              "path": {
+                "type": "string",
+                "description": "The file's path as given."
+              },
+              "run_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The header's run_id; null in a short entry."
+              },
+              "commit": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The header's commit; null when unknown, and in a short entry."
+              },
+              "dirty": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "The header's dirty; null when unknown, and in a short entry."
+              },
+              "started_utc": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The header's started_utc; null in a short entry."
+              },
+              "rows_dropped": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "The close line's count of rows the writer dropped; null when the run has no close line, and in a short entry."
+              },
+              "finished": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "Whether the run has a close line; null in a short entry."
+              },
+              "under_load": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                },
+                "description": "The name of each machine-load peak above its limit, empty for a run not taken under load; null in a short entry."
+              },
+              "generated_frames": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "How many of the run's frames a frame generator made; null in a short entry."
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "The run's value of the measure; null when it has none."
+              }
+            },
+            "required": [
+              "commit",
+              "dirty",
+              "finished",
+              "generated_frames",
+              "name",
+              "path",
+              "rows_dropped",
+              "run_id",
+              "set",
+              "started_utc",
+              "under_load",
+              "value"
+            ],
+            "description": "One run."
+          },
+          "description": "Every run named: the good and bad references, then the tested. A run that could not be read, or that breaks the format, has a short entry: its name, set and path, and null for the rest."
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "The tested value, or the dry run's; null when the verdict is skip or stop."
+        },
+        "bad_above": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "The line a value above which is bad: --bad-above's, or the midpoint of the references; null when it was not settled."
+        },
+        "references": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "good_centre": {
+              "type": "number",
+              "description": "The centre of the good runs' values."
+            },
+            "bad_centre": {
+              "type": "number",
+              "description": "The centre of the bad runs' values."
+            },
+            "spread": {
+              "type": "number",
+              "description": "How far the reference runs of a set disagree."
+            },
+            "floor": {
+              "type": "number",
+              "description": "The smallest gap between good and bad that counts."
+            }
+          },
+          "required": [
+            "bad_centre",
+            "floor",
+            "good_centre",
+            "spread"
+          ],
+          "description": "The reference runs' figures; null in threshold mode, and when they were not settled."
+        },
+        "refused": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/refusal"
+          },
+          "description": "The blocking header fields that differ between the runs; not empty only when that stopped the bisect."
+        },
+        "skip_reason": {
+          "$ref": "#/$defs/skip_reason"
+        },
+        "all_frames": {
+          "type": "boolean",
+          "description": "Whether --all-frames counted the frames a frame generator made."
+        }
+      },
+      "required": [
+        "all_frames",
+        "bad_above",
+        "dry_run",
+        "measure",
+        "references",
+        "refused",
+        "runs",
+        "skip_reason",
+        "value"
+      ],
+      "description": "The judgement. Every key is always written."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "enum": [
+              "good",
+              "bad"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "skip_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "result": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "enum": [
+              "stop"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "properties": {
+              "skip_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "bisect_verdict": {
+      "enum": [
+        "good",
+        "bad",
+        "skip",
+        "stop"
+      ],
+      "description": "The verdict of bisect: good or bad for the commit, skip when it cannot be judged, stop when the bisect cannot go on. A closed set."
+    },
+    "bisect_exit_code": {
+      "enum": [
+        0,
+        1,
+        125,
+        128
+      ],
+      "description": "The exit codes the result of bisect can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    },
+    "statistic": {
+      "enum": [
+        "median",
+        "p99"
+      ],
+      "description": "How a run's frames become one value: the median or the 99th percentile, nearest-rank. A closed set."
+    },
+    "bisect_set": {
+      "enum": [
+        "tested",
+        "good",
+        "bad"
+      ],
+      "description": "Which set a run belongs to. A closed set."
+    },
+    "skip_reason": {
+      "enum": [
+        "unreadable",
+        "incomplete",
+        "missing",
+        "short",
+        "depth",
+        "straddle",
+        null
+      ],
+      "description": "The first reason the commit cannot be judged; null unless the verdict is skip. A closed set."
+    },
+    "refusal": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field."
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "description": "Any JSON value: it is the engine's own."
+          },
+          "description": "Each run's value of the field, keyed by run name."
+        }
+      },
+      "required": [
+        "field",
+        "values"
+      ],
+      "description": "One blocking header field whose values differ between the runs."
+    }
+  }
+}
