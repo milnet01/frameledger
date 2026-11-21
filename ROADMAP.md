@@ -2018,6 +2018,9 @@ frameledger, wire it into their engine and get help.
   release.yml uploads it to PyPI by trusted publishing. Waiting on the
   engines' review, and on the owner registering the PyPI trusted
   publisher.
+  2026-11-21: UT Ants', Vestige's and ExperiRays' reviews folded in
+  641e9c5. DOOM Ants' review owed. The owner still has to register
+  PyPI's trusted publisher before the first final tag.
   **Layman:** Install it with one standard command.
   Kind: package.
   Source: engine-answers-2026-11-10.
