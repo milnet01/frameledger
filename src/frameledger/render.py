@@ -524,7 +524,10 @@ def _shared_directory(paths: list[str]) -> str:
     # first and last in sorted order differ soonest, so their shared start
     # is every path's. Python 3.15 deprecates os.path.commonprefix.
     first, last = min(paths), max(paths)
-    alike = next((first[:i] for i, (a, b) in enumerate(zip(first, last, strict=False)) if a != b), first)
+    n = 0
+    while n < min(len(first), len(last)) and first[n] == last[n]:
+        n += 1
+    alike = first[:n]
     end = max(alike.rfind("/"), alike.rfind("\\")) + 1
     shared = alike[:end]
     # A bare "/" opens every absolute path, and "./" says only "here": neither names anything.

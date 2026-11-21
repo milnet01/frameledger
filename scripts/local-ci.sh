@@ -42,7 +42,8 @@ UV_VERSION='0.13.5'
 PYTHON_VERSION='3.10.22'
 # The newest released Python, nearer than the floor to what the engines run
 # (FLED-0082). The test and selftest legs also run on it; lint, writer and
-# kit stay on the floor. Bump it when a newer Python is released.
+# kit stay on the floor. Nothing here notices a newer Python: the
+# check-dependencies sweep before a release reports this pin as behind.
 PYTHON_NEWEST_VERSION='3.15.1'
 PYTEST_VERSION='9.1.1'
 RUFF_VERSION='0.17.2'

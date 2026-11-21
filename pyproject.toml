@@ -10,8 +10,9 @@ testpaths = ["tests"]
 # tests do the same, so modules import each other by bare name.
 pythonpath = ["src/frameledger"]
 addopts = ["--strict-markers"]
-# A deprecation fails the run: the gate's newest-Python leg (FLED-0082)
-# then catches a call that a later Python will remove.
+# A deprecation fails the run, on the floor leg as well as the
+# newest-Python one (FLED-0082), so a call a later Python will remove is
+# caught. A floor failure may come from pytest itself, not frameledger.
 filterwarnings = ["error::DeprecationWarning"]
 
 [tool.ruff]
