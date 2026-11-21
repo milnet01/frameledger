@@ -38,6 +38,19 @@ The [roadmap](ROADMAP.md) lists what comes next.
 
 ## Install
 
+From 0.9.0, the analyser is also on PyPI. With Python 3.10 or newer,
+either line gives you a `frameledger` command:
+
+```sh
+pipx install frameledger
+python3 -m pip install --user frameledger
+```
+
+The package holds the analyser only. The writer header, and an archive
+with one hash to pin, are in the release zip below.
+
+### The release zip
+
 Download `frameledger-v<version>.zip` from the
 [releases page](https://github.com/milnet01/frameledger/releases), and
 check its SHA256 against the one in that release's notes. It holds:
@@ -60,7 +73,7 @@ use Python itself:
 python3 -m zipfile -e frameledger-v<version>.zip frameledger
 ```
 
-### Run it by name
+#### Run it by name
 
 Put the launcher on your PATH, and `frameledger report run.csv` works
 from any folder.

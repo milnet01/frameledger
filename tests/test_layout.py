@@ -6,7 +6,8 @@ import sys
 from pathlib import Path
 
 SRC = Path(__file__).parent.parent / "src" / "frameledger"
-MODULES = {p.stem for p in SRC.glob("*.py")} - {"__main__"}
+# The two entry points are run forms, not modules the others import.
+MODULES = {p.stem for p in SRC.glob("*.py")} - {"__main__", "__init__"}
 
 # Which analyser modules each may import. A module not listed may not
 # exist yet; the test fails until it is given a row.

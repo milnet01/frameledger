@@ -24,8 +24,9 @@ Four parts. The format spec is the only thing the other three share.
   built to it and to nothing else.
 - **The analyser** — reads run files and reports. A directory of
   modules, `src/frameledger/`, run as `python3 -I <path>/src/frameledger`
-  or as a single bundled `frameledger.pyz`. On Windows the command is
-  usually `python -I` or `py -I`. Both forms put
+  or as a single bundled `frameledger.pyz`, or installed by pip as the
+  `frameledger` command. On Windows the command is
+  usually `python -I` or `py -I`. All three forms put
   `src/frameledger` itself on the import path, so modules import each
   other by bare name (`import ledger`), never relatively or as
   `frameledger.ledger`. So no module may share a name with a standard
@@ -92,6 +93,8 @@ Four parts. The format spec is the only thing the other three share.
   - `picture.py` — turns one run and its result into the optional
     report page, its graph drawn as SVG from the run's timeline (S26).
   - `cli.py` and `__main__.py` — commands, flags and exit codes.
+  - `__init__.py` — the installed form only: puts its own folder on the
+    import path, and is the `frameledger` command's entry point.
   - `selftest.py` — `--selftest`: the analyser's own checks on built-in
     sample files, no GPU, no network.
 - **The writer** — `include/frameledger.h`, one optional header in the
@@ -249,7 +252,9 @@ tool, not by any one part.
   Linux and Windows give the hash in the notes, and its Windows
   launcher runs by name. A PyPI package with a `frameledger` command
   (FLED-0043), still standard library only, sits beside the archive
-  and does not replace it.
+  and does not replace it. `scripts/build_release.py` builds its wheel
+  from the files in the `.pyz`, reproducibly, with no build tool;
+  release.yml uploads it to PyPI after the GitHub release.
 - **Our tests: pytest, and `jsonschema`** to hold each JSON result to
   its schema with the validator a script's author would use
   (FLED-0041 § 4.8). Both are test-time tools only, pinned in

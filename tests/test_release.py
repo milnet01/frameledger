@@ -102,6 +102,57 @@ def test_the_pyz_runs_its_selftest(tmp_path):
                                                 *(f"schemas/{p.name}" for p in (analyser / "schemas").iterdir())])
 
 
+def wheel(outdir, tag):
+    """Build under `tag`; return the one wheel written."""
+    build(outdir, tag)
+    [found] = outdir.glob("*.whl")
+    return found
+
+
+def test_the_wheel_holds_the_pyz_files_under_frameledger(tmp_path):
+    """FLED-0043: what pip installs is what the .pyz runs, and the metadata pip needs."""
+    import cli
+    built = wheel(tmp_path, "v9.9.9")
+    assert built.name == f"frameledger-{cli.VERSION}-py3-none-any.whl"
+    info = f"frameledger-{cli.VERSION}.dist-info"
+    with zipfile.ZipFile(tmp_path / "frameledger.pyz") as pyz, zipfile.ZipFile(built) as whl:
+        assert whl.namelist() == sorted([*(f"frameledger/{name}" for name in pyz.namelist()),
+                                         *(f"{info}/{name}" for name in ("METADATA", "RECORD", "WHEEL",
+                                                                         "entry_points.txt", "licenses/LICENSE"))])
+        assert f"Version: {cli.VERSION}\n" in whl.read(f"{info}/METADATA").decode()
+        assert whl.read(f"{info}/entry_points.txt") == b"[console_scripts]\nframeledger = frameledger:main\n"
+
+
+def test_a_candidate_wheel_has_its_number_and_a_rebuild_is_the_same_bytes(tmp_path):
+    import cli
+    candidate = wheel(tmp_path / "rc", "v0.1.0-rc.2")
+    assert candidate.name == f"frameledger-{cli.VERSION}rc2-py3-none-any.whl"
+    assert wheel(tmp_path / "a", "v0.1.0").read_bytes() == wheel(tmp_path / "b", "v0.1.0").read_bytes()
+
+
+def test_pip_installs_the_wheel_as_a_frameledger_command(tmp_path):
+    """Installed by pip into a fresh environment, with no network: the command
+    runs by name and finds its kit and schemas, and `python -m frameledger`
+    runs too."""
+    import cli
+    built = wheel(tmp_path / "dist", "v9.9.9")
+    env = tmp_path / "env"
+    subprocess.run([sys.executable, "-m", "venv", str(env)], check=True)
+    bin_dir = env / ("Scripts" if sys.platform == "win32" else "bin")
+    python = bin_dir / "python"
+    subprocess.run([str(python), "-m", "pip", "install", "--quiet", "--no-index", "--no-deps", str(built)],
+                   check=True, capture_output=True)
+    version = subprocess.run([str(bin_dir / "frameledger"), "--version"], capture_output=True, text=True)
+    assert version.stdout == f"frameledger {cli.VERSION}\n", version.stderr
+    kit = subprocess.run([str(bin_dir / "frameledger"), "kit", str(tmp_path / "kit")], capture_output=True, text=True)
+    assert kit.returncode == 0, kit.stderr
+    assert (tmp_path / "kit" / "basic.csv").read_bytes() == (ROOT / "src/frameledger/kit/basic.csv").read_bytes()
+    schema = subprocess.run([str(bin_dir / "frameledger"), "schema", "check"], capture_output=True)
+    assert schema.stdout == (ROOT / "src/frameledger/schemas/check.schema.json").read_bytes(), schema.stderr
+    selftest = subprocess.run([str(python), "-I", "-m", "frameledger", "--selftest"], capture_output=True, text=True)
+    assert selftest.returncode == 0, selftest.stdout + selftest.stderr
+
+
 def test_only_the_linux_launcher_runs_and_the_windows_one_has_crlf(tmp_path):
     archive, _ = build(tmp_path, "v9.9.9")
     with zipfile.ZipFile(archive) as zf:

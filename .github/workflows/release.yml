@@ -1,6 +1,7 @@
 # Publishes a release when a version tag is pushed (docs/design.md § The
 # stack, and what it rules out): the archive scripts/build_release.py builds,
-# attached to a GitHub release whose notes are the tag's CHANGELOG section.
+# attached to a GitHub release whose notes are the tag's CHANGELOG section,
+# then the wheel it builds, on PyPI (FLED-0043).
 #
 # The archive is built three times, on Linux and Windows and again to
 # publish, and every build must give the SHA256 the CHANGELOG section states,
@@ -103,8 +104,12 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # PyPI's trusted publisher names this repository, release.yml and the
+    # environment pypi; id-token lets the job prove it is that publisher.
+    environment: pypi
     permissions:
       contents: write
+      id-token: write
     env:
       TAG: ${{ github.ref_name }}
       GH_TOKEN: ${{ github.token }}
@@ -133,3 +138,8 @@ jobs:
             cp "$archive" dist/frameledger.zip
             gh release create "$TAG" "$archive" dist/frameledger.zip --verify-tag --latest --title "$title" --notes-file dist/notes.md
           fi
+
+      # Last, because PyPI never takes a version twice: a failure before this
+      # leaves the version unused. The wheel is the one the step above built.
+      - name: Publish the wheel to PyPI
+        run: uv publish --trusted-publishing always dist/*.whl

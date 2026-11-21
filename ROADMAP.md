@@ -2010,10 +2010,14 @@ Someone who has never seen the three engines can install
 
 frameledger, wire it into their engine and get help.
 
-- 📋 [FLED-0043] **Install with pip or pipx.**
+- 🚧 [FLED-0043] **Install with pip or pipx.**
   A frameledger package on PyPI with a `frameledger` command,
   still standard library only. The release zip stays for engines that
   pin a hash.
+  Built 2026-11-21: scripts/build_release.py writes the wheel;
+  release.yml uploads it to PyPI by trusted publishing. Waiting on the
+  engines' review, and on the owner registering the PyPI trusted
+  publisher.
   **Layman:** Install it with one standard command.
   Kind: package.
   Source: engine-answers-2026-11-10.
