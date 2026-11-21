@@ -1755,7 +1755,7 @@ format, the JSON output and the commands.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0072] **compare warns on a run whose own frame times scatter.**
+- ✅ [FLED-0072] **compare warns on a run whose own frame times scatter.**
   FLED-0053's held half. Proposed 2026-11-13: `noisy_run`, per run, when
   (75th - 25th percentile) / median of frame/wall is above a limit, over
   segment kinds with at least 100 frames. The three engines agreed the
@@ -1980,6 +1980,26 @@ format, the JSON output and the commands.
   kind_name item). The median-0 finding cannot happen: § 4.4 refuses a
   frame/wall at or below zero. Owed: Vestige's review of 3767989, and
   all four reviewers' reading of the fix commit.
+  2026-11-21: ExperiRays accepts the fold at 72e130e and needs no
+  re-read. UT Ants confirms 72e130e: yes to the new wording, nothing
+  still wrong (it read the diff, did not run the suite). Owed: Vestige's
+  review, DOOM Ants' confirmation, and the S19 timing.
+  2026-11-21: DOOM Ants confirms 72e130e, nothing still wrong. Timed
+  the same day on a busy machine (load 10 to 36): compare over six
+  generated runs of 50000 frames, 1.2 million rows. In-process CPU
+  time: reading the files 11.2 to 12.0 s, compare() 4.6 s, noise_of
+  over the six 1.7 to 1.9 s, of which its second Costs walk is 1.5 to
+  1.6 s, so about a tenth of the command. Proposed to DOOM Ants: leave
+  it; sharing Costs would change run_values' signature. Owed: Vestige's
+  review, and DOOM Ants' answer on the timing.
+  2026-11-21, Vestige's review of 3767989 and 72e130e: yes to A to E
+  and to the new wording; it ran the tests and killed eight mutants.
+  Folded: `warns` in each noise entry, as share_pct is rounded; a test
+  that report and bisect give no noisy_run; a wrapped spec line. Kept:
+  "frame/wall values" in the message, as outlier_run's wording. DOOM
+  Ants decided to leave noise_of's second walk, to revisit only if
+  compare gets a speed bar. Shipped with all three engines' yes;
+  UT Ants and DOOM Ants are told of `warns`.
   **Layman:** When one test run was jumpy from frame to frame, frameledger says which one.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.

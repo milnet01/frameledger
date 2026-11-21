@@ -48,8 +48,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   its `frame/wall` values are over twice the kind's median. Something
   else, such as the desktop holding the GPU, likely slowed that run,
   so the message says to re-run it. Each run in `--json` gains
-  `noise`, one entry per segment kind with the share, the median and
-  the quartile spread; a shorter kind is listed with `judged` false.
+  `noise`, one entry per segment kind with the share, the median, the
+  quartile spread and `warns`; a shorter kind is listed with `judged`
+  false. A script reads `warns`, since the share is rounded.
   The warning changes no verdict and no exit code (FLED-0072).
 
 ### Changed

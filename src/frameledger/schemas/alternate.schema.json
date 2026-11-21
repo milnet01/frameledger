@@ -675,7 +675,7 @@
               },
               "share_pct": {
                 "type": "number",
-                "description": "over_twice over frames, in percent to two places."
+                "description": "over_twice over frames, in percent to two places; for display, since noisy_run decides on the counts (warns)."
               },
               "quartile_spread": {
                 "type": "number",
@@ -684,6 +684,10 @@
               "judged": {
                 "type": "boolean",
                 "description": "Whether noisy_run judged the kind: false under 1000 frames."
+              },
+              "warns": {
+                "type": "boolean",
+                "description": "Whether noisy_run warns on the kind: judged, and more than 2 percent of frames over twice the median, by the counts."
               }
             },
             "required": [
@@ -693,7 +697,8 @@
               "over_twice",
               "quartile_spread",
               "segment_kind",
-              "share_pct"
+              "share_pct",
+              "warns"
             ]
           }
         }

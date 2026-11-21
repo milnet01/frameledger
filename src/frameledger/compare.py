@@ -436,25 +436,26 @@ def noise_of(run: ledger.Run) -> list[dict]:
         walls = costs.frame_values[(kind, "wall")]
         p25, median, p75 = stats.percentiles(walls, 25, 50, 75)
         over = sum(value > 2 * median for value in walls)
+        judged = len(walls) >= NOISY_FRAMES
+        # Decided on the counts in whole numbers, never on share_pct: it is
+        # rounded, so a run just over the limit shows 2.0, and a share in
+        # floating point can land a hair either side of the limit.
         entries.append({"segment_kind": kind, "frames": len(walls), "median": median / 1000,
                         "over_twice": over, "share_pct": round(over * 100 / len(walls), 2),
-                        "quartile_spread": round((p75 - p25) / median, 3),
-                        "judged": len(walls) >= NOISY_FRAMES})
+                        "quartile_spread": round((p75 - p25) / median, 3), "judged": judged,
+                        "warns": judged and over * 100 > NOISY_SHARE_PCT * len(walls)})
     return entries
 
 
 def noisy_notices(noise: list[tuple[Named, list[dict]]]) -> list[ledger.Notice]:
-    """A `noisy_run` warning for each judged kind of each run where more
-    than NOISY_SHARE_PCT percent of the frame/wall values are over twice
-    their median. `noise` pairs each run with its noise_of()."""
+    """A `noisy_run` warning for each kind of each run whose noise_of()
+    entry warns. `noise` pairs each run with its noise_of()."""
     found = []
     for r, kinds in noise:
         for entry in kinds:
-            # Judged on the counts in whole numbers: a share in floating
-            # point can land a hair either side of the limit. The message
-            # gives the counts too, since the share is rounded and a run
-            # just over the limit shows 2.00%.
-            if entry["judged"] and entry["over_twice"] * 100 > NOISY_SHARE_PCT * entry["frames"]:
+            # The message gives the counts beside the rounded share, so a run
+            # just over the limit, at 2.00%, is seen to be over it.
+            if entry["warns"]:
                 found.append(ledger.Notice(
                     "noisy_run",
                     f"{r.name}: {entry['over_twice']} of its {entry['frames']} frame/wall values in "

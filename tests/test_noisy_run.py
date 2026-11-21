@@ -62,11 +62,10 @@ def test_noisy_run(capsys, tmp_path):
         "16.000 ms, where more than 2% warns; something else may have slowed the run, so re-run it"]
     assert any(s.startswith("Warning: new-2: 21 of its 1000 frame/wall values") for s in result["summary"])
     assert noise(result, "new-2") == [{"segment_kind": "view", "frames": 1000, "median": 16.0, "over_twice": 21,
-                                       "share_pct": 2.1, "quartile_spread": 0.0, "judged": True}]
+                                       "share_pct": 2.1, "quartile_spread": 0.0, "judged": True, "warns": True}]
 
     # The same runs with the slow frames at exactly twice the median warn
-    # nothing. Both give the verdict their p99s give, so the warning
-    # changes neither verdict nor exit.
+    # nothing. Both pass, so the warning changes neither verdict nor exit.
     assert (code, result["verdict"]) == VERDICT
     quiet_code, quiet = compare(capsys, tmp_path, *sides([CALM, with_slow(21, 32.0), CALM]))
     assert noisy(quiet) == [] and noise(quiet, "new-2")[0]["over_twice"] == 0
@@ -76,10 +75,13 @@ def test_noisy_run(capsys, tmp_path):
     _, result = compare(capsys, tmp_path, *sides([CALM, with_slow(401, 40.0, frames=20001), CALM]))
     assert [m.split(" are ")[0] for m in noisy(result)] == [
         "new-2: 401 of its 20001 frame/wall values in view segments, 2.00%,"]
+    # A script reads `warns`: share_pct shows 2.0 (Vestige).
+    assert {k: noise(result, "new-2")[0][k] for k in ("share_pct", "warns")} == {"share_pct": 2.0, "warns": True}
 
     # Exactly 2 percent is not more than the limit.
     _, result = compare(capsys, tmp_path, *sides([CALM, with_slow(20, 40.0), CALM]))
-    assert noisy(result) == [] and noise(result, "new-2")[0]["share_pct"] == 2.0
+    assert noisy(result) == [] and {k: noise(result, "new-2")[0][k] for k in ("share_pct", "warns")} == {
+        "share_pct": 2.0, "warns": False}
 
     # Each run that warns has its own sentence.
     _, result = compare(capsys, tmp_path, *sides([CALM, with_slow(21, 40.0), with_slow(30, 40.0)]))
@@ -147,3 +149,17 @@ def test_base_run_is_named_once(capsys, tmp_path):
     found = noisy(out)
     assert len(found) == 1 and found[0].startswith("base-2: 21 of its 1000 frame/wall values")
     assert sum("over twice their median" in s for s in out["summary"]) == 1
+
+
+def test_only_compare_judges_it(capsys, tmp_path):
+    """INV-132: `report` and `bisect` over a noisy run give no noisy_run
+    and no `noise`; only compare, and variants and alternate through it,
+    judge it."""
+    path = tmp_path / "noisy.csv"
+    path.write_text(run_text(with_slow(21, 40.0), "n", 0), encoding="utf-8")
+    for args in (["report", str(path)],
+                 ["bisect", "--tested", str(path), "--measure", "frame/wall", "--kind", "view",
+                  "--bad-above", "20.000"]):
+        cli.main([*args, "--json"])
+        out = capsys.readouterr().out
+        assert "noisy_run" not in out and '"noise"' not in out and json.loads(out)["command"] == args[0]

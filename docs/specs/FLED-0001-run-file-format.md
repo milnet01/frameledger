@@ -1076,8 +1076,8 @@ weighs one `slower` among them.
   rounded share. The message names the run and the kind, gives both
   counts, the share in percent to two places, the median and the
   limit, and says to re-run it. The counts show a run just over the
-  limit is over, where its share rounds to 2.00%. Each warning has its own sentence, and under
-  § 4.16 a base run's is given once. A kind with fewer than 1000
+  limit is over, where its share rounds to 2.00%. Each warning has its
+  own sentence, and under § 4.16 a base run's is given once. A kind with fewer than 1000
   values is not judged, and its `noise` entry says so. The tail share
   is judged because a desktop holding the GPU adds a second group of
   slow frames, which the quartile spread misses until it is about a
@@ -1157,7 +1157,7 @@ is cut to fit, as a measure's name is (Vestige). The JSON adds nothing for it: `
   "runs": [{"name", "set", "path", "run_id", "commit", "dirty", "started_utc",
             "rows_dropped", "finished", "under_load",
             "noise": [{"segment_kind", "frames", "median", "over_twice", "share_pct",
-                       "quartile_spread", "judged"}]}],
+                       "quartile_spread", "judged", "warns"}]}],
   "min_ms", "min_mb", "min_pct", "max_load", "max_gpu_busy", "named_measures",
   "measures": [{"segment_kind", "category", "name", "depth", "statistic", "unit",
                 "old": [], "new": [], "old_frames": [], "new_frames": [],
@@ -1177,8 +1177,11 @@ order, as `noisy_run` judges it: `frames` values, their `median` in
 ms, `over_twice` of them over twice it, `share_pct` that count over
 `frames` in percent to two places, `quartile_spread` the 75th
 percentile less the 25th over the median, by nearest rank (§ 4.8), to
-three places, and `judged` false under 1000 frames. A median is never
-0, since every `frame/wall` is above zero (§ 4.4).
+three places, `judged` false under 1000 frames, and `warns` true where
+`noisy_run` warns. `share_pct` is for display: a script deciding
+`share_pct > 2` misses a run that shows 2.0 and warns, so it reads
+`warns` (Vestige). A median is never 0, since every `frame/wall` is
+above zero (§ 4.4).
 `named_measures` lists `--measure`'s names in the order given, a
 suffix included, and is empty without it. A measure's `suffixed` is
 true when a `--measure` named its statistic with a suffix (DOOM Ants). `old_frames` and
@@ -4706,11 +4709,12 @@ breaks.
   twice their median of 16.000 ms, where more than 2% warns; something
   else may have slowed the run, so re-run it". The compare passes, exit
   0. 21 at exactly 32.000 ms give no warning, and pass, exit 0. 20 at
-  40.000 ms, 2.00%, give none. 401 of 20001 at 40.000 ms warn, "401 of
-  its 20001 frame/wall values in view segments, 2.00%". Its `noise`
-  entry is `{"segment_kind": "view", "frames": 1000, "median": 16.0,
+  40.000 ms, 2.00%, give none, with `warns` false. 401 of 20001 at
+  40.000 ms warn, "401 of its 20001 frame/wall values in view segments,
+  2.00%", with `share_pct` 2.0 and `warns` true. Its `noise` entry is
+  `{"segment_kind": "view", "frames": 1000, "median": 16.0,
   "over_twice": 21, "share_pct": 2.1, "quartile_spread": 0.0, "judged":
-  true}`. 250 values at 12.000 ms, 499 at 16.000 and 251 at 24.000 have
+  true, "warns": true}`. 250 values at 12.000 ms, 499 at 16.000 and 251 at 24.000 have
   a `quartile_spread` of 0.75: the nearest ranks 250, 500 and 750. A
   `spot` kind of 999 values, 100 of them slow, gives no warning, and
   its entry has `judged` false. 479 calm and 21 slow values in `view:1`
@@ -4720,12 +4724,14 @@ breaks.
   `--all-frames` they are 2000 walls with a median of 4.000 ms, and
   "1000 of its 2000" warn. Two runs that warn each have a sentence.
   Under § 4.16 a base run that warns is named once, opening with its
-  own name.
+  own name. `report` and `bisect` over the same noisy run give no
+  `noisy_run` and no `noise`.
   *Test:* `tests/test_noisy_run.py::test_noisy_run`,
   `tests/test_noisy_run.py::test_short_kind_is_unjudged`,
   `tests/test_noisy_run.py::test_segments_of_a_kind_are_pooled`,
   `tests/test_noisy_run.py::test_generated_frames`,
-  `tests/test_noisy_run.py::test_base_run_is_named_once`.
+  `tests/test_noisy_run.py::test_base_run_is_named_once`,
+  `tests/test_noisy_run.py::test_only_compare_judges_it`.
   *Breaks when:* the share counts a value at exactly twice the median,
   or warns at exactly 2 percent; the rounded share decides; a kind
   under 1000 values is judged or missing from `noise`; kinds are pooled
@@ -4995,7 +5001,7 @@ it on each release they pin.
 | INV-129 | `tests/test_html.py::test_outside_text_is_escaped` |
 | INV-130 | `tests/test_html.py::test_normal_vision_first`, `tests/test_html.py::test_larger_text_and_lines`, `tests/test_html.py::test_contrast` |
 | INV-131 | `tests/test_html.py::test_band_cap`, `tests/test_html.py::test_the_band_list_is_cut`, `tests/test_html.py::test_no_band_list_without_segments` |
-| INV-132 | `tests/test_noisy_run.py::test_noisy_run`, `tests/test_noisy_run.py::test_short_kind_is_unjudged`, `tests/test_noisy_run.py::test_segments_of_a_kind_are_pooled`, `tests/test_noisy_run.py::test_generated_frames`, `tests/test_noisy_run.py::test_base_run_is_named_once` |
+| INV-132 | `tests/test_noisy_run.py::test_noisy_run`, `tests/test_noisy_run.py::test_short_kind_is_unjudged`, `tests/test_noisy_run.py::test_segments_of_a_kind_are_pooled`, `tests/test_noisy_run.py::test_generated_frames`, `tests/test_noisy_run.py::test_base_run_is_named_once`, `tests/test_noisy_run.py::test_only_compare_judges_it` |
 | 4.21, how the page looks in a browser: zoom, the switch, greyscale | **`Partial:`** opened by hand in Firefox and Chromium before release; nothing here |
 | 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
