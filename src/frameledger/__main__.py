@@ -5,9 +5,10 @@ import os
 import sys
 
 # The modules import each other by bare name (docs/design.md § The parts).
-# The first two forms already have this folder on the import path; the
-# installed forms do not, so put it first, ahead of any other module of the
-# same name (FLED-0043).
+# The first two forms already have this folder first on the import path;
+# the installed forms do not have it at all, so it goes first, ahead of any
+# other module of the same name (FLED-0043). A folder already on the path
+# is left where it is.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)

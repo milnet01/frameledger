@@ -118,6 +118,8 @@ def test_the_wheel_holds_the_pyz_files_under_frameledger(tmp_path):
     assert built.name == f"frameledger-{cli.VERSION}-py3-none-any.whl"
     info = f"frameledger-{cli.VERSION}.dist-info"
     with zipfile.ZipFile(tmp_path / "frameledger.pyz") as pyz, zipfile.ZipFile(built) as whl:
+        # Sorted by code point, as zip_bytes sorts: upper case before lower,
+        # so METADATA and RECORD come before entry_points.txt.
         assert whl.namelist() == [*sorted(f"frameledger/{name}" for name in [*pyz.namelist(), "__init__.py"]),
                                   *(f"{info}/{name}" for name in ("METADATA", "RECORD", "WHEEL",
                                                                   "entry_points.txt", "licenses/LICENSE"))]
@@ -126,7 +128,8 @@ def test_the_wheel_holds_the_pyz_files_under_frameledger(tmp_path):
                      "Requires-Python: >=3.10", "License-Expression: MIT", "License-File: LICENSE"):
             assert line in metadata
         assert whl.read(f"{info}/licenses/LICENSE") == (ROOT / "LICENSE").read_bytes()
-        assert whl.read(f"{info}/WHEEL").decode().splitlines()[2:] == ["Root-Is-Purelib: true", "Tag: py3-none-any"]
+        assert whl.read(f"{info}/WHEEL") == (b"Wheel-Version: 1.0\nGenerator: frameledger scripts/build_release.py\n"
+                                             b"Root-Is-Purelib: true\nTag: py3-none-any\n")
         assert whl.read(f"{info}/entry_points.txt") == b"[console_scripts]\nframeledger = frameledger:main\n"
 
 
@@ -187,7 +190,10 @@ def test_pip_installs_the_wheel_as_a_frameledger_command(tmp_path):
     import cli
     built = wheel(tmp_path / "dist", "v9.9.9")
     env = tmp_path / "env"
-    subprocess.run([sys.executable, "-m", "venv", str(env)], check=True)
+    made = subprocess.run([sys.executable, "-m", "venv", str(env)], capture_output=True, text=True)
+    if made.returncode != 0 and "ensurepip" in made.stdout + made.stderr:
+        pytest.skip("this Python cannot make a venv with pip (no ensurepip; Debian's python3-venv adds it)")
+    assert made.returncode == 0, made.stdout + made.stderr
     # No ".exe" on Windows: CreateProcess adds it to a name that has none.
     bin_dir = env / ("Scripts" if sys.platform == "win32" else "bin")
     python = bin_dir / "python"

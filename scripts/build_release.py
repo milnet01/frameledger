@@ -9,9 +9,10 @@ and its SHA256 (docs/design.md § The stack, and what it rules out). The tag
 names the archive file only. Nothing inside the archive carries it, so a
 candidate and the stable release cut from the same code are the same bytes
 under two file names. The wheel's version is cli.py's VERSION, whatever the
-tag's numbers say, and a candidate's tag adds its number, since PyPI holds
-one file per version; release.yml checks the tag names VERSION. A tag with
-a hyphen must end -rc.N.
+tag's numbers say; release.yml checks the tag names VERSION. A candidate's
+tag adds its number (0.9.0rc1), though its `--version` still says 0.9.0. A
+candidate's wheel is a local file only: release.yml uploads a final
+release's alone. A tag with a hyphen must end -rc.N.
 
 The build is reproducible: anyone rebuilding a tagged commit gets the hash
 in its release notes. Every entry is stored, not compressed, so no zlib

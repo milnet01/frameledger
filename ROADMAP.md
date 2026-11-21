@@ -2010,7 +2010,7 @@ Someone who has never seen the three engines can install
 
 frameledger, wire it into their engine and get help.
 
-- 🚧 [FLED-0043] **Install with pip or pipx.**
+- ✅ [FLED-0043] **Install with pip or pipx.**
   A frameledger package on PyPI with a `frameledger` command,
   still standard library only. The release zip stays for engines that
   pin a hash.
@@ -2021,6 +2021,10 @@ frameledger, wire it into their engine and get help.
   2026-11-21: UT Ants', Vestige's and ExperiRays' reviews folded in
   641e9c5. DOOM Ants' review owed. The owner still has to register
   PyPI's trusted publisher before the first final tag.
+  2026-11-21: DOOM Ants' review folded; all four reviews in. The owner
+  registered PyPI's pending trusted publisher (frameledger,
+  milnet01/frameledger, release.yml, environment pypi) the same day. The
+  first upload comes with the first final tag.
   **Layman:** Install it with one standard command.
   Kind: package.
   Source: engine-answers-2026-11-10.

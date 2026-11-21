@@ -76,6 +76,24 @@ jobs:
           fi
           py python -I dist/frameledger.pyz --selftest
 
+      # The wheel the pypi job uploads, installed as a user installs it and
+      # run by name: it must report the tag's version and pass its self-test
+      # (DOOM Ants). The pypi job rebuilds the same bytes.
+      - name: Install the wheel and run it by name
+        run: |
+          python_version=$(./scripts/local-ci.sh --python-version)
+          version=${TAG#v}; version=${version%%-*}
+          uv venv --quiet --managed-python --python "$python_version" dist/venv
+          VIRTUAL_ENV=dist/venv uv pip install --quiet --no-index dist/*.whl
+          bin=dist/venv/bin
+          [[ $RUNNER_OS == Windows ]] && bin=dist/venv/Scripts
+          reported=$("$bin/frameledger" --version | tr -d '\r')
+          if [[ $reported != "frameledger $version" ]]; then
+            echo "release: tag $TAG, but the installed wheel reports '$reported'" >&2
+            exit 1
+          fi
+          "$bin/frameledger" --selftest
+
       # The Windows launcher, run as a user runs it: by name, from PATH, with
       # the runner's own Python. It must report the tag's version and pass on
       # a failing exit code.
