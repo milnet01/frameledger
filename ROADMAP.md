@@ -2034,7 +2034,7 @@ frameledger, wire it into their engine and get help.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0082] **The gate also runs on the newest Python.**
+- ✅ [FLED-0082] **The gate also runs on the newest Python.**
   The gate runs on the floor only, the version `scripts/local-ci.sh`
   pins. UT Ants and DOOM Ants would each run the analyser under Python
   3.13, so nothing tests the version they use, and
@@ -2049,6 +2049,11 @@ frameledger, wire it into their engine and get help.
   also run on 3.15.1, and pytest fails on a DeprecationWarning. The
   first run found os.path.commonprefix, deprecated in 3.15, in
   render.py's shared-directory heading; replaced.
+  2026-11-21, reviews of 82c9f71 from all three folded at 370187f and
+  d4196ef: a small loop for the shared start (all three); the
+  deprecation filter's comment covers both legs and a dependency's own
+  warning (Vestige, UT Ants); --selftest runs under -W
+  error::DeprecationWarning (UT Ants).
   **Layman:** Tests frameledger on the newest Python as well as the oldest one it supports, since that is what its users run.
   Kind: test.
   Source: engine-review-FLED-0042-2026-11-20.

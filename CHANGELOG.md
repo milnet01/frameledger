@@ -16,7 +16,7 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 - The gate also runs the tests and `--selftest` on the newest released
   Python, 3.15.1, as well as the 3.10 floor (FLED-0082). A
-  `DeprecationWarning` now fails a test run.
+  `DeprecationWarning` now fails the tests and `--selftest`.
   `docs/support-policy.md` § What it runs on says so.
 
 ### Fixed
