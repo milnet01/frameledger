@@ -10,7 +10,6 @@ Table, which the text and the Markdown each lay out in their own way
 from __future__ import annotations
 
 import json
-import os
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -521,7 +520,11 @@ def _shared_directory(paths: list[str]) -> str:
     all, or "" (§ 4.13). Read from the paths as given, never the disk."""
     if len(paths) < 2:
         return ""
-    alike = os.path.commonprefix(paths)  # letter by letter, so `runs` and `runs-old` are alike this far
+    # Letter by letter, so `runs` and `runs-old` are alike this far. The
+    # first and last in sorted order differ soonest, so their shared start
+    # is every path's. Python 3.15 deprecates os.path.commonprefix.
+    first, last = min(paths), max(paths)
+    alike = next((first[:i] for i, (a, b) in enumerate(zip(first, last, strict=False)) if a != b), first)
     end = max(alike.rfind("/"), alike.rfind("\\")) + 1
     shared = alike[:end]
     # A bare "/" opens every absolute path, and "./" says only "here": neither names anything.

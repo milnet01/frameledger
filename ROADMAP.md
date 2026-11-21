@@ -2004,71 +2004,6 @@ format, the JSON output and the commands.
   Kind: feature.
   Source: split-from-FLED-0053-2026-11-13.
 
-- 💭 [FLED-0061] **The picture report can show two sets' frame-time curves.**
-  Percentile curves of old and new runs on one graph. Shows whether a
-  regression is a shifted median or a fatter tail. Log viewers for
-  MangoHud and Tracy's comparison mode do this. S26 covers one run
-  only, so the engines must agree to widen S26 first; otherwise after
-  1.0. Builds on FLED-0039.
-  2026-11-10, engines: later from all three.
-  **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 💭 [FLED-0074] **Read a gzip-compressed run file.**
-  Vestige, 2026-11-13: `check run.csv.gz` reads the gzip bytes as a run
-  with no close line ("unfinished") rather than refusing it as not a run
-  file. Five of its runs are 29 MB, 2.2 MB gzipped, so a baseline's runs
-  are too big to commit. Two parts: say plainly that a .gz is not a run
-  file, and perhaps read one. Low priority by Vestige's word. Not
-  checked here: the message `check` gives.
-  **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
-  Kind: feature.
-  Source: vestige-2026-11-13.
-
-- 💭 [FLED-0054] **A noisy compare says how many more runs would settle it.**
-  On exit 2 for a noisy `frame/wall`, estimate the runs a side that
-  would settle it; the run helper could keep alternating up to a cap.
-  Chromium's bisect returned "need more data" and grew its sample:
-  https://codereview.chromium.org/1702013004
-  Needs FLED-0029, the engines' agreement and a spec amendment.
-  2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
-  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
-  idea; the owner chose it because one engine said yes. Put to the three
-  engines: plan it or not.
-  2026-11-17, DOOM Ants: still yes; it would use it in 0.7.0, nothing
-  blocks on it. UT Ants: keep it an idea, still later. Vestige's answer
-  owed.
-  2026-11-17, Vestige: keep as idea; it would use it, but no gate
-  depends on it. Outcome: stays an idea (two of three).
-  **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
-- 💭 [FLED-0058] **report counts hitches against the local median.**
-  Count frames longer than k times the rolling median of nearby frames,
-  per segment kind. One number for judder that pacing (S14) and the
-  worst-10 list do not give. A common practice; no authoritative
-  source for the multiplier was found, so k is the engines' call.
-  2026-11-10, engines: yes (Vestige, for 3D_E-0795's frame-time gate),
-  later (DOOM Ants, UT Ants).
-  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
-  idea; the owner chose it because one engine said yes. Put to the three
-  engines: plan it or not.
-  2026-11-17, DOOM Ants: plan it for Vestige; it would use it for
-  DOOM-0359, no date pressure; k as Vestige's gate sets it. UT Ants:
-  plan it for 0.7.0 if Vestige's gate still needs it, with k set per
-  call, not fixed; it will review the spec amendment. Vestige's answer
-  owed.
-  2026-11-17, Vestige: keep as idea. 3D_E-0795's gate shipped on floor's
-  absolute limit (floor --fps 60), so it no longer needs a relative
-  count; wanted later for stutter below 16.667 ms at higher refresh
-  rates. Outcome: stays an idea, since the other two answers were
-  conditional on Vestige's gate. When planned: k set per call (UT Ants).
-  **Layman:** Counts sudden stutters: frames much slower than the frames around them.
-  Kind: feature.
-  Source: competitor-research-2026-11-10.
-
 ## 0.9.0 — ready for strangers (release candidate)
 
 Someone who has never seen the three engines can install
@@ -2099,7 +2034,7 @@ frameledger, wire it into their engine and get help.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0082] **The gate also runs on the newest Python.**
+- 🚧 [FLED-0082] **The gate also runs on the newest Python.**
   The gate runs on the floor only, the version `scripts/local-ci.sh`
   pins. UT Ants and DOOM Ants would each run the analyser under Python
   3.13, so nothing tests the version they use, and
@@ -2108,11 +2043,17 @@ frameledger, wire it into their engine and get help.
   sentence. 2026-11-20: UT Ants raised it and DOOM Ants called it worth
   doing; Vestige not yet asked. The section is a guess; the engines may
   move it.
+  2026-11-21, engines: newest (3.15.1) plus floor is enough, all three.
+  Vestige: its Windows box runs 3.13, so ask it for Windows runs when a
+  change touches processes or file paths. Built: tests and --selftest
+  also run on 3.15.1, and pytest fails on a DeprecationWarning. The
+  first run found os.path.commonprefix, deprecated in 3.15, in
+  render.py's shared-directory heading; replaced.
   **Layman:** Tests frameledger on the newest Python as well as the oldest one it supports, since that is what its users run.
   Kind: test.
   Source: engine-review-FLED-0042-2026-11-20.
 
-- 💭 [FLED-0083] **Frames with no segment read better than "unsegmented segments".**
+- 📋 [FLED-0083] **Frames with no segment read better than "unsegmented segments".**
   From the FLED-0072 reviews of 3767989 (DOOM Ants, UT Ants,
   ExperiRays): a kind of None prints "in unsegmented segments".
   run_report.kind_name gives "unsegmented", and noisy_run, outlier_run
@@ -2120,6 +2061,8 @@ frameledger, wire it into their engine and get help.
   belongs in all of them at once, e.g. "in frames with no segment", so
   they stay alike. Text output only: JSON's segment_kind stays null.
   Needs the three engines' agreement, since scripts may match the text.
+  2026-11-21, engines: yes from all three, "in frames with no segment"
+  everywhere at once. No script of theirs matches the old text.
   **Layman:** A message about frames that belong to no named part of a run says so in plain words.
   Kind: ux.
   Source: review-FLED-0072-2026-11-21.
@@ -2289,3 +2232,71 @@ After frameledger does what Vestige, UT Ants and DOOM Ants need (the owner, 2026
   **Layman:** On the graph page, also draw how long the graphics card took each frame, for games limited by the graphics card.
   Kind: feature.
   Source: ut-ants-answer-2026-11-17.
+
+- 💭 [FLED-0061] **The picture report can show two sets' frame-time curves.**
+  Percentile curves of old and new runs on one graph. Shows whether a
+  regression is a shifted median or a fatter tail. Log viewers for
+  MangoHud and Tracy's comparison mode do this. S26 covers one run
+  only, so the engines must agree to widen S26 first; otherwise after
+  1.0. Builds on FLED-0039.
+  2026-11-10, engines: later from all three.
+  **Layman:** A picture of old against new frame times, showing whether a build got slower overall or only in its worst moments.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0074] **Read a gzip-compressed run file.**
+  Vestige, 2026-11-13: `check run.csv.gz` reads the gzip bytes as a run
+  with no close line ("unfinished") rather than refusing it as not a run
+  file. Five of its runs are 29 MB, 2.2 MB gzipped, so a baseline's runs
+  are too big to commit. Two parts: say plainly that a .gz is not a run
+  file, and perhaps read one. Low priority by Vestige's word. Not
+  checked here: the message `check` gives.
+  2026-11-21, engines: moved after 1.0, all three. Vestige: add a plain
+  refusal only if the header check does not already say a .gz is not a
+  run file.
+  **Layman:** Keep run files compressed, so a set of reference runs is small enough to store beside the code.
+  Kind: feature.
+  Source: vestige-2026-11-13.
+
+- 💭 [FLED-0054] **A noisy compare says how many more runs would settle it.**
+  On exit 2 for a noisy `frame/wall`, estimate the runs a side that
+  would settle it; the run helper could keep alternating up to a cap.
+  Chromium's bisect returned "need more data" and grew its sample:
+  https://codereview.chromium.org/1702013004
+  Needs FLED-0029, the engines' agreement and a spec amendment.
+  2026-11-10, engines: yes (DOOM Ants), later (UT Ants, Vestige).
+  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
+  idea; the owner chose it because one engine said yes. Put to the three
+  engines: plan it or not.
+  2026-11-17, DOOM Ants: still yes; it would use it in 0.7.0, nothing
+  blocks on it. UT Ants: keep it an idea, still later. Vestige's answer
+  owed.
+  2026-11-17, Vestige: keep as idea; it would use it, but no gate
+  depends on it. Outcome: stays an idea (two of three).
+  **Layman:** Instead of just 'can't tell', frameledger suggests how many more test runs to do.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.
+
+- 💭 [FLED-0058] **report counts hitches against the local median.**
+  Count frames longer than k times the rolling median of nearby frames,
+  per segment kind. One number for judder that pacing (S14) and the
+  worst-10 list do not give. A common practice; no authoritative
+  source for the multiplier was found, so k is the engines' call.
+  2026-11-10, engines: yes (Vestige, for 3D_E-0795's frame-time gate),
+  later (DOOM Ants, UT Ants).
+  2026-11-17: moved from 0.5.0, which shipped without it, to 0.7.0 as an
+  idea; the owner chose it because one engine said yes. Put to the three
+  engines: plan it or not.
+  2026-11-17, DOOM Ants: plan it for Vestige; it would use it for
+  DOOM-0359, no date pressure; k as Vestige's gate sets it. UT Ants:
+  plan it for 0.7.0 if Vestige's gate still needs it, with k set per
+  call, not fixed; it will review the spec amendment. Vestige's answer
+  owed.
+  2026-11-17, Vestige: keep as idea. 3D_E-0795's gate shipped on floor's
+  absolute limit (floor --fps 60), so it no longer needs a relative
+  count; wanted later for stutter below 16.667 ms at higher refresh
+  rates. Outcome: stays an idea, since the other two answers were
+  conditional on Vestige's gate. When planned: k set per call (UT Ants).
+  **Layman:** Counts sudden stutters: frames much slower than the frames around them.
+  Kind: feature.
+  Source: competitor-research-2026-11-10.

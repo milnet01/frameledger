@@ -12,6 +12,18 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Changed
+
+- The gate also runs the tests and `--selftest` on the newest released
+  Python, 3.15.1, as well as the 3.10 floor (FLED-0082). A
+  `DeprecationWarning` now fails a test run.
+  `docs/support-policy.md` § What it runs on says so.
+
+### Fixed
+
+- `survey` no longer calls `os.path.commonprefix`, which Python 3.15
+  deprecates, to find the directory its runs share (FLED-0082).
+
 ## [0.8.0] - 2026-11-21
 
 **Theme:** Stable promises.

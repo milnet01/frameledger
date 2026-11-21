@@ -40,6 +40,10 @@ DOCS_GLOB='docs/*|*.md|LICENSE'
 # before the push.
 UV_VERSION='0.13.5'
 PYTHON_VERSION='3.10.22'
+# The newest released Python, nearer than the floor to what the engines run
+# (FLED-0082). The test and selftest legs also run on it; lint, writer and
+# kit stay on the floor. Bump it when a newer Python is released.
+PYTHON_NEWEST_VERSION='3.15.1'
 PYTEST_VERSION='9.1.1'
 RUFF_VERSION='0.17.2'
 # The tests' validator for the result schemas (FLED-0041 § 4.8). Test-only:
@@ -66,14 +70,18 @@ CONFIGURED=1
 
 step() { printf '\n=== %s ===\n' "$1" >&2; }
 
-# py ARGS... — run a command under the pinned uv and Python, with the pinned
-# tools on hand. --no-project: pyproject.toml configures pytest and ruff
-# only; there is no package to install.
-py() {
-    uvx "uv@$UV_VERSION" run --quiet --no-project --managed-python --python "$PYTHON_VERSION" \
+# py_on VERSION ARGS... — run a command under the pinned uv and that Python,
+# with the pinned tools on hand. --no-project: pyproject.toml configures
+# pytest and ruff only; there is no package to install.
+py_on() {
+    local version=$1
+    shift
+    uvx "uv@$UV_VERSION" run --quiet --no-project --managed-python --python "$version" \
         --with "pytest==$PYTEST_VERSION" --with "ruff==$RUFF_VERSION" \
         --with "jsonschema==$JSONSCHEMA_VERSION" -- "$@"
 }
+# py ARGS... — the same, on the floor.
+py() { py_on "$PYTHON_VERSION" "$@"; }
 
 # A check whose tool is absent SAYS SO and is never silently dropped: a check
 # that did not run must not look like one that passed.
@@ -165,6 +173,12 @@ step 'selftest'
 # The analyser's own checks, run the way an engine runs them: isolated,
 # with nothing but the standard library.
 run selftest py python -I src/frameledger --selftest
+
+step "newest Python ($PYTHON_NEWEST_VERSION)"
+# The same tests and selftest on the newest release, so a break there is
+# found before an engine meets it.
+run test-newest py_on "$PYTHON_NEWEST_VERSION" python -m pytest -q
+run selftest-newest py_on "$PYTHON_NEWEST_VERSION" python -I src/frameledger --selftest
 
 if (( CONFIGURED )); then
     printf '\nlocal-ci: all checks passed.\n' >&2

@@ -10,6 +10,9 @@ testpaths = ["tests"]
 # tests do the same, so modules import each other by bare name.
 pythonpath = ["src/frameledger"]
 addopts = ["--strict-markers"]
+# A deprecation fails the run: the gate's newest-Python leg (FLED-0082)
+# then catches a call that a later Python will remove.
+filterwarnings = ["error::DeprecationWarning"]
 
 [tool.ruff]
 # The analyser's floor (docs/design.md § The stack), so the UP rules never

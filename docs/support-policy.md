@@ -29,10 +29,12 @@ What counts as breaking is
 
 - **Python.** The floor is Python 3.10
   ([ADR-0001](decisions/ADR-0001-analyser-language.md)). The gate runs
-  on the floor only, the version `scripts/local-ci.sh` pins as
-  `PYTHON_VERSION`. No newer Python is tested. A failure on one is a
-  bug, fixed once it is reported, and the fix ships in the next
-  release.
+  on the floor, the version `scripts/local-ci.sh` pins as
+  `PYTHON_VERSION`. Its tests and `--selftest` also run on the newest
+  released Python, pinned there as `PYTHON_NEWEST_VERSION`. Versions
+  between the two are not tested. A failure on any version from the
+  floor up is a bug, fixed once it is reported, and the fix ships in
+  the next release.
 - **Systems.** Linux, Windows and macOS. `.github/workflows/ci.yml`
   runs the gate on Linux and macOS. `.github/workflows/release.yml`
   builds each release and runs its `--selftest` on Linux and Windows.
