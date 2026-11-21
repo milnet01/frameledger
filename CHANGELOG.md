@@ -19,6 +19,15 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   `DeprecationWarning` now fails the tests and `--selftest`.
   `docs/support-policy.md` § What it runs on says so.
 
+- Text output says "in frames with no segment" where it said "in
+  unsegmented segments": in `report`, `compare` (`noisy_run`,
+  `outlier_run`, the frame/wall sentences) and `budget` (FLED-0083).
+  `report`'s opening sentence says "none of them in a segment" when no
+  frame has one. `compare`'s short-run sentence counts "frame/wall
+  values", not "frames with a frame/wall". JSON is unchanged:
+  `segment_kind` stays null, and labels such as `unsegmented: gpu/a`
+  keep the kind's name.
+
 ### Fixed
 
 - `survey` no longer calls `os.path.commonprefix`, which Python 3.15

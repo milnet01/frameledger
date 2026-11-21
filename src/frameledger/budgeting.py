@@ -364,7 +364,7 @@ def _unmatched_entry(budget: Budget) -> dict:
 
 def _label(category: str, name: str, statistic: str, kind: str | None) -> str:
     """`gpu/ssao p99 in view segments`."""
-    return f"{category}/{name} {statistic} in {run_report.kind_name(kind)} segments"
+    return f"{category}/{name} {statistic} in {run_report.kinds_phrase([kind])}"
 
 
 def _unmatched_sentence(budget: Budget) -> str:

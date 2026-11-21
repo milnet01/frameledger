@@ -2058,7 +2058,7 @@ frameledger, wire it into their engine and get help.
   Kind: test.
   Source: engine-review-FLED-0042-2026-11-20.
 
-- 📋 [FLED-0083] **Frames with no segment read better than "unsegmented segments".**
+- 🚧 [FLED-0083] **Frames with no segment read better than "unsegmented segments".**
   From the FLED-0072 reviews of 3767989 (DOOM Ants, UT Ants,
   ExperiRays): a kind of None prints "in unsegmented segments".
   run_report.kind_name gives "unsegmented", and noisy_run, outlier_run

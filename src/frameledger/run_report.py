@@ -500,8 +500,9 @@ def warning_sentences(notices: list[ledger.Notice]) -> list[str]:
 
 def _headline(run: ledger.Run, result: dict, costs: Costs) -> list[str]:
     kinds = sorted({segment_kind(ledger.frame_segment(rows)) for rows in run.frames.values()}, key=kind_order)
-    sentences = [f"The run has {counted(len(run.frames), 'frame')}, in "
-                 f"{', '.join(kind_name(k) for k in kinds) or 'no'} segments."]
+    where = ("none of them in a segment" if kinds == [None] else
+             f"in {kinds_phrase(kinds)}" if kinds else "in no segments")
+    sentences = [f"The run has {counted(len(run.frames), 'frame')}, {where}."]
     if imported(run):
         sentences.append("The run was imported from PresentMon, so it has no passes; its CPU and GPU spans "
                          "are PresentMon's MsCPUBusy and MsGPUBusy, not the engine's own timings.")
@@ -513,7 +514,7 @@ def _headline(run: ledger.Run, result: dict, costs: Costs) -> list[str]:
         best = min(top, key=lambda e: (-costs.total(e), -e["median_ms"], e["category"], e["name"]))
         share = "" if best["share"] is None else \
             f", {best['share'] * 100:.1f}% of {best['category'].upper()} time"
-        sentences.append(f"In {kind_name(kind)} segments the costliest pass is "
+        sentences.append(f"In {kinds_phrase([kind])} the costliest pass is "
                          f"{best['category']}/{best['name']}: median {best['median_ms']:.3f} ms{share}.")
     bound = result["bound_by"]
     if "pipelined" in run.unknown:
@@ -546,7 +547,20 @@ def kind_order(kind: str | None) -> tuple:
 
 
 def kind_name(kind: str | None) -> str:
+    """A kind as a label or in a list of kinds; for prose saying where
+    frames are, use kinds_phrase."""
     return kind or "unsegmented"
+
+
+def kinds_phrase(kinds) -> str:
+    """Where frames of `kinds` are, to follow "in": `view, menu segments`,
+    `frames with no segment`, or both joined by "and", no segment first
+    as kind_order sorts it. JSON keeps None (FLED-0083)."""
+    named = [k for k in kinds if k is not None]
+    parts = ["frames with no segment"] if None in kinds else []
+    if named:
+        parts.append(f"{', '.join(named)} segments")
+    return " and ".join(parts)
 
 
 def _ms(thousandths: int) -> float:

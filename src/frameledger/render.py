@@ -236,7 +236,7 @@ def _report_body(result: dict) -> list[Block]:
         return []
     blocks: list[Block] = []
     for (kind, category), passes in _groups(report["passes"], ("segment_kind", "category")):
-        blocks += [Table(f"{category.upper()} passes in {_kind_name(kind)} segments, by time spent:",
+        blocks += [Table(f"{category.upper()} passes in {_frames_in(kind)}, by time spent:",
                          _timing_columns("pass", "share"),
                          [["  " * p["depth"] + p["name"], f"{p['median_ms']:.3f}", f"{p['p99_ms']:.3f}",
                            "-" if p["share"] is None else f"{p['share'] * 100:.1f}%", str(p["frames"])]
@@ -251,7 +251,7 @@ def _report_body(result: dict) -> list[Block]:
                 rows.append(["wall change (pairs)", f"{change['median_ms']:.3f}", f"{change['p99_ms']:.3f}",
                              "", str(change["pairs"])])
         # The empty column lines the text up with the passes tables.
-        blocks += [Table(f"Frame times in {_kind_name(kind)} segments:", _timing_columns("measure", ""), rows), ""]
+        blocks += [Table(f"Frame times in {_frames_in(kind)}:", _timing_columns("measure", ""), rows), ""]
     if report["worst_frames"]:
         blocks += [_frame_table("Worst frames, longest first:", report["worst_frames"]), ""]
     if report["static"]:
@@ -513,6 +513,13 @@ def _fit_left(text: str, width: int) -> str:
 
 def _kind_name(kind: str | None) -> str:
     return kind or "unsegmented"
+
+
+def _frames_in(kind: str | None) -> str:
+    """Where one kind's frames are, to follow "in". run_report.kinds_phrase
+    says it for the summary; render imports no analyser module
+    (docs/design.md § What may depend on what)."""
+    return f"{kind} segments" if kind else "frames with no segment"
 
 
 def _shared_directory(paths: list[str]) -> str:

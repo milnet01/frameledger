@@ -222,9 +222,8 @@ def compare(old: list[ledger.Run], new: list[ledger.Run], overrides: dict[str, s
     if short and (not named_measures or ("frame", "wall", "median") in asked):
         # Straight after the verdict, which it explains (Vestige); without
         # frame/wall judged, step 3 skips nothing, so nothing to explain.
-        kinds = ", ".join(run_report.kind_name(k) for k in short)
-        summary.append(f"Some run has fewer than {trust.FEWEST_FRAMES} frames with a frame/wall in "
-                       f"{kinds} segments, so a noisy frame time there cannot make the compare "
+        summary.append(f"Some run has fewer than {trust.FEWEST_FRAMES} frame/wall values in "
+                       f"{run_report.kinds_phrase(short)}, so a noisy frame time there cannot make the compare "
                        "inconclusive.")
     summary += _wall_sentences(measures)
     result = {
@@ -459,7 +458,7 @@ def noisy_notices(noise: list[tuple[Named, list[dict]]]) -> list[ledger.Notice]:
                 found.append(ledger.Notice(
                     "noisy_run",
                     f"{r.name}: {entry['over_twice']} of its {entry['frames']} frame/wall values in "
-                    f"{run_report.kind_name(entry['segment_kind'])} segments, {entry['share_pct']:.2f}%, are "
+                    f"{run_report.kinds_phrase([entry['segment_kind']])}, {entry['share_pct']:.2f}%, are "
                     f"over twice their median of {entry['median']:.3f} ms, where more than "
                     f"{NOISY_SHARE_PCT}% warns; something else may have slowed the run, so re-run it"))
     return found
@@ -940,7 +939,7 @@ def _worse_sentence(opening: str, word: str, measures: list[dict]) -> str:
 
 
 def _wall_sentences(measures: list[dict]) -> list[str]:
-    return [f"In {run_report.kind_name(m['segment_kind'])} segments the median frame/wall went from "
+    return [f"In {run_report.kinds_phrase([m['segment_kind']])} the median frame/wall went from "
             f"{m['old_centre']:.3f} ms to {m['new_centre']:.3f} ms ({m['verdict']})."
             for m in measures if (m["category"], m["name"], m["statistic"]) == ("frame", "wall", "median")]
 
@@ -966,7 +965,7 @@ def joined(names, word: str = "and") -> str:
 def _label(measure: dict) -> str:
     statistic = " p99" if measure["statistic"] == "p99" else " median"
     return (f"{measure['category']}/{measure['name']}{statistic} in "
-            f"{run_report.kind_name(measure['segment_kind'])} segments")
+            f"{run_report.kinds_phrase([measure['segment_kind']])}")
 
 
 def _pct(measure: dict) -> str:
