@@ -104,12 +104,8 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # PyPI's trusted publisher names this repository, release.yml and the
-    # environment pypi; id-token lets the job prove it is that publisher.
-    environment: pypi
     permissions:
       contents: write
-      id-token: write
     env:
       TAG: ${{ github.ref_name }}
       GH_TOKEN: ${{ github.token }}
@@ -139,7 +135,36 @@ jobs:
             gh release create "$TAG" "$archive" dist/frameledger.zip --verify-tag --latest --title "$title" --notes-file dist/notes.md
           fi
 
-      # Last, because PyPI never takes a version twice: a failure before this
-      # leaves the version unused. The wheel is the one the step above built.
+  # After the GitHub release, because PyPI never takes a version twice: a
+  # failure before this leaves the version unused. A job of its own, so a
+  # failed upload can be re-run alone; the GitHub release step would stop
+  # on "release exists". The wheel rebuilds to the same bytes.
+  # A final release only: while PyPI holds no final, pip installs a
+  # candidate by default (Vestige), so candidates stay on GitHub.
+  pypi:
+    needs: publish
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # PyPI's trusted publisher names this repository, release.yml and the
+    # environment pypi; id-token lets the job prove it is that publisher.
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        run: pipx install "uv==$(./scripts/local-ci.sh --uv-version)"
+
       - name: Publish the wheel to PyPI
-        run: uv publish --trusted-publishing always dist/*.whl
+        run: |
+          python_version=$(./scripts/local-ci.sh --python-version)
+          uv run --quiet --no-project --managed-python --python "$python_version" -- \
+            python -I scripts/build_release.py dist "$TAG"
+          uv publish --trusted-publishing always dist/*.whl

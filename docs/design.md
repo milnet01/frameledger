@@ -93,8 +93,9 @@ Four parts. The format spec is the only thing the other three share.
   - `picture.py` — turns one run and its result into the optional
     report page, its graph drawn as SVG from the run's timeline (S26).
   - `cli.py` and `__main__.py` — commands, flags and exit codes.
-  - `__init__.py` — the installed form only: puts its own folder on the
-    import path, and is the `frameledger` command's entry point.
+  - `__init__.py` — the installed form only: the `frameledger`
+    command's entry point. `__main__.py` puts its own folder on the
+    import path when the installed form runs.
   - `selftest.py` — `--selftest`: the analyser's own checks on built-in
     sample files, no GPU, no network.
 - **The writer** — `include/frameledger.h`, one optional header in the
@@ -253,8 +254,10 @@ tool, not by any one part.
   launcher runs by name. A PyPI package with a `frameledger` command
   (FLED-0043), still standard library only, sits beside the archive
   and does not replace it. `scripts/build_release.py` builds its wheel
-  from the files in the `.pyz`, reproducibly, with no build tool;
-  release.yml uploads it to PyPI after the GitHub release.
+  from the files in the `.pyz` and `__init__.py`, reproducibly, with no
+  build tool. release.yml uploads it to PyPI after the GitHub release,
+  for a final release only, in a job of its own so a failed upload can
+  be re-run.
 - **Our tests: pytest, and `jsonschema`** to hold each JSON result to
   its schema with the validator a script's author would use
   (FLED-0041 § 4.8). Both are test-time tools only, pinned in

@@ -97,7 +97,8 @@ def test_the_pyz_runs_its_selftest(tmp_path):
     assert done.returncode == 0, done.stdout + done.stderr
     analyser = ROOT / "src" / "frameledger"
     with zipfile.ZipFile(pyz) as zf:
-        assert sorted(zf.namelist()) == sorted([*(p.name for p in analyser.glob("*.py")),
+        # __init__.py is the installed form's alone (FLED-0043).
+        assert sorted(zf.namelist()) == sorted([*(p.name for p in analyser.glob("*.py") if p.name != "__init__.py"),
                                                 *(f"kit/{p.name}" for p in (analyser / "kit").iterdir()),
                                                 *(f"schemas/{p.name}" for p in (analyser / "schemas").iterdir())])
 
@@ -110,24 +111,73 @@ def wheel(outdir, tag):
 
 
 def test_the_wheel_holds_the_pyz_files_under_frameledger(tmp_path):
-    """FLED-0043: what pip installs is what the .pyz runs, and the metadata pip needs."""
+    """FLED-0043: what pip installs is what the .pyz runs, with __init__.py,
+    then the metadata pip needs, last."""
     import cli
     built = wheel(tmp_path, "v9.9.9")
     assert built.name == f"frameledger-{cli.VERSION}-py3-none-any.whl"
     info = f"frameledger-{cli.VERSION}.dist-info"
     with zipfile.ZipFile(tmp_path / "frameledger.pyz") as pyz, zipfile.ZipFile(built) as whl:
-        assert whl.namelist() == sorted([*(f"frameledger/{name}" for name in pyz.namelist()),
-                                         *(f"{info}/{name}" for name in ("METADATA", "RECORD", "WHEEL",
-                                                                         "entry_points.txt", "licenses/LICENSE"))])
-        assert f"Version: {cli.VERSION}\n" in whl.read(f"{info}/METADATA").decode()
+        assert whl.namelist() == [*sorted(f"frameledger/{name}" for name in [*pyz.namelist(), "__init__.py"]),
+                                  *(f"{info}/{name}" for name in ("METADATA", "RECORD", "WHEEL",
+                                                                  "entry_points.txt", "licenses/LICENSE"))]
+        metadata = whl.read(f"{info}/METADATA").decode().splitlines()
+        for line in ("Metadata-Version: 2.4", "Name: frameledger", f"Version: {cli.VERSION}",
+                     "Requires-Python: >=3.10", "License-Expression: MIT", "License-File: LICENSE"):
+            assert line in metadata
+        assert whl.read(f"{info}/licenses/LICENSE") == (ROOT / "LICENSE").read_bytes()
+        assert whl.read(f"{info}/WHEEL").decode().splitlines()[2:] == ["Root-Is-Purelib: true", "Tag: py3-none-any"]
         assert whl.read(f"{info}/entry_points.txt") == b"[console_scripts]\nframeledger = frameledger:main\n"
 
 
+def test_the_wheels_record_lists_every_file_with_its_hash_and_size(tmp_path):
+    """pip does not check RECORD's hashes, so this does (Vestige, ExperiRays)."""
+    import base64
+    with zipfile.ZipFile(wheel(tmp_path, "v9.9.9")) as whl:
+        [record_name] = [name for name in whl.namelist() if name.endswith(".dist-info/RECORD")]
+        rows = [line.split(",") for line in whl.read(record_name).decode().splitlines()]
+        assert [row[0] for row in rows] == sorted(set(whl.namelist()) - {record_name}) + [record_name]
+        assert rows[-1] == [record_name, "", ""]
+        for name, digest, size in rows[:-1]:
+            data = whl.read(name)
+            expected = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+            assert (digest, size) == (f"sha256={expected}", str(len(data))), name
+
+
+def test_every_wheel_entry_is_stored_and_dated_1980(tmp_path):
+    """Two builds land in one two-second zip slot, so comparing them cannot
+    see a build-time date; the dates are checked here (Vestige, ExperiRays)."""
+    with zipfile.ZipFile(wheel(tmp_path, "v9.9.9")) as whl:
+        assert {(info.date_time, info.compress_type) for info in whl.infolist()} == {
+            ((1980, 1, 1, 0, 0, 0), zipfile.ZIP_STORED)}
+
+
 def test_a_candidate_wheel_has_its_number_and_a_rebuild_is_the_same_bytes(tmp_path):
+    """The wheel's version is cli.VERSION whatever the tag's numbers say
+    (release.yml checks they agree); a candidate's tag adds only its rc number."""
     import cli
     candidate = wheel(tmp_path / "rc", "v0.1.0-rc.2")
     assert candidate.name == f"frameledger-{cli.VERSION}rc2-py3-none-any.whl"
     assert wheel(tmp_path / "a", "v0.1.0").read_bytes() == wheel(tmp_path / "b", "v0.1.0").read_bytes()
+
+
+@pytest.mark.parametrize("tag", ["v0.9.0-rc1", "v0.9.0-beta.1", "v0.9.0-rc.1.1", "v0.9.0-rc.01", "v0.9.0-rc.0"])
+def test_a_prerelease_tag_that_is_not_rc_n_stops_the_build(tmp_path, tag):
+    """release.yml makes any tag with a hyphen a pre-release, so a wheel built
+    from one must be a PyPI pre-release too, or it takes the stable number
+    for good (UT Ants, FLED-0043)."""
+    done = subprocess.run([sys.executable, "-I", str(SCRIPT), str(tmp_path), tag], capture_output=True, text=True)
+    assert done.returncode == 2
+    assert tag in done.stderr
+    assert not list(tmp_path.iterdir())
+
+
+def test_importing_the_package_leaves_the_import_path_alone():
+    """Only running frameledger puts its folder on the path (UT Ants, FLED-0043)."""
+    code = (f"import sys; sys.path.insert(0, {str(ROOT / 'src')!r}); before = list(sys.path); "
+            "import frameledger; print(sys.path == before)")
+    done = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
+    assert done.stdout == "True\n", done.stderr
 
 
 def test_pip_installs_the_wheel_as_a_frameledger_command(tmp_path):
@@ -138,10 +188,12 @@ def test_pip_installs_the_wheel_as_a_frameledger_command(tmp_path):
     built = wheel(tmp_path / "dist", "v9.9.9")
     env = tmp_path / "env"
     subprocess.run([sys.executable, "-m", "venv", str(env)], check=True)
+    # No ".exe" on Windows: CreateProcess adds it to a name that has none.
     bin_dir = env / ("Scripts" if sys.platform == "win32" else "bin")
     python = bin_dir / "python"
-    subprocess.run([str(python), "-m", "pip", "install", "--quiet", "--no-index", "--no-deps", str(built)],
-                   check=True, capture_output=True)
+    install = subprocess.run([str(python), "-m", "pip", "install", "--quiet", "--no-index", "--no-deps", str(built)],
+                             capture_output=True, text=True)
+    assert install.returncode == 0, install.stdout + install.stderr
     version = subprocess.run([str(bin_dir / "frameledger"), "--version"], capture_output=True, text=True)
     assert version.stdout == f"frameledger {cli.VERSION}\n", version.stderr
     kit = subprocess.run([str(bin_dir / "frameledger"), "kit", str(tmp_path / "kit")], capture_output=True, text=True)

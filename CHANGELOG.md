@@ -14,13 +14,17 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Added
 
-- frameledger is on PyPI: `pipx install frameledger` or
-  `python3 -m pip install --user frameledger` gives a `frameledger`
-  command, and `python3 -m frameledger` runs too (FLED-0043). Still
-  standard library only. The wheel holds the `.pyz`'s files, and
+- frameledger is on PyPI: `pipx install frameledger`, or
+  `python3 -m pip install frameledger` in a virtual environment, gives
+  a `frameledger` command, and `python3 -m frameledger` runs too
+  (FLED-0043). Still standard library only. The wheel holds the
+  `.pyz`'s files and `__init__.py`, its entry point, and
   `scripts/build_release.py` builds it reproducibly beside the
-  archive; release.yml uploads it after the GitHub release. The
-  release zip is unchanged, and stays the thing to pin.
+  archive. release.yml uploads it after the GitHub release, for a
+  final release only. The release zip holds the same files as before,
+  and stays the thing to pin. `scripts/build_release.py` now refuses a
+  tag with a hyphen that does not end `-rc.N`, since release.yml makes
+  every such tag a pre-release.
 
 ### Changed
 

@@ -39,14 +39,17 @@ The [roadmap](ROADMAP.md) lists what comes next.
 ## Install
 
 From 0.9.0, the analyser is also on PyPI. With Python 3.10 or newer,
-either line gives you a `frameledger` command:
+this gives you a `frameledger` command:
 
 ```sh
 pipx install frameledger
-python3 -m pip install --user frameledger
 ```
 
-The package holds the analyser only. The writer header, and an archive
+Inside a virtual environment, `python3 -m pip install frameledger` does
+the same. Many Linux systems refuse a pip install outside one.
+
+PyPI has final releases only; candidates are in the release zip. The
+package holds the analyser only. The writer header, and an archive
 with one hash to pin, are in the release zip below.
 
 ### The release zip
