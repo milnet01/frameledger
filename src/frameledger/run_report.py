@@ -500,7 +500,7 @@ def warning_sentences(notices: list[ledger.Notice]) -> list[str]:
 
 def _headline(run: ledger.Run, result: dict, costs: Costs) -> list[str]:
     kinds = sorted({segment_kind(ledger.frame_segment(rows)) for rows in run.frames.values()}, key=kind_order)
-    where = ("none of them in a segment" if kinds == [None] else
+    where = ("none of them in a segment" if set(kinds) == {None} else
              f"in {kinds_phrase(kinds)}" if kinds else "in no segments")
     sentences = [f"The run has {counted(len(run.frames), 'frame')}, {where}."]
     if imported(run):
@@ -552,15 +552,17 @@ def kind_name(kind: str | None) -> str:
     return kind or "unsegmented"
 
 
-def kinds_phrase(kinds) -> str:
+def kinds_phrase(kinds: list[str | None]) -> str:
     """Where frames of `kinds` are, to follow "in": `view, menu segments`,
-    `frames with no segment`, or both joined by "and", no segment first
-    as kind_order sorts it. JSON keeps None (FLED-0083)."""
+    `frames with no segment`, or both, as `frames with no segment and in
+    view segments`, no segment first as kind_order sorts it. `kinds` is
+    never empty; JSON keeps None (FLED-0083). render._frames_in says the
+    same for one kind, and a test holds the two alike."""
     named = [k for k in kinds if k is not None]
     parts = ["frames with no segment"] if None in kinds else []
     if named:
         parts.append(f"{', '.join(named)} segments")
-    return " and ".join(parts)
+    return " and in ".join(parts)
 
 
 def _ms(thousandths: int) -> float:

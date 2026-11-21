@@ -368,7 +368,8 @@ def _label(category: str, name: str, statistic: str, kind: str | None) -> str:
 
 
 def _unmatched_sentence(budget: Budget) -> str:
-    frames = "frame" if budget.kind == EVERY_KIND else f"{run_report.kind_name(budget.kind)} frame"
+    frames = ("frame" if budget.kind == EVERY_KIND else
+              "frame outside a segment" if budget.kind is None else f"{budget.kind} frame")
     depth = "" if budget.depth is None else f" at depth {budget.depth}"
     return (f"Line {budget.line}'s {budget.category}/{budget.name}{depth} is in no {frames} judged, "
             f"so its {budget.statistic} budget cannot be judged: the "

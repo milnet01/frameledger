@@ -47,7 +47,7 @@ class Wanted(NamedTuple):
     @property
     def label(self) -> str:
         where = (f"segment {self.segment}" if self.segment else
-                 f"{self.kind} segments" if self.kind else "frames with no segment")
+                 run_report.kinds_phrase([self.kind]))
         depth = "" if self.depth is None else f" at depth {self.depth}"
         return f"{self.category}/{self.name}{depth} {self.statistic} in {where}"
 

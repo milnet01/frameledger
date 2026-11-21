@@ -519,7 +519,7 @@ def _frames_in(kind: str | None) -> str:
     """Where one kind's frames are, to follow "in". run_report.kinds_phrase
     says it for the summary; render imports no analyser module
     (docs/design.md § What may depend on what)."""
-    return f"{kind} segments" if kind else "frames with no segment"
+    return "frames with no segment" if kind is None else f"{kind} segments"
 
 
 def _shared_directory(paths: list[str]) -> str:
