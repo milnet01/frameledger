@@ -27,9 +27,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   every such tag a pre-release.
 - A user guide, `docs/guide.md` (FLED-0044): a quick start from
   install to a first report, what a run file holds, worked examples in
-  C and C++ with the header, a PresentMon import, and how to read
-  `check`, `report`, `floor` and `compare`. The README's compare
-  walkthroughs moved into it.
+  C and C++ with the header and how to wire it into an engine, a
+  PresentMon import, how to read each command's answer and exit code,
+  comparing builds, and checking every build. The README's compare
+  walkthroughs moved into it. `tests/test_guide.py` builds and runs
+  the guide's examples on every gate run, and fails when an output
+  differs from the guide's.
 
 ### Changed
 

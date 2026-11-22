@@ -2029,7 +2029,7 @@ frameledger, wire it into their engine and get help.
   Kind: package.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0044] **A user guide and a quick start.**
+- ✅ [FLED-0044] **A user guide and a quick start.**
   From nothing to a first report: write the file (by hand, with the
   header, or by import), run each command, read its answer. Worked
   examples for C and C++. Checked by running every step
@@ -2037,6 +2037,9 @@ frameledger, wire it into their engine and get help.
   2026-11-22: docs/guide.md built; every command it shows was run from a
   pipx install of a locally built wheel and matched. Sent to the engines
   and ExperiRays for review.
+  2026-11-22: UT Ants', Vestige's, ExperiRays' and DOOM Ants' reviews
+  folded. tests/test_guide.py builds and runs the guide's examples on
+  every gate run, the engines' choice over an examples/ folder.
   **Layman:** A guide that takes a newcomer from nothing to their first report.
   Kind: doc.
   Source: engine-answers-2026-11-10.
