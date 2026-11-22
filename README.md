@@ -162,6 +162,10 @@ compare two builds, variants of one build, or a saved baseline.
 After cloning, run `./scripts/setup-hooks.sh` once. It turns on the
 commit and push checks, which git does not copy with a clone.
 
+To ask for help, report a bug or send a change, see
+[CONTRIBUTING.md](CONTRIBUTING.md). Report a security hole as
+[SECURITY.md](SECURITY.md) says, never in a public issue.
+
 ## Documentation
 
 | | |

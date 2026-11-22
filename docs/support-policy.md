@@ -22,8 +22,9 @@ What counts as breaking is
 - **`CHANGELOG.md` is where every deprecation, removal and security
   fix is announced, and the only place.** No notice is sent.
   `scripts/release_notes.py` prints a release's section as its notes.
-- **Where to report a bug or a security hole** is not written yet. It
-  is tracked by FLED-0045.
+- **Where to report a bug or a security hole**: a bug in an issue, as
+  [`CONTRIBUTING.md`](../CONTRIBUTING.md) says, and a security hole as
+  [`SECURITY.md`](../SECURITY.md) says.
 
 ## What it runs on
 

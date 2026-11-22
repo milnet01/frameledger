@@ -2044,9 +2044,13 @@ frameledger, wire it into their engine and get help.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0045] **Contributing and support files.**
+- 🚧 [FLED-0045] **Contributing and support files.**
   CONTRIBUTING, issue and pull request templates, a code of conduct,
   and where to ask for help.
+  Built 2026-11-22. The owner chose: GitHub private vulnerability
+  reporting (now on), questions in Issues, outside pull requests only
+  after an agreed issue, and their own address as the code of conduct
+  contact. Sent to UT Ants, Vestige, DOOM Ants and ExperiRays for review.
   **Layman:** Tells outsiders how to report problems and help out.
   Kind: doc.
   Source: engine-answers-2026-11-10.

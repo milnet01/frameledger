@@ -1,0 +1,39 @@
+name: Bug
+description: frameledger did something wrong, or failed.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `frameledger --version`.
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System and Python
+      description: For example, "Ubuntu 24.04, Python 3.12".
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: What you ran
+      description: The whole command, as typed.
+      render: sh
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: Paste the output and the error. Attach the run file if you can share it.
+    validations:
+      required: true

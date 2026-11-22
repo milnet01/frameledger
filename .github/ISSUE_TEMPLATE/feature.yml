@@ -1,0 +1,22 @@
+name: Feature
+description: Ask for something frameledger does not do yet.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The problem, not the solution. What would you measure or decide with it?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like
+      description: How you picture it working, if you have an idea.
+  - type: checkboxes
+    id: code
+    attributes:
+      label: Writing it
+      options:
+        - label: I would like to send the change myself, once it is agreed here.
