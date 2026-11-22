@@ -25,6 +25,11 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   and stays the thing to pin. `scripts/build_release.py` now refuses a
   tag with a hyphen that does not end `-rc.N`, since release.yml makes
   every such tag a pre-release.
+- A user guide, `docs/guide.md` (FLED-0044): a quick start from
+  install to a first report, what a run file holds, worked examples in
+  C and C++ with the header, a PresentMon import, and how to read
+  `check`, `report`, `floor` and `compare`. The README's compare
+  walkthroughs moved into it.
 
 ### Changed
 

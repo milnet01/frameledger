@@ -153,110 +153,8 @@ The spec lists the flags and exit codes:
 [bisect](docs/specs/FLED-0001-run-file-format.md#411-bisect-verdicts) and
 [budget](docs/specs/FLED-0001-run-file-format.md#412-pass-budgets).
 
-### An A/B with compare
-
-Each build needs at least three runs. Alternate them in one sitting:
-old, new, new, old, old, new. Three of one build then three of the
-other lets drift over time read as a change, and compare warns
-`not_interleaved`. `alternate` runs both builds' commands in that
-order, five runs a side by default, then compares what they wrote.
-Each command must hold `{run}` where its run file's path goes.
-On Windows, stopping `alternate` reaches the engine as Ctrl-Break, not
-Ctrl-C. An engine that closes its run file on Ctrl-C must handle
-Ctrl-Break the same way, or a stopped run has no close line.
-A run whose header records other programs loading the CPU or GPU
-while it ran makes the compare inconclusive; `--max-load` and
-`--max-gpu-busy` set how much is allowed.
-
-### Several variants against one base
-
-To cost each effect, give the full frame as `--base` and the frame
-with each effect off as a named `--variant`:
-
-```sh
-frameledger compare --base full1.csv full2.csv full3.csv --variant no_bloom nb1.csv nb2.csv nb3.csv --variant no_fog nf1.csv nf2.csv nf3.csv
-frameledger alternate --base './engine --frame-log={run}' --variant no_bloom './engine --no-bloom --frame-log={run}' --out effects
-```
-
-Each variant is judged against the base as `compare` judges new
-against old, and the variants are ranked by how much frame time each
-saved. A variant that cannot be judged does not stop the others.
-`--measure` picks another measure to rank by.
-`--measure gpu/opaque`, given once per measure, judges only the
-measures named, and adds a table of each run's value of each.
-Compare reads each run's start time from its file's `started_utc`
-header, so list each build's files together on the command line.
-
-### A saved baseline
-
-To check each new build against runs you kept, list the kept run
-files in a baseline file, one path per line under a first line that
-names the format:
-
-```
-# frameledger-baseline {"schema":1}
-runs/meadow-1.csv
-runs/meadow-2.csv
-runs/meadow-3.csv
-```
-
-A relative path starts at the baseline file's own folder. Give the
-file as `--baseline` in place of `--old`, or in place of `--base`:
-
-```sh
-frameledger compare --baseline perf/meadow.txt --new b1.csv b2.csv b3.csv
-frameledger alternate --baseline perf/meadow.txt --new './new/engine --frame-log={run}' --out today
-```
-
-`alternate` then runs only the new build. The kept runs are judged as
-any old runs are, so a baseline from another GPU or graphics API is
-refused. Nothing alternates with a baseline, so the machine may have
-drifted since it was taken: compare warns `baseline_not_interleaved`
-and says how old the baseline is. An A/B in one sitting is the surer
-check. frameledger never writes the baseline file; to renew it, keep
-a session's run files and list them.
-
-For each measure, compare takes each build's median across its runs,
-and judges the change against the spread. The spread is the larger of
-the two builds' ranges, highest run minus lowest. Here the new build's
-opaque pass got slower:
-
-```text
-$ frameledger compare --old a1.csv a2.csv a3.csv --new b1.csv b2.csv b3.csv
-The new runs are slower: 4 measures got slower; the largest is gpu/opaque median in view segments, up 0.890 ms (+22.1%), beyond the runs' spread of 0.090 ms.
-In view segments the median frame/wall went from 16.020 ms to 16.910 ms (slower).
-
-Runs:
-  old-1     a1.csv
-  old-2     a2.csv
-  old-3     a3.csv
-  new-1     b1.csv
-  new-2     b2.csv
-  new-3     b3.csv
-
-Measures that moved or are too noisy to judge, old and new as the runs' median:
-  measure                                       old ms      new ms      change      spread  verdict
-  view: frame/gpu_span                          12.020      12.910      +0.890       0.090  slower
-  view: frame/wall                              16.020      16.910      +0.890       0.090  slower
-  view: frame/wall p99                          16.020      16.910      +0.890       0.090  slower
-  view: gpu/opaque                               4.020       4.910      +0.890       0.090  slower
-4 of 8 measures unchanged.
-```
-
-`view` is the segment kind these runs wrote: the part before the colon
-in a row's `segment`, such as `view:3`. Your engine names its own
-kinds, and compare judges each kind apart.
-
-It judges frame times, `cpu` and `gpu` passes, and `mem`. It does not
-judge `event` or `ext.<engine>` rows.
-
-The first line names the measure with the largest change in ms. Here
-all four moved 0.890 ms, so the tie goes to the largest percentage.
-
-It exits 1 here, because a measure got slower. It exits 0 when nothing
-got slower or larger, 2 when the runs are too noisy to judge, and 3 on
-an error. Unchanged measures are counted, not listed; `--json` lists
-every measure with its verdict.
+The [guide](docs/guide.md) shows how to read each result, and how to
+compare two builds, variants of one build, or a saved baseline.
 
 ## Working on it
 
@@ -267,6 +165,7 @@ commit and push checks, which git does not copy with a clone.
 
 | | |
 |---|---|
+| [docs/guide.md](docs/guide.md) | From nothing to a first report, and how to read each result |
 | [ROADMAP.md](ROADMAP.md) | What is planned, in progress and shipped |
 | [CHANGELOG.md](CHANGELOG.md) | What shipped, when |
 | [docs/support-policy.md](docs/support-policy.md) | Which release gets fixes, what it runs on, and how a thing is retired |
