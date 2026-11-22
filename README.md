@@ -160,7 +160,8 @@ compare two builds, variants of one build, or a saved baseline.
 ## Working on it
 
 After cloning, run `./scripts/setup-hooks.sh` once. It turns on the
-commit and push checks, which git does not copy with a clone.
+commit checks, which git does not copy with a clone. On the
+maintainer's machine it also gates each push.
 
 To ask for help, report a bug or send a change, see
 [CONTRIBUTING.md](CONTRIBUTING.md). Report a security hole as

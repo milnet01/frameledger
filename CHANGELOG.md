@@ -34,6 +34,13 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   the guide's examples on every gate run, and fails when an output
   differs from the guide's.
 
+- Where to ask for help, report a bug or send a change (FLED-0045):
+  `CONTRIBUTING.md`, issue forms for a bug, a feature and a question,
+  and a pull request template. `SECURITY.md` says how to report a
+  security hole privately, through GitHub, and lists what frameledger
+  checks where outside data reaches it. `CODE_OF_CONDUCT.md` is the
+  Contributor Covenant 2.1.
+
 ### Changed
 
 - The gate also runs the tests and `--selftest` on the newest released

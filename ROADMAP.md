@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=84 -->
+<!-- ants-roadmap-id-high-water: FLED=86 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -2044,13 +2044,19 @@ frameledger, wire it into their engine and get help.
   Kind: doc.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0045] **Contributing and support files.**
+- ✅ [FLED-0045] **Contributing and support files.**
   CONTRIBUTING, issue and pull request templates, a code of conduct,
   and where to ask for help.
   Built 2026-11-22. The owner chose: GitHub private vulnerability
   reporting (now on), questions in Issues, outside pull requests only
   after an agreed issue, and their own address as the code of conduct
   contact. Sent to UT Ants, Vestige, DOOM Ants and ExperiRays for review.
+  Shipped 2026-11-22, with all four reviews folded. Two of three engines
+  decided both open questions: outside commits use fix:/docs:/chore: and
+  the maintainer squash-merges under a FLED id (Vestige would have kept
+  the id promise); --html's overwrite became FLED-0086 (Vestige would
+  not have). The backslash bug became FLED-0085. Input size limits: no
+  item, all three agreeing.
   **Layman:** Tells outsiders how to report problems and help out.
   Kind: doc.
   Source: engine-answers-2026-11-10.
@@ -2105,6 +2111,33 @@ frameledger, wire it into their engine and get help.
   **Layman:** The README no longer says the zip is the only way to get the tool.
   Kind: doc-fix.
   Source: session-handoff-2026-11-22.
+
+- 📋 [FLED-0085] **alternate's --out must not let a POSIX shell rewrite the run file path.**
+  SAFE_DIR in alternate.py allows `\` and `:` on every system. A POSIX
+  shell drops an unquoted backslash: `--out a\b` passes the folder check,
+  but the command gets `ab/…`, so the engine writes somewhere else.
+  Allow them on Windows only, or quote the path with shlex.quote on POSIX.
+  Found by UT Ants reviewing FLED-0045; checked with
+  `sh -c 'printf "%s\n" a\b/run.csv'`, which prints `ab/run.csv`.
+  DOOM Ants, Vestige and ExperiRays found the same. alternate.py's own
+  comment, "needs no quoting in /bin/sh", is false with it and is fixed
+  in the same change. SECURITY.md says the backslash is unsafe on POSIX
+  until then.
+  **Layman:** A folder name with a backslash could make a run file land in the wrong place on Linux or macOS.
+  Kind: fix.
+  Source: ut-ants-review-2026-11-22.
+
+- 📋 [FLED-0086] **report --html refuses to replace a file that is not a frameledger page.**
+  --html writes with overwrite=True, so a typo such as `--html old-1.csv`
+  silently destroys a recording that cannot be re-made. import presentmon,
+  alternate and kit all refuse to overwrite. Replace only a file that
+  starts with frameledger's own page head; refuse anything else.
+  UT Ants and DOOM Ants asked for it before 0.9.0; Vestige would not, as
+  README already says PAGE is overwritten. Decided by two of three,
+  reviewing FLED-0045, 2026-11-22.
+  **Layman:** Stops a mistyped report name from wiping out a recording.
+  Kind: fix.
+  Source: engine-reviews-FLED-0045-2026-11-22.
 
 ## 1.0.0 — fully working
 

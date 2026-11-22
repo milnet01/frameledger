@@ -24,28 +24,42 @@ request with no agreed issue may be closed.
 
 ### Build and test
 
-On Linux or macOS:
+[Fork the repository](https://github.com/milnet01/frameledger/fork) on
+GitHub, then, on Linux or macOS:
 
 ```sh
-git clone https://github.com/milnet01/frameledger.git
+git clone https://github.com/<you>/frameledger.git
 cd frameledger
 ./scripts/setup-hooks.sh
 ./scripts/local-ci.sh
 ```
 
-`setup-hooks.sh` turns on the project's hooks. They check each
-commit's subject and the Markdown it changes. On your machine they do
-not run the gate before a push, and say so, so run it yourself.
+`setup-hooks.sh` turns on the project's hooks. They check each commit
+subject, and the Markdown a commit changes outside `docs/`. They do
+not run the gate before a push. Run `./scripts/local-ci.sh` yourself.
+
+A hook message may cite a `~/.claude/` file. Those are the maintainer's
+own rules and are not published; the message itself says what to fix.
 
 `scripts/local-ci.sh` is the gate, and GitHub runs the same script on
 every pull request. It needs [uv](https://docs.astral.sh/uv/) on your
-PATH, which fetches the pinned Python and tools. The writer checks also
-need C and C++ compilers: `gcc`, `clang` and the MinGW-w64
-cross-compilers on Linux, `clang` on macOS. A missing compiler fails
-the gate, which names it. Without one, push anyway and read the pull
-request's checks.
+PATH. uv fetches the pinned Python and tools.
 
-`./scripts/local-ci.sh --docs` runs only the document checks.
+The writer checks also need C and C++ compilers: `gcc`, `clang` and
+the MinGW-w64 cross-compilers on Linux, `clang` on macOS. On Linux they
+also need the `de_DE.UTF-8` locale. The gate stops at the first check
+that fails, and names any compiler it cannot find.
+
+Without those, two commands still check your change:
+
+```sh
+./scripts/local-ci.sh --docs
+uvx --python 3.10 --with jsonschema pytest
+```
+
+The first runs the document checks, the second the analyser's tests.
+Your pull request's checks then run the rest. On a first pull request,
+GitHub waits for a maintainer to approve those checks before they run.
 
 ### What a change needs
 
@@ -62,13 +76,10 @@ request's checks.
   tracks.
 - **A change that breaks a file format, a command or a JSON result**
   follows [`docs/support-policy.md` § When a breaking change is allowed](docs/support-policy.md#when-a-breaking-change-is-allowed).
-- **Each commit subject opens with the id the maintainer gave the
-  issue**, as in `FLED-0090: …`. A fix, a documentation change or a
-  chore with no id may open `fix: `, `docs: ` or `chore: ` instead.
-  The commit hook checks this.
-
-`docs/standards/` holds the few places where this project departs
-from its maintainers' general rules.
+- **Each commit subject opens `fix: `, `docs: ` or `chore: `**, and
+  is at most 72 characters, with no full stop at the end. The commit
+  hook checks this. Pick the nearest for a feature: the maintainer
+  squash-merges it under the project's own id.
 
 ## Licence
 
