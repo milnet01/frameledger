@@ -122,8 +122,9 @@ Windows PATH, runs the code in that checkout.
 
 ## Usage
 
-The analyser and its launchers come in the release zip (see Install).
-An engine that vendors only the header must still fetch them.
+Install the analyser from PyPI (from 0.9.0) or from the release zip,
+which also holds its launchers (see Install). An engine that vendors
+only the header must still install it one of those ways.
 
 ```sh
 frameledger check run.csv

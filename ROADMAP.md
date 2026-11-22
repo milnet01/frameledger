@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=83 -->
+<!-- ants-roadmap-id-high-water: FLED=84 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -2094,6 +2094,13 @@ frameledger, wire it into their engine and get help.
   **Layman:** A message about frames that belong to no named part of a run says so in plain words.
   Kind: ux.
   Source: review-FLED-0072-2026-11-21.
+
+- ✅ [FLED-0084] **README Usage names PyPI as well as the release zip.**
+  Usage's first line said the analyser came only in the release zip.
+  From 0.9.0 it is on PyPI too, as Install says.
+  **Layman:** The README no longer says the zip is the only way to get the tool.
+  Kind: doc-fix.
+  Source: session-handoff-2026-11-22.
 
 ## 1.0.0 — fully working
 
