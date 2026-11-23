@@ -7,11 +7,14 @@ through its own axes: a point's place on the page against the plot's box
 and the axes' last labels.
 """
 
+import contextlib
 import errno
 import json
 import math
 import os
 import re
+import signal
+import sys
 import xml.etree.ElementTree as ET
 from itertools import combinations
 from pathlib import Path
@@ -65,7 +68,8 @@ def flat(frames: int, **options) -> str:
 
 
 # What an earlier page at PAGE may hold: frameledger's page head up to its
-# title, which is all a page must start with to be replaced (INV-133).
+# title, which is all a page must start with to be replaced (INV-133). A
+# literal copy, not picture._START, so changing _START fails here.
 EARLIER_PAGE = ('<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"/>\n'
                 '<meta name="viewport" content="width=device-width, initial-scale=1"/>\n'
                 "<title>frameledger report</title>\nold")
@@ -262,6 +266,7 @@ def test_page_refusals(capsys, tmp_path, monkeypatch):
     assert out == "" and str(page) in err and "No space left" in err
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="links need Developer Mode on Windows (Vestige)")
 def test_page_is_never_file(capsys, tmp_path):
     """INV-126: PAGE naming FILE, by any path, is refused and FILE is unchanged."""
     run = tmp_path / "run.csv"
@@ -290,7 +295,30 @@ def test_page_is_never_file(capsys, tmp_path):
 def held(folder: Path) -> dict:
     """What each entry in `folder` is and holds: a link's target, a file's bytes."""
     return {entry.name: os.readlink(entry) if entry.is_symlink() else "folder" if entry.is_dir()
-            else entry.read_bytes() for entry in folder.iterdir()}
+            else "fifo" if entry.is_fifo() else entry.read_bytes() for entry in folder.iterdir()}
+
+
+class Hung(BaseException):
+    """Raised by deadline; a BaseException, so no `except Exception` hides it."""
+
+
+@contextlib.contextmanager
+def deadline(seconds: int):
+    """Fail, rather than hang, when the body waits longer than `seconds`.
+    POSIX only; elsewhere it does nothing."""
+    if not hasattr(signal, "SIGALRM"):
+        yield
+        return
+
+    def expired(*_):  # not an OSError, which the code under test may catch
+        raise Hung(f"still waiting after {seconds} s")
+    previous = signal.signal(signal.SIGALRM, expired)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
 
 
 def test_page_replaces_only_a_page(capsys, tmp_path):
@@ -302,15 +330,21 @@ def test_page_replaces_only_a_page(capsys, tmp_path):
     run.write_text(hundred(), encoding="utf-8")
     (tmp_path / "old-1.csv").write_text(hundred(), encoding="utf-8")
     (tmp_path / "empty.html").write_text("", encoding="utf-8")
-    (tmp_path / "plain.html").write_text("<!DOCTYPE html>\n<html><head><title>notes</title>", encoding="utf-8")
+    # Only the <title> line differs from a page's start.
+    (tmp_path / "titled.html").write_text(EARLIER_PAGE.replace("frameledger report", "notes"), encoding="utf-8")
     (tmp_path / "folder").mkdir()
     (tmp_path / "other.txt").write_text("kept", encoding="utf-8")
-    (tmp_path / "link.html").symlink_to(tmp_path / "other.txt")
-    (tmp_path / "dangling.html").symlink_to(tmp_path / "gone")
+    names = ["old-1.csv", "empty.html", "titled.html", "folder"]
+    if sys.platform != "win32":  # Windows needs Developer Mode for links, and has no FIFO (Vestige)
+        (tmp_path / "link.html").symlink_to(tmp_path / "other.txt")
+        (tmp_path / "dangling.html").symlink_to(tmp_path / "gone")
+        os.mkfifo(tmp_path / "fifo")  # opened to read, it would wait for a writer (ExperiRays)
+        names += ["link.html", "dangling.html", "fifo"]
     before = held(tmp_path)
-    for name in ("old-1.csv", "empty.html", "plain.html", "folder", "link.html", "dangling.html"):
+    for name in names:
         page = str(tmp_path / name)
-        assert cli.main(["report", str(broken), "--html", page]) == cli.ERROR
+        with deadline(10):
+            assert cli.main(["report", str(broken), "--html", page]) == cli.ERROR
         said = capsys.readouterr()
         assert said.out == "" and page in said.err and "not a frameledger page" in said.err, name
         assert held(tmp_path) == before

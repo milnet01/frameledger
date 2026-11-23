@@ -12,6 +12,7 @@ the page's text size whatever the browser's zoom.
 
 from __future__ import annotations
 
+import os
 from itertools import groupby
 from typing import NamedTuple
 
@@ -88,8 +89,12 @@ class _Plot:
 
 
 def is_page(path: str) -> bool:
-    """Whether `path` is a file starting as this module's pages do. False
-    for anything that cannot be read as a file: a folder, a broken link."""
+    """Whether `path` is a regular file starting as this module's pages do. False
+    for anything else: a folder, a broken link, a file it cannot read. A
+    FIFO or a device is never opened, since reading one can wait for ever
+    (ExperiRays)."""
+    if not os.path.isfile(path):
+        return False
     start = _START.encode("utf-8")
     try:
         with open(path, "rb") as stream:

@@ -113,8 +113,8 @@ SETUP_ERRORS = {  # each case, and what its error message must name
     "space in dir": "may hold only", "existing run file": "new-2.csv already exists",
     "existing warm-up file": "new-warmup-1.csv already exists",
 }
-if sys.platform != "win32":  # a POSIX shell reads a backslash as an escape (UT Ants)
-    SETUP_ERRORS["backslash in dir"] = "may hold only"
+if alternate.POSIX:  # a POSIX shell reads a backslash as an escape (UT Ants)
+    SETUP_ERRORS["backslash in dir"] = "the characters . _ - / :, in"
 
 
 @pytest.mark.parametrize("case", SETUP_ERRORS)

@@ -1833,9 +1833,10 @@ runs a set and 35% at three, both at 2% noise.
   each run, one line on standard error names it, counting warm-ups:
   "alternate: running new-2 (3 of 10)".
 - **`DIR` must exist, and its absolute path may hold only ASCII
-  letters, digits, and `.` `_` `-` `/` `:`, and on Windows `\`**, or
-  exit 3. So the filled path needs no quoting in either shell; `/bin/sh`
-  reads a backslash as an escape. A space is refused;
+  letters, digits, and `.` `_` `-` `/` `:`, and on Windows `\` and
+  `~`**, or exit 3. `/bin/sh` reads a backslash as an escape and a
+  leading `~` as home, so only Windows allows them; the filled path then
+  needs no quoting in either shell. A space is refused;
   pick a folder without one. This limits `DIR` only; the rest of a
   command may hold anything its shell accepts (UT Ants).
 - **No run file is ever overwritten.** If any of the run files,
@@ -2672,9 +2673,12 @@ output is byte for byte what `report` prints without `--html`: text,
 - **PAGE is replaced only when it is an earlier page**: a file that
   starts as every page does, from `<!DOCTYPE html>` to the `<title>`
   line. Anything else at PAGE, such as a run file, an empty file, a
-  folder, or a link to anything but a page, is exit 3 before anything is
-  read, naming PAGE. A mistyped PAGE must not destroy a recording (UT
-  Ants, DOOM Ants).
+  folder, a FIFO, or a link to anything but a page, is exit 3 before
+  FILE is read, naming PAGE. Only a regular file is opened to check it,
+  since reading a FIFO waits for a writer (ExperiRays). A mistyped PAGE
+  must not destroy a recording (UT Ants, DOOM Ants). PAGE is checked
+  once, before FILE is read, so a file put there while the report runs
+  is replaced.
 - **It is written whole or not at all.** The page is built, written to
   a new file in PAGE's directory and renamed over PAGE, all before
   anything is printed (Vestige, DOOM Ants). A report that ends in exit
@@ -4750,16 +4754,17 @@ breaks.
 
 - **INV-133** — `report --html` replaces only an earlier page. With
   FILE breaking the format, PAGE as a run file, an empty file, a file
-  starting `<!DOCTYPE html>` with another title, a folder, a link to a
-  file holding "kept", and a link to nothing each exit 3, with nothing
+  starting as a page does but for its `<title>` line, a folder, and, on
+  Linux and macOS, a link to a file holding "kept", a link to nothing
+  and a FIFO each exit 3 within 10 seconds, with nothing
   on standard output and an error naming PAGE and saying it is not a
   frameledger page. None changes anything in PAGE's folder. A file
   holding only the page's start, from `<!DOCTYPE html>` to the
   `<title>` line, then "old", is replaced by the page, exit 0.
   *Test:* `tests/test_html.py::test_page_replaces_only_a_page`.
   *Breaks when:* a file that is not a page is replaced, the refusal
-  comes after FILE is read, or a page from an earlier version, with
-  another style sheet, is refused.
+  comes after FILE is read, the check opens a FIFO, or a page from an
+  earlier version, with another style sheet, is refused.
 
 ## 6. Failure modes
 

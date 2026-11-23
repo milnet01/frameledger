@@ -64,10 +64,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 - `report --html PAGE` replaces only an earlier frameledger page, and
   refuses anything else at PAGE before reading the run, so a mistyped
   PAGE such as `--html old-1.csv` can no longer destroy a recording
-  (FLED-0086).
+  (FLED-0086). A FIFO or device at PAGE, such as `/dev/stdout`, is
+  refused at once.
 - `alternate` refuses a `--out` holding a backslash on Linux and
   macOS, where the shell read it as an escape and the engine wrote its
-  run file somewhere else (FLED-0085). Windows still allows one.
+  run file somewhere else (FLED-0085). Windows still allows one, and
+  now allows `~` too, which short folder names such as `NAME~1` hold.
 - `survey` no longer calls `os.path.commonprefix`, which Python 3.15
   deprecates, to find the directory its runs share (FLED-0082).
 

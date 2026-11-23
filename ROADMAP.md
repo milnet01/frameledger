@@ -2127,6 +2127,9 @@ frameledger, wire it into their engine and get help.
   the simpler of the two fixes offered: the refusal message names the
   allowed characters, and no command gains quoting. With the engines
   for review.
+  Four reviews folded 2026-11-23 (UT Ants, Vestige, DOOM Ants,
+  ExperiRays): `~` allowed on Windows too, for short names such as
+  NAME~1 (Vestige). A run of the suite on Windows is owed by Vestige.
   **Layman:** A folder name with a backslash could make a run file land in the wrong place on Linux or macOS.
   Kind: fix.
   Source: ut-ants-review-2026-11-22.
@@ -2144,6 +2147,10 @@ frameledger, wire it into their engine and get help.
   line, so pages from earlier versions are still replaced. Anything
   else at PAGE, a broken link and a folder included, is exit 3 before
   the run is read. INV-133 added. With the engines for review.
+  Four reviews folded 2026-11-23: a FIFO or device at PAGE hung report,
+  so only a regular file is opened (ExperiRays, DOOM Ants). An empty
+  file at PAGE stays refused, two to one (UT Ants, Vestige; DOOM Ants
+  would allow it). A run of the suite on Windows is owed by Vestige.
   **Layman:** Stops a mistyped report name from wiping out a recording.
   Kind: fix.
   Source: engine-reviews-FLED-0045-2026-11-22.
