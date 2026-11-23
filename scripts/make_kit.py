@@ -46,6 +46,10 @@ FLAGS = ["-std=c99", "-O2", "-Wall", "-Wextra", "-Wpedantic", "-Werror"]
 DRIVER = """\
 #include <stdio.h>
 #include <string.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 #include "frameledger.h"
 
 struct kit_row {{
@@ -98,6 +102,10 @@ int main(void)
     fled_writer w;
     size_t opening, cap, i;
     int rc;
+#ifdef _WIN32
+    /* Text mode would write each LF as CRLF, and the case is bytes. */
+    _setmode(_fileno(stdout), _O_BINARY);
+#endif
     /* Measure the opening lines, then open for real with room for them,
        the close line and one row. */
     if (fled_open(&w, buf, sizeof buf, run_id, header, static_json) != FLED_OK) {{
