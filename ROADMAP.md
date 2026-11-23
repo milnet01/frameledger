@@ -2226,7 +2226,7 @@ Every sign in docs/discovery.md met, measured and reviewed.
   Source: user-request-2026-10-24.
   Blocked-by: FLED-0014, FLED-0036, FLED-0037, FLED-0038, FLED-0040, FLED-0041, FLED-0042, FLED-0043, FLED-0044, FLED-0045.
 
-- 📋 [FLED-0087] **The test suite runs clean on Windows.**
+- 🚧 [FLED-0087] **The test suite runs clean on Windows.**
   Vestige ran the suite at b19303a on a Windows 10 box, 2026-11-23.
   Test-only defects, each read against the code:
   - test_baseline.py test_bad_baseline_files expects `C:\runs\kept-1.csv`
@@ -2248,6 +2248,12 @@ Every sign in docs/discovery.md met, measured and reviewed.
   item makes the suite green there; that job also has git, so it covers
   the build_release and kit tests Vestige's box cannot run. Re-checked
   by Vestige at 8248130: only this item's failures remain.
+  Built 2026-11-23 on branch fled-0087-windows (draft PR #2), with the
+  windows-latest job in ci.yml. The first Windows CI run found four more
+  test faults Vestige's box could not reach (WSL's bash in System32, a
+  CRLF checkout of two release files and a fixture); the second, the kit
+  driver's text-mode stdout. The third run, at ed12fd9, passed every
+  gate step on all three systems. With the engines for review.
   **Layman:** Some tests fail on Windows because of how the tests are written, not because frameledger is wrong there.
   Kind: test.
   Source: vestige-windows-run-2026-11-23.
