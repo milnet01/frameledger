@@ -87,5 +87,11 @@ jobs:
           sudo apt-get install -y --no-install-recommends clang g++-mingw-w64-x86-64-posix locales
           sudo locale-gen de_DE.UTF-8
 
+      # Windows tests with the runner image's own mingw-w64 GCC, nm and
+      # German locale, unpinned; the log names the GCC that ran.
+      - name: Name the Windows compiler
+        if: runner.os == 'Windows'
+        run: command -v gcc && gcc --version
+
       - name: Run the gate
         run: ./scripts/local-ci.sh

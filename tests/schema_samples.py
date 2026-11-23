@@ -20,8 +20,6 @@ import contextlib
 import io
 import json
 import os
-import shlex
-import subprocess
 import sys
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -29,6 +27,7 @@ from typing import NamedTuple
 
 import cli
 import floor_runs
+from test_alternate import command_line
 
 FIXTURES = Path(__file__).parent / "fixtures"
 FAKE_ENGINE = FIXTURES / "alternate" / "fake_engine.py"
@@ -827,9 +826,7 @@ class Bench:
 
     def command(self, side: str) -> str:
         words = [sys.executable, "-I", str(FAKE_ENGINE), side, self.sources[side], str(self.log)]
-        # cmd.exe reads double quotes, never /bin/sh's single quotes.
-        line = subprocess.list2cmdline(words) if sys.platform == "win32" else shlex.join(words)
-        return line + " {run}"
+        return command_line(words) + " {run}"
 
     def pair(self, *flags: str) -> list[str]:
         return ["alternate", "--old", self.command("old"), "--new", self.command("new"), "--out", str(self.out),

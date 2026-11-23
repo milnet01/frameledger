@@ -2,7 +2,7 @@
 launcher/frameledger.cmd text eol=crlf
 launcher/frameledger text eol=lf
 *.sh text eol=lf
-# The release holds these as git stores them; the tests compare a checkout's.
+# tests/test_release.py compares the release's copies, git's bytes, with a checkout's.
 include/frameledger.h text eol=lf
 LICENSE text eol=lf
 # The writer kit's files are bytes to be matched: kit DIR writes them as

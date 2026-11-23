@@ -44,6 +44,7 @@ for row in "${toolchains[@]}"; do
     for tool in "$cc" "$cxx" "$nm"; do
         command -v "$tool" >/dev/null || { fail "$tool is not installed, so its checks did NOT run"; continue 2; }
     done
+    # A run row needs no suffix: on Windows gcc adds .exe, and Git Bash runs prog as prog.exe.
     exe=; [[ $mode == build-only ]] && exe=.exe
 
     # INV-14: the mixed program, and what its objects reference.

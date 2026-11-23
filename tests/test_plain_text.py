@@ -65,14 +65,16 @@ def test_header_text_cannot_forge_or_flood_a_line(capsys, tmp_path):
                text_of(capsys, tmp_path, "--markdown", sanitizers=["addr\nWarning: fake"]).splitlines()) == 1
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="names Windows cannot hold: a line break, *, |, C:\\ in one")
+FORGED = "ru\nWarning: fake\x1b[2Jns"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows names hold no line break, escape, * or |")
 def test_path_text_cannot_forge_a_line(capsys, tmp_path, monkeypatch):
-    """INV-110: a path shows a control character as an escape and keeps
-    its backslashes single; --json gives it exactly."""
+    """INV-110: a path shows a control character as an escape; --json
+    gives it exactly."""
     monkeypatch.chdir(tmp_path)
-    forged = "ru\nWarning: fake\x1b[2Jns"
-    (tmp_path / forged).mkdir()
-    names = [f"{forged}/a.csv", f"{forged}/b.csv", "C:\\new.csv", "my_runs*|.csv"]
+    (tmp_path / FORGED).mkdir()
+    names = [f"{FORGED}/a.csv", f"{FORGED}/b.csv", "my_runs*|.csv"]
     for i, name in enumerate(names):
         (tmp_path / name).write_text(run_text(alike(10.0), run_id=f"r{i}"), encoding="utf-8")
 
@@ -80,10 +82,6 @@ def test_path_text_cannot_forge_a_line(capsys, tmp_path, monkeypatch):
     text = capsys.readouterr().out
     assert "Runs, slowest first, each file in ru\\nWarning: fake\\x1b[2Jns/:" in text.splitlines()
     assert not any(line.startswith("Warning: fake") for line in text.splitlines()) and "\x1b" not in text
-
-    cli.main(["survey", "C:\\new.csv", "--fps", "60"])
-    text = capsys.readouterr().out
-    assert "C:\\new.csv" in text and "C:\\\\new.csv" not in text  # a Windows path is not doubled
 
     cli.main(["survey", names[0], names[1], "--fps", "60", "--json"])
     paths = [run["path"] for run in json.loads(capsys.readouterr().out)["result"]["runs"]]
@@ -93,9 +91,30 @@ def test_path_text_cannot_forge_a_line(capsys, tmp_path, monkeypatch):
     cli.main(["survey", "my_runs*|.csv", "--fps", "60", "--markdown"])
     assert "my_runs\\*\\|.csv" in capsys.readouterr().out
 
-    # A file that cannot be read is named the same way.
-    assert cli.main(["report", f"{forged}/missing.csv"]) == 3
-    assert capsys.readouterr().out == "ru\\nWarning: fake\\x1b[2Jns/missing.csv: No such file or directory.\n"
+
+def test_path_text_is_escaped_with_no_file(capsys, tmp_path, monkeypatch):
+    """INV-110 on every system: a path that is only text, here a file not
+    there, is escaped as one that exists. Windows cannot hold the name,
+    yet can be given it (DOOM Ants)."""
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["report", f"{FORGED}/missing.csv"]) == 3
+    text = capsys.readouterr().out
+    assert text.startswith("ru\\nWarning: fake\\x1b[2Jns/missing.csv: ") and text.count("\n") == 1
+    assert "\x1b" not in text
+
+    assert cli.main(["report", "my_runs*|.csv", "--markdown"]) == 3
+    assert capsys.readouterr().out.startswith("- my_runs\\*\\|.csv: ")
+
+
+def test_a_windows_path_keeps_its_backslashes_single(capsys, tmp_path, monkeypatch):
+    """INV-110: a backslash is not escaped, so a Windows path can be copied.
+    On Windows a real one; elsewhere a file named so."""
+    monkeypatch.chdir(tmp_path)
+    name = str(tmp_path / "new.csv") if sys.platform == "win32" else "C:\\new.csv"
+    Path(name).write_text(run_text(alike(10.0), run_id="r1"), encoding="utf-8")
+    cli.main(["survey", name, "--fps", "60"])
+    text = capsys.readouterr().out
+    assert name in text and name.replace("\\", "\\\\") not in text
 
 
 # A value that tries everything at once: a forged line, a screen clear, the

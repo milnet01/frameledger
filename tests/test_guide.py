@@ -66,14 +66,18 @@ def test_every_command_prints_what_the_guide_shows(tmp_path):
     for name, body in files().items():
         (tmp_path / name).write_text(body, encoding="utf-8")
     analyser = f"{shlex.quote(sys.executable)} -I {shlex.quote(str(ROOT / 'src' / 'frameledger'))}"
+    # which(), not a bare "bash": Windows looks in System32 first, and finds
+    # WSL's launcher there. Under Git Bash, as CI runs, Git's bash is first
+    # on PATH; from PowerShell, System32's may still win.
+    bash = shutil.which("bash")
+    assert bash, "bash is not on PATH, so the guide's commands cannot run"
     ran = []
     for command, output in commands():
         if command.startswith(NOT_RUN):
             continue
         real = re.sub(r"^frameledger ", lambda _: analyser + " ", command)
         real = real.replace("frameledger/include", shlex.quote(str(ROOT / "include")))
-        # which(), not a bare "bash": Windows looks in System32 first, and finds WSL's.
-        got = subprocess.run([shutil.which("bash"), "-c", real], cwd=tmp_path, capture_output=True, text=True)
+        got = subprocess.run([bash, "-c", real], cwd=tmp_path, capture_output=True, text=True)
         # The analyser's verdict is in its output; a build or an example
         # program must also succeed, so a failed build stops here.
         if not command.startswith("frameledger "):

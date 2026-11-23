@@ -220,7 +220,7 @@ def test_engine_text_is_escaped(capsys, tmp_path):
     assert nested and all(cells(line)[0].startswith(NBSP * 2 + "shadows/cascade0") for line in nested)
 
 
-NOT_ON_WINDOWS = pytest.mark.skipif(sys.platform == "win32", reason="a name Windows cannot hold")
+NOT_ON_WINDOWS = pytest.mark.skipif(sys.platform == "win32", reason="Windows names hold no > or line break")
 
 
 @pytest.mark.parametrize(("name", "opening"), [
@@ -240,6 +240,16 @@ def test_line_starts_are_escaped(capsys, tmp_path, monkeypatch, name, opening):
     Path(name).write_text("not a run\n", encoding="utf-8")
     assert cli.main(["check", name, "--markdown"]) == 1
     assert capsys.readouterr().out.startswith(f"{opening} breaks the run-file format")
+
+
+@pytest.mark.parametrize(("name", "opening"), [("> b.csv", r"- \> b.csv"), ("a\nb.csv", "- a b.csv")])
+def test_line_starts_are_escaped_with_no_file(capsys, tmp_path, monkeypatch, name, opening):
+    """INV-88 on every system: a path that is only text, a file not there,
+    is escaped too. Windows cannot hold these names, yet can be given them
+    (UT Ants)."""
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["check", name, "--markdown"]) == 3
+    assert capsys.readouterr().out.startswith(f"{opening}: ")
 
 
 def test_markdown_and_json_refused(capsys):

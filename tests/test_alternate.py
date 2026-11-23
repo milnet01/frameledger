@@ -20,6 +20,14 @@ import pytest
 import alternate
 from test_compare import alike, run_text
 
+
+def command_line(words: list[str]) -> str:
+    """WORDS as one line for the system's shell. On Windows, quoted as the
+    C runtime splits a program's arguments: cmd.exe reads double quotes,
+    not /bin/sh's single ones, yet still expands % and ^, which no path
+    these tests make holds."""
+    return subprocess.list2cmdline(words) if sys.platform == "win32" else shlex.join(words)
+
 ROOT = Path(__file__).parent.parent
 FAKE = Path(__file__).parent / "fixtures" / "alternate" / "fake_engine.py"
 TIMED = ["old-1", "new-1", "new-2", "old-2", "old-3", "new-3"]
@@ -43,9 +51,7 @@ class Bench:
         "exec " makes the shell become the engine; "; exit $?" keeps the
         shell running after it."""
         words = [sys.executable, "-I", str(FAKE), side, str(self.sources[side]), str(self.log)]
-        # cmd.exe reads double quotes, never /bin/sh's single quotes.
-        line = subprocess.list2cmdline(words) if sys.platform == "win32" else shlex.join(words)
-        return prefix + line + " {run}" + suffix
+        return prefix + command_line(words) + " {run}" + suffix
 
     def args(self, *flags: str, prefix: str = "", suffix: str = "") -> list[str]:
         return ["alternate", "--old", self.command("old", prefix, suffix),
