@@ -6,6 +6,7 @@ INV-88, the rules of § 4.8's *Markdown*.
 
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -219,10 +220,14 @@ def test_engine_text_is_escaped(capsys, tmp_path):
     assert nested and all(cells(line)[0].startswith(NBSP * 2 + "shadows/cascade0") for line in nested)
 
 
+NOT_ON_WINDOWS = pytest.mark.skipif(sys.platform == "win32", reason="a name Windows cannot hold")
+
+
 @pytest.mark.parametrize(("name", "opening"), [
-    ("# a.csv", r"- \# a.csv"), ("> b.csv", r"- \> b.csv"), ("- c.csv", r"- \- c.csv"),
+    ("# a.csv", r"- \# a.csv"), pytest.param("> b.csv", r"- \> b.csv", marks=NOT_ON_WINDOWS),
+    ("- c.csv", r"- \- c.csv"),
     ("+ d.csv", r"- \+ d.csv"), ("1. e.csv", r"- 1\. e.csv"), ("1) f.csv", r"- 1\) f.csv"),
-    ("100.0.csv", "- 100.0.csv"), ("a\nb.csv", "- a b.csv"),
+    ("100.0.csv", "- 100.0.csv"), pytest.param("a\nb.csv", "- a b.csv", marks=NOT_ON_WINDOWS),
     (" - c.csv", f"- {NBSP}- c.csv"), ("    x.csv", f"- {NBSP * 4}x.csv"),
     ("\u202e- g.csv", f"- {NBSP}- g.csv"), ("\u200f# h.csv", f"- {NBSP}# h.csv"),  # FLED-0073 (Vestige)
 ])

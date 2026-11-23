@@ -149,8 +149,10 @@ def test_bad_baseline_files(capsys, tmp_path):
          ["line 5", str(tmp_path / "gone" / "kept-4.csv"), "is not a file"]),
         # Rooted, yet absolute on neither Linux nor Windows: never joined to the folder.
         ("\n".join([LINE_1, "\\kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
-        ("\n".join([LINE_1, "C:\\runs\\kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
         ("\n".join([LINE_1, "runs/C:kept-1.csv", *three]) + "\n", ["line 2", "neither a relative path"]),
+        # Absolute on Windows alone, so there it is a file that is not there.
+        ("\n".join([LINE_1, "C:\\runs\\kept-1.csv", *three]) + "\n",
+         ["line 2", "is not a file"] if sys.platform == "win32" else ["line 2", "neither a relative path"]),
         ("\n".join([LINE_1, *three, "folder"]) + "\n", ["line 5", "is not a file"]),
         # Nested too deep to parse: one sentence, not a traceback (UT Ants).
         (KEYWORD + ' {"schema":' + "[" * 200_000 + "\n" + "\n".join(three) + "\n", ["line 1", "JSON"]),

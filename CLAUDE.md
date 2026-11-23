@@ -2,8 +2,8 @@
 
 ## Where this project is
 
-**State:** 4 — Between items.
-**In flight:** nothing.
+**State:** 5 — On an item.
+**In flight:** FLED-0087 (test suite clean on Windows; windows-latest CI job): built, proving on GitHub's Windows runner.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.

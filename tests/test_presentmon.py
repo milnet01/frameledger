@@ -210,7 +210,10 @@ def test_start_order(capsys, tmp_path):
     ("", [], "the capture is empty"),
     (capture_text([]), [], "the capture has no rows"),
     (capture_text(frames(2)) + "game.exe,4120\n", [], "line 4: the row has 2 fields and the column line 12"),
-    (capture_text([row(), row(Extra="x" * 200_000)]), [], "line 3: the row is not CSV the import can read"),
+    # A short id: the row itself would pass Windows' limit on an environment variable,
+    # where pytest puts the running test's name.
+    pytest.param(capture_text([row(), row(Extra="x" * 200_000)]), [], "line 3: the row is not CSV the import can read",
+                 id="oversized-field"),
 ])
 def test_refusals(capsys, tmp_path, text, flags, says):
     code, out, err = imported(capsys, tmp_path, text, *flags)

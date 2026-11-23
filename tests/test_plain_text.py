@@ -9,6 +9,7 @@ or far too much, and the text must still be one true line per sentence.
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import cli
@@ -64,6 +65,7 @@ def test_header_text_cannot_forge_or_flood_a_line(capsys, tmp_path):
                text_of(capsys, tmp_path, "--markdown", sanitizers=["addr\nWarning: fake"]).splitlines()) == 1
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="names Windows cannot hold: a line break, *, |, C:\\ in one")
 def test_path_text_cannot_forge_a_line(capsys, tmp_path, monkeypatch):
     """INV-110: a path shows a control character as an escape and keeps
     its backslashes single; --json gives it exactly."""
