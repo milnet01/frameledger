@@ -113,6 +113,8 @@ SETUP_ERRORS = {  # each case, and what its error message must name
     "space in dir": "may hold only", "existing run file": "new-2.csv already exists",
     "existing warm-up file": "new-warmup-1.csv already exists",
 }
+if sys.platform != "win32":  # a POSIX shell reads a backslash as an escape (UT Ants)
+    SETUP_ERRORS["backslash in dir"] = "may hold only"
 
 
 @pytest.mark.parametrize("case", SETUP_ERRORS)
@@ -130,10 +132,10 @@ def test_setup_errors_run_nothing(tmp_path, case):
         args += [f"--{flag}", value]
     elif case == "missing dir":
         args[6] = str(tmp_path / "nowhere")
-    elif case == "space in dir":
-        spaced = tmp_path / "a b"
-        spaced.mkdir()
-        args[6] = str(spaced)
+    elif case in ("space in dir", "backslash in dir"):
+        unsafe = tmp_path / ("a b" if case == "space in dir" else "a\\b")
+        unsafe.mkdir()
+        args[6] = str(unsafe)
     else:
         name = "new-2.csv" if case == "existing run file" else "new-warmup-1.csv"
         existing = bench.out / name

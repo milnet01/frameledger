@@ -61,6 +61,9 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Fixed
 
+- `alternate` refuses a `--out` holding a backslash on Linux and
+  macOS, where the shell read it as an escape and the engine wrote its
+  run file somewhere else (FLED-0085). Windows still allows one.
 - `survey` no longer calls `os.path.commonprefix`, which Python 3.15
   deprecates, to find the directory its runs share (FLED-0082).
 

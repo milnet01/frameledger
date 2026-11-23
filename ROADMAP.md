@@ -2112,7 +2112,7 @@ frameledger, wire it into their engine and get help.
   Kind: doc-fix.
   Source: session-handoff-2026-11-22.
 
-- 📋 [FLED-0085] **alternate's --out must not let a POSIX shell rewrite the run file path.**
+- 🚧 [FLED-0085] **alternate's --out must not let a POSIX shell rewrite the run file path.**
   SAFE_DIR in alternate.py allows `\` and `:` on every system. A POSIX
   shell drops an unquoted backslash: `--out a\b` passes the folder check,
   but the command gets `ab/…`, so the engine writes somewhere else.
@@ -2123,6 +2123,10 @@ frameledger, wire it into their engine and get help.
   comment, "needs no quoting in /bin/sh", is false with it and is fixed
   in the same change. SECURITY.md says the backslash is unsafe on POSIX
   until then.
+  Built 2026-11-23. A backslash in --out is allowed on Windows only,
+  the simpler of the two fixes offered: the refusal message names the
+  allowed characters, and no command gains quoting. With the engines
+  for review.
   **Layman:** A folder name with a backslash could make a run file land in the wrong place on Linux or macOS.
   Kind: fix.
   Source: ut-ants-review-2026-11-22.

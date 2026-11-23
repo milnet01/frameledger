@@ -49,9 +49,8 @@ Where data from outside reaches frameledger, and what is checked there.
   They are yours, so they are trusted, and their output is passed to
   standard error unchanged. Only the run file path is inserted into
   them. A variant name may hold only lowercase letters, digits and `_`.
-  `--out` may hold only ASCII letters, digits and `._-/\:`. On Linux
-  and macOS the shell reads a backslash as an escape, so a backslash in
-  `--out` changes the path the command gets; FLED-0085 tracks the fix.
+  `--out` may hold only ASCII letters, digits and `._-/:`, and on
+  Windows `\`, so the shell never changes the path the command gets.
 - **The network.** The analyser opens no connection.
 - **The writer header.** `include/frameledger.h` trusts its caller for
   pointers and buffer sizes. It refuses a run id or header holding a

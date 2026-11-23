@@ -1833,8 +1833,9 @@ runs a set and 35% at three, both at 2% noise.
   each run, one line on standard error names it, counting warm-ups:
   "alternate: running new-2 (3 of 10)".
 - **`DIR` must exist, and its absolute path may hold only ASCII
-  letters, digits, and `.` `_` `-` `/` `\` `:`**, or exit 3. So the
-  filled path needs no quoting in either shell. A space is refused;
+  letters, digits, and `.` `_` `-` `/` `:`, and on Windows `\`**, or
+  exit 3. So the filled path needs no quoting in either shell; `/bin/sh`
+  reads a backslash as an escape. A space is refused;
   pick a folder without one. This limits `DIR` only; the rest of a
   command may hold anything its shell accepts (UT Ants).
 - **No run file is ever overwritten.** If any of the run files,
@@ -3644,7 +3645,8 @@ breaks.
 - **INV-79** — A setup error runs nothing. Each alone gives exit 3 with
   an empty order log: a command without `{run}`; `--runs 2`;
   `--runs 101`; `--warmup 11`; a `DIR` that does not exist; a `DIR`
-  holding a space; a `DIR` already holding `new-2.csv`, which is left
+  holding a space; on Linux and macOS, a `DIR` holding a backslash; a
+  `DIR` already holding `new-2.csv`, which is left
   byte for byte as it was; with `--warmup 1`, a `DIR` already holding
   `new-warmup-1.csv`. Each case's fixture is otherwise INV-78's.
   *Test:* `tests/test_alternate.py::test_setup_errors_run_nothing`.

@@ -24,9 +24,11 @@ PLACEHOLDER = "{run}"
 FLAG_SIDES = ("old", "new", "base")
 FEWEST_RUNS, MOST_RUNS = 3, 100
 MOST_WARMUPS = 10
-# The filled path needs no quoting in /bin/sh or cmd.exe.
-SAFE_DIR = re.compile(r"[A-Za-z0-9._\-/\\:]+")
 POSIX = os.name == "posix"
+# A --out made of these needs no quoting in its shell. /bin/sh reads a
+# backslash as an escape, so only Windows allows one (UT Ants).
+SAFE_CHARS = "._-/:" if POSIX else "._-/\\:"
+SAFE_DIR = re.compile(f"[A-Za-z0-9{re.escape(SAFE_CHARS)}]+")
 # Windows' Ctrl-Break arrives as SIGBREAK, which stops a run as Ctrl-C does.
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM) + ((signal.SIGBREAK,) if hasattr(signal, "SIGBREAK") else ())
 # Windows has no SIGKILL, and KILL must differ from every stop signal there
@@ -74,8 +76,8 @@ def check_setup(commands: dict[str, str], out: str, planned: list[Run]) -> None:
     if not os.path.isdir(out):
         raise ledger.LedgerError(f"--out {out} is not an existing folder")
     if not SAFE_DIR.fullmatch(out):
-        raise ledger.LedgerError(f"--out {out} may hold only ASCII letters, digits and . _ - / \\ :, "
-                                 "so its path needs no quoting; pick a folder without spaces")
+        raise ledger.LedgerError(f"--out {out} may hold only ASCII letters, digits and {' '.join(SAFE_CHARS)}, "
+                                 "so its path needs no quoting; pick a folder whose path holds only those")
     for run in planned:
         if os.path.lexists(run.path):
             raise ledger.LedgerError(f"{run.path} already exists, and no run file is overwritten; "
