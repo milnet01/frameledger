@@ -7,8 +7,8 @@
 # or locale symbol in either object. Then test_writer.c runs, built as C
 # and as C++, and its run file goes through the analyser's `check`
 # (INV-16). On macOS the one compiler is Apple's Clang (FLED-0038).
-# mingw-w64 builds are compiled and linked, not run: the Windows
-# runs are Vestige's and UT Ants' (FLED-0007).
+# On Linux, mingw-w64 builds are compiled and linked, not run; on
+# Windows its own GCC is the one compiler, and runs (FLED-0087).
 #
 # Usage: tests/writer/test_compile.sh
 # PYTHON names the interpreter for `check` (default python3). A compiler

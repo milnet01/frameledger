@@ -37,7 +37,7 @@ What counts as breaking is
   floor up is a bug, fixed once it is reported, and the fix ships in
   the next release.
 - **Systems.** Linux, Windows and macOS. `.github/workflows/ci.yml`
-  runs the gate on Linux and macOS. `.github/workflows/release.yml`
+  runs the gate on Linux, macOS and Windows. `.github/workflows/release.yml`
   builds each release and runs its `--selftest` on Linux and Windows.
   Both name their runners `-latest`, which GitHub moves, so no
   version of a system is promised.

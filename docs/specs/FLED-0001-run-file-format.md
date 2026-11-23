@@ -2948,7 +2948,7 @@ breaks.
   *Test:* `tests/writer/test_compile.sh`, which also builds one C file
   and one C++ file into one program sharing a writer, and runs `nm -u`
   on each object. On macOS it builds and runs with Apple's Clang alone
-  (FLED-0038).
+  (FLED-0038); on Windows, with mingw-w64's own GCC alone (FLED-0087).
   *Breaks when:* the header calls `malloc`, `fopen` or `snprintf`, uses
   syntax one language rejects, defines a function not `static inline`,
   or lacks the `extern "C"` guards.

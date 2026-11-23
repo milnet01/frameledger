@@ -6,8 +6,8 @@
 # that runs its programs here. Each file it writes must be the case's
 # NAME.csv byte for byte; when it is not, `check --expect` names the
 # difference. So a writer change that alters a kit file fails here until
-# the kit is made again and the change shows in its diff. mingw-w64 is
-# build-only here, so it runs no case.
+# the kit is made again and the change shows in its diff. On Linux
+# mingw-w64 is build-only, so it runs no case.
 #
 # Usage: tests/writer/test_kit.sh
 # PYTHON names the interpreter (default python3). A compiler that is not

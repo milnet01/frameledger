@@ -120,8 +120,9 @@ Four parts. The format spec is the only thing the other three share.
   checks each file it wrote with `check --expect` against the case's
   `NAME.csv`. Both scripts read one toolchain table,
   `tests/writer/toolchains.sh`, and a toolchain not installed fails
-  the run, naming the checks that did not run. mingw-w64 is build-only
-  here, so it runs no case. On macOS the table has Apple's Clang alone.
+  the run, naming the checks that did not run. On Linux mingw-w64 is
+  build-only, so it runs no case. On macOS the table has Apple's Clang
+  alone; on Windows, mingw-w64's own GCC alone, which runs.
   The local gate and CI run both scripts.
   `tests/test_kit.py` checks the kit itself: each `NAME.csv` gives under
   `check --strict` exactly the codes its `warns` lists, and `kit` run
