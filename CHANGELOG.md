@@ -61,6 +61,10 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Fixed
 
+- `report --html PAGE` replaces only an earlier frameledger page, and
+  refuses anything else at PAGE before reading the run, so a mistyped
+  PAGE such as `--html old-1.csv` can no longer destroy a recording
+  (FLED-0086).
 - `alternate` refuses a `--out` holding a backslash on Linux and
   macOS, where the shell read it as an escape and the engine wrote its
   run file somewhere else (FLED-0085). Windows still allows one.

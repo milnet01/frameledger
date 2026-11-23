@@ -2131,7 +2131,7 @@ frameledger, wire it into their engine and get help.
   Kind: fix.
   Source: ut-ants-review-2026-11-22.
 
-- 📋 [FLED-0086] **report --html refuses to replace a file that is not a frameledger page.**
+- 🚧 [FLED-0086] **report --html refuses to replace a file that is not a frameledger page.**
   --html writes with overwrite=True, so a typo such as `--html old-1.csv`
   silently destroys a recording that cannot be re-made. import presentmon,
   alternate and kit all refuse to overwrite. Replace only a file that
@@ -2139,6 +2139,11 @@ frameledger, wire it into their engine and get help.
   UT Ants and DOOM Ants asked for it before 0.9.0; Vestige would not, as
   README already says PAGE is overwritten. Decided by two of three,
   reviewing FLED-0045, 2026-11-22.
+  Built 2026-11-23. A frameledger page is a file starting as every
+  page has since FLED-0039, from `<!DOCTYPE html>` to the `<title>`
+  line, so pages from earlier versions are still replaced. Anything
+  else at PAGE, a broken link and a folder included, is exit 3 before
+  the run is read. INV-133 added. With the engines for review.
   **Layman:** Stops a mistyped report name from wiping out a recording.
   Kind: fix.
   Source: engine-reviews-FLED-0045-2026-11-22.

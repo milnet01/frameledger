@@ -40,8 +40,8 @@ Where data from outside reaches frameledger, and what is checked there.
   own symbols are escaped (`render.py`). In the HTML report the text is
   also HTML-escaped (`picture.py`).
 - **The HTML report** loads nothing from the network. `--html`
-  replaces a file already at its path; FLED-0086 tracks refusing one
-  that is not a frameledger page.
+  replaces only an earlier frameledger page at its path, and refuses
+  any other file there.
 - **Files frameledger writes.** `import presentmon`, `alternate` and
   `kit` never overwrite an existing file. `alternate` deletes a failed
   run's own file.

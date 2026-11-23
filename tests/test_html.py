@@ -64,6 +64,13 @@ def flat(frames: int, **options) -> str:
     return run_text([16.0] * frames, **options)
 
 
+# What an earlier page at PAGE may hold: frameledger's page head up to its
+# title, which is all a page must start with to be replaced (INV-133).
+EARLIER_PAGE = ('<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"/>\n'
+                '<meta name="viewport" content="width=device-width, initial-scale=1"/>\n'
+                "<title>frameledger report</title>\nold")
+
+
 def write_page(capsys, tmp_path, text: str, *flags: str) -> str:
     """The page `report --html` writes for the run `text`."""
     run, page = tmp_path / "run.csv", tmp_path / "page.html"
@@ -185,7 +192,7 @@ def test_the_page_is_a_new_file(tmp_path):
     the new page stays."""
     run, page = tmp_path / "run.csv", tmp_path / "page.html"
     run.write_text(hundred(), encoding="utf-8")
-    page.write_text("old", encoding="utf-8")
+    page.write_text(EARLIER_PAGE, encoding="utf-8")
     page.chmod(0o600)
     mask = os.umask(0o022)
     try:
@@ -220,12 +227,12 @@ def test_page_refusals(capsys, tmp_path, monkeypatch):
     run, page, broken = tmp_path / "run.csv", tmp_path / "page.html", tmp_path / "broken.csv"
     run.write_text(hundred(), encoding="utf-8")
     broken.write_text("not a run\n", encoding="utf-8")
-    page.write_text("old", encoding="utf-8")
+    page.write_text(EARLIER_PAGE, encoding="utf-8")
     inode, beside = page.stat().st_ino, sorted(os.listdir(tmp_path))
 
     def refused(*args: str) -> tuple[str, str]:
         assert cli.main(["report", *args]) == cli.ERROR
-        assert (page.stat().st_ino, page.read_text(encoding="utf-8")) == (inode, "old")
+        assert (page.stat().st_ino, page.read_text(encoding="utf-8")) == (inode, EARLIER_PAGE)
         assert sorted(os.listdir(tmp_path)) == beside
         said = capsys.readouterr()
         return said.out, said.err
@@ -272,12 +279,48 @@ def test_page_is_never_file(capsys, tmp_path):
     # A PAGE that is a link to some other file is replaced by the page; the
     # file it pointed at is untouched.
     other, link = tmp_path / "other.txt", tmp_path / "elsewhere.html"
-    other.write_text("kept", encoding="utf-8")
+    other.write_text(EARLIER_PAGE, encoding="utf-8")
     link.symlink_to(other)
     assert cli.main(["report", str(run), "--html", str(link)]) == 0
     capsys.readouterr()
-    assert other.read_text(encoding="utf-8") == "kept" and not link.is_symlink()
+    assert other.read_text(encoding="utf-8") == EARLIER_PAGE and not link.is_symlink()
     assert link.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
+
+
+def held(folder: Path) -> dict:
+    """What each entry in `folder` is and holds: a link's target, a file's bytes."""
+    return {entry.name: os.readlink(entry) if entry.is_symlink() else "folder" if entry.is_dir()
+            else entry.read_bytes() for entry in folder.iterdir()}
+
+
+def test_page_replaces_only_a_page(capsys, tmp_path):
+    """INV-133: PAGE is replaced only when it holds a frameledger page.
+    Anything else there is refused before FILE is read, and nothing
+    changes; a mistyped PAGE must not destroy a recording (UT Ants)."""
+    broken, run = tmp_path / "broken.csv", tmp_path / "run.csv"
+    broken.write_text("not a run\n", encoding="utf-8")
+    run.write_text(hundred(), encoding="utf-8")
+    (tmp_path / "old-1.csv").write_text(hundred(), encoding="utf-8")
+    (tmp_path / "empty.html").write_text("", encoding="utf-8")
+    (tmp_path / "plain.html").write_text("<!DOCTYPE html>\n<html><head><title>notes</title>", encoding="utf-8")
+    (tmp_path / "folder").mkdir()
+    (tmp_path / "other.txt").write_text("kept", encoding="utf-8")
+    (tmp_path / "link.html").symlink_to(tmp_path / "other.txt")
+    (tmp_path / "dangling.html").symlink_to(tmp_path / "gone")
+    before = held(tmp_path)
+    for name in ("old-1.csv", "empty.html", "plain.html", "folder", "link.html", "dangling.html"):
+        page = str(tmp_path / name)
+        assert cli.main(["report", str(broken), "--html", page]) == cli.ERROR
+        said = capsys.readouterr()
+        assert said.out == "" and page in said.err and "not a frameledger page" in said.err, name
+        assert held(tmp_path) == before
+
+    earlier = tmp_path / "earlier.html"
+    earlier.write_text(EARLIER_PAGE, encoding="utf-8")
+    assert cli.main(["report", str(run), "--html", str(earlier)]) == 0
+    capsys.readouterr()
+    assert earlier.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
+    assert earlier.read_text(encoding="utf-8") != EARLIER_PAGE
 
 
 # INV-127

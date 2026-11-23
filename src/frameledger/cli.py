@@ -82,7 +82,7 @@ def _parser() -> _Parser:
     report = commands.add_parser("report", help="say where one run's frame time went")
     report.add_argument("file", metavar="FILE")
     report.add_argument("--html", metavar="PAGE", help="also write one web page showing the run as a graph; "
-                        "PAGE is overwritten")
+                        "an earlier page at PAGE is replaced, and any other file is refused")
     report.add_argument("--fps", action="append", type=_as_typed, metavar="N",
                         help="with --html: draw a budget line at 1000/N ms")
     _add_all_frames(report)
@@ -647,7 +647,7 @@ def _report(args: argparse.Namespace) -> dict:
     a page that cannot be written is exit 3 with nothing printed."""
     budget = _page_budget(args)
     if args.html is not None:
-        _refuse_page_over_file(args.html, args.file)
+        _refuse_page(args.html, args.file)
     try:
         run = generated.read(args.file, args.all_frames)
         built = _say_generated(run_report.report(run), run, args.all_frames)
@@ -675,17 +675,22 @@ def _page_budget(args: argparse.Namespace) -> picture.Budget | None:
     return picture.Budget(typed, _frame_time_us(fps))
 
 
-def _refuse_page_over_file(page: str, file: str) -> None:
+def _refuse_page(page: str, file: str) -> None:
     """PAGE must not be the run file, by any path to it: a link, or
-    another spelling (§ 4.21). os.path.samefile compares device and inode."""
+    another spelling. os.path.samefile compares device and inode. Then
+    anything at PAGE must be an earlier page, since a mistyped PAGE must
+    not destroy a recording (§ 4.21)."""
     if not page:
         raise ledger.LedgerError("--html needs a file to write, and was given an empty name")
     try:
         same = os.path.samefile(page, file)
     except OSError:  # PAGE is new, or FILE is missing, which reading it will say
-        return
+        same = False
     if same:
         raise ledger.LedgerError("--html names the run file, which the page would overwrite", page)
+    if os.path.lexists(page) and not picture.is_page(page):
+        raise ledger.LedgerError("this is not a frameledger page, and --html replaces only an earlier "
+                                 "one; give a new name, or remove it", page)
 
 
 def _say_generated(built: dict, run: ledger.Run, all_frames: bool) -> dict:

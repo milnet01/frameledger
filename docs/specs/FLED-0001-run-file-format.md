@@ -2669,7 +2669,12 @@ report FILE [--html PAGE [--fps N]] [--all-frames]
 output is byte for byte what `report` prints without `--html`: text,
 `--json` or `--markdown`. Nothing in the JSON names the page.
 
-- **PAGE is overwritten** if it exists.
+- **PAGE is replaced only when it is an earlier page**: a file that
+  starts as every page does, from `<!DOCTYPE html>` to the `<title>`
+  line. Anything else at PAGE, such as a run file, an empty file, a
+  folder, or a link to anything but a page, is exit 3 before anything is
+  read, naming PAGE. A mistyped PAGE must not destroy a recording (UT
+  Ants, DOOM Ants).
 - **It is written whole or not at all.** The page is built, written to
   a new file in PAGE's directory and renamed over PAGE, all before
   anything is printed (Vestige, DOOM Ants). A report that ends in exit
@@ -2679,8 +2684,9 @@ output is byte for byte what `report` prints without `--html`: text,
   error alone. One exit 3 comes too late for that: when printing then
   fails, the new page stays (UT Ants).
 - **The page is a new file.** It has the permissions any new file
-  gets, whatever PAGE had (UT Ants). A PAGE that is a link is replaced
-  by the page; the file it pointed at is untouched (Vestige).
+  gets, whatever PAGE had (UT Ants). A PAGE that is a link to an
+  earlier page is replaced by the page; the page it pointed at is
+  untouched (Vestige).
 - **Exit 3, before anything is read:** PAGE being FILE, judged by
   device and inode, so through a link or any spelling of the path
   (Vestige); an empty PAGE (UT Ants); `--fps` without `--html`, or
@@ -4563,7 +4569,7 @@ breaks.
   the opening sentences before its graph and the tables after. It
   holds no `<script`, `<object`, `<embed`, `<iframe`, `@import` or
   attribute starting `on`, and every `url(`, `href=` and `src=` in it
-  starts `#`. A second run overwrites it. With PAGE holding "old":
+  starts `#`. A second run replaces it. With PAGE holding an earlier page:
   `--fps 60` without `--html`, `--fps 60 --fps 30` and `--fps 2000000`
   each exit 3 with nothing on standard output; a FILE with a breach
   exits 3 with `report`'s error output; PAGE in a missing directory
@@ -4571,10 +4577,11 @@ breaks.
   that the test makes fail part way exits 3; a FILE with a breach,
   given `--fps 2000000` or an empty PAGE, exits 3 with nothing on
   standard output. Each leaves PAGE the same
-  file, by inode, holding "old", and no new file beside it. PAGE
+  file, by inode, holding that page, and no new file beside it. PAGE
   naming FILE through a symbolic link, as `dir/../FILE`, and as a hard
-  link each exit 3 and leave FILE unchanged. PAGE as a link to another
-  file becomes the page, a file of its own, and that file is unchanged.
+  link each exit 3 and leave FILE unchanged. PAGE as a link to an
+  earlier page becomes the page, a file of its own, and that page is
+  unchanged.
   With PAGE at mode 0600, a umask of 022 and standard output a closed
   pipe, the exit is 3, PAGE holds the new page and its mode is 0644.
   *Test:* `tests/test_html.py::test_page_beside_the_output`,
@@ -4741,6 +4748,19 @@ breaks.
   are counted without `--all-frames`; the warning changes a verdict or
   exit; or a base run is named once per variant.
 
+- **INV-133** — `report --html` replaces only an earlier page. With
+  FILE breaking the format, PAGE as a run file, an empty file, a file
+  starting `<!DOCTYPE html>` with another title, a folder, a link to a
+  file holding "kept", and a link to nothing each exit 3, with nothing
+  on standard output and an error naming PAGE and saying it is not a
+  frameledger page. None changes anything in PAGE's folder. A file
+  holding only the page's start, from `<!DOCTYPE html>` to the
+  `<title>` line, then "old", is replaced by the page, exit 0.
+  *Test:* `tests/test_html.py::test_page_replaces_only_a_page`.
+  *Breaks when:* a file that is not a page is replaced, the refusal
+  comes after FILE is read, or a page from an earlier version, with
+  another style sheet, is refused.
+
 ## 6. Failure modes
 
 - **A run with no frames**, a header and a close line alone, is judged
@@ -4809,6 +4829,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0039: INV-126 to INV-130.
 - FLED-0080 and FLED-0081: INV-131.
 - FLED-0072: INV-132.
+- FLED-0086: INV-133.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -5004,6 +5025,7 @@ it on each release they pin.
 | INV-130 | `tests/test_html.py::test_normal_vision_first`, `tests/test_html.py::test_larger_text_and_lines`, `tests/test_html.py::test_contrast` |
 | INV-131 | `tests/test_html.py::test_band_cap`, `tests/test_html.py::test_the_band_list_is_cut`, `tests/test_html.py::test_no_band_list_without_segments` |
 | INV-132 | `tests/test_noisy_run.py::test_noisy_run`, `tests/test_noisy_run.py::test_short_kind_is_unjudged`, `tests/test_noisy_run.py::test_segments_of_a_kind_are_pooled`, `tests/test_noisy_run.py::test_generated_frames`, `tests/test_noisy_run.py::test_base_run_is_named_once`, `tests/test_noisy_run.py::test_only_compare_judges_it` |
+| INV-133 | `tests/test_html.py::test_page_replaces_only_a_page` |
 | 4.21, how the page looks in a browser: zoom, the switch, greyscale | **`Partial:`** opened by hand in Firefox and Chromium before release; nothing here |
 | 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |

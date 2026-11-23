@@ -87,6 +87,17 @@ class _Plot:
         return self.bottom - PLOT_HEIGHT * wall / self.wall_top
 
 
+def is_page(path: str) -> bool:
+    """Whether `path` is a file starting as this module's pages do. False
+    for anything that cannot be read as a file: a folder, a broken link."""
+    start = _START.encode("utf-8")
+    try:
+        with open(path, "rb") as stream:
+            return stream.read(len(start)) == start
+    except OSError:
+        return False
+
+
 def page(result: dict, run: ledger.Run, budget: Budget | None) -> str:
     """The whole page for `report`'s `result` on `run`, in § 4.21's order:
     the opening sentences, the graph and what it needs said, the tables."""
@@ -408,13 +419,16 @@ th,td{{padding:0.125rem 0.75rem;text-align:left;white-space:pre;border-bottom:0.
 .number{{text-align:right}}
 """
 
-# The switch is first on the page, and works without script: the style
-# sheet reads its checked state.
-_HEAD = f"""<!DOCTYPE html>
+# How every page starts, in every version: is_page reads it, so a change
+# here makes earlier pages files --html refuses to replace.
+_START = """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>frameledger report</title>
-<style>
+"""
+# The switch is first on the page, and works without script: the style
+# sheet reads its checked state.
+_HEAD = _START + f"""<style>
 {_STYLE}</style></head>
 <body><input type="checkbox" id="larger"/><label for="larger">Larger text and lines</label>
 """
