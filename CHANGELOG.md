@@ -18,6 +18,14 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   each broken file gives a list of format breaches, or an error saying it
   cannot be read, and never a crash (FLED-0047).
 
+### Fixed
+
+- Two broken run files no longer end every command that reads them in a
+  traceback. One is a `# frameledger-static` line whose JSON nests
+  hundreds deep; the other is a quoted row field longer than 131072
+  characters. `check` now reports each as a breach on its line
+  (FLED-0047, found by ExperiRays).
+
 ### Changed
 
 - CI runs the whole gate on Windows as well as Linux and macOS, so the

@@ -193,6 +193,30 @@ def test_json_nested_too_deep_is_a_breach(capsys, tmp_path, starts, rule):
     assert "nested too deep" in message and "[[[[" not in message
 
 
+def test_static_nested_too_deep_to_check_is_a_breach(capsys, tmp_path):
+    """FLED-0047, ExperiRays: a static line the parser reads, but nested
+    too deep to check for JSON numbers, is a breach; never a traceback."""
+    lines = (FIXTURES / "small-run.csv").read_text(encoding="utf-8").splitlines()
+    assert lines[1].startswith("# frameledger-static ")
+    lines[1] = "# frameledger-static " + '{"a":' * 900 + '"1"' + "}" * 900
+    path = tmp_path / "run.csv"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    code, out = run_check(capsys, path)
+    assert code == 1
+    assert (2, "static") in found(out)
+    message = next(b["message"] for b in out["result"]["files"][0]["breaches"] if b["rule"] == "static")
+    assert "nested too deep" in message
+
+
+def test_a_quoted_field_past_the_csv_limit_is_a_breach(capsys, tmp_path):
+    """FLED-0047, ExperiRays: a quoted field longer than Python's csv
+    module will read is a row breach, quoted short; never a traceback."""
+    code, out = run_check(capsys, run_with_row(tmp_path, f'r1,"{"s" * 140_000}",1,cpu,extra,0,6.000'))
+    breach = out["result"]["files"][0]["breaches"][0]
+    assert (code, breach["rule"]) == (1, "row")
+    assert len(breach["message"]) < 200
+
+
 @pytest.mark.parametrize(("row", "rule"), [
     (f"{'r' * 5000},view:1,1,cpu,extra,0,6.000", "run_id"),
     (f"r1,{'s' * 5000},1,cpu,extra,0,6.000", "segment"),

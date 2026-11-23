@@ -249,7 +249,12 @@ class _Reader:
         static = self.json_object(number, "static", text)
         if static is None:
             return
-        if _holds_number(static):
+        try:
+            holds_number = _holds_number(static)
+        except RecursionError:  # json.loads read it, but it nests too deep to walk (ExperiRays)
+            self.breach(number, "static", "not valid JSON: it is nested too deep to read")
+            return
+        if holds_number:
             self.breach(number, "static", "a statistic must be a JSON string of its exact digits, "
                         "never a JSON number")
         self.run.static = static
@@ -269,7 +274,11 @@ class _Reader:
                         "buffer was full", number)
 
     def row(self, number: int, text: str) -> None:
-        fields = next(csv.reader([text])) if '"' in text else text.split(",")
+        try:
+            fields = next(csv.reader([text])) if '"' in text else text.split(",")
+        except csv.Error as error:  # such as a field longer than csv's limit (ExperiRays)
+            self.breach(number, "row", f"the row cannot be read as CSV: {clip(str(error), 60)}")
+            return
         if len(fields) != 7:
             self.breach(number, "row", f"a row has 7 fields; this line has {len(fields) if text else 0}")
             return
