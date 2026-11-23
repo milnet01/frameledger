@@ -2172,7 +2172,7 @@ Every sign in docs/discovery.md met, measured and reviewed.
   Kind: perf.
   Source: engine-answers-2026-11-10.
 
-- 🚧 [FLED-0047] **The reader is fuzzed with broken files.**
+- ✅ [FLED-0047] **The reader is fuzzed with broken files.**
   Random and mangled run files, generated with the standard library,
   never crash the reader: each gives a format breach or LedgerError.
   2026-11-23: built as tests/test_fuzz.py. 4000 seeded cases from
@@ -2180,6 +2180,11 @@ Every sign in docs/discovery.md met, measured and reviewed.
   found no crash. Five planted crashes (deep JSON, long numbers, row
   field count, close fields, non-UTF-8) were each caught. Sent to the
   engines for review.
+  2026-11-23: shipped at e57d584. Four reviews folded (Vestige,
+  DOOM Ants, UT Ants, ExperiRays). ExperiRays found two reader crashes,
+  a static line nested deep and a quoted field past csv's limit; both
+  are now breaches, and the fuzz reaches both. Gate green on 3.10 and
+  3.15.1. FLED-0088 filed for floor's time on huge walls.
   **Layman:** Feed the tool thousands of broken files to make sure none of them crash it.
   Kind: test.
   Source: engine-answers-2026-11-10.
