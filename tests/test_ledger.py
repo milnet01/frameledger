@@ -21,10 +21,12 @@ def report_json(capsys, path):
 
 def test_crlf_equals_lf(tmp_path, capsys):
     """INV-3: the same rows with LF and CRLF endings read the same."""
-    lf = FIXTURES / "small-run.csv"
-    crlf = tmp_path / "small-run-crlf.csv"
-    crlf.write_bytes(lf.read_bytes().replace(b"\n", b"\r\n"))
-    assert b"\r\n" in crlf.read_bytes()
+    # Both from the fixture's rows, whatever line ends a checkout gave it.
+    rows = (FIXTURES / "small-run.csv").read_bytes().replace(b"\r\n", b"\n")
+    lf, crlf = tmp_path / "small-run.csv", tmp_path / "small-run-crlf.csv"
+    lf.write_bytes(rows)
+    crlf.write_bytes(rows.replace(b"\n", b"\r\n"))
+    assert b"\r" not in lf.read_bytes() and b"\r\n" in crlf.read_bytes()
 
     a, b = ledger.read(lf), ledger.read(crlf)
     assert a.breaches == [] and b.breaches == []

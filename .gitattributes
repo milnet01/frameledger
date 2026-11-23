@@ -2,6 +2,9 @@
 launcher/frameledger.cmd text eol=crlf
 launcher/frameledger text eol=lf
 *.sh text eol=lf
+# The release holds these as git stores them; the tests compare a checkout's.
+include/frameledger.h text eol=lf
+LICENSE text eol=lf
 # The writer kit's files are bytes to be matched: kit DIR writes them as
 # they are, from the tree or the .pyz, so a Windows checkout must keep LF.
 src/frameledger/kit/** text eol=lf
