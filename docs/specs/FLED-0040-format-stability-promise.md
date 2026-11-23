@@ -529,7 +529,8 @@ What the tests do not show:
 - Defining schema 2. Nothing asks for one.
 - Which schema the analyser's own writers write once two exist:
   `presentmon.py`, and a saved baseline — deferred; not yet queued.
-- Fuzzing the reader with broken files — tracked by FLED-0047.
+- Fuzzing the reader with broken files — FLED-0047,
+  `tests/test_fuzz.py::test_broken_files_never_crash`.
 
 ## 10. What checks this
 

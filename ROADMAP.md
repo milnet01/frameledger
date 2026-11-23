@@ -2172,9 +2172,14 @@ Every sign in docs/discovery.md met, measured and reviewed.
   Kind: perf.
   Source: engine-answers-2026-11-10.
 
-- 📋 [FLED-0047] **The reader is fuzzed with broken files.**
+- 🚧 [FLED-0047] **The reader is fuzzed with broken files.**
   Random and mangled run files, generated with the standard library,
   never crash the reader: each gives a format breach or LedgerError.
+  2026-11-23: built as tests/test_fuzz.py. 4000 seeded cases from
+  the fixtures, read by ledger.read_bytes and then strict.warnings,
+  found no crash. Five planted crashes (deep JSON, long numbers, row
+  field count, close fields, non-UTF-8) were each caught. Sent to the
+  engines for review.
   **Layman:** Feed the tool thousands of broken files to make sure none of them crash it.
   Kind: test.
   Source: engine-answers-2026-11-10.

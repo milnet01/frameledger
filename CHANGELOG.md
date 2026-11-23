@@ -12,6 +12,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+### Added
+
+- The tests break the sample run files thousands of ways and check that
+  each broken file gives a list of format breaches, or an error saying it
+  cannot be read, and never a crash (FLED-0047).
+
 ### Changed
 
 - CI runs the whole gate on Windows as well as Linux and macOS, so the
