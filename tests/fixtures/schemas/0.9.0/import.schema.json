@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger import --json",
+  "description": "The result of `frameledger import presentmon CAPTURE -o RUN --json`: a run file was written from another tool's capture. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "import",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/import_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/import_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "import": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "RUN, the file written."
+            },
+            "process": {
+              "type": "string",
+              "description": "The Application whose rows were kept."
+            },
+            "pid": {
+              "type": "string",
+              "description": "Its ProcessID."
+            },
+            "swapchain": {
+              "type": "string",
+              "description": "Its SwapChainAddress."
+            },
+            "frames": {
+              "type": "integer",
+              "description": "The frames written."
+            },
+            "not_displayed": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "The frames that were not displayed; null when the capture cannot say."
+            },
+            "generated": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "description": "Each FrameType other than Application with its frame count; empty when there is none, and null without a FrameType column."
+            },
+            "unknown": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The header fields left unknown, to give with a flag."
+            }
+          },
+          "required": [
+            "frames",
+            "generated",
+            "not_displayed",
+            "path",
+            "pid",
+            "process",
+            "swapchain",
+            "unknown"
+          ],
+          "description": "The import."
+        }
+      },
+      "required": [
+        "import"
+      ],
+      "description": "What was written."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "$defs": {
+    "import_verdict": {
+      "enum": [
+        "none"
+      ],
+      "description": "The verdict of import: always none, since an import judges nothing. A closed set."
+    },
+    "import_exit_code": {
+      "enum": [
+        0
+      ],
+      "description": "The exit codes the result of import can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    }
+  }
+}

@@ -12,7 +12,20 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-23
+
+**Theme:** Ready for strangers.
+
 ### Added
+
+- The release archive, `frameledger-v0.9.0.zip`: `frameledger.pyz`, its
+  launchers `frameledger` and `frameledger.cmd`, `include/frameledger.h`,
+  `LICENSE`, and the result schemas under `schemas/`. SHA256
+  `e3fde3fa1f356b049534afbc08e53189049e07ee9769c2b267345468f72beee4`.
+  `python3 -I scripts/build_release.py OUTDIR v0.9.0`, run on the tag,
+  rebuilds it; the release workflow does so under Python 3.10.22.
+  `include/frameledger.h` is 0.8.0's, with only `FLED_VERSION`
+  changed, and the result schemas are 0.8.0's.
 
 - frameledger is on PyPI: `pipx install frameledger`, or
   `python3 -m pip install frameledger` in a virtual environment, gives

@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "frameledger budget --json",
+  "description": "The result of `frameledger budget FILE BUDGETS --json`: whether one run meets its pass budgets. A later release may add keys, and values to the open sets; a script ignores what it does not know. Print this file from the same frameledger that printed the result.",
+  "type": "object",
+  "properties": {
+    "frameledger": {
+      "type": "string",
+      "description": "The version of the frameledger that printed this."
+    },
+    "command": {
+      "const": "budget",
+      "description": "The command that printed this."
+    },
+    "verdict": {
+      "$ref": "#/$defs/budget_verdict"
+    },
+    "exit_code": {
+      "$ref": "#/$defs/budget_exit_code"
+    },
+    "summary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The opening sentences of the text output, in order. Wording may change in any release."
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/override"
+      },
+      "description": "The --override flags given; empty for a command that takes none."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/warning"
+      },
+      "description": "The warnings, each also a sentence in summary."
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "budgets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "line": {
+                "type": "integer",
+                "description": "The line of the budget file, from 1."
+              },
+              "segment_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment kind judged; null for frames with no segment. A budget for any kind has an entry for each kind it matched."
+              },
+              "category": {
+                "type": "string",
+                "description": "The row's category: frame, cpu or gpu."
+              },
+              "name": {
+                "type": "string",
+                "description": "The row's name."
+              },
+              "depth": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "The depth judged at; null for a frame row."
+              },
+              "statistic": {
+                "$ref": "#/$defs/statistic"
+              },
+              "limit_ms": {
+                "type": "number",
+                "description": "The budget's limit, in ms."
+              },
+              "value_ms": {
+                "type": "number",
+                "description": "The run's value, in ms."
+              },
+              "over_ms": {
+                "type": "number",
+                "description": "The value less the limit, in ms; negative when the value is under the limit."
+              },
+              "over": {
+                "type": "boolean",
+                "description": "Whether the value is over the limit."
+              },
+              "frames": {
+                "type": "integer",
+                "description": "The frames the value is taken over."
+              }
+            },
+            "required": [
+              "category",
+              "depth",
+              "frames",
+              "limit_ms",
+              "line",
+              "name",
+              "over",
+              "over_ms",
+              "segment_kind",
+              "statistic",
+              "value_ms"
+            ],
+            "description": "One budget, judged."
+          },
+          "description": "Each budget that matched the run, in the file's order."
+        },
+        "unmatched": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "line": {
+                "type": "integer",
+                "description": "The line of the budget file, from 1."
+              },
+              "segment_kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "The segment kind the budget names; * for any, null for frames with no segment."
+              },
+              "category": {
+                "type": "string",
+                "description": "The row's category: frame, cpu or gpu."
+              },
+              "name": {
+                "type": "string",
+                "description": "The row's name."
+              },
+              "depth": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "The depth the budget names, or null when it names none."
+              },
+              "statistic": {
+                "$ref": "#/$defs/statistic"
+              }
+            },
+            "required": [
+              "category",
+              "depth",
+              "line",
+              "name",
+              "segment_kind",
+              "statistic"
+            ],
+            "description": "One budget, unmatched."
+          },
+          "description": "Each budget that matched nothing in the run."
+        },
+        "warmup_s": {
+          "type": "number",
+          "description": "--warmup-s: the seconds left out at the start."
+        },
+        "rows_dropped": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "The close line's count of rows the writer dropped; null when the run has no close line."
+        },
+        "finished": {
+          "type": "boolean",
+          "description": "Whether the run has a close line."
+        },
+        "generated_frames": {
+          "type": "integer",
+          "description": "How many of the run's frames a frame generator made."
+        },
+        "all_frames": {
+          "type": "boolean",
+          "description": "Whether --all-frames counted those frames."
+        }
+      },
+      "description": "Each budget against the run. With the verdict error, a file could not be read or breaks its format, and result holds no key."
+    }
+  },
+  "required": [
+    "frameledger",
+    "command",
+    "verdict",
+    "exit_code",
+    "summary",
+    "overrides",
+    "warnings",
+    "result"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "enum": [
+              "pass",
+              "fail",
+              "inconclusive"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result": {
+            "required": [
+              "all_frames",
+              "budgets",
+              "finished",
+              "generated_frames",
+              "rows_dropped",
+              "unmatched",
+              "warmup_s"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "budget_verdict": {
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive",
+        "error"
+      ],
+      "description": "The verdict of budget: pass, fail, inconclusive when the run cannot settle it, or error when a file could not be read or breaks its format. A closed set."
+    },
+    "budget_exit_code": {
+      "enum": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "description": "The exit codes the result of budget can carry. A closed set."
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "What kind of warning it is. An open set: a later release may add a code, and a script ignores one it does not know. file_error says a file could not be read."
+        },
+        "message": {
+          "type": "string",
+          "description": "The warning in words."
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "description": "One warning. Its sentence is also in summary."
+    },
+    "override": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "The header field that may differ."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason the flag gave."
+        }
+      },
+      "required": [
+        "field",
+        "reason"
+      ],
+      "description": "One blocking field a --override flag let differ."
+    },
+    "statistic": {
+      "enum": [
+        "median",
+        "p99"
+      ],
+      "description": "How a run's frames become one value: the median or the 99th percentile, nearest-rank. A closed set."
+    }
+  }
+}

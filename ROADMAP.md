@@ -2108,6 +2108,8 @@ frameledger, wire it into their engine and get help.
 - ✅ [FLED-0084] **README Usage names PyPI as well as the release zip.**
   Usage's first line said the analyser came only in the release zip.
   From 0.9.0 it is on PyPI too, as Install says.
+  Release note (0.9.0): no CHANGELOG entry. A README wording fix;
+  FLED-0043's entry already says the tool is on PyPI.
   **Layman:** The README no longer says the zip is the only way to get the tool.
   Kind: doc-fix.
   Source: session-handoff-2026-11-22.
@@ -2158,32 +2160,6 @@ frameledger, wire it into their engine and get help.
   **Layman:** Stops a mistyped report name from wiping out a recording.
   Kind: fix.
   Source: engine-reviews-FLED-0045-2026-11-22.
-
-- 📋 [FLED-0087] **The test suite runs clean on Windows.**
-  Vestige ran the suite at b19303a on a Windows 10 box, 2026-11-23.
-  Test-only defects, each read against the code:
-  - test_baseline.py test_bad_baseline_files expects `C:\runs\kept-1.csv`
-    refused on every system, but on Windows it is absolute, and
-    baseline._resolve rightly says "which is not a file".
-  - tests/schema_samples.py Bench.command uses shlex.join; cmd.exe reads
-    no single quotes, so every alternate sample stops. Use
-    subprocess.list2cmdline on Windows, as test_alternate.py does.
-  - test_markdown.py test_line_starts_are_escaped and test_plain_text.py
-    test_path_text_cannot_forge_a_line make names Windows cannot hold.
-  - test_presentmon.py test_refusals: two parametrize ids are whole rows,
-    past Windows' 32767-character environment limit; give short ids.
-  Not checked: the box has no git or C compiler, so build_release.py and
-  the guide's C examples could not run there. CI runs ubuntu and macos
-  only; whether to add Windows is for the engines.
-  Decided 2026-11-23: it does not hold up 0.9.0 (UT Ants, DOOM Ants,
-  Vestige; every fault is in a test, none in frameledger). The owner
-  chose a windows-latest job in ci.yml on every push, added once this
-  item makes the suite green there; that job also has git, so it covers
-  the build_release and kit tests Vestige's box cannot run. Re-checked
-  by Vestige at 8248130: only this item's failures remain.
-  **Layman:** Some tests fail on Windows because of how the tests are written, not because frameledger is wrong there.
-  Kind: test.
-  Source: vestige-windows-run-2026-11-23.
 
 ## 1.0.0 — fully working
 
@@ -2249,6 +2225,32 @@ Every sign in docs/discovery.md met, measured and reviewed.
   Kind: feature.
   Source: user-request-2026-10-24.
   Blocked-by: FLED-0014, FLED-0036, FLED-0037, FLED-0038, FLED-0040, FLED-0041, FLED-0042, FLED-0043, FLED-0044, FLED-0045.
+
+- 📋 [FLED-0087] **The test suite runs clean on Windows.**
+  Vestige ran the suite at b19303a on a Windows 10 box, 2026-11-23.
+  Test-only defects, each read against the code:
+  - test_baseline.py test_bad_baseline_files expects `C:\runs\kept-1.csv`
+    refused on every system, but on Windows it is absolute, and
+    baseline._resolve rightly says "which is not a file".
+  - tests/schema_samples.py Bench.command uses shlex.join; cmd.exe reads
+    no single quotes, so every alternate sample stops. Use
+    subprocess.list2cmdline on Windows, as test_alternate.py does.
+  - test_markdown.py test_line_starts_are_escaped and test_plain_text.py
+    test_path_text_cannot_forge_a_line make names Windows cannot hold.
+  - test_presentmon.py test_refusals: two parametrize ids are whole rows,
+    past Windows' 32767-character environment limit; give short ids.
+  Not checked: the box has no git or C compiler, so build_release.py and
+  the guide's C examples could not run there. CI runs ubuntu and macos
+  only; whether to add Windows is for the engines.
+  Decided 2026-11-23: it does not hold up 0.9.0 (UT Ants, DOOM Ants,
+  Vestige; every fault is in a test, none in frameledger). The owner
+  chose a windows-latest job in ci.yml on every push, added once this
+  item makes the suite green there; that job also has git, so it covers
+  the build_release and kit tests Vestige's box cannot run. Re-checked
+  by Vestige at 8248130: only this item's failures remain.
+  **Layman:** Some tests fail on Windows because of how the tests are written, not because frameledger is wrong there.
+  Kind: test.
+  Source: vestige-windows-run-2026-11-23.
 
 ## After 1.0 — plugins and more
 
