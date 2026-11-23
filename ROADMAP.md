@@ -1,6 +1,6 @@
 <!-- ants-roadmap-format: 1 -->
 <!-- Generated from the Ants Terminal roadmap store. Edit it with roadmap_log; hand edits are discarded by the next write. -->
-<!-- ants-roadmap-id-high-water: FLED=86 -->
+<!-- ants-roadmap-id-high-water: FLED=87 -->
 # frameledger — Roadmap
 
 > What is planned, in progress and shipped. [CHANGELOG.md](CHANGELOG.md)
@@ -2154,6 +2154,26 @@ frameledger, wire it into their engine and get help.
   **Layman:** Stops a mistyped report name from wiping out a recording.
   Kind: fix.
   Source: engine-reviews-FLED-0045-2026-11-22.
+
+- 📋 [FLED-0087] **The test suite runs clean on Windows.**
+  Vestige ran the suite at b19303a on a Windows 10 box, 2026-11-23.
+  Test-only defects, each read against the code:
+  - test_baseline.py test_bad_baseline_files expects `C:\runs\kept-1.csv`
+    refused on every system, but on Windows it is absolute, and
+    baseline._resolve rightly says "which is not a file".
+  - tests/schema_samples.py Bench.command uses shlex.join; cmd.exe reads
+    no single quotes, so every alternate sample stops. Use
+    subprocess.list2cmdline on Windows, as test_alternate.py does.
+  - test_markdown.py test_line_starts_are_escaped and test_plain_text.py
+    test_path_text_cannot_forge_a_line make names Windows cannot hold.
+  - test_presentmon.py test_refusals: two parametrize ids are whole rows,
+    past Windows' 32767-character environment limit; give short ids.
+  Not checked: the box has no git or C compiler, so build_release.py and
+  the guide's C examples could not run there. CI runs ubuntu and macos
+  only; whether to add Windows is for the engines.
+  **Layman:** Some tests fail on Windows because of how the tests are written, not because frameledger is wrong there.
+  Kind: test.
+  Source: vestige-windows-run-2026-11-23.
 
 ## 1.0.0 — fully working
 

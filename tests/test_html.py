@@ -69,7 +69,8 @@ def flat(frames: int, **options) -> str:
 
 # What an earlier page at PAGE may hold: frameledger's page head up to its
 # title, which is all a page must start with to be replaced (INV-133). A
-# literal copy, not picture._START, so changing _START fails here.
+# literal copy, not picture._START, so changing _START fails here. Written
+# with newline="\n", as pages are: Windows would otherwise write CRLF (Vestige).
 EARLIER_PAGE = ('<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8"/>\n'
                 '<meta name="viewport" content="width=device-width, initial-scale=1"/>\n'
                 "<title>frameledger report</title>\nold")
@@ -196,7 +197,7 @@ def test_the_page_is_a_new_file(tmp_path):
     the new page stays."""
     run, page = tmp_path / "run.csv", tmp_path / "page.html"
     run.write_text(hundred(), encoding="utf-8")
-    page.write_text(EARLIER_PAGE, encoding="utf-8")
+    page.write_text(EARLIER_PAGE, encoding="utf-8", newline="\n")
     page.chmod(0o600)
     mask = os.umask(0o022)
     try:
@@ -204,7 +205,8 @@ def test_the_page_is_a_new_file(tmp_path):
     finally:
         os.umask(mask)
     assert page.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
-    assert page.stat().st_mode & 0o777 == 0o644
+    if sys.platform != "win32":  # Windows has no POSIX mode (Vestige)
+        assert page.stat().st_mode & 0o777 == 0o644
 
 
 class HalfWritten:
@@ -231,7 +233,7 @@ def test_page_refusals(capsys, tmp_path, monkeypatch):
     run, page, broken = tmp_path / "run.csv", tmp_path / "page.html", tmp_path / "broken.csv"
     run.write_text(hundred(), encoding="utf-8")
     broken.write_text("not a run\n", encoding="utf-8")
-    page.write_text(EARLIER_PAGE, encoding="utf-8")
+    page.write_text(EARLIER_PAGE, encoding="utf-8", newline="\n")
     inode, beside = page.stat().st_ino, sorted(os.listdir(tmp_path))
 
     def refused(*args: str) -> tuple[str, str]:
@@ -284,7 +286,7 @@ def test_page_is_never_file(capsys, tmp_path):
     # A PAGE that is a link to some other file is replaced by the page; the
     # file it pointed at is untouched.
     other, link = tmp_path / "other.txt", tmp_path / "elsewhere.html"
-    other.write_text(EARLIER_PAGE, encoding="utf-8")
+    other.write_text(EARLIER_PAGE, encoding="utf-8", newline="\n")
     link.symlink_to(other)
     assert cli.main(["report", str(run), "--html", str(link)]) == 0
     capsys.readouterr()
@@ -331,7 +333,8 @@ def test_page_replaces_only_a_page(capsys, tmp_path):
     (tmp_path / "old-1.csv").write_text(hundred(), encoding="utf-8")
     (tmp_path / "empty.html").write_text("", encoding="utf-8")
     # Only the <title> line differs from a page's start.
-    (tmp_path / "titled.html").write_text(EARLIER_PAGE.replace("frameledger report", "notes"), encoding="utf-8")
+    (tmp_path / "titled.html").write_text(EARLIER_PAGE.replace("frameledger report", "notes"), encoding="utf-8",
+                                           newline="\n")
     (tmp_path / "folder").mkdir()
     (tmp_path / "other.txt").write_text("kept", encoding="utf-8")
     names = ["old-1.csv", "empty.html", "titled.html", "folder"]
@@ -350,7 +353,7 @@ def test_page_replaces_only_a_page(capsys, tmp_path):
         assert held(tmp_path) == before
 
     earlier = tmp_path / "earlier.html"
-    earlier.write_text(EARLIER_PAGE, encoding="utf-8")
+    earlier.write_text(EARLIER_PAGE, encoding="utf-8", newline="\n")
     assert cli.main(["report", str(run), "--html", str(earlier)]) == 0
     capsys.readouterr()
     assert earlier.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")

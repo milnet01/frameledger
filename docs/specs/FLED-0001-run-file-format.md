@@ -4587,7 +4587,8 @@ breaks.
   earlier page becomes the page, a file of its own, and that page is
   unchanged.
   With PAGE at mode 0600, a umask of 022 and standard output a closed
-  pipe, the exit is 3, PAGE holds the new page and its mode is 0644.
+  pipe, the exit is 3, PAGE holds the new page and, on Linux and macOS,
+  its mode is 0644.
   *Test:* `tests/test_html.py::test_page_beside_the_output`,
   `tests/test_html.py::test_the_page_is_a_new_file`,
   `tests/test_html.py::test_page_refusals`,
