@@ -2112,7 +2112,7 @@ frameledger, wire it into their engine and get help.
   Kind: doc-fix.
   Source: session-handoff-2026-11-22.
 
-- 🚧 [FLED-0085] **alternate's --out must not let a POSIX shell rewrite the run file path.**
+- ✅ [FLED-0085] **alternate's --out must not let a POSIX shell rewrite the run file path.**
   SAFE_DIR in alternate.py allows `\` and `:` on every system. A POSIX
   shell drops an unquoted backslash: `--out a\b` passes the folder check,
   but the command gets `ab/…`, so the engine writes somewhere else.
@@ -2130,11 +2130,13 @@ frameledger, wire it into their engine and get help.
   Four reviews folded 2026-11-23 (UT Ants, Vestige, DOOM Ants,
   ExperiRays): `~` allowed on Windows too, for short names such as
   NAME~1 (Vestige). A run of the suite on Windows is owed by Vestige.
+  Shipped 2026-11-23. Vestige's runs on Windows 10 at b19303a and
+  8248130: tests/test_alternate.py green, `\` and `~` paths pass.
   **Layman:** A folder name with a backslash could make a run file land in the wrong place on Linux or macOS.
   Kind: fix.
   Source: ut-ants-review-2026-11-22.
 
-- 🚧 [FLED-0086] **report --html refuses to replace a file that is not a frameledger page.**
+- ✅ [FLED-0086] **report --html refuses to replace a file that is not a frameledger page.**
   --html writes with overwrite=True, so a typo such as `--html old-1.csv`
   silently destroys a recording that cannot be re-made. import presentmon,
   alternate and kit all refuse to overwrite. Replace only a file that
@@ -2151,6 +2153,8 @@ frameledger, wire it into their engine and get help.
   so only a regular file is opened (ExperiRays, DOOM Ants). An empty
   file at PAGE stays refused, two to one (UT Ants, Vestige; DOOM Ants
   would allow it). A run of the suite on Windows is owed by Vestige.
+  Shipped 2026-11-23. Vestige's Windows 10 run at 8248130:
+  tests/test_html.py green once its page fixtures were written LF.
   **Layman:** Stops a mistyped report name from wiping out a recording.
   Kind: fix.
   Source: engine-reviews-FLED-0045-2026-11-22.
@@ -2171,6 +2175,12 @@ frameledger, wire it into their engine and get help.
   Not checked: the box has no git or C compiler, so build_release.py and
   the guide's C examples could not run there. CI runs ubuntu and macos
   only; whether to add Windows is for the engines.
+  Decided 2026-11-23: it does not hold up 0.9.0 (UT Ants, DOOM Ants,
+  Vestige; every fault is in a test, none in frameledger). The owner
+  chose a windows-latest job in ci.yml on every push, added once this
+  item makes the suite green there; that job also has git, so it covers
+  the build_release and kit tests Vestige's box cannot run. Re-checked
+  by Vestige at 8248130: only this item's failures remain.
   **Layman:** Some tests fail on Windows because of how the tests are written, not because frameledger is wrong there.
   Kind: test.
   Source: vestige-windows-run-2026-11-23.
