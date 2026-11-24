@@ -13,6 +13,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 import cli
+import run_report
 from floor_runs import WARMUP, run_text
 
 ROOT = Path(__file__).parent.parent
@@ -266,21 +267,38 @@ def test_frame_failure_stands_under_drops(capsys, tmp_path):
     assert any("may be an artefact" in s for s in out["summary"])
 
 
-def test_a_run_past_a_day_is_not_windowed(capsys, tmp_path):
+def test_a_run_past_a_day_is_not_windowed(capsys, tmp_path, monkeypatch):
     """INV-134 (FLED-0088): the window check steps through every second
     after the warm-up, so it judges at most 24 h of them. Past that it is
     inconclusive without stepping; these walls would be about 10**9
-    windows. The frame check still judges every frame."""
-    past = "run goes on for 999999999.999 s after the 2 s warm-up, more than the 24 h"
+    windows. The frame check still judges every frame, so a frame over
+    the budget fails the run, as under INV-7."""
+    past = ("run goes on for 999999999.999 s (about 277778 h) after the 2 s warm-up, "
+            "more than the 24 h the window check judges at most")
     huge = WARMUP + [1.0] + [999999999.999] * 1000  # the warm-up ends where the first huge frame starts
-    code, out = run_walls(capsys, tmp_path, huge, "--no-frames")
-    assert (code, out["verdict"], out["result"]["windows"]) == (2, "inconclusive", [])
-    assert any(past in s for s in out["summary"]), out["summary"]
-    code, out = run_walls(capsys, tmp_path, huge)
-    assert (code, out["verdict"], out["result"]["frames_over_budget"]) == (1, "fail", 1000)
-    assert any(past in s for s in out["summary"]), out["summary"]
 
-    # Exactly 24 h is judged: a window starts at each second from 2 s to 86401 s.
+    def never(*_args):  # were the guard lost, stepping would hang the suite rather than fail it
+        raise AssertionError("the window check stepped through a run past 24 h")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(run_report, "_windows", never)
+        code, out = run_walls(capsys, tmp_path, huge, "--no-frames")
+        assert (code, out["verdict"], out["result"]["windows"]) == (2, "inconclusive", [])
+        assert any(past in s for s in out["summary"]), out["summary"]
+        code, out = run_walls(capsys, tmp_path, huge)
+        assert (code, out["verdict"], out["result"]["frames_over_budget"]) == (1, "fail", 1000)
+        assert any(past in s for s in out["summary"]), out["summary"]
+
+        # With rows dropped too, the verdict gives that reason, and the length has its own sentence.
+        dropped = tmp_path / "dropped.csv"
+        dropped.write_text(run_text(huge).replace('"rows_dropped":0', '"rows_dropped":1'), encoding="utf-8")
+        code, out = run_floor(capsys, dropped, "--no-frames")
+        assert (code, out["verdict"]) == (2, "inconclusive")
+        assert "dropped 1 row" in out["summary"][0]
+        assert any(s.startswith("The " + past) for s in out["summary"]), out["summary"]
+
+    # Exactly 24 h is judged. The windows start each second from 2 s; the last
+    # starts at 86401 s and ends at 86402 s, where the run ends.
     code, out = run_walls(capsys, tmp_path, WARMUP + [1.0, 86_400_000.0], "--no-frames")
     assert (code, len(out["result"]["windows"])) == (1, 86_400)
     code, out = run_walls(capsys, tmp_path, WARMUP + [1.0, 86_400_000.001], "--no-frames")

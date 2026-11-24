@@ -4771,12 +4771,15 @@ breaks.
 - **INV-134** — `floor`'s window check judges at most 24 h after the
   warm-up. A run whose frame walls go on longer leaves it inconclusive
   without judging any window, and the summary gives the run's length
-  after the warm-up; the frame check still judges every frame. So such
-  a run exits 2 with `--no-frames`, and 1 when a frame is over the
-  budget. A run of exactly 24 h is judged.
+  after the warm-up in seconds and hours. Only the window check is
+  refused: the frame check still judges every frame, and a frame over
+  the budget fails the run, as under INV-7. So such a run exits 2 with
+  `--no-frames`, and 1 when a frame is over the budget. A run of
+  exactly 24 h is judged.
   *Test:* `tests/test_floor.py::test_a_run_past_a_day_is_not_windowed`,
-  a run of a thousand 999999999.999 ms frames, and runs of exactly 24 h
-  and 24 h plus 1 µs.
+  a run of a thousand 999999999.999 ms frames, with and without
+  dropped rows, where stepping the windows fails the test; and runs of
+  exactly 24 h and 24 h plus 1 µs.
   *Breaks when:* the window check steps through such a run, or a run of
   exactly 24 h is not judged.
 

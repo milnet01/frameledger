@@ -88,9 +88,11 @@ def refuse_breaches(run: ledger.Run) -> None:
 
 
 SECOND = 1_000_000  # microseconds; a ms row's thousandths are microseconds
-# The window check steps through every second after the warm-up, so past
-# this a broken file's huge walls would keep it busy for hours (FLED-0088).
-LONGEST_WINDOWED = 24 * 3600 * SECOND
+HOUR = 3600 * SECOND
+# Only the window check steps through every second after the warm-up, so
+# past this a broken file's huge walls would keep it busy for hours. No real
+# capture is that long (FLED-0088, INV-134).
+LONGEST_WINDOWED_HOURS = 24
 
 
 def seconds(microseconds: int) -> str:
@@ -113,7 +115,7 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
 
     Dropped rows, an unfinished run or a hole in the timeline make the
     window check inconclusive (INV-7): a missing frame moves every later
-    frame into the wrong window. So does a run longer than LONGEST_WINDOWED
+    frame into the wrong window. So does a run longer than LONGEST_WINDOWED_HOURS
     after the warm-up (INV-134). A frame over the budget still fails,
     since its own wall row is real and missing rows only shorten the
     timeline, so a frame placed after the warm-up truly ended after it
@@ -121,10 +123,11 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
     check = frame_check(run, warmup_us, budget, allowed)  # refuses a file that breaks the format
     timed, cuts, _stop, end = timeline(run)
     judged, reasons = check.judged, check.reasons
-    too_long = windows and end - warmup_us > LONGEST_WINDOWED
+    too_long = windows and end - warmup_us > LONGEST_WINDOWED_HOURS * HOUR  # never with --no-windows
+    stepped = windows and not too_long
     full, skipped = (_windows([t[2] for t in timed], [t[3] for t in timed], cuts, warmup_us, end)
-                     if windows and not too_long else ([], 0))
-    limit = frame_time_us(fps) if windows else None
+                     if stepped else ([], 0))
+    limit = frame_time_us(fps) if stepped else None
     slow = check.slow if frames else []
     dropped = run.close["rows_dropped"] if run.close else None
     failed = [w for w in full if not _window_passes(w, limit)]
@@ -135,9 +138,10 @@ def floor(run: ledger.Run, fps: Decimal, warmup_us: int, budget: int, windows: b
     states = {window_state, frame_state}
     warmup = f"{seconds(warmup_us)} s warm-up"
     no_window = f"no full one-second window follows the {warmup}"
-    if too_long:
-        no_window = (f"the run goes on for {seconds(end - warmup_us)} s after the {warmup}, more than the "
-                     f"{LONGEST_WINDOWED // SECOND // 3600} h the window check judges")
+    if too_long:  # said in the verdict's reasons, or as a sentence of its own, as no full window is
+        no_window = (f"the run goes on for {seconds(end - warmup_us)} s (about "
+                     f"{round((end - warmup_us) / HOUR)} h) after the {warmup}, more than the "
+                     f"{LONGEST_WINDOWED_HOURS} h the window check judges at most")
     no_frame = f"no frame ends after the {warmup}"
     said = set()  # inconclusive checks the verdict sentence already explains
     if "fail" in states:

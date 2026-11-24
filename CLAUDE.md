@@ -3,7 +3,7 @@
 ## Where this project is
 
 **State:** 5 — On an item.
-**In flight:** FLED-0088 (floor's window check judges at most 24 h): built, with the engines and ExperiRays for review.
+**In flight:** FLED-0046 (a million-row survey in under a minute): the engines chose a million-row test under 60 s in the gate; being built.
 
 > Keep these two lines true, and no `Next:` line. Why:
 > `~/.claude/workflow.md` § 1, *State 5 has no sub-states*.
