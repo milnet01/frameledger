@@ -2165,7 +2165,7 @@ frameledger, wire it into their engine and get help.
 
 Every sign in docs/discovery.md met, measured and reviewed.
 
-- 📋 [FLED-0046] **A million-row survey finishes in under a minute.**
+- 🚧 [FLED-0046] **A million-row survey finishes in under a minute.**
   Measure S19 on the owner's machine and keep a benchmark in the
   gate so it stays true.
   Measured 2026-11-24, busy machine (load 5), nice 19, Python 3.10:
@@ -2174,6 +2174,13 @@ Every sign in docs/discovery.md met, measured and reviewed.
   engines how the gate should keep it true (one million-row test under
   60 s, 100k under 6 s, or a growth-ratio check). Owed: their answers,
   and a quiet-machine timing.
+  2026-11-24: the three engines chose A, a million-row survey test in
+  the gate failing above 60 s. Built as tests/test_speed.py, marked
+  slow; 6.2 s here under load; the failure message gives the time
+  (Vestige). The growth-ratio check DOOM Ants offered is left out, as
+  Vestige and UT Ants would add it only if a runner proves too slow. No
+  quiet-machine timing: the busy figure is an upper bound and already
+  ten times inside S19. Sent to the engines and ExperiRays for review.
   **Layman:** Checking a very large batch of test runs takes less than a minute.
   Kind: perf.
   Source: engine-answers-2026-11-10.

@@ -34,6 +34,8 @@ The `[Unreleased]` block stays at the top, always, even when empty.
 
 ### Changed
 
+- The gate checks that a survey of a million rows takes under a
+  minute, on every system CI runs. It took 6 s here (FLED-0046).
 - CI runs the whole gate on Windows as well as Linux and macOS, so the
   test suite, the writer's tests and the kit are checked there on every
   push. On Windows the writer and kit build with mingw-w64's GCC and run

@@ -5052,7 +5052,7 @@ it on each release they pin.
 | INV-134 | `tests/test_floor.py::test_a_run_past_a_day_is_not_windowed` |
 | 4.21, how the page looks in a browser: zoom, the switch, greyscale | **`Partial:`** opened by hand in Firefox and Chromium before release; nothing here |
 | 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
-| 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |
+| 4.13, S19 speed | `tests/test_speed.py::test_a_million_row_survey_is_under_a_minute` |
 | 4.6, MSVC | **`Partial:`** Vestige's and UT Ants' Windows builds, per pinned release; nothing here |
 | 4.16, the variants table, a 32-character name shown whole | `tests/test_compare_variants.py::test_text_table`, `tests/test_compare_variants.py::test_markdown_table` |
 | 4.8, tables within 100 columns | `tests/test_render.py::test_text_matches_json`, over `report`'s and `floor`'s text for every fixture |

@@ -10,6 +10,7 @@ testpaths = ["tests"]
 # tests do the same, so modules import each other by bare name.
 pythonpath = ["src/frameledger"]
 addopts = ["--strict-markers"]
+markers = ["slow: a test of S19's speed; `-m \"not slow\"` skips it, the gate runs it"]
 # A deprecation fails the tests, on the floor leg as well as the
 # newest-Python one (FLED-0082), so a call a later Python will remove is
 # caught; scripts/local-ci.sh passes the same -W to --selftest. A failure
