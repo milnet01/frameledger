@@ -2168,6 +2168,12 @@ Every sign in docs/discovery.md met, measured and reviewed.
 - 📋 [FLED-0046] **A million-row survey finishes in under a minute.**
   Measure S19 on the owner's machine and keep a benchmark in the
   gate so it stays true.
+  Measured 2026-11-24, busy machine (load 5), nice 19, Python 3.10:
+  survey --fps 60 over ten generated runs, 1000030 rows in all, 5.9 s
+  wall, 92 MB peak. Refute: regenerate and time survey. Asked the three
+  engines how the gate should keep it true (one million-row test under
+  60 s, 100k under 6 s, or a growth-ratio check). Owed: their answers,
+  and a quiet-machine timing.
   **Layman:** Checking a very large batch of test runs takes less than a minute.
   Kind: perf.
   Source: engine-answers-2026-11-10.
