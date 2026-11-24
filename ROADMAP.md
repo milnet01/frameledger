@@ -2165,7 +2165,7 @@ frameledger, wire it into their engine and get help.
 
 Every sign in docs/discovery.md met, measured and reviewed.
 
-- 🚧 [FLED-0046] **A million-row survey finishes in under a minute.**
+- ✅ [FLED-0046] **A million-row survey finishes in under a minute.**
   Measure S19 on the owner's machine and keep a benchmark in the
   gate so it stays true.
   Measured 2026-11-24, busy machine (load 5), nice 19, Python 3.10:
@@ -2181,6 +2181,9 @@ Every sign in docs/discovery.md met, measured and reviewed.
   Vestige and UT Ants would add it only if a runner proves too slow. No
   quiet-machine timing: the busy figure is an upper bound and already
   ten times inside S19. Sent to the engines and ExperiRays for review.
+  2026-11-24: four reviews of 6104019 folded (no bug found); runs now
+  shaped like each engine's writer; 5.7 s here under load; gate green on
+  3.10 and 3.15.1.
   **Layman:** Checking a very large batch of test runs takes less than a minute.
   Kind: perf.
   Source: engine-answers-2026-11-10.
