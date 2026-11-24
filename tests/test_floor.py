@@ -266,6 +266,27 @@ def test_frame_failure_stands_under_drops(capsys, tmp_path):
     assert any("may be an artefact" in s for s in out["summary"])
 
 
+def test_a_run_past_a_day_is_not_windowed(capsys, tmp_path):
+    """INV-134 (FLED-0088): the window check steps through every second
+    after the warm-up, so it judges at most 24 h of them. Past that it is
+    inconclusive without stepping; these walls would be about 10**9
+    windows. The frame check still judges every frame."""
+    past = "run goes on for 999999999.999 s after the 2 s warm-up, more than the 24 h"
+    huge = WARMUP + [1.0] + [999999999.999] * 1000  # the warm-up ends where the first huge frame starts
+    code, out = run_walls(capsys, tmp_path, huge, "--no-frames")
+    assert (code, out["verdict"], out["result"]["windows"]) == (2, "inconclusive", [])
+    assert any(past in s for s in out["summary"]), out["summary"]
+    code, out = run_walls(capsys, tmp_path, huge)
+    assert (code, out["verdict"], out["result"]["frames_over_budget"]) == (1, "fail", 1000)
+    assert any(past in s for s in out["summary"]), out["summary"]
+
+    # Exactly 24 h is judged: a window starts at each second from 2 s to 86401 s.
+    code, out = run_walls(capsys, tmp_path, WARMUP + [1.0, 86_400_000.0], "--no-frames")
+    assert (code, len(out["result"]["windows"])) == (1, 86_400)
+    code, out = run_walls(capsys, tmp_path, WARMUP + [1.0, 86_400_000.001], "--no-frames")
+    assert (code, out["result"]["windows"]) == (2, [])
+
+
 def test_bad_options_are_exit_3(capsys):
     path = str(FIXTURES / "passing-run.csv")
     for flags in (["--fps", "0"], ["--fps", "sixty"], ["--fps", "60", "--budget-ms", "16.6667"],

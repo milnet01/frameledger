@@ -25,6 +25,12 @@ The `[Unreleased]` block stays at the top, always, even when empty.
   hundreds deep; the other is a quoted row field longer than 131072
   characters. `check` now reports each as a breach on its line
   (FLED-0047, found by ExperiRays).
+- `floor` no longer runs for hours on a run whose frames claim to take
+  days. Its window check judges each second, so it now judges at most
+  24 h after the warm-up; a longer run makes that check inconclusive,
+  and the summary says how long the run claims to be. The single-frame
+  check still runs (FLED-0088, decided by Vestige, UT Ants and DOOM
+  Ants).
 
 ### Changed
 

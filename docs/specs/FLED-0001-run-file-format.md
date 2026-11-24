@@ -582,7 +582,9 @@ rounded up to three places (16.667 at 60, 6.945 at 144),
 - **Inconclusive.** Dropped rows, no close line, a hole in the frame
   numbers, or a frame other than the last with no `frame/wall` make the
   window check inconclusive: a missing frame moves every later one into
-  the wrong window. So does having no full window. The frame check is
+  the wrong window. So does having no full window, and a run going on
+  more than 24 h after the warm-up: the check steps through every second,
+  and no real capture is that long. The frame check is
   inconclusive on the same grounds, or when no frame ends after the
   warm-up, but more frames over the budget than `--allow-frames` fail
   it regardless: each such frame's own `frame/wall` is real. The
@@ -4766,6 +4768,17 @@ breaks.
   *Breaks when:* a file that is not a page is replaced, the refusal
   comes after FILE is read, the check opens a FIFO, or a page from an
   earlier version, with another style sheet, is refused.
+- **INV-134** — `floor`'s window check judges at most 24 h after the
+  warm-up. A run whose frame walls go on longer leaves it inconclusive
+  without judging any window, and the summary gives the run's length
+  after the warm-up; the frame check still judges every frame. So such
+  a run exits 2 with `--no-frames`, and 1 when a frame is over the
+  budget. A run of exactly 24 h is judged.
+  *Test:* `tests/test_floor.py::test_a_run_past_a_day_is_not_windowed`,
+  a run of a thousand 999999999.999 ms frames, and runs of exactly 24 h
+  and 24 h plus 1 µs.
+  *Breaks when:* the window check steps through such a run, or a run of
+  exactly 24 h is not judged.
 
 ## 6. Failure modes
 
@@ -4836,6 +4849,7 @@ without the rule, then passing — per `testing.md`. Who builds each:
 - FLED-0080 and FLED-0081: INV-131.
 - FLED-0072: INV-132.
 - FLED-0086: INV-133.
+- FLED-0088: INV-134.
 
 MSVC is not tested here. Vestige and UT Ants compile the header with
 it on each release they pin.
@@ -5032,6 +5046,7 @@ it on each release they pin.
 | INV-131 | `tests/test_html.py::test_band_cap`, `tests/test_html.py::test_the_band_list_is_cut`, `tests/test_html.py::test_no_band_list_without_segments` |
 | INV-132 | `tests/test_noisy_run.py::test_noisy_run`, `tests/test_noisy_run.py::test_short_kind_is_unjudged`, `tests/test_noisy_run.py::test_segments_of_a_kind_are_pooled`, `tests/test_noisy_run.py::test_generated_frames`, `tests/test_noisy_run.py::test_base_run_is_named_once`, `tests/test_noisy_run.py::test_only_compare_judges_it` |
 | INV-133 | `tests/test_html.py::test_page_replaces_only_a_page` |
+| INV-134 | `tests/test_floor.py::test_a_run_past_a_day_is_not_windowed` |
 | 4.21, how the page looks in a browser: zoom, the switch, greyscale | **`Partial:`** opened by hand in Firefox and Chromium before release; nothing here |
 | 6, a run with no frames is judged as nothing, never a traceback | `tests/test_generated_frames.py::test_an_empty_run` |
 | 4.13, S19 speed | **`Partial:`** timed by hand on a generated million-row file before each release; nothing here |

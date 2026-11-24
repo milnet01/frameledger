@@ -2273,7 +2273,7 @@ Every sign in docs/discovery.md met, measured and reviewed.
   Kind: test.
   Source: vestige-windows-run-2026-11-23.
 
-- 📋 [FLED-0088] **A run of huge frame walls makes floor step through millions of windows.**
+- 🚧 [FLED-0088] **A run of huge frame walls makes floor step through millions of windows.**
   Measured 2026-11-23: small-run.csv with each frame/wall at
   999999999.999 conforms; `floor --fps 60` judged 999999 one-second
   windows in 4.4 s, and `report` took 0.15 s. Time grows with the run's
@@ -2281,6 +2281,10 @@ Every sign in docs/discovery.md met, measured and reviewed.
   would run for hours. ExperiRays raised the window loop reviewing
   FLED-0047 without measuring it. Decide with the engines: cap the
   windows, step past empty stretches, or refuse such a run.
+  Decided 2026-11-24 by Vestige, UT Ants and DOOM Ants: refuse, at 24 h.
+  Built: past 24 h after the warm-up the window check is inconclusive
+  without stepping its seconds (§ 4.7, INV-134); the frame check still
+  runs. Sent to the engines and ExperiRays for review.
   **Layman:** A file claiming each frame took days makes the tool count every second of those days, so a broken file can keep it busy for hours.
   Kind: perf.
   Source: review-fled-0047-2026-11-23.
